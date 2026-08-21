@@ -2,12 +2,14 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -45,7 +47,8 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 			return
 		}
 		setSessionCookie(c, result.Session, result.MaxAgeSecs)
-		ok(c, gin.H{"user": result.User})
+		// 同时返回 session，兼容部分浏览器/DDNS 场景下 Cookie 未立即回传。
+		ok(c, gin.H{"user": result.User, "session": result.Session, "maxAgeSecs": result.MaxAgeSecs})
 	})
 	r.POST("/auth/email-code", func(c *gin.Context) {
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 16<<10)
@@ -86,7 +89,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 			return
 		}
 		setSessionCookie(c, result.Session, result.MaxAgeSecs)
-		ok(c, gin.H{"user": result.User})
+		ok(c, gin.H{"user": result.User, "session": result.Session, "maxAgeSecs": result.MaxAgeSecs})
 	})
 	r.GET("/auth/linuxdo/start", func(c *gin.Context) {
 		if !enforceRateLimit(c, "linuxdo-start:"+c.ClientIP(), 20, 10*time.Minute) {
@@ -725,7 +728,15 @@ func proxySystemRequest(c *gin.Context, svc *service.Service, user *model.User, 
 	for _, key := range []string{"key", "api_key", "access_token", "token"} {
 		query.Del(key)
 	}
-	target := strings.TrimRight(channel.BaseURL, "/") + path
+	// OpenAI 兼容上游通常要求 /v1 前缀；BaseURL 漏写时会打到上游首页 HTML，前端报“返回了前端网页”。
+	targetBase := strings.TrimRight(strings.TrimSpace(channel.BaseURL), "/")
+	if channel.APIFormat != "gemini" {
+		lower := strings.ToLower(targetBase)
+		if !strings.HasSuffix(lower, "/v1") && !strings.HasSuffix(lower, "/v1beta") && !strings.Contains(lower, "/api/v3") && !strings.Contains(lower, "/api/plan/v3") {
+			targetBase += "/v1"
+		}
+	}
+	target := targetBase + path
 	if encodedQuery := query.Encode(); encodedQuery != "" {
 		target += "?" + encodedQuery
 	}
@@ -787,6 +798,9 @@ func proxySystemRequest(c *gin.Context, svc *service.Service, user *model.User, 
 	status := model.ApiCallStatusSucceeded
 	statusCode := 0
 	errorText := ""
+	// 出站不绑浏览器取消：否则 SSE 缓冲读一半就会 context canceled，上游已成功画布却失败。
+	outboundCtx := context.WithoutCancel(c.Request.Context())
+	upstreamReq = upstreamReq.WithContext(outboundCtx)
 	resp, err := service.OutboundHTTPClient(35 * time.Minute).Do(upstreamReq)
 	if err != nil {
 		status = model.ApiCallStatusFailed
@@ -802,6 +816,41 @@ func proxySystemRequest(c *gin.Context, svc *service.Service, user *model.User, 
 		status = model.ApiCallStatusFailed
 	}
 	responseLimit := policy.Request.SystemRelayResponseMB << 20
+	contentType := resp.Header.Get("Content-Type")
+	isEventStream := strings.Contains(strings.ToLower(contentType), "text/event-stream")
+
+	// Agent/chat 走 stream 时必须透传，不能 ReadAll 缓冲整段；否则 grok 等慢模型上游已成功，画布侧 15s 左右断连报 524/502。
+	if isEventStream && status == model.ApiCallStatusSucceeded {
+		for _, key := range []string{"Content-Type", "Cache-Control", "Content-Disposition"} {
+			if value := resp.Header.Get(key); value != "" {
+				c.Header(key, value)
+			}
+		}
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Accel-Buffering", "no")
+		c.Status(resp.StatusCode)
+		c.Writer.WriteHeaderNow()
+		if flusher, ok := c.Writer.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		written, copyErr := io.Copy(c.Writer, io.LimitReader(resp.Body, responseLimit+1))
+		if copyErr != nil && !errors.Is(copyErr, context.Canceled) {
+			status = model.ApiCallStatusFailed
+			errorText = copyErr.Error()
+			_ = svc.MarkBillingUncertain(billingOrderID, "系统渠道流式响应中断，费用状态待核对")
+		} else if written > responseLimit {
+			status = model.ApiCallStatusFailed
+			errorText = fmt.Sprintf("系统渠道响应超过 %dMB 限制", policy.Request.SystemRelayResponseMB)
+			_ = svc.MarkBillingUncertain(billingOrderID, "上游已响应但响应体超过限制，费用状态待核对")
+		} else if status == model.ApiCallStatusSucceeded {
+			if err := svc.SettleBilling(billingOrderID, ""); err != nil {
+				_ = svc.MarkBillingUncertain(billingOrderID, "上游成功但积分结算失败："+err.Error())
+			}
+		}
+		logSystemProxyCall(svc, apiCallLog(user, channel, billingOrderID, capability, protocol, c.Request.Method, path, target, body, c.GetHeader("Content-Type"), status, statusCode, time.Since(startedAt), errorText, concurrencyLimit), nil)
+		return
+	}
+
 	responseBody, readErr := io.ReadAll(io.LimitReader(resp.Body, responseLimit+1))
 	if readErr != nil {
 		status = model.ApiCallStatusFailed
@@ -890,16 +939,34 @@ func readPayloadModel(body []byte) string {
 }
 
 func currentUser(c *gin.Context, svc *service.Service) (*model.User, error) {
-	return svc.CurrentUser(sessionCookie(c))
+	return svc.CurrentUser(sessionToken(c))
 }
 
 func sessionCookie(c *gin.Context) string {
-	value, _ := c.Cookie(service.SessionCookieName)
-	return value
+	return sessionToken(c)
+}
+
+// sessionToken 优先 Cookie，其次 Authorization Bearer / X-Canvas-Session。
+// 外网 DDNS + 非标准端口时，部分浏览器会丢弃登录 Cookie，导致登录后立刻无会话。
+func sessionToken(c *gin.Context) string {
+	if value, err := c.Cookie(service.SessionCookieName); err == nil {
+		if token := strings.TrimSpace(value); token != "" {
+			return token
+		}
+	}
+	if auth := strings.TrimSpace(c.GetHeader("Authorization")); auth != "" {
+		const prefix = "Bearer "
+		if len(auth) > len(prefix) && strings.EqualFold(auth[:len(prefix)], prefix) {
+			if token := strings.TrimSpace(auth[len(prefix):]); token != "" {
+				return token
+			}
+		}
+	}
+	return strings.TrimSpace(c.GetHeader("X-Canvas-Session"))
 }
 
 func setSessionCookie(c *gin.Context, value string, maxAge int) {
-	secure := c.Request.TLS != nil || strings.EqualFold(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")), "https")
+	secure := sessionCookieSecure(c)
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     service.SessionCookieName,
 		Value:    value,
@@ -912,7 +979,7 @@ func setSessionCookie(c *gin.Context, value string, maxAge int) {
 }
 
 func clearSessionCookie(c *gin.Context) {
-	secure := c.Request.TLS != nil || strings.EqualFold(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")), "https")
+	secure := sessionCookieSecure(c)
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     service.SessionCookieName,
 		Value:    "",
@@ -922,6 +989,38 @@ func clearSessionCookie(c *gin.Context) {
 		SameSite: http.SameSiteLaxMode,
 		Secure:   secure,
 	})
+}
+
+// sessionCookieSecure 决定登录 Cookie 是否带 Secure。
+// DDNS/反代常误传 X-Forwarded-Proto=https，若页面实际是 http，浏览器会拒绝 Secure Cookie。
+func sessionCookieSecure(c *gin.Context) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("CANVAS_COOKIE_SECURE"))) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	}
+	if origin := strings.TrimSpace(c.GetHeader("Origin")); origin != "" {
+		if parsed, err := url.Parse(origin); err == nil {
+			switch strings.ToLower(parsed.Scheme) {
+			case "https":
+				return true
+			case "http":
+				return false
+			}
+		}
+	}
+	if c.Request.TLS != nil {
+		return true
+	}
+	proto := strings.TrimSpace(c.GetHeader("X-Forwarded-Proto"))
+	if proto == "" {
+		proto = strings.TrimSpace(c.GetHeader("X-Forwarded-Protocol"))
+	}
+	if i := strings.IndexByte(proto, ','); i >= 0 {
+		proto = strings.TrimSpace(proto[:i])
+	}
+	return strings.EqualFold(proto, "https")
 }
 
 func failService(c *gin.Context, err error) {

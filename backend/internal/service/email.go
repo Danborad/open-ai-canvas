@@ -294,48 +294,53 @@ func sendSMTPMail(setting emailSettingValue, recipient string, subject string, b
 	if setting.Encryption == "tls" {
 		connection, dialErr := tls.DialWithDialer(dialer, "tcp", address, tlsConfig)
 		if dialErr != nil {
-			return dialErr
+			return fmt.Errorf("SMTP TLS 连接失败：%w", dialErr)
 		}
+		_ = connection.SetDeadline(time.Now().Add(30 * time.Second))
 		client, err = smtp.NewClient(connection, setting.Host)
 	} else {
 		connection, dialErr := dialer.Dial("tcp", address)
 		if dialErr != nil {
-			return dialErr
+			return fmt.Errorf("SMTP 连接失败：%w", dialErr)
 		}
+		_ = connection.SetDeadline(time.Now().Add(30 * time.Second))
 		client, err = smtp.NewClient(connection, setting.Host)
 		if err == nil && setting.Encryption == "starttls" {
 			err = client.StartTLS(tlsConfig)
 		}
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("SMTP 握手失败：%w", err)
 	}
 	defer client.Close()
 	if setting.Username != "" {
 		if err := client.Auth(smtp.PlainAuth("", setting.Username, setting.Password, setting.Host)); err != nil {
-			return err
+			return fmt.Errorf("SMTP 认证失败：%w", err)
 		}
 	}
 	if err := client.Mail(setting.FromEmail); err != nil {
-		return err
+		return fmt.Errorf("SMTP 发件人被拒绝：%w", err)
 	}
 	if err := client.Rcpt(recipient); err != nil {
-		return err
+		return fmt.Errorf("SMTP 收件人被拒绝：%w", err)
 	}
 	wc, err := client.Data()
 	if err != nil {
-		return err
+		return fmt.Errorf("SMTP DATA 命令失败：%w", err)
 	}
 	from := mail.Address{Name: setting.FromName, Address: setting.FromEmail}
 	message := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s", from.String(), recipient, mime.QEncoding.Encode("UTF-8", subject), body)
 	if _, err := wc.Write([]byte(message)); err != nil {
 		_ = wc.Close()
-		return err
+		return fmt.Errorf("SMTP 写入邮件内容失败：%w", err)
 	}
 	if err := wc.Close(); err != nil {
-		return err
+		return fmt.Errorf("SMTP 提交邮件失败：%w", err)
 	}
-	return client.Quit()
+	if err := client.Quit(); err != nil {
+		return fmt.Errorf("SMTP 关闭会话失败：%w", err)
+	}
+	return nil
 }
 
 func randomNumericCode(length int) (string, error) {

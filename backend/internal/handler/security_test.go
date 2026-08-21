@@ -26,6 +26,33 @@ func TestAuthorizeSystemProxyAllowsGrokImageJSONEdits(t *testing.T) {
 	}
 }
 
+func TestAuthorizeSystemProxyAllowsGrok2APINewMediaPaths(t *testing.T) {
+	channel := &model.ModelChannel{APIFormat: "openai", ModelsJSON: `["Web/grok-imagine-image-2.0","Console/grok-imagine-video-1.5"]`}
+	imageBody := []byte(`{"model":"Web/grok-imagine-image-2.0","prompt":"test"}`)
+	if err := authorizeSystemProxy(channel, model.ChannelInterfaceGrok2APINewImage, http.MethodPost, "/images/generations", "application/json", imageBody); err != nil {
+		t.Fatalf("authorizeSystemProxy(new image) error = %v", err)
+	}
+	videoBody := []byte(`{"model":"Console/grok-imagine-video-1.5","prompt":"test"}`)
+	if err := authorizeSystemProxy(channel, model.ChannelInterfaceGrok2APINewVideo, http.MethodPost, "/videos/generations", "application/json", videoBody); err != nil {
+		t.Fatalf("authorizeSystemProxy(new video) error = %v", err)
+	}
+	if err := authorizeSystemProxy(channel, model.ChannelInterfaceGrok2APINewVideo, http.MethodGet, "/videos/video-1", "", nil); err != nil {
+		t.Fatalf("authorizeSystemProxy(new video poll) error = %v", err)
+	}
+	if err := authorizeSystemProxy(channel, model.ChannelInterfaceGrok2APINewVideo, http.MethodGet, "/videos/video-1/content", "", nil); err != nil {
+		t.Fatalf("authorizeSystemProxy(new video content) error = %v", err)
+	}
+
+	zarkChannel := &model.ModelChannel{APIFormat: "openai", ModelsJSON: `["GPT Image 2","Seedance"]`}
+	zarkBody := []byte(`{"model":"GPT Image 2","prompt":"test"}`)
+	if err := authorizeSystemProxy(zarkChannel, model.ChannelInterfaceZarkLabImage, http.MethodPost, "/complete", "application/json", zarkBody); err != nil {
+		t.Fatalf("authorizeSystemProxy(zark image) error = %v", err)
+	}
+	if err := authorizeSystemProxy(zarkChannel, model.ChannelInterfaceZarkLabImage, http.MethodGet, "/media/files/file-123", "", nil); err != nil {
+		t.Fatalf("authorizeSystemProxy(zark get file) error = %v", err)
+	}
+}
+
 func TestAuthorizeCustomRelayAllowsModelsAndAgentEndpoints(t *testing.T) {
 	tests := []struct {
 		method      string

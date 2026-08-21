@@ -90,6 +90,7 @@ func main() {
 	projectAPI.Use(handler.RequireFeature(svc, service.FeatureShortDrama))
 	handler.RegisterProjectRoutes(projectAPI, svc)
 	handler.RegisterCanvasShareRoutes(api, svc)
+	handler.RegisterProviderResourceRoutes(api, svc)
 
 	addr := env("CANVAS_BACKEND_ADDR", ":8080")
 	log.Printf("影策 backend listening on %s", addr)
@@ -130,7 +131,7 @@ func cors() gin.HandlerFunc {
 			c.Header("Access-Control-Allow-Credentials", "true")
 			c.Header("Vary", "Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
 		}
-		c.Header("Access-Control-Allow-Headers", "Accept, Content-Type, Authorization, X-Requested-With, X-Canvas-Scene, X-Idempotency-Key, X-Canvas-Upstream-URL, X-Canvas-Upstream-Format")
+		c.Header("Access-Control-Allow-Headers", "Accept, Content-Type, Authorization, X-Requested-With, X-Canvas-Scene, X-Canvas-Session, X-Idempotency-Key, X-Canvas-Upstream-URL, X-Canvas-Upstream-Format")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		c.Header("Access-Control-Max-Age", "86400")
 		if c.Request.Method == "OPTIONS" {
@@ -154,11 +155,31 @@ func allowedOrigin(c *gin.Context, origin string) bool {
 		return true
 	}
 	for _, allowed := range strings.Split(os.Getenv("CANVAS_CORS_ORIGINS"), ",") {
-		if strings.TrimSpace(allowed) == "*" {
+		item := strings.TrimSpace(allowed)
+		if item == "" {
+			continue
+		}
+		if item == "*" {
 			return true
 		}
-		if strings.EqualFold(strings.TrimRight(strings.TrimSpace(allowed), "/"), strings.TrimRight(origin, "/")) {
+		// 支持 *.example.com 通配，方便 DDNS/动态域名外网访问。
+		if strings.HasPrefix(item, "*.") {
+			suffix := strings.ToLower(strings.TrimPrefix(item, "*"))
+			host := strings.ToLower(parsed.Hostname())
+			if strings.HasSuffix(host, suffix) || host == strings.TrimPrefix(suffix, ".") {
+				return true
+			}
+			continue
+		}
+		if strings.EqualFold(strings.TrimRight(item, "/"), strings.TrimRight(origin, "/")) {
 			return true
+		}
+		// 仅配置域名时，同时允许 http/https。
+		if !strings.Contains(item, "://") {
+			host := strings.ToLower(parsed.Hostname())
+			if strings.EqualFold(host, strings.ToLower(item)) || strings.EqualFold(parsed.Host, item) {
+				return true
+			}
 		}
 	}
 	host := strings.ToLower(parsed.Hostname())

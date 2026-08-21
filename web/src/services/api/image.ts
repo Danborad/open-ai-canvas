@@ -10,6 +10,8 @@ import { imageToDataUrl } from "@/services/image-storage";
 import type { ReferenceImage } from "@/types/image";
 import { withOpenAIPromptCacheKey } from "@/lib/openai-prompt-cache";
 import { imageSizeRequest, modelCapabilityConfigFor, normalizeImageValue, type ImageCapabilityConfig } from "@/lib/model-capabilities";
+import { normalizeGrok2APINewImageAspect, normalizeGrok2APINewImageResolution } from "@/lib/grok-image";
+import { extractZarkFileId, normalizeZarkLabAspectRatio, parseZarkEventStreamFileIds } from "@/lib/zarklab";
 
 export type AiTextMessage = {
     role: "system" | "user" | "assistant";
@@ -236,6 +238,10 @@ function resolveImageDataUrl(item: Record<string, unknown>) {
         return item.url;
     }
     return null;
+}
+
+function customOpenAIImageResponseFormat(config: ReturnType<typeof resolveModelRequestConfig>) {
+    return config.channelId ? undefined : "url";
 }
 
 function parseImagePayload(payload: ImageApiResponse) {
@@ -830,6 +836,26 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
             throw new Error(readAxiosError(error, "Grok 图片生成失败"));
         }
     }
+    if (requestConfig.interfaceType === "zarklab-image") {
+        return requestZarkLabImage(requestConfig, prompt, [], n, normalizedImage, options);
+    }
+    if (requestConfig.interfaceType === "grok2api-new-image") {
+        try {
+            const modelName = requestConfig.model.toLowerCase();
+            const supportsParameters = modelName !== "web/grok-imagine-image-lite";
+            const responseData = await postChannelJSON<ImageApiResponse>(requestConfig, aiApiUrl(requestConfig, "/images/generations"), {
+                model: requestConfig.model,
+                prompt: withSystemPrompt(requestConfig, prompt),
+                n,
+                ...(supportsParameters && normalizedImage.size !== "auto" ? { aspect_ratio: normalizeGrok2APINewImageAspect(normalizedImage.size) } : {}),
+                ...(supportsParameters ? { resolution: normalizeGrok2APINewImageResolution(normalizedImage.quality) } : {}),
+                response_format: "url",
+            }, options);
+            return parseImagePayload(responseData);
+        } catch (error) {
+            throw new Error(readAxiosError(error, "Grok2API New 图片生成失败"));
+        }
+    }
     const quality = imageProfile.quality.supported && normalizedImage.quality !== "auto" ? normalizeQuality(normalizedImage.quality) || normalizedImage.quality : undefined;
     const requestSize = resolveImageRequestSize(imageProfile, quality, normalizedImage.size);
     const isVolcengineArk = requestConfig.interfaceType === "volcengine-ark-image";
@@ -858,6 +884,160 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
     } catch (error) {
         throw new Error(readAxiosError(error, "请求失败"));
     }
+}
+
+async function requestZarkLabImage(config: ReturnType<typeof resolveModelRequestConfig>, prompt: string, references: ReferenceImage[], n: number, normalizedImage: ReturnType<typeof normalizeImageValue>, options?: RequestOptions) {
+    const fileIds = references.map(extractZarkFileId).filter(Boolean);
+    const modelName = config.model || "auto";
+    let formattedPrompt = prompt.trim();
+    if (!formattedPrompt.toLowerCase().startsWith("use ") && modelName !== "auto") {
+        formattedPrompt = `Use ${modelName}: ${formattedPrompt}`;
+    }
+    const ratio = normalizeZarkLabAspectRatio(normalizedImage.size, "image");
+    if (ratio && !formattedPrompt.toLowerCase().includes("aspect ratio") && !formattedPrompt.toLowerCase().includes("ratio")) {
+        formattedPrompt += `, aspect ratio ${ratio}`;
+    }
+    if (normalizedImage.quality && (normalizedImage.quality === "Standard" || normalizedImage.quality === "High") && !formattedPrompt.toLowerCase().includes("quality")) {
+        formattedPrompt += `, ${normalizedImage.quality} quality`;
+    }
+
+    const payload = {
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: {
+            name: "zark_ai",
+            arguments: {
+                prompt: withSystemPrompt(config, formattedPrompt),
+                wait: true,
+                ...(fileIds.length ? { fileIds } : {}),
+            },
+        },
+    };
+
+    try {
+        const req = channelRequest(config, buildApiUrl(config.baseUrl || "https://api.zarklab.ai", "/mcp"), {
+            "X-API-Key": config.apiKey,
+            "Content-Type": "application/json",
+        });
+        const response = await axios.post<{
+            result?: {
+                structuredContent?: {
+                    success?: boolean;
+                    run_id?: string;
+                    generated_file_ids?: string[];
+                    error?: string;
+                };
+                content?: Array<{ type?: string; text?: string }>;
+            };
+            error?: { message?: string };
+        }>(req.url, payload, {
+            headers: req.headers,
+            withCredentials: req.credentials === "include",
+            signal: options?.signal,
+        });
+
+        if (response.data.error?.message) {
+            throw new Error(response.data.error.message);
+        }
+
+        let generatedIds = response.data.result?.structuredContent?.generated_file_ids || [];
+        if (!generatedIds.length && response.data.result?.content?.length) {
+            for (const item of response.data.result.content) {
+                if (item.type === "text" && item.text) {
+                    try {
+                        const parsed = JSON.parse(item.text) as { generated_file_ids?: string[] };
+                        if (Array.isArray(parsed.generated_file_ids) && parsed.generated_file_ids.length) {
+                            generatedIds = parsed.generated_file_ids;
+                            break;
+                        }
+                    } catch {}
+                }
+            }
+        }
+
+        if (!generatedIds.length) {
+            const runId = response.data.result?.structuredContent?.run_id;
+            if (runId) {
+                generatedIds = await pollZarkRunFileIds(config, runId, options);
+            }
+        }
+
+        if (!generatedIds.length) throw new Error(response.data.result?.structuredContent?.error || "ZarkLab 接口没有返回生成文件");
+        const images = await Promise.all(
+            generatedIds.map(async (fileId) => {
+                const fileInfoReq = channelRequest(config, buildApiUrl(config.baseUrl || "https://api.zarklab.ai", `/media/files/${encodeURIComponent(fileId)}`), {
+                    "X-API-Key": config.apiKey,
+                });
+                const fileInfoResp = await axios.get<{ url?: string; download_url?: string; preview_url?: string; file_url?: string; file?: { url?: string; download_url?: string }; data?: { url?: string; download_url?: string } }>(fileInfoReq.url, {
+                    headers: fileInfoReq.headers,
+                    withCredentials: fileInfoReq.credentials === "include",
+                    signal: options?.signal,
+                });
+                const fileUrl =
+                    fileInfoResp.data.file?.download_url ||
+                    fileInfoResp.data.file?.url ||
+                    fileInfoResp.data.download_url ||
+                    fileInfoResp.data.url ||
+                    fileInfoResp.data.preview_url ||
+                    fileInfoResp.data.file_url ||
+                    fileInfoResp.data.data?.download_url ||
+                    fileInfoResp.data.data?.url;
+                if (!fileUrl) throw new Error("ZarkLab 文件信息中未包含下载地址");
+                return { id: nanoid(), dataUrl: fileUrl };
+            }),
+        );
+        return images;
+    } catch (error) {
+        throw new Error(readAxiosError(error, "ZarkLab 图片生成失败"));
+    }
+}
+
+async function pollZarkRunFileIds(config: ReturnType<typeof resolveModelRequestConfig>, runId: string, options?: RequestOptions): Promise<string[]> {
+    for (let i = 0; i < 60; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        const req = channelRequest(config, buildApiUrl(config.baseUrl || "https://api.zarklab.ai", "/mcp"), {
+            "X-API-Key": config.apiKey,
+            "Content-Type": "application/json",
+        });
+        const pollPayload = {
+            jsonrpc: "2.0",
+            id: Date.now(),
+            method: "tools/call",
+            params: {
+                name: "get_run_status",
+                arguments: { runId },
+            },
+        };
+        const resp = await axios.post<{
+            result?: {
+                structuredContent?: { generated_file_ids?: string[]; status?: string; message?: string };
+                content?: Array<{ type?: string; text?: string }>;
+            };
+        }>(req.url, pollPayload, { headers: req.headers, withCredentials: req.credentials === "include", signal: options?.signal });
+
+        const ids = resp.data.result?.structuredContent?.generated_file_ids;
+        if (Array.isArray(ids) && ids.length) return ids;
+
+        if (resp.data.result?.content?.length) {
+            for (const item of resp.data.result.content) {
+                if (item.type === "text" && item.text) {
+                    try {
+                        const parsed = JSON.parse(item.text) as { generated_file_ids?: string[]; status?: string; message?: string };
+                        if (Array.isArray(parsed.generated_file_ids) && parsed.generated_file_ids.length) {
+                            return parsed.generated_file_ids;
+                        }
+                        if (parsed.status === "failed") {
+                            throw new Error(parsed.message || "ZarkLab 任务生成失败");
+                        }
+                    } catch (e) {
+                        if (e instanceof Error && e.message.includes("ZarkLab")) throw e;
+                    }
+                }
+            }
+        }
+    }
+    throw new Error("ZarkLab 任务生成超时");
 }
 
 async function postChannelJSON<T>(config: ReturnType<typeof resolveModelRequestConfig>, upstreamUrl: string, body: unknown, options?: RequestOptions) {
@@ -915,6 +1095,32 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
             throw new Error(readAxiosError(error, "Grok 图片编辑失败"));
         }
     }
+    if (requestConfig.interfaceType === "grok2api-new-image") {
+        if (mask) throw new Error("Grok2API New 图片协议不支持蒙版编辑，请移除蒙版后重试");
+        const modelName = requestConfig.model.toLowerCase();
+        const maxReferences = modelName.startsWith("web/") ? 8 : 3;
+        if (references.length === 0 || references.length > maxReferences) throw new Error(`Grok2API New 图片编辑需要 1-${maxReferences} 张参考图`);
+        if (modelName.startsWith("web/") && n !== 1) throw new Error("Grok2API New Web 图片编辑仅支持生成 1 张图片");
+        try {
+            const images = await Promise.all(references.map(grokImageInputURL));
+            const responseData = await postChannelJSON<ImageApiResponse>(requestConfig, aiApiUrl(requestConfig, "/images/edits"), {
+                model: requestConfig.model,
+                prompt: withSystemPrompt(requestConfig, requestPrompt),
+                ...(images.length === 1 ? { image: { url: images[0] } } : { images: images.map((url) => ({ url })) }),
+                n,
+                aspect_ratio: normalizeGrok2APINewImageAspect(normalizedImage.size),
+                resolution: modelName.startsWith("web/") ? "1k" : normalizeGrok2APINewImageResolution(normalizedImage.quality),
+                response_format: "url",
+            }, options);
+            return parseImagePayload(responseData);
+        } catch (error) {
+            throw new Error(readAxiosError(error, "Grok2API New 图片编辑失败"));
+        }
+    }
+    if (requestConfig.interfaceType === "zarklab-image") {
+        if (mask) throw new Error("ZarkLab 图片协议不支持蒙版编辑，请移除蒙版后重试");
+        return requestZarkLabImage(requestConfig, requestPrompt, references, n, normalizedImage, options);
+    }
     if (requestConfig.interfaceType === "volcengine-ark-image") {
         if (mask) throw new Error("火山方舟图片协议不支持蒙版编辑，请移除蒙版后重试");
         const quality = imageProfile.quality.supported && normalizedImage.quality !== "auto" ? normalizeQuality(normalizedImage.quality) || normalizedImage.quality : undefined;
@@ -944,7 +1150,8 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
     formData.set("model", requestConfig.model);
     formData.set("prompt", withSystemPrompt(requestConfig, requestPrompt));
     formData.set("n", String(n));
-    if (imageProfile.responseFormat.supported) formData.set("response_format", "b64_json");
+    if (customOpenAIImageResponseFormat(requestConfig)) formData.set("response_format", customOpenAIImageResponseFormat(requestConfig)!);
+    else if (imageProfile.responseFormat.supported) formData.set("response_format", "b64_json");
     if (imageProfile.outputFormat.supported) formData.set("output_format", IMAGE_OUTPUT_FORMAT);
     if (imageProfile.transparentBackground.supported && normalizedImage.transparentBackground === "true") {
         formData.set("background", "transparent");
@@ -1054,6 +1261,20 @@ export async function requestToolResponse(config: AiConfig, messages: ResponseIn
 
 export async function fetchImageModels(config: Pick<AiConfig, "baseUrl" | "apiKey" | "apiFormat">) {
     try {
+        const lowerBase = (config.baseUrl || "").toLowerCase();
+        if (lowerBase.includes("zarklab.ai") || lowerBase.includes("api.zarklab")) {
+            return [
+                "auto",
+                "GPT Image 2",
+                "Seedream",
+                "Kling Image",
+                "Nano Banana",
+                "Seedance",
+                "Kling",
+                "Veo",
+                "Happy Horse",
+            ];
+        }
         if (config.apiFormat === "gemini") {
             const requestConfig = { ...defaultGeminiConfig, ...config };
             const request = channelRequest(requestConfig, geminiApiUrl(requestConfig), geminiHeaders(requestConfig));

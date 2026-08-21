@@ -253,7 +253,7 @@ function videoConfigPatch(key: keyof AiConfig, value: string) {
 }
 
 function videoCapabilityError(profile: NonNullable<ReturnType<typeof modelCapabilityConfigFor>["video"]>, seconds: string, prompt: string, input: CanvasConfigNodePanelProps["inputSummary"], operation?: string) {
-    if (!videoDurationAllowed(profile, Number(seconds))) return "当前模型不支持该视频时长";
+    if (profile.duration.values?.length !== 0 && !videoDurationAllowed(profile, Number(seconds))) return "当前模型不支持该视频时长";
     if (Array.from(prompt).length > profile.references.promptMaxChars) return `提示词超过模型限制（最多 ${profile.references.promptMaxChars} 字）`;
     if (input.imageCount > profile.references.maxImages || input.videoCount > profile.references.maxVideos || input.audioCount > profile.references.maxAudios) return "参考素材数量超过当前模型限制";
     const resolvedOperation = operation || (input.audioCount > 0 && input.imageCount === 0 && input.videoCount === 0 ? "audio_to_video" : input.videoCount > 0 ? "extend" : input.imageCount > 0 ? "image_to_video" : "text_to_video");

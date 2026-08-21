@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -246,7 +247,8 @@ func blockedOutboundHeader(name string) bool {
 }
 
 func newOutboundTransport(resolveHost func(context.Context, string) ([]net.IP, error)) *http.Transport {
-	dialer := &net.Dialer{Timeout: 15 * time.Second, KeepAlive: 30 * time.Second}
+	// 部分上游/代理在 HTTP/2 长连接大 body 上会 RST，表现为 200 + unexpected EOF；强制 HTTP/1.1。
+	dialer := &net.Dialer{Timeout: 20 * time.Second, KeepAlive: 60 * time.Second}
 	return &http.Transport{
 		DialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
 			host, port, err := net.SplitHostPort(address)
@@ -259,12 +261,14 @@ func newOutboundTransport(resolveHost func(context.Context, string) ([]net.IP, e
 			}
 			return dialer.DialContext(ctx, network, net.JoinHostPort(addresses[0].String(), port))
 		},
-		ForceAttemptHTTP2:     true,
+		ForceAttemptHTTP2:     false,
+		TLSNextProto:          map[string]func(authority string, c *tls.Conn) http.RoundTripper{},
 		MaxIdleConns:          100,
 		MaxIdleConnsPerHost:   20,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   15 * time.Second,
+		IdleConnTimeout:       120 * time.Second,
+		TLSHandshakeTimeout:   20 * time.Second,
 		ExpectContinueTimeout: time.Second,
+		DisableCompression:    true,
 	}
 }
 

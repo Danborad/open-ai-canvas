@@ -13,6 +13,11 @@ function remapReferenceIds(nodeIds: string[] | undefined, idMap: ReadonlyMap<str
     return nodeIds ? Array.from(new Set(nodeIds.map((nodeId) => idMap.get(nodeId) || nodeId))) : undefined;
 }
 
+export function remapSerializedCanvasReferences(value: string | undefined, idMap: ReadonlyMap<string, string>) {
+    if (!value) return value;
+    return value.replace(/@\[node:([^\]]+)\]/g, (token, nodeId: string) => `@[node:${idMap.get(nodeId) || nodeId}]`);
+}
+
 function copyStoryboardRow(row: StoryboardRow, idMap: ReadonlyMap<string, string>): StoryboardRow {
     const imageNodeId = remapOwnedNodeId(row.imageNodeId, idMap);
     const videoNodeId = remapOwnedNodeId(row.videoNodeId, idMap);
@@ -46,11 +51,11 @@ export function isolateCopiedNodeMetadata(node: CanvasNodeData, idMap: ReadonlyM
     delete metadata.versionPrimary;
 
     metadata.copiedFromNodeId = node.id;
+    metadata.prompt = remapSerializedCanvasReferences(metadata.prompt, idMap);
+    metadata.composerContent = remapSerializedCanvasReferences(metadata.composerContent, idMap);
     metadata.frame = node.metadata?.frame ? { ...node.metadata.frame } : undefined;
     metadata.referenceSetId = remapOwnedNodeId(node.metadata?.referenceSetId, idMap);
-    metadata.referenceAssetNodeIds = node.metadata?.referenceAssetNodeIds
-        ?.map((nodeId) => remapOwnedNodeId(nodeId, idMap))
-        .filter((nodeId): nodeId is string => Boolean(nodeId));
+    metadata.referenceAssetNodeIds = remapReferenceIds(node.metadata?.referenceAssetNodeIds, idMap);
     metadata.videoStartFrameNodeId = remapReferenceId(node.metadata?.videoStartFrameNodeId, idMap);
     metadata.videoEndFrameNodeId = remapReferenceId(node.metadata?.videoEndFrameNodeId, idMap);
     metadata.directorPreviewNodeId = remapOwnedNodeId(node.metadata?.directorPreviewNodeId, idMap);

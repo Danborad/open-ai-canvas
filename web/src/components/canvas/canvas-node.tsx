@@ -327,7 +327,8 @@ export const CanvasNode = React.memo(function CanvasNode({
                 glare={!isGeneratingNode}
                 data-state={data.metadata?.status || (isActive ? "active" : isRelated ? "related" : "idle")}
                 style={{
-                    background: hasImageContent || hasVideoContent ? "transparent" : theme.node.fill,
+                    // 生成中必须用不透明底，避免旧 content 判定导致“透视”后面节点。
+                    background: isGeneratingNode || !(hasImageContent || hasVideoContent) ? theme.node.fill : "transparent",
                     borderColor: flushMediaContent ? undefined : isActive ? theme.accent.primary : isRelated ? theme.accent.primary : hovered ? "color-mix(in oklch, var(--workspace-border) 80%, var(--workspace-fg) 12%)" : theme.node.stroke,
                     boxShadow: isFocusRelated
                         ? `0 0 0 1px ${theme.accent.primary}66, 0 0 0 6px ${theme.accent.primary}1a, 0 28px 80px ${theme.spatial.shadow}` // active：最强强调（外发光环6px + inner glow）
@@ -376,7 +377,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                     className={`relative flex h-full w-full items-center justify-center rounded-[inherit] ${isBatchRoot || data.type === CanvasNodeType.Script ? "overflow-visible" : "overflow-hidden"}`}
                     style={
                         {
-                            background: hasImageContent || hasVideoContent ? "transparent" : theme.node.fill,
+                            background: isGeneratingNode || !(hasImageContent || hasVideoContent) ? theme.node.fill : "transparent",
                             "--batch-from-x": `${batchMotion?.x || 0}px`,
                             "--batch-from-y": `${batchMotion?.y || 0}px`,
                             "--batch-from-rotate": `${6 + (batchMotion?.index || 0) * 4}deg`,
@@ -594,7 +595,7 @@ function LoadingContent({ node, theme, onCancelTask, onOpenTaskDetails }: Pick<N
     const statusLabel = taskStatusLabel(node.metadata?.taskStatus);
     const elapsed = useTaskElapsed(node.metadata?.taskCreatedAt);
     return (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 px-5 text-center" style={{ color: theme.node.activeStroke }}>
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 px-5 text-center" style={{ background: theme.node.fill, color: theme.node.activeStroke }}>
             <div className="size-10 animate-spin rounded-full border-2" style={{ borderColor: theme.node.stroke, borderTopColor: theme.node.activeStroke }} />
             <span className="text-[var(--fs-tiny)] font-semibold">{node.metadata?.taskStage || (taskId ? "任务处理中" : "正在创建任务")}</span>
             {taskId ? (

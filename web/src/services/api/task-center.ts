@@ -270,12 +270,8 @@ export async function waitForGenerationTask(id: string, options?: { signal?: Abo
 }
 
 function taskWaitTimeoutMs(task?: GenerationTask) {
-    const type = task?.type || "";
-    if (type.includes("storyboard")) return 13 * 60 * 1000;
-    if (type.includes("video")) return 32 * 60 * 1000;
-    if (type.includes("image")) return 10 * 60 * 1000;
-    if (type.includes("text") || type.includes("audio")) return 12 * 60 * 1000;
-    return 10 * 60 * 1000;
+    // 与后台自用模式长超时对齐，避免前端先放弃轮询。
+    return 60 * 60 * 1000;
 }
 
 function delay(ms: number, signal?: AbortSignal) {

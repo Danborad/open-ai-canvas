@@ -44,3 +44,15 @@ export function upsertRemoteCanvasProject(project: CanvasProject) {
 export function deleteRemoteCanvasProject(id: string) {
     return request<{ id: string }>(api.delete(`/canvas-projects/${encodeURIComponent(id)}`));
 }
+
+export type CanvasProjectStats = {
+    projectId: string;
+    imageCount: number;
+    videoCount: number;
+    imageCreditsMicros: number;
+    videoCreditsMicros: number;
+};
+
+export function getCanvasProjectStats(id: string) {
+    return request<{ stats: CanvasProjectStats[] }>(api.get("/canvas-project-stats", { params: { ids: id } })).then(({ stats }) => stats[0] || { projectId: id, imageCount: 0, videoCount: 0, imageCreditsMicros: 0, videoCreditsMicros: 0 });
+}

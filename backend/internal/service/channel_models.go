@@ -30,8 +30,9 @@ type ChannelModelRequest struct {
 
 // AdminChannelModelFetchResult 是管理员从上游拉目录后的汇总：models 为去重后的标识，added 为本次新建条数。
 type AdminChannelModelFetchResult struct {
-	Models []string `json:"models"`
-	Added  int64    `json:"added"`
+	Models  []string `json:"models"`
+	Added   int64    `json:"added"`
+	Removed int64    `json:"removed"`
 }
 
 type AdminChannelModelTestResult struct {
@@ -101,6 +102,14 @@ func (s *Service) FetchAdminChannelModels(ctx context.Context, actor *model.User
 	if err != nil {
 		return nil, err
 	}
+	modelsJSON, err := json.Marshal(models)
+	if err != nil {
+		return nil, err
+	}
+	removed, err := s.repo.ReconcileFetchedChannelModels(channelID, string(modelsJSON), models, time.Now())
+	if err != nil {
+		return nil, err
+	}
 	// 只按当前未删除记录去重；重新拉取已删除模型时应生成新的待配置记录。
 	existing, err := s.repo.ChannelModels(channelID, true)
 	if err != nil {
@@ -109,6 +118,11 @@ func (s *Service) FetchAdminChannelModels(ctx context.Context, actor *model.User
 	known := make(map[string]struct{}, len(existing))
 	for _, item := range existing {
 		known[item.ModelKey] = struct{}{}
+		if item.Capability == "" || item.Protocol == "" || item.CapabilityConfigJSON == "" {
+			if populateDefaultChannelModelInfo(channel, &item) {
+				_ = s.repo.SaveChannelModel(&item)
+			}
+		}
 	}
 	missing := make([]model.ChannelModel, 0, len(models))
 	for _, name := range models {
@@ -116,13 +130,15 @@ func (s *Service) FetchAdminChannelModels(ctx context.Context, actor *model.User
 			continue
 		}
 		// 自动发现不能绕过定价边界；新模型由管理员定价后再手动启用。
-		missing = append(missing, model.ChannelModel{ID: newID(), ChannelID: channelID, ModelKey: name, DisplayName: name, BillingMode: "fixed_request", Enabled: false, PriceVersion: 1})
+		item := model.ChannelModel{ID: newID(), ChannelID: channelID, ModelKey: name, DisplayName: name, BillingMode: "fixed_request", Enabled: false, PriceVersion: 1}
+		populateDefaultChannelModelInfo(channel, &item)
+		missing = append(missing, item)
 	}
 	added, err := s.repo.CreateMissingChannelModels(missing)
 	if err != nil {
 		return nil, err
 	}
-	return &AdminChannelModelFetchResult{Models: models, Added: added}, nil
+	return &AdminChannelModelFetchResult{Models: models, Added: added, Removed: removed}, nil
 }
 
 func (s *Service) SaveAdminChannelModel(actor *model.User, channelID string, id string, req ChannelModelRequest) (*model.ChannelModel, error) {
@@ -304,9 +320,17 @@ func (s *Service) TestAdminChannelModel(ctx context.Context, actor *model.User, 
 	case "text":
 		_, err = runTextTask(testCtx, input)
 	case "image":
-		_, err = runImageTask(testCtx, input)
+		if protocol == model.ChannelInterfaceFlow2APIImage {
+			_, err = runFlow2APIImageTask(testCtx, input)
+		} else {
+			_, err = runImageTask(testCtx, input)
+		}
 	case "video":
-		_, err = runVideoTask(testCtx, input)
+		if protocol == model.ChannelInterfaceFlow2APIVideo {
+			_, err = runFlow2APIVideoTask(testCtx, input)
+		} else {
+			_, err = runVideoTask(testCtx, input)
+		}
 	case "audio":
 		_, err = runAudioTask(testCtx, input)
 	}
@@ -404,6 +428,7 @@ func (s *Service) syncInitialChannelModels(channel *model.ModelChannel, names []
 			continue
 		}
 		item := model.ChannelModel{ID: newID(), ChannelID: channel.ID, ModelKey: name, DisplayName: name, BillingMode: "fixed_request", Enabled: false, PriceVersion: 1}
+		populateDefaultChannelModelInfo(channel, &item)
 		if err := s.repo.SaveChannelModel(&item); err != nil {
 			return err
 		}
@@ -454,8 +479,10 @@ func (s *Service) syncChannelModelNames(channel *model.ModelChannel) error {
 
 func capabilityForProtocol(protocol model.ChannelInterfaceType) string {
 	switch protocol {
-	case model.ChannelInterfaceOpenAIImage, model.ChannelInterfaceGrokImage, model.ChannelInterfaceVolcengineArkImage, model.ChannelInterfaceVolcengineJiMengImage:
+	case model.ChannelInterfaceOpenAIImage, model.ChannelInterfaceGrokImage, model.ChannelInterfaceGrok2APIImage, model.ChannelInterfaceGrok2APINewImage, model.ChannelInterfaceZarkLabImage, model.ChannelInterfaceFlow2APIImage, model.ChannelInterfaceVolcengineArkImage, model.ChannelInterfaceVolcengineJiMengImage:
 		return "image"
+	case model.ChannelInterfaceFlow2APIVideo, model.ChannelInterfaceGrok2APIVideo, model.ChannelInterfaceGrok2APINewVideo, model.ChannelInterfaceZarkLabVideo:
+		return "video"
 	case model.ChannelInterfaceOpenAIAudio, model.ChannelInterfaceAsyncAudio:
 		return "audio"
 	case model.ChannelInterfaceNewAPIVideo, model.ChannelInterfaceNewAPIChannel1, model.ChannelInterfaceNewAPIChannel2, model.ChannelInterfaceXAIVideo, model.ChannelInterfaceVolcengineArkVideo, model.ChannelInterfaceVolcengineJiMengVideo, model.ChannelInterfaceGeminiVeo:
@@ -465,4 +492,109 @@ func capabilityForProtocol(protocol model.ChannelInterfaceType) string {
 	default:
 		return ""
 	}
+}
+
+func populateDefaultChannelModelInfo(channel *model.ModelChannel, item *model.ChannelModel) bool {
+	if item == nil {
+		return false
+	}
+	changed := false
+	key := strings.TrimSpace(item.ModelKey)
+	lowerKey := strings.ToLower(key)
+	baseURL := ""
+	if channel != nil {
+		baseURL = strings.ToLower(strings.TrimSpace(channel.BaseURL))
+	}
+
+	isZark := strings.Contains(baseURL, "zarklab.ai") || strings.Contains(baseURL, "api.zarklab")
+
+	if isZark {
+		switch key {
+		case "GPT Image 2", "Seedream 5 Pro", "Seedream 5 Lite", "Kling Image O3", "Nano Banana Pro", "Nano Banana 2", "Nano Banana 2 Lite", "Nano Banana Lite", "Grok Image":
+			if item.Capability == "" {
+				item.Capability = "image"
+				changed = true
+			}
+			if item.Protocol == "" {
+				item.Protocol = model.ChannelInterfaceZarkLabImage
+				changed = true
+			}
+			if item.CapabilityConfigJSON == "" {
+				cfg := DefaultModelCapabilityConfigForModel(string(model.ChannelInterfaceZarkLabImage), key)
+				if encoded, err := json.Marshal(cfg); err == nil {
+					item.CapabilityConfigJSON = string(encoded)
+					changed = true
+				}
+			}
+		case "Gemini Omni Flash", "Seedance 2.5", "Seedance 2", "Seedance 2 Lite", "Seedance 2 Mini", "Kling O3 4K", "Kling O3 Pro", "Kling 3.0 Turbo", "Kling 3.0 Lite", "Veo 3.1", "Veo 3.1 Fast", "Veo 3.1 Lite", "Grok Video", "MiniMax H3", "Happy Horse":
+			if item.Capability == "" {
+				item.Capability = "video"
+				changed = true
+			}
+			if item.Protocol == "" {
+				item.Protocol = model.ChannelInterfaceZarkLabVideo
+				changed = true
+			}
+			if item.CapabilityConfigJSON == "" {
+				cfg := DefaultModelCapabilityConfigForModel(string(model.ChannelInterfaceZarkLabVideo), key)
+				if encoded, err := json.Marshal(cfg); err == nil {
+					item.CapabilityConfigJSON = string(encoded)
+					changed = true
+				}
+			}
+		case "auto":
+			// auto 默认作为图像模型，也可切换为视频
+			if item.Capability == "" {
+				item.Capability = "image"
+				changed = true
+			}
+			if item.Protocol == "" {
+				item.Protocol = model.ChannelInterfaceZarkLabImage
+				changed = true
+			}
+			if item.CapabilityConfigJSON == "" {
+				cfg := DefaultModelCapabilityConfigForModel(string(model.ChannelInterfaceZarkLabImage), key)
+				if encoded, err := json.Marshal(cfg); err == nil {
+					item.CapabilityConfigJSON = string(encoded)
+					changed = true
+				}
+			}
+		}
+		return changed
+	}
+
+	if strings.HasPrefix(lowerKey, "web/grok-imagine-image") || strings.HasPrefix(lowerKey, "console/grok-imagine-image") {
+		if item.Capability == "" {
+			item.Capability = "image"
+			changed = true
+		}
+		if item.Protocol == "" {
+			item.Protocol = model.ChannelInterfaceGrok2APINewImage
+			changed = true
+		}
+		if item.CapabilityConfigJSON == "" {
+			cfg := DefaultModelCapabilityConfigForModel(string(model.ChannelInterfaceGrok2APINewImage), key)
+			if encoded, err := json.Marshal(cfg); err == nil {
+				item.CapabilityConfigJSON = string(encoded)
+				changed = true
+			}
+		}
+	} else if strings.HasPrefix(lowerKey, "web/grok-imagine-video") || strings.HasPrefix(lowerKey, "console/grok-imagine-video") || strings.HasPrefix(lowerKey, "build/grok-imagine-video") {
+		if item.Capability == "" {
+			item.Capability = "video"
+			changed = true
+		}
+		if item.Protocol == "" {
+			item.Protocol = model.ChannelInterfaceGrok2APINewVideo
+			changed = true
+		}
+		if item.CapabilityConfigJSON == "" {
+			cfg := DefaultModelCapabilityConfigForModel(string(model.ChannelInterfaceGrok2APINewVideo), key)
+			if encoded, err := json.Marshal(cfg); err == nil {
+				item.CapabilityConfigJSON = string(encoded)
+				changed = true
+			}
+		}
+	}
+	return changed
 }

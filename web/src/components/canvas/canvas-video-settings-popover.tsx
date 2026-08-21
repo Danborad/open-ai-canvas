@@ -5,8 +5,12 @@ import { Button } from "antd";
 
 import { VideoSettingsPanel, videoResolutionLabel, videoSecondsLabel, videoSizeLabel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
+import { isFlow2APIVideoConfig, isFlow2APIOmniFlash, normalizeFlow2APIOmniDuration, normalizeFlow2APIVideoAspect } from "@/lib/flow2api";
+import { isSeedanceVideoConfig, normalizeSeedanceRatio, normalizeSeedanceResolution } from "@/lib/seedance-video";
+import { modelCapabilityConfigFor, normalizeVideoValue } from "@/lib/model-capabilities";
+import { isGrok2APINewVideoConfig, isGrok2APIVideoConfig, isGrokVideoConfig, normalizeGrok2APIVideoResolution, normalizeGrokVideoDuration, normalizeGrokVideoRatio, normalizeGrokVideoResolution } from "@/lib/grok-video";
 import { useThemeStore } from "@/stores/use-theme-store";
-import type { AiConfig } from "@/stores/use-config-store";
+import { modelOptionName, resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
 
 type CanvasVideoSettingsPopoverProps = {
     config: AiConfig;
@@ -21,7 +25,11 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClass
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
-    const summary = `${videoResolutionLabel(config.vquality)} · ${videoSizeLabel(config.size)} · ${videoSecondsLabel(config.videoSeconds)}`;
+    const requestInterface = resolveModelRequestConfig(config, config.model || config.videoModel).interfaceType || "";
+    const videoProfile = modelCapabilityConfigFor(config, config.model || config.videoModel).video!;
+    const displayVideoProfile = modelOptionName(config.model || config.videoModel).toLowerCase().startsWith("web/") ? { ...videoProfile, duration: { selection: "enum" as const, values: [6, 10, 15], default: 6 } } : videoProfile;
+    const normalizedVideo = normalizeVideoValue(displayVideoProfile, { seconds: config.videoSeconds, ratio: config.size, resolution: `${String(config.vquality).replace(/p$/i, "")}p` });
+    const summary = requestInterface === "gemini-veo" ? `${videoResolutionLabel(config.vquality)} · ${videoSizeLabel(config.size)}` : `${videoResolutionLabel(config.vquality)} · ${videoSizeLabel(config.size)} · ${videoSecondsLabel(normalizedVideo.seconds)}`;
 
     useEffect(() => {
         if (!open) return;
@@ -50,7 +58,21 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClass
         <>
             <span ref={buttonRef} className="inline-flex min-w-0">
                 <Button size="small" type="text" className={`canvas-generation-settings-trigger ${buttonClassName || "!h-8 !max-w-[170px] !justify-start !rounded-full !px-2.5"}`} style={{ background: theme.node.fill, color: theme.node.text }} icon={<Settings2 className="size-3.5" />} aria-expanded={open} aria-label={`视频设置：${summary}`} title={`视频设置 · ${summary}`} onClick={() => setOpen((current) => !current)}>
-                    <span className="truncate">{summary}</span>
+                    <span className="truncate">
+                        {requestInterface === "gemini-veo"
+                            ? `${videoSizeLabel(config.size)} · ${videoResolutionLabel(config.vquality)}`
+                            : isGrok2APINewVideoConfig(config)
+                              ? `${normalizedVideo.resolution} · ${normalizedVideo.ratio} · ${normalizedVideo.seconds}s`
+                            : isGrok2APIVideoConfig(config)
+                              ? `${normalizeGrok2APIVideoResolution(config.vquality)} · ${videoSizeLabel(config.size)} · ${config.videoSeconds}s`
+                            : isSeedanceVideoConfig(config)
+                            ? `${normalizeSeedanceResolution(config.vquality, modelOptionName(config.model || config.videoModel || "")).toUpperCase()} · ${normalizeSeedanceRatio(config.size)} · ${normalizedVideo.seconds}s`
+                            : isFlow2APIVideoConfig(config)
+                            ? `${normalizeFlow2APIVideoAspect(config.size)}${isFlow2APIOmniFlash(config) ? ` · ${normalizeFlow2APIOmniDuration(config.videoSeconds)}s` : ""}`
+                            : isGrokVideoConfig(config)
+                              ? `${normalizeGrokVideoResolution(config.vquality, modelOptionName(config.model || config.videoModel || ""))} · ${normalizeGrokVideoRatio(config.size, modelOptionName(config.model || config.videoModel || ""))} · ${normalizeGrokVideoDuration(config.videoSeconds, modelOptionName(config.model || config.videoModel || ""))}s`
+                              : `${videoResolutionLabel(config.vquality)} · ${videoSizeLabel(config.size)} · ${videoSecondsLabel(config.videoSeconds)}`}
+                    </span>
                 </Button>
             </span>
             {panel}

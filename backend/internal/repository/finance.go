@@ -139,6 +139,56 @@ func (r *Repository) CreateMissingChannelModels(items []model.ChannelModel) (int
 	return result.RowsAffected, result.Error
 }
 
+// ReconcileFetchedChannelModels 将上游目录作为当前渠道模型集合；已不存在的本地模型软删除，保留历史与定价记录。
+func (r *Repository) ReconcileFetchedChannelModels(channelID string, modelsJSON string, modelKeys []string, now time.Time) (int64, error) {
+	var removed int64
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		stale := tx.Model(&model.ChannelModel{}).Where("channel_id = ?", channelID)
+		if len(modelKeys) > 0 {
+			stale = stale.Where("model_key NOT IN ?", modelKeys)
+		}
+		result := stale.Updates(map[string]any{
+			"enabled":       false,
+			"price_version": gorm.Expr("price_version + 1"),
+			"updated_at":    now,
+		})
+		if result.Error != nil {
+			return result.Error
+		}
+		removed = result.RowsAffected
+		if err := stale.Delete(&model.ChannelModel{}).Error; err != nil {
+			return err
+		}
+		channelResult := tx.Model(&model.ModelChannel{}).
+			Where("id = ? AND scope = ?", channelID, model.ChannelScopeSystem).
+			Updates(map[string]any{"models_json": modelsJSON, "updated_at": now})
+		if channelResult.Error != nil {
+			return channelResult.Error
+		}
+		if channelResult.RowsAffected != 1 {
+			return gorm.ErrRecordNotFound
+		}
+		return nil
+	})
+	return removed, err
+}
+
+// RestoreChannelModelsByKeys 将上游仍返回、但本地已软删除的模型恢复到列表（保持原定价，默认禁用）。
+func (r *Repository) RestoreChannelModelsByKeys(channelID string, modelKeys []string, now time.Time) (int64, error) {
+	if channelID == "" || len(modelKeys) == 0 {
+		return 0, nil
+	}
+	result := r.db.Unscoped().Model(&model.ChannelModel{}).
+		Where("channel_id = ? AND model_key IN ? AND deleted_at IS NOT NULL", channelID, modelKeys).
+		Updates(map[string]any{
+			"deleted_at":    nil,
+			"enabled":       false,
+			"updated_at":    now,
+			"price_version": gorm.Expr("price_version + 1"),
+		})
+	return result.RowsAffected, result.Error
+}
+
 func (r *Repository) CreditAccount(userID string) (*model.CreditAccount, error) {
 	account := model.CreditAccount{UserID: userID}
 	if err := r.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&account).Error; err != nil {
@@ -328,6 +378,23 @@ func (r *Repository) BillingOrdersByTaskIDs(userID string, taskIDs []string) (ma
 	}
 	var orders []model.BillingOrder
 	if err := r.db.Where("user_id = ? AND task_id IN ?", userID, taskIDs).Find(&orders).Error; err != nil {
+		return nil, err
+	}
+	for _, order := range orders {
+		if order.TaskID != "" {
+			result[order.TaskID] = order
+		}
+	}
+	return result, nil
+}
+
+func (r *Repository) SettledBillingOrdersByTaskIDs(userID string, taskIDs []string) (map[string]model.BillingOrder, error) {
+	result := make(map[string]model.BillingOrder, len(taskIDs))
+	if len(taskIDs) == 0 {
+		return result, nil
+	}
+	var orders []model.BillingOrder
+	if err := r.db.Where("user_id = ? AND task_id IN ? AND status = ?", userID, taskIDs, model.BillingStatusSettled).Find(&orders).Error; err != nil {
 		return nil, err
 	}
 	for _, order := range orders {

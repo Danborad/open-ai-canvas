@@ -42,3 +42,20 @@ func TestValidateSyncedPayloadRejectsNestedInlineMedia(t *testing.T) {
 		}
 	}
 }
+
+func TestCanvasStatsMediaKind(t *testing.T) {
+	tests := []struct {
+		taskType  string
+		operation string
+		want      string
+	}{
+		{taskType: "canvas_image", operation: "image", want: "image"},
+		{taskType: "canvas_video", operation: "image_to_video", want: "video"},
+		{taskType: "agent_storyboard", operation: "storyboard", want: ""},
+	}
+	for _, test := range tests {
+		if got := canvasStatsMediaKind(test.taskType, test.operation); got != test.want {
+			t.Fatalf("canvasStatsMediaKind(%q, %q) = %q, want %q", test.taskType, test.operation, got, test.want)
+		}
+	}
+}

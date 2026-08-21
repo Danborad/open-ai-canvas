@@ -6,9 +6,11 @@ import { getMediaBlob, uploadMediaFile, type UploadedFile } from "@/services/fil
 import { getResourceOSSUrl } from "@/services/api/resources";
 import { channelRequest } from "@/services/api/custom-channel-relay";
 import { imageToDataUrl } from "@/services/image-storage";
-import { modelCapabilityConfigFor, videoDurationAllowed } from "@/lib/model-capabilities";
+import { modelCapabilityConfigFor, normalizeVideoValue, videoDurationAllowed } from "@/lib/model-capabilities";
+import { normalizeGrok2APINewVideoDuration, normalizeGrok2APINewVideoResolution, normalizeGrok2APIVideoAspect, normalizeGrok2APIVideoDuration, normalizeGrok2APIVideoResolution } from "@/lib/grok-video";
 import { boolConfig, buildSeedancePromptText, isArkPlanBaseUrl, isSeedanceVideoConfig, normalizeSeedanceDuration, normalizeSeedanceRatio, normalizeSeedanceResolution, seedanceVideoReferenceError, SEEDANCE_REFERENCE_LIMITS } from "@/lib/seedance-video";
 import { buildApiUrl, isSystemProxyBaseUrl, modelOptionName, resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
+import { extractZarkFileId, normalizeZarkLabAspectRatio, parseZarkEventStreamFileIds } from "@/lib/zarklab";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 
@@ -28,7 +30,7 @@ type ApiEnvelope<T> = T | { code?: number; data?: T | null; msg?: string };
 type RequestOptions = { signal?: AbortSignal };
 
 export type VideoGenerationResult = { blob?: Blob; url?: string; mimeType?: string };
-export type VideoGenerationTask = { id: string; provider: "openai" | "seedance" | "video-generations" | "gemini-veo"; model: string };
+export type VideoGenerationTask = { id: string; provider: "openai" | "seedance" | "video-generations" | "gemini-veo" | "grok2api-video" | "grok2api-new-video" | "zarklab-video"; model: string };
 export type VideoGenerationTaskState = { status: "pending" } | { status: "completed"; result: VideoGenerationResult } | { status: "failed"; error: string };
 
 function aiApiUrl(config: AiConfig, path: string) {
@@ -61,12 +63,21 @@ export async function createVideoGenerationTask(config: AiConfig, prompt: string
     const selectedModel = (config.model || config.videoModel).trim();
     const requestConfig = resolveModelRequestConfig(config, selectedModel);
     assertVideoConfig(requestConfig, requestConfig.model);
-    assertVideoCapability(modelCapabilityConfigFor(config, selectedModel).video!, prompt, references, videoReferences, audioReferences, config.videoSeconds);
+    assertVideoCapability(modelCapabilityConfigFor(config, selectedModel).video!, prompt, references, videoReferences, audioReferences, config.videoSeconds || "6", config.count || "1", requestConfig.interfaceType || "", requestConfig.model);
     if (requestConfig.interfaceType === "newapi-channel-2") {
         return createVideoGenerationsTask(requestConfig, selectedModel, prompt, references, videoReferences, audioReferences, options);
     }
     if (requestConfig.interfaceType === "gemini-veo") {
         return createGeminiVeoTask(requestConfig, selectedModel, prompt, references, videoReferences, audioReferences, options);
+    }
+    if (requestConfig.interfaceType === "grok2api-video") {
+        return createGrok2APIVideoTask(requestConfig, selectedModel, prompt, references, options);
+    }
+    if (requestConfig.interfaceType === "grok2api-new-video") {
+        return createGrok2APINewVideoTask(requestConfig, selectedModel, prompt, references, options);
+    }
+    if (requestConfig.interfaceType === "zarklab-video") {
+        return createZarkLabVideoTask(requestConfig, selectedModel, prompt, references, options);
     }
     if (requestConfig.interfaceType === "volcengine-ark-video") {
         return createSeedanceTask(requestConfig, selectedModel, prompt, references, videoReferences, audioReferences, options);
@@ -80,10 +91,18 @@ export async function createVideoGenerationTask(config: AiConfig, prompt: string
     return createOpenAIVideoTask(requestConfig, selectedModel, prompt, references, options);
 }
 
-function assertVideoCapability(profile: NonNullable<ReturnType<typeof modelCapabilityConfigFor>["video"]>, prompt: string, references: ReferenceImage[], videoReferences: ReferenceVideo[], audioReferences: ReferenceAudio[], seconds: string) {
+function assertVideoCapability(profile: NonNullable<ReturnType<typeof modelCapabilityConfigFor>["video"]>, prompt: string, references: ReferenceImage[], videoReferences: ReferenceVideo[], audioReferences: ReferenceAudio[], seconds: string, count: string, interfaceType: string, model: string) {
     if (Array.from(prompt).length > profile.references.promptMaxChars) throw new Error(`提示词超过当前模型限制（最多 ${profile.references.promptMaxChars} 字）`);
     if (references.length > profile.references.maxImages || videoReferences.length > profile.references.maxVideos || audioReferences.length > profile.references.maxAudios) throw new Error("参考素材数量超过当前模型限制");
-    if (!videoDurationAllowed(profile, Number(seconds))) throw new Error("视频时长不在当前模型支持范围内");
+    const normalizedModel = model.trim().toLowerCase();
+    if (interfaceType === "grok2api-new-video" && references.length > 0) {
+        const referenceDurationLimit = normalizedModel === "console/grok-imagine-video" ? 10 : normalizedModel === "console/grok-imagine-video-1.5" ? 7 : 15;
+        if (Number.parseInt(seconds, 10) > referenceDurationLimit) throw new Error(`当前模型使用参考图时最长支持 ${referenceDurationLimit} 秒`);
+    }
+    const duration = interfaceType === "grok2api-video" ? normalizeGrok2APIVideoDuration(seconds) : interfaceType === "grok2api-new-video" ? normalizeGrok2APINewVideoDuration(seconds) : Number(seconds);
+    if (!videoDurationAllowed(profile, duration)) throw new Error("视频时长不在当前模型支持范围内");
+    const outputCount = interfaceType === "grok2api-video" ? 1 : Number.parseInt(count, 10) || 1;
+    if (profile.maxOutputs && outputCount > profile.maxOutputs) throw new Error(`当前视频模型单次最多生成 ${profile.maxOutputs} 个视频`);
     if (profile.references.maxImageBytes > 0 && references.some((image) => (image.bytes || 0) > profile.references.maxImageBytes)) throw new Error("参考图片文件超过当前模型大小限制");
     for (const video of videoReferences) {
         if (profile.references.maxVideoBytes > 0 && (video.bytes || 0) > profile.references.maxVideoBytes) throw new Error("参考视频文件超过当前模型大小限制");
@@ -101,7 +120,239 @@ export async function pollVideoGenerationTask(config: AiConfig, task: VideoGener
     if (task.provider === "seedance") return pollSeedanceTask(requestConfig, task, options);
     if (task.provider === "video-generations") return pollVideoGenerationsTask(requestConfig, task, options);
     if (task.provider === "gemini-veo") return pollGeminiVeoTask(requestConfig, task, options);
+    if (task.provider === "grok2api-video") return pollGrok2APIVideoTask(requestConfig, task, options);
+    if (task.provider === "grok2api-new-video") return pollGrok2APINewVideoTask(requestConfig, task, options);
+    if (task.provider === "zarklab-video") return pollZarkLabVideoTask(requestConfig, task, options);
     return pollOpenAIVideoTask(requestConfig, task, options);
+}
+
+async function createGrok2APINewVideoTask(config: ResolvedAiConfig, model: string, prompt: string, references: ReferenceImage[], options?: RequestOptions): Promise<VideoGenerationTask> {
+    const maxImages = modelOptionName(model).toLowerCase().startsWith("console/") ? 7 : 8;
+    const images = await Promise.all(references.slice(0, maxImages).map((image) => imageToDataUrl(image)));
+    const modelName = modelOptionName(model);
+    const profile = modelCapabilityConfigFor(config, model).video!;
+    const normalized = normalizeVideoValue(profile, { seconds: config.videoSeconds, ratio: config.size, resolution: `${String(config.vquality).replace(/p$/i, "")}p` });
+    const isConsoleModel = modelName.toLowerCase().startsWith("console/");
+    const imageInput = images.length ? { reference_images: images.map((url) => ({ url })) } : {};
+    const payload = {
+        model: modelName,
+        prompt: prompt.trim(),
+        duration: Number(normalized.seconds),
+        aspect_ratio: normalized.ratio,
+        resolution: normalized.resolution,
+        ...imageInput,
+    };
+    try {
+        const created = unwrapVideoResponse(await channelPost<ApiVideoResponse>(config, aiApiUrl(config, "/videos/generations"), payload, options));
+        const id = videoTaskId(created) || String((created as unknown as Record<string, unknown>).request_id || "");
+        if (!id) throw new Error("Grok2API New 视频接口没有返回 request_id");
+        return { id, provider: "grok2api-new-video", model };
+    } catch (error) {
+        throw new Error(readAxiosError(error, "Grok2API New 视频任务创建失败"));
+    }
+}
+
+async function createGrok2APIVideoTask(config: ResolvedAiConfig, model: string, prompt: string, references: ReferenceImage[], options?: RequestOptions): Promise<VideoGenerationTask> {
+    const images = await Promise.all(references.slice(0, 1).map((image) => imageToDataUrl(image)));
+    const payload = {
+        model: modelOptionName(model),
+        prompt: prompt.trim(),
+        duration: normalizeGrok2APIVideoDuration(config.videoSeconds),
+        aspect_ratio: normalizeGrok2APIVideoAspect(config.size),
+        resolution: normalizeGrok2APIVideoResolution(config.vquality),
+        ...(images.length ? { reference_images: images.map((url) => ({ url })) } : {}),
+    };
+    try {
+        const created = unwrapVideoResponse(await channelPost<ApiVideoResponse>(config, aiApiUrl(config, "/videos/generations"), payload, options));
+        const id = videoTaskId(created) || String((created as unknown as Record<string, unknown>).request_id || "");
+        if (!id) throw new Error("Grok2API 视频接口没有返回 request_id");
+        return { id, provider: "grok2api-video", model };
+    } catch (error) {
+        throw new Error(readAxiosError(error, "Grok2API 视频任务创建失败"));
+    }
+}
+
+async function pollGrok2APIVideoTask(config: ResolvedAiConfig, task: VideoGenerationTask, options?: RequestOptions): Promise<VideoGenerationTaskState> {
+    try {
+        const video = unwrapVideoResponse(await channelGet<ApiVideoResponse>(config, aiApiUrl(config, `/videos/${task.id}`), options));
+        if (video.status === "completed" || video.status === "succeeded" || video.status === "success" || video.status === "done") {
+            const resultUrl = video.video?.url || video.video_url || video.result_url;
+            if (resultUrl) return { status: "completed", result: await videoResultFromUrl(resultUrl, options) };
+            const content = await channelGetBlob(config, aiApiUrl(config, `/videos/${task.id}/content`), options);
+            await assertVideoBlob(content);
+            return { status: "completed", result: { blob: content } };
+        }
+        if (video.status === "failed" || video.status === "cancelled" || video.status === "error") return { status: "failed", error: video.error?.message || "Grok2API 视频生成失败" };
+        return { status: "pending" };
+    } catch (error) {
+        throw new Error(readAxiosError(error, "Grok2API 视频任务查询失败"));
+    }
+}
+
+async function pollGrok2APINewVideoTask(config: ResolvedAiConfig, task: VideoGenerationTask, options?: RequestOptions): Promise<VideoGenerationTaskState> {
+    try {
+        const video = unwrapVideoResponse(await channelGet<ApiVideoResponse>(config, aiApiUrl(config, `/videos/${task.id}`), options));
+        if (video.status === "completed" || video.status === "succeeded" || video.status === "success" || video.status === "done") {
+            const resultUrl = video.video?.url || video.video_url || video.result_url;
+            if (resultUrl) return { status: "completed", result: await videoResultFromUrl(resultUrl, options) };
+            const content = await channelGetBlob(config, aiApiUrl(config, `/videos/${task.id}/content`), options);
+            await assertVideoBlob(content);
+            return { status: "completed", result: { blob: content } };
+        }
+        if (video.status === "failed" || video.status === "cancelled" || video.status === "error") return { status: "failed", error: video.error?.message || "Grok2API New 视频生成失败" };
+        return { status: "pending" };
+    } catch (error) {
+        throw new Error(readAxiosError(error, "Grok2API New 视频任务查询失败"));
+    }
+}
+
+async function createZarkLabVideoTask(config: ResolvedAiConfig, model: string, prompt: string, references: ReferenceImage[], options?: RequestOptions): Promise<VideoGenerationTask> {
+    const fileIds = references.map(extractZarkFileId).filter(Boolean);
+    const profile = modelCapabilityConfigFor(config, model).video!;
+    const normalized = normalizeVideoValue(profile, { seconds: config.videoSeconds, ratio: config.size, resolution: `${String(config.vquality).replace(/p$/i, "")}p` });
+    const modelName = modelOptionName(model);
+
+    let formattedPrompt = prompt.trim();
+    if (!formattedPrompt.toLowerCase().startsWith("use ") && modelName !== "auto") {
+        formattedPrompt = `Use ${modelName}: ${formattedPrompt}`;
+    }
+    const ratio = normalizeZarkLabAspectRatio(normalized.ratio, "video");
+    if (ratio && !formattedPrompt.toLowerCase().includes("aspect ratio") && !formattedPrompt.toLowerCase().includes("ratio")) {
+        formattedPrompt += `, aspect ratio ${ratio}`;
+    }
+    const duration = Number(normalized.seconds) || 5;
+    if (!formattedPrompt.toLowerCase().includes("duration") && !formattedPrompt.toLowerCase().includes("second")) {
+        formattedPrompt += `, ${duration}s duration`;
+    }
+    if (config.vquality && !formattedPrompt.toLowerCase().includes("resolution")) {
+        formattedPrompt += `, ${config.vquality} resolution`;
+    }
+
+    const payload = {
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: {
+            name: "zark_ai",
+            arguments: {
+                prompt: formattedPrompt,
+                wait: false,
+                ...(fileIds.length ? { fileIds } : {}),
+            },
+        },
+    };
+
+    try {
+        const req = channelRequest(config, buildApiUrl(config.baseUrl || "https://api.zarklab.ai", "/mcp"), {
+            "X-API-Key": config.apiKey,
+            "Content-Type": "application/json",
+        });
+        const response = await axios.post<{
+            result?: {
+                structuredContent?: {
+                    success?: boolean;
+                    run_id?: string;
+                    generated_file_ids?: string[];
+                    error?: string;
+                };
+                content?: Array<{ type?: string; text?: string }>;
+            };
+            error?: { message?: string };
+        }>(req.url, payload, {
+            headers: req.headers,
+            withCredentials: req.credentials === "include",
+            signal: options?.signal,
+        });
+
+        if (response.data.error?.message) {
+            throw new Error(response.data.error.message);
+        }
+
+        const generatedIds = response.data.result?.structuredContent?.generated_file_ids;
+        if (Array.isArray(generatedIds) && generatedIds.length) {
+            return { id: generatedIds[0], provider: "zarklab-video", model };
+        }
+
+        const runId = response.data.result?.structuredContent?.run_id;
+        if (!runId) throw new Error(response.data.result?.structuredContent?.error || "ZarkLab 视频接口未返回任务 ID");
+        return { id: runId, provider: "zarklab-video", model };
+    } catch (error) {
+        throw new Error(readAxiosError(error, "ZarkLab 视频任务创建失败"));
+    }
+}
+
+async function pollZarkLabVideoTask(config: ResolvedAiConfig, task: VideoGenerationTask, options?: RequestOptions): Promise<VideoGenerationTaskState> {
+    try {
+        let fileId = task.id;
+        if (task.id.startsWith("run-") || task.id.startsWith("run_") || !task.id.startsWith("file-")) {
+            const req = channelRequest(config, buildApiUrl(config.baseUrl || "https://api.zarklab.ai", "/mcp"), {
+                "X-API-Key": config.apiKey,
+                "Content-Type": "application/json",
+            });
+            const pollPayload = {
+                jsonrpc: "2.0",
+                id: Date.now(),
+                method: "tools/call",
+                params: {
+                    name: "get_run_status",
+                    arguments: { runId: task.id },
+                },
+            };
+            const resp = await axios.post<{
+                result?: {
+                    structuredContent?: { generated_file_ids?: string[]; status?: string; message?: string };
+                    content?: Array<{ type?: string; text?: string }>;
+                };
+            }>(req.url, pollPayload, { headers: req.headers, withCredentials: req.credentials === "include", signal: options?.signal });
+
+            const ids = resp.data.result?.structuredContent?.generated_file_ids;
+            if (Array.isArray(ids) && ids.length) {
+                fileId = ids[0];
+            } else if (resp.data.result?.content?.length) {
+                for (const item of resp.data.result.content) {
+                    if (item.type === "text" && item.text) {
+                        try {
+                            const parsed = JSON.parse(item.text) as { generated_file_ids?: string[]; status?: string; message?: string };
+                            if (Array.isArray(parsed.generated_file_ids) && parsed.generated_file_ids.length) {
+                                fileId = parsed.generated_file_ids[0];
+                                break;
+                            }
+                            if (parsed.status === "failed") {
+                                return { status: "failed", error: parsed.message || "ZarkLab 视频生成失败" };
+                            }
+                        } catch {}
+                    }
+                }
+            }
+            if (fileId === task.id) {
+                return { status: "pending" };
+            }
+        }
+
+        const fileInfoReq = channelRequest(config, buildApiUrl(config.baseUrl || "https://api.zarklab.ai", `/media/files/${encodeURIComponent(fileId)}`), {
+            "X-API-Key": config.apiKey,
+        });
+        const fileInfoResp = await axios.get<{ url?: string; download_url?: string; preview_url?: string; file_url?: string; file?: { url?: string; download_url?: string }; data?: { url?: string; download_url?: string } }>(fileInfoReq.url, {
+            headers: fileInfoReq.headers,
+            withCredentials: fileInfoReq.credentials === "include",
+            signal: options?.signal,
+        });
+        const videoUrl =
+            fileInfoResp.data.file?.download_url ||
+            fileInfoResp.data.file?.url ||
+            fileInfoResp.data.download_url ||
+            fileInfoResp.data.url ||
+            fileInfoResp.data.preview_url ||
+            fileInfoResp.data.file_url ||
+            fileInfoResp.data.data?.download_url ||
+            fileInfoResp.data.data?.url;
+        if (videoUrl) {
+            return { status: "completed", result: await videoResultFromUrl(videoUrl, options) };
+        }
+        return { status: "pending" };
+    } catch (error) {
+        throw new Error(readAxiosError(error, "ZarkLab 视频文件获取失败"));
+    }
 }
 
 async function createVideoGenerationsTask(config: ResolvedAiConfig, model: string, prompt: string, references: ReferenceImage[], videoReferences: ReferenceVideo[], audioReferences: ReferenceAudio[], options?: RequestOptions): Promise<VideoGenerationTask> {
@@ -409,7 +660,7 @@ async function buildSeedanceAgentPlanPayload(config: ResolvedAiConfig, model: st
         content,
         ratio: normalizeSeedanceRatio(config.size),
         resolution: normalizeSeedanceResolution(config.vquality, modelOptionName(model)),
-        duration: normalizeSeedanceDuration(config.videoSeconds),
+        duration: normalizeSeedanceDuration(config.videoSeconds, modelCapabilityConfigFor(config, config.model).video),
         ...(profile.generateAudio.supported ? { generate_audio: boolConfig(config.videoGenerateAudio, profile.generateAudio.default) } : {}),
         ...(profile.watermark.supported ? { watermark: boolConfig(config.videoWatermark, profile.watermark.default) } : {}),
     };
@@ -444,7 +695,7 @@ async function buildSeedanceVideosPayload(config: AiConfig, model: string, promp
     const videoUrls = await Promise.all(videoReferences.slice(0, SEEDANCE_REFERENCE_LIMITS.videos).map(resolveSeedanceVideosMediaUrl));
     const audioUrls = await Promise.all(audioReferences.slice(0, SEEDANCE_REFERENCE_LIMITS.audios).map(resolveSeedanceVideosMediaUrl));
     const ratio = normalizeSeedanceRatio(config.size);
-    const duration = normalizeSeedanceDuration(config.videoSeconds);
+    const duration = normalizeSeedanceDuration(config.videoSeconds, modelCapabilityConfigFor(config, config.model).video);
     const profile = modelCapabilityConfigFor(config, model).video!;
     return {
         model: modelOptionName(model),

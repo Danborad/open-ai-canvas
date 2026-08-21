@@ -2,6 +2,7 @@ import { Check, Clapperboard, Download, FileText, Frame, Image as ImageIcon, Mor
 import type { ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Dropdown, Input } from "antd";
+import { useQuery } from "@tanstack/react-query";
 
 import { useCanvasStore, type CanvasProject } from "@/stores/canvas/use-canvas-store";
 import { useCanvasUiStore } from "@/stores/canvas/use-canvas-ui-store";
@@ -9,7 +10,10 @@ import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
 import { resourceFileUrl, resourceIdFromStorageKey } from "@/services/api/resources";
 import { resolveBackendApiUrl } from "@/stores/use-config-store";
+import { useUserStore } from "@/stores/use-user-store";
 import { cn } from "@/lib/utils";
+import { getCanvasProjectStats } from "@/services/api/user-data";
+import { formatCredits } from "@/constant/credits";
 
 export function CanvasCreateCard({ disabled, onClick }: { disabled?: boolean; onClick: () => void }) {
     return <button type="button" className="app-canvas-create-card" disabled={disabled} onClick={onClick}>
@@ -29,6 +33,7 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
     const startEditing = useCanvasUiStore((state) => state.startEditingProject);
     const setEditingTitle = useCanvasUiStore((state) => state.setEditingProjectTitle);
     const stopEditing = useCanvasUiStore((state) => state.stopEditingProject);
+    const user = useUserStore((state) => state.user);
     const toggleSelected = useCanvasUiStore((state) => state.toggleSelectedProjectId);
     const setDeleteIds = useCanvasUiStore((state) => state.setDeleteProjectIds);
     const editing = editingId === project.id;
@@ -38,6 +43,7 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
         renameProject(project.id, editingTitle);
         stopEditing();
     };
+    const statsQuery = useQuery({ queryKey: ["canvas-project-stats", project.id], queryFn: () => getCanvasProjectStats(project.id), staleTime: 30_000, enabled: Boolean(user) });
 
     const compact = variant === "recent";
     return (
@@ -54,7 +60,10 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
                     <ProjectPreview project={project} />
                 </button>
                 {!compact && !readOnly ? <span className={`canvas-project-select ${selected ? "is-visible" : ""}`} onClick={(event) => event.stopPropagation()}><input type="checkbox" checked={selected} onChange={(event) => toggleSelected(project.id, event.target.checked)} className="app-canvas-project-checkbox" aria-label={`选择 ${project.title}`} /></span> : null}
-                <div className="canvas-project-cover-meta" aria-hidden="true"><span className="canvas-project-node-count">{project.nodes.length} 节点</span></div>
+                <div className="canvas-project-cover-meta" aria-label="画布生成统计">
+                    {statsQuery.data ? <div className="canvas-project-media-stats"><span><ImageIcon className="size-3" /> 图片 {statsQuery.data.imageCount} · {formatCredits(statsQuery.data.imageCreditsMicros, 3)} 积分</span><span><Video className="size-3" /> 视频 {statsQuery.data.videoCount} · {formatCredits(statsQuery.data.videoCreditsMicros, 3)} 积分</span></div> : null}
+                    <span className="canvas-project-node-count">{project.nodes.length} 节点</span>
+                </div>
             </div>
 
             <div className={cn("app-canvas-project-body", compact ? "is-compact" : "")}>

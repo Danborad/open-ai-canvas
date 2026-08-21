@@ -2,10 +2,12 @@ import { type ReactNode } from "react";
 import { Switch } from "antd";
 
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
+import { flow2APIOmniDurationOptions, flow2APIVideoAspectOptions, isFlow2APIVideoConfig, isFlow2APIOmniFlash, normalizeFlow2APIOmniDuration, normalizeFlow2APIVideoAspect } from "@/lib/flow2api";
 import { boolConfig, isSeedanceFastModel, isSeedanceVideoConfig, normalizeSeedanceDuration, normalizeSeedanceRatio, normalizeSeedanceResolution, seedanceRatioOptions } from "@/lib/seedance-video";
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import { normalizeVideoDuration, normalizeVideoResolution, VIDEO_DURATION_MIN } from "@/lib/video-generation-options";
-import { modelCapabilityConfigFor, videoDurationOptions, type VideoCapabilityConfig } from "@/lib/model-capabilities";
+import { modelCapabilityConfigFor, normalizeVideoValue, videoDurationOptions, type VideoCapabilityConfig } from "@/lib/model-capabilities";
+import { isGrok2APINewVideoConfig, isGrok2APIVideoConfig, normalizeGrok2APIVideoAspect, normalizeGrok2APIVideoResolution } from "@/lib/grok-video";
 import { modelOptionName, resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
 
 const sizeOptions = [
@@ -19,15 +21,26 @@ const sizeOptions = [
 
 type VideoSettingsPanelProps = {
     config: AiConfig;
-    onConfigChange: (key: "vquality" | "size" | "videoSeconds" | "videoGenerateAudio" | "videoWatermark", value: string) => void;
+    onConfigChange: (key: "vquality" | "size" | "videoSeconds" | "videoGenerateAudio" | "videoWatermark" | "count", value: string) => void;
     theme: CanvasTheme;
     showTitle?: boolean;
     className?: string;
 };
 
 export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = true, className = "w-[292px] space-y-3" }: VideoSettingsPanelProps) {
-    const profile = modelCapabilityConfigFor(config, config.model).video!;
-    if (resolveModelRequestConfig(config, config.model).interfaceType === "volcengine-jimeng-video") {
+    const selectedModel = config.model || config.videoModel;
+    const requestInterface = resolveModelRequestConfig(config, selectedModel).interfaceType;
+    if (isGrok2APINewVideoConfig(config)) {
+        return <Grok2APINewVideoSettingsPanel config={config} onConfigChange={onConfigChange} theme={theme} showTitle={showTitle} className={className} />;
+    }
+    if (isGrok2APIVideoConfig(config)) {
+        return <Grok2APIVideoSettingsPanel config={config} onConfigChange={onConfigChange} theme={theme} showTitle={showTitle} className={className} />;
+    }
+    if (isFlow2APIVideoConfig(config)) {
+        return <Flow2APIVideoSettingsPanel config={config} onConfigChange={onConfigChange} theme={theme} showTitle={showTitle} className={className} />;
+    }
+    const profile = modelCapabilityConfigFor(config, selectedModel).video!;
+    if (requestInterface === "volcengine-jimeng-video") {
         return <JiMengVideoSettingsPanel config={config} profile={profile} onConfigChange={onConfigChange} theme={theme} showTitle={showTitle} className={className} />;
     }
     if (isSeedanceVideoConfig(config)) {
@@ -90,6 +103,86 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
     );
 }
 
+function Grok2APINewVideoSettingsPanel({ config, onConfigChange, theme, showTitle, className }: VideoSettingsPanelProps) {
+    const profile = modelCapabilityConfigFor(config, config.model || config.videoModel).video!;
+    const modelName = modelOptionName(config.model || config.videoModel).toLowerCase();
+    const displayProfile = modelName.startsWith("web/") ? { ...profile, duration: { selection: "enum" as const, values: [6, 10, 15], default: 6 } } : profile;
+    const normalized = normalizeVideoValue(displayProfile, { seconds: config.videoSeconds, ratio: config.size, resolution: `${String(config.vquality).replace(/p$/i, "")}p` });
+    const ratio = normalized.ratio;
+    const duration = Number(normalized.seconds);
+    const resolution = normalized.resolution;
+    return (
+        <ImageSettingsTheme theme={theme}>
+            <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
+                {showTitle ? <div className="text-sm font-semibold">Grok2API New 视频设置</div> : null}
+                <SettingGroup title="画幅" color={theme.node.muted}><div className="grid grid-cols-4 gap-1.5">{profile.ratios.map((value) => <OptionPill key={value} selected={ratio === value} theme={theme} onClick={() => onConfigChange("size", value)}>{value}</OptionPill>)}</div></SettingGroup>
+                <SettingGroup title="秒数" color={theme.node.muted}><VideoDurationControl profile={displayProfile} value={duration} theme={theme} onChange={(value) => onConfigChange("videoSeconds", String(value))} /></SettingGroup>
+                <SettingGroup title="分辨率" color={theme.node.muted}><div className="grid grid-cols-3 gap-1.5">{profile.resolutions.map((value) => <OptionPill key={value} selected={resolution === value} theme={theme} onClick={() => onConfigChange("vquality", value)}>{value.toUpperCase()}</OptionPill>)}</div></SettingGroup>
+            </div>
+        </ImageSettingsTheme>
+    );
+}
+
+function Grok2APIVideoSettingsPanel({ config, onConfigChange, theme, showTitle, className }: VideoSettingsPanelProps) {
+    const profile = modelCapabilityConfigFor(config, config.model || config.videoModel).video!;
+    const ratio = normalizeGrok2APIVideoAspect(config.size);
+    const resolution = normalizeGrok2APIVideoResolution(config.vquality);
+    const duration = Number(config.videoSeconds) || profile.duration.default;
+    return (
+        <ImageSettingsTheme theme={theme}>
+            <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
+                {showTitle ? <div className="text-sm font-semibold">视频设置</div> : null}
+                <SettingGroup title="画幅" color={theme.node.muted}><div className="grid grid-cols-4 gap-1.5">{profile.ratios.map((value) => <button key={value} type="button" className="flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md text-[var(--fs-tiny)] font-medium transition-colors hover:brightness-110 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1" style={{ background: ratio === value ? theme.toolbar.activeBg : "transparent", color: theme.node.text, outlineColor: theme.node.muted }} onMouseDown={(event) => event.stopPropagation()} onClick={() => onConfigChange("size", value)}><SizePreview width={ratioPreview(value).width} height={ratioPreview(value).height} color={theme.node.text} /><span>{value}</span></button>)}</div></SettingGroup>
+                <SettingGroup title="秒数" color={theme.node.muted}><VideoDurationControl profile={profile} value={duration} theme={theme} onChange={(value) => onConfigChange("videoSeconds", String(value))} /></SettingGroup>
+                <SettingGroup title="分辨率" color={theme.node.muted}><div className="grid grid-cols-3 gap-1.5">{profile.resolutions.map((value) => <OptionPill key={value} selected={resolution === value} theme={theme} onClick={() => onConfigChange("vquality", value)}>{value.toUpperCase()}</OptionPill>)}</div></SettingGroup>
+            </div>
+        </ImageSettingsTheme>
+    );
+}
+
+function Flow2APIVideoSettingsPanel({ config, onConfigChange, theme, showTitle, className }: VideoSettingsPanelProps) {
+    const aspect = normalizeFlow2APIVideoAspect(config.size);
+    const isOmni = isFlow2APIOmniFlash({ model: config.model, videoModel: config.videoModel });
+    const seconds = Number(normalizeFlow2APIOmniDuration(config.videoSeconds));
+    const activeSeconds = flow2APIOmniDurationOptions.includes(seconds as (typeof flow2APIOmniDurationOptions)[number]) ? seconds : 6;
+    const count = Math.max(1, Math.min(4, Math.floor(Math.abs(Number(config.count)) || 1)));
+
+    return (
+        <ImageSettingsTheme theme={theme}>
+            <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
+                {showTitle ? <div className="text-sm font-semibold">视频设置</div> : null}
+                <SettingGroup title="画幅" color={theme.node.muted}>
+                    <div className="grid grid-cols-2 gap-1.5">
+                        {flow2APIVideoAspectOptions.map((item) => (
+                            <button
+                                key={item.value}
+                                type="button"
+                                className="flex h-11 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md text-[var(--fs-label)] font-medium transition-colors hover:brightness-110 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                style={{ background: aspect === item.value ? theme.toolbar.activeBg : "transparent", color: theme.node.text, outlineColor: theme.node.muted }}
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onClick={() => onConfigChange("size", item.value)}
+                            >
+                                <SizePreview width={item.width} height={item.height} color={theme.node.text} />
+                                <span>{item.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </SettingGroup>
+                <SettingGroup title="生成张数" color={theme.node.muted}><div className="grid grid-cols-4 gap-1.5">{[1, 2, 3, 4].map((value) => <OptionPill key={value} selected={count === value} theme={theme} onClick={() => onConfigChange("count", String(value))}>{value}</OptionPill>)}</div></SettingGroup>
+                {isOmni ? <SettingGroup title="秒数" color={theme.node.muted}>
+                    <div className="grid grid-cols-3 gap-1.5">
+                        {flow2APIOmniDurationOptions.map((value) => (
+                            <OptionPill key={value} selected={activeSeconds === value} theme={theme} onClick={() => onConfigChange("videoSeconds", String(value))}>
+                                {value}s
+                            </OptionPill>
+                        ))}
+                    </div>
+                </SettingGroup> : null}
+            </div>
+        </ImageSettingsTheme>
+    );
+}
+
 function JiMengVideoSettingsPanel({ config, profile, onConfigChange, theme, showTitle, className }: VideoSettingsPanelProps & { profile: VideoCapabilityConfig }) {
     const seconds = normalizeVideoDuration(config.videoSeconds);
     return (
@@ -113,7 +206,7 @@ function SeedanceVideoSettingsPanel({ config, profile, onConfigChange, theme, sh
     const model = modelOptionName(config.model || config.videoModel);
     const resolution = normalizeSeedanceResolution(config.vquality, model);
     const ratio = normalizeSeedanceRatio(config.size);
-    const duration = normalizeSeedanceDuration(config.videoSeconds);
+    const duration = normalizeSeedanceDuration(config.videoSeconds, profile);
     const generateAudio = boolConfig(config.videoGenerateAudio, profile.generateAudio.default);
     const watermark = boolConfig(config.videoWatermark, profile.watermark.default);
 

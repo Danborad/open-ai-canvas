@@ -30,10 +30,11 @@ var (
 	customXAIVideoTaskPath    = regexp.MustCompile(`(?:^|/)videos/[^/]+$`)
 	customVideoContentPath    = regexp.MustCompile(`(?:^|/)videos/[^/]+/content$`)
 	customArkVideoTaskPath    = regexp.MustCompile(`(?:^|/)contents/generations/tasks/[^/]+$`)
+	customZarkFilePath        = regexp.MustCompile(`(?:^|/)media/files/[^/]+$`)
 	customGeminiOperationPath = regexp.MustCompile(`(?:^|/)(?:models/[^/]+/)?operations/[^/]+$`)
 	openAIPostEndpoints       = map[string]bool{
 		"/responses": true, "/chat/completions": true, "/images/generations": true, "/images/edits": true,
-		"/audio/speech": true,
+		"/audio/speech": true, "/videos/generations": true, "/complete": true, "/mcp": true,
 	}
 )
 
@@ -64,7 +65,7 @@ func authorizeCustomRelay(method string, target *url.URL, apiFormat string, cont
 	if method == http.MethodGet {
 		allowed := requestPath == "/models" || strings.HasSuffix(requestPath, "/models")
 		if apiFormat == "openai" {
-			allowed = allowed || customVideoTaskPath.MatchString(requestPath) || customXAIVideoTaskPath.MatchString(requestPath) || customVideoContentPath.MatchString(requestPath) || customArkVideoTaskPath.MatchString(requestPath)
+			allowed = allowed || customVideoTaskPath.MatchString(requestPath) || customXAIVideoTaskPath.MatchString(requestPath) || customVideoContentPath.MatchString(requestPath) || customArkVideoTaskPath.MatchString(requestPath) || customZarkFilePath.MatchString(requestPath)
 		} else {
 			allowed = allowed || customGeminiOperationPath.MatchString(requestPath)
 		}
@@ -82,7 +83,7 @@ func authorizeCustomRelay(method string, target *url.URL, apiFormat string, cont
 	}
 	if apiFormat == "openai" {
 		multipartAllowed := mediaType == "multipart/form-data" && (strings.HasSuffix(requestPath, "/images/edits") || strings.HasSuffix(requestPath, "/videos"))
-		jsonAllowed := mediaType == "application/json" && (strings.HasSuffix(requestPath, "/responses") || strings.HasSuffix(requestPath, "/chat/completions") || strings.HasSuffix(requestPath, "/images/generations") || strings.HasSuffix(requestPath, "/images/edits") || strings.HasSuffix(requestPath, "/audio/speech") || strings.HasSuffix(requestPath, "/video/generations") || strings.HasSuffix(requestPath, "/videos/generations") || strings.HasSuffix(requestPath, "/videos") || strings.HasSuffix(requestPath, "/contents/generations/tasks"))
+		jsonAllowed := mediaType == "application/json" && (strings.HasSuffix(requestPath, "/responses") || strings.HasSuffix(requestPath, "/chat/completions") || strings.HasSuffix(requestPath, "/images/generations") || strings.HasSuffix(requestPath, "/images/edits") || strings.HasSuffix(requestPath, "/audio/speech") || strings.HasSuffix(requestPath, "/video/generations") || strings.HasSuffix(requestPath, "/videos/generations") || strings.HasSuffix(requestPath, "/videos") || strings.HasSuffix(requestPath, "/contents/generations/tasks") || strings.HasSuffix(requestPath, "/complete") || strings.HasSuffix(requestPath, "/mcp"))
 		if len(query) != 0 || (!multipartAllowed && !jsonAllowed) {
 			return errors.New("自定义渠道不允许访问该上游接口")
 		}
@@ -153,6 +154,12 @@ func authorizeSystemProxy(channel *model.ModelChannel, protocol model.ChannelInt
 	if method == http.MethodGet && requestPath == "/models" {
 		return nil
 	}
+	if method == http.MethodGet && (protocol == model.ChannelInterfaceGrok2APIVideo || protocol == model.ChannelInterfaceGrok2APINewVideo) && (customXAIVideoTaskPath.MatchString(requestPath) || customVideoContentPath.MatchString(requestPath)) {
+		return nil
+	}
+	if method == http.MethodGet && (protocol == model.ChannelInterfaceZarkLabImage || protocol == model.ChannelInterfaceZarkLabVideo) && customZarkFilePath.MatchString(requestPath) {
+		return nil
+	}
 	if protocol == model.ChannelInterfaceGeminiVeo {
 		matches := geminiGeneratePath.FindStringSubmatch(requestPath)
 		if method != http.MethodPost || len(matches) != 3 {
@@ -185,6 +192,15 @@ func interfaceAllowsProxyPath(interfaceType model.ChannelInterfaceType, requestP
 		return requestPath == "/responses"
 	case model.ChannelInterfaceOpenAIImage, model.ChannelInterfaceGrokImage:
 		return requestPath == "/images/generations" || requestPath == "/images/edits"
+	case model.ChannelInterfaceGrok2APIImage, model.ChannelInterfaceGrok2APINewImage:
+		return requestPath == "/images/generations" || requestPath == "/images/edits"
+	case model.ChannelInterfaceFlow2APIImage, model.ChannelInterfaceFlow2APIVideo:
+		// Flow2API 生图/生视频走 chat completions；模型列表可走 /models。
+		return requestPath == "/chat/completions" || requestPath == "/models" || strings.HasPrefix(requestPath, "/models/")
+	case model.ChannelInterfaceGrok2APIVideo, model.ChannelInterfaceGrok2APINewVideo:
+		return requestPath == "/videos/generations" || strings.HasPrefix(requestPath, "/videos/")
+	case model.ChannelInterfaceZarkLabImage, model.ChannelInterfaceZarkLabVideo:
+		return requestPath == "/complete" || requestPath == "/mcp" || strings.HasPrefix(requestPath, "/media/files/")
 	case model.ChannelInterfaceVolcengineArkImage:
 		return requestPath == "/images/generations"
 	case model.ChannelInterfaceOpenAIAudio:
@@ -240,8 +256,28 @@ func proxyRequestModel(contentType string, body []byte) string {
 	if json.Unmarshal(body, &payload) != nil {
 		return ""
 	}
-	modelName, _ := payload["model"].(string)
-	return strings.TrimSpace(modelName)
+	if modelName, _ := payload["model"].(string); strings.TrimSpace(modelName) != "" {
+		return strings.TrimSpace(modelName)
+	}
+	if toolParams, ok := payload["tool_params"].(map[string]interface{}); ok {
+		if modelName, _ := toolParams["model"].(string); strings.TrimSpace(modelName) != "" {
+			return strings.TrimSpace(modelName)
+		}
+	}
+	if params, ok := payload["params"].(map[string]interface{}); ok {
+		if args, ok := params["arguments"].(map[string]interface{}); ok {
+			if prompt, _ := args["prompt"].(string); strings.TrimSpace(prompt) != "" {
+				prompt = strings.TrimSpace(prompt)
+				if strings.HasPrefix(strings.ToLower(prompt), "use ") {
+					idx := strings.Index(prompt, ":")
+					if idx > 4 {
+						return strings.TrimSpace(prompt[4:idx])
+					}
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func proxyRequestModelForPath(requestPath string, contentType string, body []byte) string {

@@ -3,6 +3,11 @@ import { nanoid } from "nanoid";
 import { nextCanvasVersionLabel } from "@/lib/canvas/canvas-layout";
 import type { CanvasNodeData, CanvasNodeMetadata } from "@/types/canvas";
 
+// A 参数变体及后续版本已经是独立结果；再次生成应覆盖该结果，而不是继续追加版本。
+export function shouldOverwriteGeneratedVideoVariant(node: CanvasNodeData | undefined) {
+    return node?.type === "video" && Boolean(node.metadata?.versionLabel && node.metadata.versionLabel !== "A");
+}
+
 function snapshotMetadata(metadata: CanvasNodeMetadata | undefined, rootId: string, label: string): CanvasNodeMetadata {
     const snapshot = { ...metadata, versionOfNodeId: rootId, versionLabel: label, versionPrimary: false };
     delete snapshot.taskId;

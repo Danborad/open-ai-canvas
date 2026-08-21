@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { App, Button, Form, Input, Select, Space, Switch, Tag } from "antd";
+import { App, Button, Form, Input, InputNumber, Select, Space, Switch, Tag } from "antd";
 import { MailCheck } from "lucide-react";
 
 import { getAdminEmailSetting, updateAdminEmailSetting, type EmailSetting } from "@/services/api/wallet";
@@ -56,7 +56,7 @@ export default function EmailSettingsPanel() {
                     <Form.Item name="enabled" label="启用注册验证邮件" valuePropName="checked" extra="公开注册开启后，普通邮箱注册必须完成验证码校验。"><Switch /></Form.Item>
                     <Form.Item name="encryption" label="连接加密" rules={[{ required: true, message: "请选择连接加密方式" }]}><Select options={[{ label: "STARTTLS（推荐，通常 587）", value: "starttls" }, { label: "TLS（通常 465）", value: "tls" }, { label: "无加密", value: "none" }]} /></Form.Item>
                     <Form.Item name="host" label="SMTP 主机"><Input placeholder="smtp.example.com" /></Form.Item>
-                    <Form.Item name="port" label="SMTP 端口"><Input type="number" min={1} max={65535} placeholder="587" /></Form.Item>
+                    <Form.Item name="port" label="SMTP 端口" rules={[{ required: true, type: "number", min: 1, max: 65535, message: "请输入 1-65535 的 SMTP 端口" }]}><InputNumber className="w-full" min={1} max={65535} precision={0} placeholder="587" /></Form.Item>
                     <Form.Item name="username" label="SMTP 用户名"><Input autoComplete="off" placeholder="通常为完整邮箱地址" /></Form.Item>
                     <Form.Item name="password" label={setting?.hasPassword ? `SMTP 密码（${configuredSecretText}）` : "SMTP 密码"}><Input.Password autoComplete="new-password" placeholder={setting?.hasPassword ? "留空保留原密码" : "SMTP 密码或授权码"} /></Form.Item>
                     <Form.Item name="fromEmail" label="发件邮箱" rules={[{ type: "email", message: "请输入有效的发件邮箱" }]}><Input placeholder="noreply@example.com" /></Form.Item>

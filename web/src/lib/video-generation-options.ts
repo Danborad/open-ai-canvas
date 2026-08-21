@@ -1,4 +1,5 @@
-export const VIDEO_DURATION_OPTIONS = [6, 9, 10, 15] as const;
+// 含 Grok 1.5 的 4/8/12，以及通用 6/9/10/15。
+export const VIDEO_DURATION_OPTIONS = [4, 6, 8, 9, 10, 12, 15] as const;
 export const VIDEO_RESOLUTION_OPTIONS = [480, 720, 1080, 2160] as const;
 export const VIDEO_DURATION_MIN = 1;
 

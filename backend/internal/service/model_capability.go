@@ -63,6 +63,7 @@ type VideoCapabilityConfig struct {
 	Watermark         VideoBooleanConfig   `json:"watermark"`
 	Operations        []string             `json:"operations"`
 	DefaultOperation  string               `json:"defaultOperation"`
+	MaxOutputs        int                  `json:"maxOutputs"`
 }
 
 type VideoReferenceConfig struct {
@@ -106,15 +107,60 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		MaxOutputs:            15,
 	}
 	switch model.ChannelInterfaceType(protocol) {
-	case model.ChannelInterfaceGrokImage:
+	case model.ChannelInterfaceGrokImage, model.ChannelInterfaceGrok2APIImage, model.ChannelInterfaceGrok2APINewImage:
 		image.References.MaxImages = 1
 		image.References.MaskSupported = false
-		image.Size = ImageSizeConfig{Parameter: "none", Values: []string{}, Default: "auto", AllowCustom: false}
-		image.Quality = ImageQualityConfig{Supported: false, Values: []string{}, Default: "auto"}
+		if model.ChannelInterfaceType(protocol) == model.ChannelInterfaceGrok2APIImage {
+			image.References.MaxImages = 8
+			image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"}, Default: "16:9", AllowCustom: false}
+			image.Quality = ImageQualityConfig{Supported: true, Values: []string{"auto", "medium"}, Default: "auto"}
+			image.MaxOutputs = 4
+		} else if model.ChannelInterfaceType(protocol) == model.ChannelInterfaceGrok2APINewImage {
+			image.References.MaxImages = 8
+			image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "2:1", "1:2", "19.5:9", "9:19.5", "20:9", "9:20"}, Default: "auto", AllowCustom: false}
+			image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1k", "2k"}, Default: "1k"}
+			image.MaxOutputs = 10
+			modelKey := strings.ToLower(strings.TrimSpace(modelName))
+			if strings.HasPrefix(modelKey, "console/") {
+				image.References.MaxImages = 3
+				image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "2:1", "1:2"}, Default: "auto", AllowCustom: false}
+			}
+			if strings.HasPrefix(modelKey, "web/") && strings.HasSuffix(modelKey, "-lite") {
+				image.References.MaxImages = 0
+			}
+			if modelKey == "web/grok-imagine-image-lite" {
+				image.Size = ImageSizeConfig{Parameter: "none", Values: []string{}, Default: "auto", AllowCustom: false}
+				image.Quality = ImageQualityConfig{Supported: false, Values: []string{}, Default: "auto"}
+			}
+			if modelKey == "web/grok-imagine-image-2.0" || modelKey == "web/grok-imagine-image-edit" {
+				image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1k"}, Default: "1k"}
+			}
+		} else {
+			image.Size = ImageSizeConfig{Parameter: "none", Values: []string{}, Default: "auto", AllowCustom: false}
+			image.Quality = ImageQualityConfig{Supported: false, Values: []string{}, Default: "auto"}
+			image.MaxOutputs = 1
+		}
 		image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
 		image.ResponseFormat = ParameterSupport{Supported: true}
 		image.OutputFormat = ParameterSupport{Supported: false}
-		image.MaxOutputs = 1
+	case model.ChannelInterfaceZarkLabImage:
+		image.References.MaxImages = 8
+		image.References.MaskSupported = false
+		cleanModel := strings.TrimPrefix(strings.TrimSpace(modelName), "models/")
+		standardRatios := []string{"1:1", "4:5", "2:3", "3:2", "9:16", "16:9"}
+		switch cleanModel {
+		case "Nano Banana 2", "Nano Banana 2 Lite", "Nano Banana Lite":
+			image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: append(standardRatios, "4:1", "1:4", "8:1", "1:8"), Default: "1:1", AllowCustom: false}
+		case "Grok Image":
+			image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: append(standardRatios, "4:3", "3:4"), Default: "1:1", AllowCustom: false}
+		default:
+			image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: standardRatios, Default: "1:1", AllowCustom: false}
+		}
+		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"Standard", "High"}, Default: "High"}
+		image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
+		image.ResponseFormat = ParameterSupport{Supported: false}
+		image.OutputFormat = ParameterSupport{Supported: false}
+		image.MaxOutputs = 10
 	case model.ChannelInterfaceVolcengineArkImage:
 		image.References.MaskSupported = false
 		image.Quality.Supported = false
@@ -129,7 +175,17 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		image.ResponseFormat.Supported = false
 		image.OutputFormat.Supported = false
 	}
-	if model.ChannelInterfaceType(protocol) != model.ChannelInterfaceGrokImage && strings.HasPrefix(strings.ToLower(strings.TrimSpace(modelName)), "grok-imagine-image") {
+	if model.ChannelInterfaceType(protocol) == model.ChannelInterfaceFlow2APIImage {
+		image.References.MaxImages = 8
+		image.References.MaskSupported = false
+		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"1:1", "16:9", "9:16", "4:3", "3:4"}, Default: "16:9", AllowCustom: false}
+		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1K", "2K"}, Default: "1K"}
+		image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
+		image.ResponseFormat = ParameterSupport{Supported: false}
+		image.OutputFormat = ParameterSupport{Supported: false}
+		image.MaxOutputs = 4
+	}
+	if model.ChannelInterfaceType(protocol) != model.ChannelInterfaceGrokImage && model.ChannelInterfaceType(protocol) != model.ChannelInterfaceGrok2APIImage && model.ChannelInterfaceType(protocol) != model.ChannelInterfaceGrok2APINewImage && strings.HasPrefix(strings.ToLower(strings.TrimSpace(modelName)), "grok-imagine-image") {
 		image.References.MaxImages = 0
 		image.References.MaskSupported = false
 		image.Size = ImageSizeConfig{Parameter: "none", Values: []string{}, Default: "auto", AllowCustom: false}
@@ -175,6 +231,102 @@ func DefaultModelCapabilityConfigForModel(protocol string, modelName string) *Mo
 		video.GenerateAudio = VideoBooleanConfig{Supported: true, Default: true}
 	case model.ChannelInterfaceNewAPIVideo, model.ChannelInterfaceXAIVideo:
 		video.GenerateAudio = VideoBooleanConfig{Supported: false, Default: false}
+	}
+	if model.ChannelInterfaceType(protocol) == model.ChannelInterfaceFlow2APIVideo {
+		video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{4, 6, 8, 10}, Default: 6}
+		video.Ratios = []string{"16:9", "9:16"}
+		video.Resolutions = []string{"720p", "1080p"}
+		video.MaxOutputs = 4
+	}
+	if model.ChannelInterfaceType(protocol) == model.ChannelInterfaceGrok2APIVideo {
+		video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{6, 10, 15}, Default: 6}
+		video.Ratios = []string{"16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"}
+		video.Resolutions = []string{"480p", "720p"}
+		video.References.MaxImages = 1
+		video.MaxOutputs = 1
+	}
+	if model.ChannelInterfaceType(protocol) == model.ChannelInterfaceGrok2APINewVideo {
+		video.Duration = VideoDurationConfig{Selection: "range", Min: 1, Max: 15, Step: 1, Default: 8}
+		video.Ratios = []string{"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "2:1", "1:2"}
+		video.Resolutions = []string{"480p", "720p", "1080p"}
+		video.References.MaxImages = 8
+		video.MaxOutputs = 0
+		if strings.EqualFold(strings.TrimSpace(modelName), "Console/grok-imagine-video") {
+			video.Resolutions = []string{"480p", "720p"}
+		}
+	}
+	if model.ChannelInterfaceType(protocol) == model.ChannelInterfaceZarkLabVideo {
+		video.Operations = []string{"text_to_video", "image_to_video"}
+		video.References.MaxImages = 8
+		video.MaxOutputs = 0
+		cleanModel := strings.TrimPrefix(strings.TrimSpace(modelName), "models/")
+		switch cleanModel {
+		case "Gemini Omni Flash":
+			video.Duration = VideoDurationConfig{Selection: "range", Min: 3, Max: 10, Step: 1, Default: 5}
+			video.Ratios = []string{"16:9", "9:16"}
+			video.Resolutions = []string{"720p"}
+			video.GenerateAudio = VideoBooleanConfig{Supported: false, Default: false}
+		case "Seedance 2.5":
+			video.Duration = VideoDurationConfig{Selection: "range", Min: 4, Max: 30, Step: 1, Default: 6}
+			video.Ratios = []string{"auto", "16:9", "21:9", "4:3", "1:1", "3:4", "9:16"}
+			video.Resolutions = []string{"480p", "720p"}
+			video.GenerateAudio = VideoBooleanConfig{Supported: true, Default: true}
+		case "Seedance 2":
+			video.Duration = VideoDurationConfig{Selection: "range", Min: 4, Max: 15, Step: 1, Default: 6}
+			video.Ratios = []string{"auto", "16:9", "21:9", "4:3", "1:1", "3:4", "9:16"}
+			video.Resolutions = []string{"480p", "720p", "1080p", "4K"}
+			video.GenerateAudio = VideoBooleanConfig{Supported: true, Default: true}
+		case "Seedance 2 Lite", "Seedance 2 Mini":
+			video.Duration = VideoDurationConfig{Selection: "range", Min: 4, Max: 15, Step: 1, Default: 6}
+			video.Ratios = []string{"auto", "16:9", "21:9", "4:3", "1:1", "3:4", "9:16"}
+			video.Resolutions = []string{"480p", "720p"}
+			video.GenerateAudio = VideoBooleanConfig{Supported: true, Default: true}
+		case "Kling O3 4K":
+			video.Duration = VideoDurationConfig{Selection: "range", Min: 3, Max: 15, Step: 1, Default: 5}
+			video.Ratios = []string{"16:9", "1:1", "9:16"}
+			video.Resolutions = []string{"4K"}
+			video.DefaultResolution = "4K"
+			video.GenerateAudio = VideoBooleanConfig{Supported: true, Default: true}
+		case "Kling O3 Pro", "Kling 3.0 Turbo":
+			video.Duration = VideoDurationConfig{Selection: "range", Min: 3, Max: 15, Step: 1, Default: 5}
+			video.Ratios = []string{"16:9", "1:1", "9:16"}
+			video.Resolutions = []string{"1080p"}
+			video.DefaultResolution = "1080p"
+			video.GenerateAudio = VideoBooleanConfig{Supported: true, Default: true}
+		case "Kling 3.0 Lite":
+			video.Duration = VideoDurationConfig{Selection: "range", Min: 3, Max: 15, Step: 1, Default: 5}
+			video.Ratios = []string{"16:9", "1:1", "9:16"}
+			video.Resolutions = []string{"720p", "1080p"}
+			video.DefaultResolution = "720p"
+			video.GenerateAudio = VideoBooleanConfig{Supported: true, Default: true}
+		case "Veo 3.1", "Veo 3.1 Fast", "Veo 3.1 Lite":
+			video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{4, 6, 8}, Default: 6}
+			video.Ratios = []string{"auto", "16:9", "9:16"}
+			video.Resolutions = []string{"720p", "1080p"}
+			video.GenerateAudio = VideoBooleanConfig{Supported: true, Default: true}
+		case "Grok Video":
+			video.Duration = VideoDurationConfig{Selection: "range", Min: 4, Max: 10, Step: 1, Default: 6}
+			video.Ratios = []string{"auto", "16:9", "4:3", "1:1", "3:4", "9:16"}
+			video.Resolutions = []string{"480p", "720p"}
+			video.GenerateAudio = VideoBooleanConfig{Supported: false, Default: false}
+		case "MiniMax H3":
+			video.Duration = VideoDurationConfig{Selection: "range", Min: 5, Max: 15, Step: 1, Default: 5}
+			video.Ratios = []string{"16:9", "21:9", "4:3", "1:1", "3:4", "9:16"}
+			video.Resolutions = []string{"768p", "2K", "4K"}
+			video.DefaultResolution = "768p"
+			video.GenerateAudio = VideoBooleanConfig{Supported: false, Default: false}
+		case "Happy Horse":
+			video.Duration = VideoDurationConfig{Selection: "range", Min: 3, Max: 15, Step: 1, Default: 5}
+			video.Ratios = []string{"16:9", "21:9", "4:3", "1:1", "3:4", "4:5", "5:4", "9:16", "9:21"}
+			video.Resolutions = []string{"720p", "1080p"}
+			video.DefaultResolution = "720p"
+			video.GenerateAudio = VideoBooleanConfig{Supported: true, Default: true}
+		default:
+			video.Duration = VideoDurationConfig{Selection: "range", Min: 3, Max: 15, Step: 1, Default: 5}
+			video.Ratios = []string{"16:9", "9:16", "1:1", "4:3", "3:4", "21:9"}
+			video.Resolutions = []string{"720p", "1080p"}
+			video.GenerateAudio = VideoBooleanConfig{Supported: true, Default: true}
+		}
 	}
 	return &ModelCapabilityConfig{Version: 1, Image: DefaultImageCapabilityConfig(protocol, modelName), Video: video}
 }
@@ -347,6 +499,18 @@ func (s *Service) ValidateTaskCapability(input map[string]any) error {
 		}
 		return validateImageTask(imageProfile, taskInput)
 	}
+	if taskInput.Mode == "video" {
+		videoProfile := DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey).Video
+		if item.Protocol == model.ChannelInterfaceFlow2APIVideo && !flow2APIVideoSupportsDuration(item.ModelKey) {
+			videoProfile.Duration = VideoDurationConfig{Selection: "enum", Values: []int{}, Default: 6}
+		}
+		if item.Protocol == model.ChannelInterfaceFlow2APIVideo || item.Protocol == model.ChannelInterfaceGrok2APIVideo || item.Protocol == model.ChannelInterfaceGrok2APINewVideo {
+			if profile != nil && profile.Video != nil {
+				videoProfile = profile.Video
+			}
+			return validateVideoTask(videoProfile, taskInput)
+		}
+	}
 	if err != nil || profile == nil || profile.Video == nil {
 		return BadAuthRequest("当前视频模型尚未配置能力参数")
 	}
@@ -359,6 +523,18 @@ func validateVideoTask(profile *VideoCapabilityConfig, input canvasGenerationInp
 	}
 	if len(input.ReferenceImages) > profile.References.MaxImages || len(input.ReferenceVideos) > profile.References.MaxVideos || len(input.ReferenceAudios) > profile.References.MaxAudios {
 		return BadAuthRequest("参考素材数量超过当前模型限制")
+	}
+	if input.Config.InterfaceType == string(model.ChannelInterfaceGrok2APINewVideo) && strings.EqualFold(strings.TrimSpace(input.Config.Model), "Console/grok-imagine-video") && len(input.ReferenceImages) > 0 {
+		seconds, err := strconv.Atoi(strings.TrimSpace(input.Config.VideoSeconds))
+		if err == nil && seconds > 10 {
+			return BadAuthRequest("Console 基础视频使用参考图时最长支持 10 秒")
+		}
+	}
+	if input.Config.InterfaceType == string(model.ChannelInterfaceGrok2APINewVideo) && strings.EqualFold(strings.TrimSpace(input.Config.Model), "Console/grok-imagine-video-1.5") && len(input.ReferenceImages) > 0 {
+		seconds, err := strconv.Atoi(strings.TrimSpace(input.Config.VideoSeconds))
+		if err == nil && seconds > 7 {
+			return BadAuthRequest("Console Video 1.5 使用参考图时最长支持 7 秒")
+		}
 	}
 	for _, media := range input.ReferenceImages {
 		if profile.References.MaxImageBytes > 0 && media.Bytes > profile.References.MaxImageBytes {
@@ -381,14 +557,45 @@ func validateVideoTask(profile *VideoCapabilityConfig, input canvasGenerationInp
 			return BadAuthRequest("参考音频时长超过当前模型限制")
 		}
 	}
-	seconds, err := strconv.Atoi(strings.TrimSpace(input.Config.VideoSeconds))
-	if err != nil || !videoDurationAllowed(profile.Duration, seconds) {
-		return BadAuthRequest("视频时长不在当前模型支持范围内")
+	if len(profile.Duration.Values) > 0 || profile.Duration.Selection != "enum" {
+		secondsValue := strings.TrimSpace(input.Config.VideoSeconds)
+		if input.Config.InterfaceType == string(model.ChannelInterfaceGrok2APIVideo) {
+			seconds := normalizeGrok2APIVideoDuration(secondsValue)
+			if !videoDurationAllowed(profile.Duration, seconds) {
+				return BadAuthRequest("视频时长不在当前模型支持范围内")
+			}
+		} else if input.Config.InterfaceType == string(model.ChannelInterfaceGrok2APINewVideo) {
+			seconds := normalizeGrok2APINewVideoDuration(secondsValue)
+			if !videoDurationAllowed(profile.Duration, seconds) {
+				return BadAuthRequest("视频时长不在当前模型支持范围内")
+			}
+		} else {
+			seconds, err := strconv.Atoi(secondsValue)
+			if err != nil || !videoDurationAllowed(profile.Duration, seconds) {
+				return BadAuthRequest("视频时长不在当前模型支持范围内")
+			}
+		}
 	}
-	if input.Config.Size != "" && !videoRatioAllowed(profile.Ratios, input.Config.Size) {
+	if profile.MaxOutputs > 0 && input.Config.InterfaceType != string(model.ChannelInterfaceGrok2APIVideo) && input.Config.InterfaceType != string(model.ChannelInterfaceGrok2APINewVideo) {
+		count, err := strconv.Atoi(strings.TrimSpace(input.Config.Count))
+		if err == nil && count > profile.MaxOutputs {
+			return BadAuthRequest(fmt.Sprintf("当前视频模型单次最多生成 %d 个视频", profile.MaxOutputs))
+		}
+	}
+	ratio := input.Config.Size
+	if input.Config.InterfaceType == string(model.ChannelInterfaceGrok2APIVideo) || input.Config.InterfaceType == string(model.ChannelInterfaceGrok2APINewVideo) {
+		ratio = normalizeGrok2APIVideoAspect(ratio)
+	}
+	if ratio != "" && !videoRatioAllowed(profile.Ratios, ratio) {
 		return BadAuthRequest("画面比例不在当前模型支持范围内")
 	}
-	if input.Config.VQuality != "" && !containsCapabilityString(profile.Resolutions, normalizeResolution(input.Config.VQuality)) {
+	resolution := normalizeResolution(input.Config.VQuality)
+	if input.Config.InterfaceType == string(model.ChannelInterfaceGrok2APIVideo) {
+		resolution = normalizeGrok2APIVideoResolution(input.Config.VQuality)
+	} else if input.Config.InterfaceType == string(model.ChannelInterfaceGrok2APINewVideo) {
+		resolution = normalizeGrok2APINewVideoResolution(input.Config.Model, input.Config.VQuality)
+	}
+	if input.Config.VQuality != "" && !containsCapabilityString(profile.Resolutions, resolution) {
 		return BadAuthRequest("输出分辨率不在当前模型支持范围内")
 	}
 	operation := metadataString(input.Metadata, "videoEditOperation")
@@ -423,10 +630,18 @@ func validateImageTask(profile *ImageCapabilityConfig, input canvasGenerationInp
 	if input.Mask != nil && !profile.References.MaskSupported {
 		return BadAuthRequest("当前图片模型不支持蒙版编辑")
 	}
-	if profile.Size.Parameter != "none" && !profile.Size.AllowCustom && strings.TrimSpace(input.Config.Size) != "" && !containsCapabilityString(profile.Size.Values, input.Config.Size) {
+	imageSize := strings.TrimSpace(input.Config.Size)
+	if input.Config.InterfaceType == string(model.ChannelInterfaceGrok2APINewImage) {
+		imageSize = normalizeGrok2APIImageAspectRatio(imageSize)
+	}
+	if profile.Size.Parameter != "none" && !profile.Size.AllowCustom && imageSize != "" && !containsCapabilityString(profile.Size.Values, imageSize) {
 		return BadAuthRequest("图片尺寸不在当前模型支持范围内")
 	}
-	if profile.Quality.Supported && strings.TrimSpace(input.Config.Quality) != "" && !containsCapabilityString(profile.Quality.Values, input.Config.Quality) {
+	quality := strings.TrimSpace(input.Config.Quality)
+	if input.Config.InterfaceType == string(model.ChannelInterfaceGrok2APINewImage) {
+		quality = normalizeGrok2APINewImageResolution(input.Config.Model, quality, len(input.ReferenceImages) > 0)
+	}
+	if profile.Quality.Supported && quality != "" && !containsCapabilityString(profile.Quality.Values, quality) {
 		return BadAuthRequest("图片质量不在当前模型支持范围内")
 	}
 	count, err := strconv.Atoi(strings.TrimSpace(input.Config.Count))

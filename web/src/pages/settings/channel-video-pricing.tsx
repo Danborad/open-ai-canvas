@@ -180,8 +180,36 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
 function defaultProtocolForModel(channel: ModelChannel, model: string): ModelProtocol {
     if (channel.interfaceType) return channel.interfaceType;
     if (channel.apiFormat === "gemini" && modelMatchesCapability(model, "video")) return "gemini-veo";
+    const modelName = modelOptionName(model).trim().toLowerCase();
+    const isZarkChannel = (channel.baseUrl || "").toLowerCase().includes("zark");
+    if (
+        modelName === "happy horse" ||
+        modelName === "gemini omni flash" ||
+        modelName.startsWith("seedance 2") ||
+        modelName.startsWith("kling o3") ||
+        modelName.startsWith("kling 3.0") ||
+        modelName.startsWith("veo 3.1") ||
+        modelName === "grok video" ||
+        modelName.startsWith("minimax h3") ||
+        (isZarkChannel && (modelName === "seedance" || modelName === "kling" || modelName === "veo"))
+    ) {
+        return "zarklab-video";
+    }
+    if (
+        modelName === "gpt image 2" ||
+        modelName.startsWith("seedream 5") ||
+        modelName === "kling image o3" ||
+        modelName.startsWith("nano banana") ||
+        (isZarkChannel && modelName === "grok image") ||
+        (isZarkChannel && (modelName === "seedream" || modelName === "kling image" || modelName === "auto"))
+    ) {
+        return "zarklab-image";
+    }
+    if ((modelName.startsWith("web/") || modelName.startsWith("console/") || modelName.startsWith("build/")) && modelName.includes("grok-imagine-video")) return "grok2api-new-video";
+    if (modelName.includes("grok-imagine-video")) return "grok2api-video";
     if (modelMatchesCapability(model, "video")) return "newapi";
-    if (modelOptionName(model).trim().toLowerCase().startsWith("grok-imagine-image")) return "grok-image";
+    if ((modelName.startsWith("web/") || modelName.startsWith("console/")) && modelName.includes("grok-imagine-image")) return "grok2api-new-image";
+    if (modelName.startsWith("grok-imagine-image")) return "grok2api-image";
     if (modelMatchesCapability(model, "image")) return "openai-image";
     return "chat-completion";
 }

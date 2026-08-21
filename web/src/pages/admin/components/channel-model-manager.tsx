@@ -9,6 +9,7 @@ import { ModelCapabilityEditor } from "@/components/model-capability-editor";
 import { CapabilityCardPicker, ProtocolCardPicker, type ModelCapabilityChoice } from "@/components/model-protocol-picker";
 import { defaultModelCapabilityConfig, type ModelCapabilityConfig } from "@/lib/model-capabilities";
 import { MODEL_PROTOCOLS, modelProtocolCapability, modelProtocolDefinition, modelProtocolLabel, type ModelProtocol } from "@/lib/model-protocols";
+import { ZARK_IMAGE_MODELS, ZARK_VIDEO_MODELS } from "@/lib/zarklab";
 import { createAdminChannelModel, deleteAdminChannelModel, fetchAdminChannelModels, listAdminChannelModels, testAdminChannelModel, updateAdminChannelModel, type ChannelModel } from "@/services/api/wallet";
 import type { ModelChannel } from "@/stores/use-config-store";
 import { AdminPageFrame } from "./admin-shell";
@@ -73,13 +74,14 @@ export function ChannelModelManager({ channel, onClose, onChanged }: { channel: 
     const fetchModels = async () => {
         setFetching(true);
         try {
-            // 拉取只导入缺失项；新模型仍需管理员定价并手动启用。
+            // 拉取会同步上游目录；新模型仍需管理员定价并手动启用，已不存在模型会被软删除。
             const result = await fetchAdminChannelModels(channel.id);
             await reload();
             await onChanged();
-            if (result.models.length === 0) message.warning("上游没有返回可用模型");
-            else if (result.added > 0) message.success(`已拉取 ${result.models.length} 个模型，新增 ${result.added} 个待配置模型`);
-            else message.info(`已拉取 ${result.models.length} 个模型，没有需要新增的模型`);
+            if (result.models.length === 0 && result.removed > 0) message.warning(`上游没有返回可用模型，已移除 ${result.removed} 个本地模型`);
+            else if (result.models.length === 0) message.warning("上游没有返回可用模型");
+            else if (result.added > 0 || result.removed > 0) message.success(`已同步 ${result.models.length} 个模型，新增 ${result.added} 个，移除 ${result.removed} 个`);
+            else message.info(`已同步 ${result.models.length} 个模型，没有新增或移除`);
         } catch (error) {
             message.error(error instanceof Error ? error.message : "拉取模型失败");
         } finally {
@@ -247,6 +249,36 @@ export function ChannelModelManager({ channel, onClose, onChanged }: { channel: 
                     <Form.Item name="modelKey" label="模型标识" rules={[{ required: true, message: "请输入模型标识" }]}>
                         <Input prefix={<span className="grid size-6 place-items-center"><ModelIcon model={modelKey} /></span>} placeholder="例如：deepseek-chat、gpt-5、glm-4.5" />
                     </Form.Item>
+                    {form.getFieldValue("protocol") === "zarklab-image" ? (
+                        <div className="mb-3 flex flex-wrap gap-1.5">
+                            {ZARK_IMAGE_MODELS.map((item) => (
+                                <Tag.CheckableTag
+                                    key={item.value}
+                                    checked={modelKey === item.value}
+                                    onChange={() => {
+                                        form.setFieldsValue({ modelKey: item.value, displayName: item.value });
+                                    }}
+                                >
+                                    {item.label}
+                                </Tag.CheckableTag>
+                            ))}
+                        </div>
+                    ) : null}
+                    {form.getFieldValue("protocol") === "zarklab-video" ? (
+                        <div className="mb-3 flex flex-wrap gap-1.5">
+                            {ZARK_VIDEO_MODELS.map((item) => (
+                                <Tag.CheckableTag
+                                    key={item.value}
+                                    checked={modelKey === item.value}
+                                    onChange={() => {
+                                        form.setFieldsValue({ modelKey: item.value, displayName: item.value });
+                                    }}
+                                >
+                                    {item.label}
+                                </Tag.CheckableTag>
+                            ))}
+                        </div>
+                    ) : null}
                     <Form.Item name="displayName" label="显示名称">
                         <Input placeholder="不填则使用模型标识" />
                     </Form.Item>

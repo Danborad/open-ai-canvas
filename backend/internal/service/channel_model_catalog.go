@@ -32,6 +32,41 @@ type channelModelItem struct {
 	Name string `json:"name"`
 }
 
+var zarkLabPresetModels = []string{
+	"auto",
+	// 图像模型 (9款)
+	"GPT Image 2",
+	"Seedream 5 Pro",
+	"Seedream 5 Lite",
+	"Kling Image O3",
+	"Nano Banana Pro",
+	"Nano Banana 2",
+	"Nano Banana 2 Lite",
+	"Nano Banana Lite",
+	"Grok Image",
+	// 视频模型 (15款)
+	"Gemini Omni Flash",
+	"Seedance 2.5",
+	"Seedance 2",
+	"Seedance 2 Lite",
+	"Seedance 2 Mini",
+	"Kling O3 4K",
+	"Kling O3 Pro",
+	"Kling 3.0 Turbo",
+	"Kling 3.0 Lite",
+	"Veo 3.1",
+	"Veo 3.1 Fast",
+	"Veo 3.1 Lite",
+	"Grok Video",
+	"MiniMax H3",
+	"Happy Horse",
+}
+
+func isZarkLabBaseURL(baseURL string) bool {
+	lower := strings.ToLower(strings.TrimSpace(baseURL))
+	return strings.Contains(lower, "zarklab.ai") || strings.Contains(lower, "api.zarklab")
+}
+
 func (s *Service) FetchChannelModels(ctx context.Context, actor *model.User, input ChannelModelsRequest) ([]string, error) {
 	if actor == nil || strings.TrimSpace(actor.ID) == "" {
 		return nil, Unauthorized("请先登录")
@@ -43,6 +78,11 @@ func (s *Service) FetchChannelModels(ctx context.Context, actor *model.User, inp
 	}
 	if apiKey == "" {
 		return nil, BadAuthRequest("请填写 API Key")
+	}
+	if isZarkLabBaseURL(baseURL) {
+		res := make([]string, len(zarkLabPresetModels))
+		copy(res, zarkLabPresetModels)
+		return res, nil
 	}
 	apiFormat := strings.ToLower(strings.TrimSpace(input.APIFormat))
 	if apiFormat == "" {

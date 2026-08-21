@@ -156,6 +156,107 @@ func TestFetchAdminChannelModelsReaddsDeletedModel(t *testing.T) {
 	}
 }
 
+func TestFetchAdminChannelModelsSoftDeletesModelsMissingUpstream(t *testing.T) {
+	t.Setenv("CANVAS_ALLOW_PRIVATE_UPSTREAMS", "true")
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"id":"model-a"}]}`))
+	}))
+	defer upstream.Close()
+
+	svc, db := newChannelModelTestService(t)
+	admin := &model.User{ID: "admin", Role: model.UserRoleAdmin}
+	channel := model.ModelChannel{ID: "channel-1", UserID: admin.ID, Scope: model.ChannelScopeSystem, Enabled: true, Name: "Test", BaseURL: upstream.URL + "/v1", APIKey: "key", APIFormat: "openai", ModelsJSON: `["model-a","model-removed"]`}
+	items := []model.ChannelModel{
+		{ID: "model-a", ChannelID: channel.ID, ModelKey: "model-a", DisplayName: "Model A", BillingMode: "fixed_request", Enabled: true, PriceVersion: 2},
+		{ID: "model-removed", ChannelID: channel.ID, ModelKey: "model-removed", DisplayName: "Removed", BillingMode: "fixed_request", Enabled: true, PriceVersion: 3},
+	}
+	if err := db.Create(&channel).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&items).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := svc.FetchAdminChannelModels(context.Background(), admin, channel.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Removed != 1 {
+		t.Fatalf("Removed = %d, want 1", result.Removed)
+	}
+	var active []model.ChannelModel
+	if err := db.Where("channel_id = ?", channel.ID).Find(&active).Error; err != nil {
+		t.Fatal(err)
+	}
+	if len(active) != 1 || active[0].ModelKey != "model-a" {
+		t.Fatalf("active channel models = %#v", active)
+	}
+	var removed model.ChannelModel
+	if err := db.Unscoped().First(&removed, "id = ?", "model-removed").Error; err != nil {
+		t.Fatal(err)
+	}
+	if !removed.DeletedAt.Valid || removed.Enabled {
+		t.Fatalf("removed model = %#v", removed)
+	}
+	var storedChannel model.ModelChannel
+	if err := db.First(&storedChannel, "id = ?", channel.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if storedChannel.ModelsJSON != `["model-a"]` {
+		t.Fatalf("ModelsJSON = %q", storedChannel.ModelsJSON)
+	}
+}
+
+func TestFetchAdminChannelModelsAutoPopulatesZarkLabModels(t *testing.T) {
+	svc, db := newChannelModelTestService(t)
+	admin := &model.User{ID: "admin", Role: model.UserRoleAdmin}
+	channel := model.ModelChannel{
+		ID:        "zark-channel",
+		UserID:    admin.ID,
+		Scope:     model.ChannelScopeSystem,
+		Enabled:   true,
+		Name:      "ZarkLab",
+		BaseURL:   "https://api.zarklab.ai",
+		APIKey:    "test-zark-key",
+		APIFormat: "openai",
+	}
+	if err := db.Create(&channel).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := svc.FetchAdminChannelModels(context.Background(), admin, channel.ID)
+	if err != nil {
+		t.Fatalf("FetchAdminChannelModels() error = %v", err)
+	}
+	if len(result.Models) != 25 || result.Added != 25 {
+		t.Fatalf("result = %#v, want 25 models and 25 added", result)
+	}
+
+	var items []model.ChannelModel
+	if err := db.Where("channel_id = ?", channel.ID).Find(&items).Error; err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 25 {
+		t.Fatalf("items count = %d, want 25", len(items))
+	}
+
+	byKey := make(map[string]model.ChannelModel, len(items))
+	for _, it := range items {
+		byKey[it.ModelKey] = it
+	}
+
+	gptImg := byKey["GPT Image 2"]
+	if gptImg.Capability != "image" || gptImg.Protocol != model.ChannelInterfaceZarkLabImage || gptImg.CapabilityConfigJSON == "" {
+		t.Fatalf("GPT Image 2 item = %#v", gptImg)
+	}
+
+	happyHorse := byKey["Happy Horse"]
+	if happyHorse.Capability != "video" || happyHorse.Protocol != model.ChannelInterfaceZarkLabVideo || happyHorse.CapabilityConfigJSON == "" {
+		t.Fatalf("Happy Horse item = %#v", happyHorse)
+	}
+}
+
 func TestSaveAdminChannelModelRejectsActiveDuplicateKey(t *testing.T) {
 	svc, db := newChannelModelTestService(t)
 	admin := &model.User{ID: "admin", Role: model.UserRoleAdmin}

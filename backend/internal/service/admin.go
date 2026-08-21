@@ -734,7 +734,7 @@ func mergeChannelRequest(req ChannelRequest, channel model.ModelChannel) Channel
 
 func validChannelInterfaceType(value model.ChannelInterfaceType) bool {
 	switch value {
-	case model.ChannelInterfaceChatCompletion, model.ChannelInterfaceOpenAIResponse, model.ChannelInterfaceOpenAIImage, model.ChannelInterfaceGrokImage, model.ChannelInterfaceVolcengineArkImage, model.ChannelInterfaceVolcengineJiMengImage, model.ChannelInterfaceOpenAIAudio, model.ChannelInterfaceAsyncAudio, model.ChannelInterfaceNewAPIVideo, model.ChannelInterfaceNewAPIChannel1, model.ChannelInterfaceNewAPIChannel2, model.ChannelInterfaceXAIVideo, model.ChannelInterfaceVolcengineArkVideo, model.ChannelInterfaceVolcengineJiMengVideo, model.ChannelInterfaceGeminiVeo:
+	case model.ChannelInterfaceChatCompletion, model.ChannelInterfaceOpenAIResponse, model.ChannelInterfaceOpenAIImage, model.ChannelInterfaceGrokImage, model.ChannelInterfaceGrok2APIImage, model.ChannelInterfaceGrok2APIVideo, model.ChannelInterfaceGrok2APINewImage, model.ChannelInterfaceGrok2APINewVideo, model.ChannelInterfaceZarkLabImage, model.ChannelInterfaceZarkLabVideo, model.ChannelInterfaceFlow2APIImage, model.ChannelInterfaceFlow2APIVideo, model.ChannelInterfaceVolcengineArkImage, model.ChannelInterfaceVolcengineJiMengImage, model.ChannelInterfaceOpenAIAudio, model.ChannelInterfaceAsyncAudio, model.ChannelInterfaceNewAPIVideo, model.ChannelInterfaceNewAPIChannel1, model.ChannelInterfaceNewAPIChannel2, model.ChannelInterfaceXAIVideo, model.ChannelInterfaceVolcengineArkVideo, model.ChannelInterfaceVolcengineJiMengVideo, model.ChannelInterfaceGeminiVeo:
 		return true
 	default:
 		return false
@@ -751,7 +751,7 @@ func publicChannel(channel model.ModelChannel, admin bool, channelModels []model
 		models = append(models, item.ModelKey)
 		if item.Enabled && item.PriceConfigured {
 			capabilityConfig, _ := DecodeModelCapabilityConfig(item.CapabilityConfigJSON)
-			modelCosts = append(modelCosts, PublicChannelModelPrice{Model: item.ModelKey, DisplayName: item.DisplayName, Capability: item.Capability, Protocol: item.Protocol, BillingMode: item.BillingMode, UnitPriceMicrocredits: item.UnitPriceMicrocredits, InputTokenPriceMicrocredits: item.InputTokenPriceMicrocredits, OutputTokenPriceMicrocredits: item.OutputTokenPriceMicrocredits, CachedTokenPriceMicrocredits: item.CachedTokenPriceMicrocredits, CapabilityConfig: capabilityConfig})
+			modelCosts = append(modelCosts, PublicChannelModelPrice{Model: item.ModelKey, DisplayName: item.DisplayName, Capability: item.Capability, Protocol: normalizePersistedFlowProtocol(item.Protocol, item.Capability), BillingMode: item.BillingMode, UnitPriceMicrocredits: item.UnitPriceMicrocredits, InputTokenPriceMicrocredits: item.InputTokenPriceMicrocredits, OutputTokenPriceMicrocredits: item.OutputTokenPriceMicrocredits, CachedTokenPriceMicrocredits: item.CachedTokenPriceMicrocredits, CapabilityConfig: capabilityConfig})
 		}
 	}
 	if len(models) == 0 {
@@ -789,6 +789,16 @@ func publicChannel(channel model.ModelChannel, admin bool, channelModels []model
 		CreatedAt:        channel.CreatedAt,
 		UpdatedAt:        channel.UpdatedAt,
 	}
+}
+
+func normalizePersistedFlowProtocol(protocol model.ChannelInterfaceType, capability string) model.ChannelInterfaceType {
+	if protocol != model.ChannelInterfaceType("flow2api") {
+		return protocol
+	}
+	if capability == "video" {
+		return model.ChannelInterfaceFlow2APIVideo
+	}
+	return model.ChannelInterfaceFlow2APIImage
 }
 
 func uniqueNonEmpty(values []string) []string {

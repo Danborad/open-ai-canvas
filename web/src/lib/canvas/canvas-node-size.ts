@@ -28,6 +28,15 @@ export function nodeSizeFromRatio(size: string, baseWidth: number, baseHeight: n
     return fitNodeSize(candidateSize.width, candidateSize.height, baseWidth, baseHeight);
 }
 
+export function fitVideoNodeSize(width: number | undefined, height: number | undefined, requestedSize: string | undefined, fallbackWidth: number = VIDEO_NODE_MAX_SIZE.width, fallbackHeight: number = VIDEO_NODE_MAX_SIZE.height) {
+    const hasNaturalSize = Boolean(width && width > 0 && height && height > 0);
+    const requested = !hasNaturalSize ? nodeSizeFromRatio(requestedSize || "", fallbackWidth, fallbackHeight) : null;
+    const sourceWidth = hasNaturalSize ? width! : requested?.width || fallbackWidth;
+    const sourceHeight = hasNaturalSize ? height! : requested?.height || fallbackHeight;
+    // Flow2API 返回的内嵌视频可能没有可读的宽高，缺少元数据时必须使用请求画幅，不能继承旧节点比例。
+    return fitNodeSize(sourceWidth, sourceHeight, fallbackWidth, fallbackHeight);
+}
+
 export function ensureMediaNodeMinimumSize(node: CanvasNodeData) {
     if (node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video) return node;
     let width = node.width;
@@ -36,12 +45,18 @@ export function ensureMediaNodeMinimumSize(node: CanvasNodeData) {
     const naturalHeight = node.metadata?.naturalHeight || 0;
     const requestedSize = node.type === CanvasNodeType.Image && node.metadata?.generationType === "edit"
         ? nodeSizeFromRatio(node.metadata.size || "auto", node.width, node.height)
-        : null;
+        : node.type === CanvasNodeType.Video
+            ? nodeSizeFromRatio(node.metadata?.size || "auto", node.width, node.height)
+            : null;
     const naturalRatio = naturalWidth / Math.max(1, naturalHeight);
     const nodeRatio = node.width / Math.max(1, node.height);
-    // 修复旧版图生图无条件继承参考节点尺寸造成的比例错误，不覆盖自由拉伸或锁定布局。
-    if (requestedSize && naturalWidth > 0 && naturalHeight > 0 && !node.metadata?.freeResize && !node.metadata?.locked && Math.abs(naturalRatio - nodeRatio) > 0.01) {
-        const alignedSize = fitNodeSize(naturalWidth, naturalHeight, requestedSize.width, requestedSize.height);
+    const requestedRatio = requestedSize ? requestedSize.width / Math.max(1, requestedSize.height) : nodeRatio;
+    const targetRatio = naturalWidth > 0 && naturalHeight > 0 ? naturalRatio : requestedRatio;
+    // 生成结果缺少媒体尺寸时按请求画幅修正；已有自然尺寸时优先保留真实媒体比例。
+    if (requestedSize && !node.metadata?.freeResize && !node.metadata?.locked && (node.type === CanvasNodeType.Video || (naturalWidth > 0 && naturalHeight > 0)) && Math.abs(targetRatio - nodeRatio) > 0.01) {
+        const alignedSize = naturalWidth > 0 && naturalHeight > 0
+            ? fitNodeSize(naturalWidth, naturalHeight, requestedSize.width, requestedSize.height)
+            : requestedSize;
         width = alignedSize.width;
         height = alignedSize.height;
     }

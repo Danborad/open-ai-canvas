@@ -1418,8 +1418,8 @@ function generationTitle(mode: "text" | "image" | "video" | "audio") {
 }
 
 function defaultGenerationModel(config: AiConfig, mode: "text" | "image" | "video" | "audio") {
-    if (mode === "image") return config.imageModel || config.model;
-    if (mode === "video") return config.videoModel || config.model;
+    if (mode === "image") return config.model || config.imageModel;
+    if (mode === "video") return config.model || config.videoModel;
     if (mode === "audio") return config.audioModel || config.model;
     return config.textModel || config.model;
 }

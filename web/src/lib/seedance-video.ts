@@ -1,5 +1,6 @@
 import { modelOptionName, resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
-import { normalizeVideoDuration, VIDEO_DURATION_OPTIONS } from "@/lib/video-generation-options";
+import { VIDEO_DURATION_OPTIONS } from "@/lib/video-generation-options";
+import { modelCapabilityConfigFor, normalizeVideoValue } from "@/lib/model-capabilities";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 
@@ -59,7 +60,10 @@ const seedancePixels = {
 
 export function isSeedanceVideoConfig(config: AiConfig | Pick<AiConfig, "model" | "videoModel" | "baseUrl">) {
     const requestConfig = "channels" in config ? resolveModelRequestConfig(config, config.model || config.videoModel) : config;
-    return isSeedanceVideoModel(modelOptionName(requestConfig.model || requestConfig.videoModel)) || isArkPlanBaseUrl(requestConfig.baseUrl);
+    const explicitInterface = "interfaceType" in requestConfig ? requestConfig.interfaceType : undefined;
+    const seedanceModel = isSeedanceVideoModel(modelOptionName(requestConfig.model || requestConfig.videoModel));
+    if (explicitInterface && explicitInterface !== "volcengine-ark-video" && !seedanceModel) return false;
+    return seedanceModel || isArkPlanBaseUrl(requestConfig.baseUrl);
 }
 
 export function isSeedanceVideoModel(model: string) {
@@ -90,8 +94,10 @@ export function normalizeResolutionToken(value: string) {
     return `${resolution}p`;
 }
 
-export function normalizeSeedanceDuration(value: string) {
-    return Number(normalizeVideoDuration(value));
+export function normalizeSeedanceDuration(value: string, profile?: ReturnType<typeof modelCapabilityConfigFor>["video"]) {
+    if (profile) return Number(normalizeVideoValue(profile, { seconds: value }).seconds);
+    const seconds = Math.floor(Number(value) || VIDEO_DURATION_OPTIONS[0]);
+    return Math.max(1, seconds);
 }
 
 export function normalizeSeedanceRatio(value: string) {

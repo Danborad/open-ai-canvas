@@ -227,7 +227,7 @@ export function listAdminChannelModels(channelId: string) {
 
 // 管理员从上游拉取模型目录；服务端只导入缺失项，价格和启用仍需人工确认。
 export function fetchAdminChannelModels(channelId: string) {
-    return request<{ models: string[]; added: number }>(api.post(`/admin/channels/${encodeURIComponent(channelId)}/models/fetch`));
+    return request<{ models: string[]; added: number; removed: number }>(api.post(`/admin/channels/${encodeURIComponent(channelId)}/models/fetch`));
 }
 
 export function testAdminChannelModel(channelId: string, input: Pick<ChannelModel, "modelKey" | "capability" | "protocol"> & { capabilityConfig?: ChannelModel["capabilityConfig"] }) {

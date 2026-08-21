@@ -1,5 +1,5 @@
 import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
-import { fitNodeSize, nodeSizeFromRatio, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
+import { fitNodeSize, fitVideoNodeSize, nodeSizeFromRatio, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
 import { compositeEmotionImage } from "@/lib/canvas/canvas-emotion";
 import { storeGeneratedAudio } from "@/services/api/audio";
 import { storeGeneratedVideo } from "@/services/api/video";
@@ -13,7 +13,7 @@ import { CanvasNodeType, type CanvasGenerationMode, type CanvasNodeData, type Ca
 export function generationTaskInput(task: GenerationTask) {
     if (!task.inputJson) return null;
     try {
-        return JSON.parse(task.inputJson) as { mode?: CanvasGenerationMode; metadata?: { nodeId?: string; sourceNodeId?: string }; prompt?: string };
+        return JSON.parse(task.inputJson) as { mode?: CanvasGenerationMode; metadata?: { nodeId?: string; sourceNodeId?: string }; prompt?: string; config?: { size?: string } };
     } catch {
         return null;
     }
@@ -47,6 +47,7 @@ export function audioMetadata(audio: UploadedFile): CanvasNodeMetadata {
 
 export async function buildGenerationTaskNodeResult(node: CanvasNodeData, task: GenerationTask, nodes: CanvasNodeData[] = [node]): Promise<CanvasNodeData> {
     const mode = generationTaskMode(task, node.type === CanvasNodeType.Text ? "text" : node.type === CanvasNodeType.Video ? "video" : node.type === CanvasNodeType.Audio ? "audio" : "image");
+    const taskInput = generationTaskInput(task);
     const prompt = node.metadata?.prompt || task.prompt;
     const result = parseBackendGenerationResult(task);
 
@@ -91,14 +92,16 @@ export async function buildGenerationTaskNodeResult(node: CanvasNodeData, task: 
         const video = result.video.storageKey
             ? { url: await resolveMediaUrl(result.video.storageKey, result.video.dataUrl), storageKey: result.video.storageKey, width: result.video.width, height: result.video.height, durationMs: result.video.durationMs, bytes: result.video.bytes || 0, mimeType: result.video.mimeType || "video/mp4" }
             : await storeGeneratedVideo({ url: result.video.dataUrl, mimeType: result.video.mimeType || "video/mp4" });
-        const videoSize = fitNodeSize(video.width || node.width || VIDEO_NODE_MAX_SIZE.width, video.height || node.height || VIDEO_NODE_MAX_SIZE.height, VIDEO_NODE_MAX_SIZE.width, VIDEO_NODE_MAX_SIZE.height);
+        // 任务恢复时节点元数据可能没有保存 size；使用任务请求配置恢复画幅，避免 Flow2API 视频退回旧的正方形节点。
+        const requestedVideoSize = taskInput?.config?.size || node.metadata?.size;
+        const videoSize = fitVideoNodeSize(video.width, video.height, requestedVideoSize, node.width || VIDEO_NODE_MAX_SIZE.width, node.height || VIDEO_NODE_MAX_SIZE.height);
         return {
             ...node,
             type: CanvasNodeType.Video,
             width: videoSize.width,
             height: videoSize.height,
             position: { x: node.position.x + node.width / 2 - videoSize.width / 2, y: node.position.y + node.height / 2 - videoSize.height / 2 },
-            metadata: { ...node.metadata, ...videoMetadata(video), prompt, ...completedTaskMetadata(task), errorDetails: undefined },
+            metadata: { ...node.metadata, ...videoMetadata(video), prompt, size: requestedVideoSize || node.metadata?.size, ...completedTaskMetadata(task), errorDetails: undefined },
         };
     }
 

@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -426,8 +427,13 @@ func (s *Service) validateResolvedVideoCapability(input *canvasGenerationInput) 
 	if err != nil {
 		return errors.New("当前系统渠道模型未配置或已停用")
 	}
+	protocol := normalizeProviderModelProtocol(item.Protocol, item.ModelKey)
 	profile, err := DecodeModelCapabilityConfig(item.CapabilityConfigJSON)
-	if err != nil || profile == nil || profile.Video == nil {
+	if protocol == model.ChannelInterfaceGrok2APIVideo || protocol == model.ChannelInterfaceGrok2APINewVideo {
+		profile = DefaultModelCapabilityConfigForModel(string(protocol), item.ModelKey)
+	} else if err != nil {
+		return errors.New("当前视频模型尚未配置能力参数")
+	} else if profile == nil || profile.Video == nil {
 		return errors.New("当前视频模型尚未配置能力参数")
 	}
 	input.VideoCapability = profile.Video
@@ -504,7 +510,13 @@ func (s *Service) hydrateProviderMedia(userID string, media *providerMedia, requ
 		if resource.Status != "ready" {
 			return errors.New("任务参考资源尚未上传完成")
 		}
-		signedURL, err := s.directResourceURL(resource, time.Now().Add(providerResourceURLTTL))
+		var signedURL string
+		if resource.Provider == "local" && strings.TrimSpace(os.Getenv("CANVAS_PUBLIC_BASE_URL")) != "" {
+			// 本地公网素材由 provider-resources 路由校验，必须使用该路由允许的 TTL。
+			signedURL, err = s.ProviderResourceURL(userID, resourceID, time.Now().Add(localProviderResourceURLTTL))
+		} else {
+			signedURL, err = s.directResourceURL(resource, time.Now().Add(providerResourceURLTTL))
+		}
 		if err != nil {
 			return fmt.Errorf("生成 JSON 视频协议参考素材地址失败：%w", err)
 		}
@@ -593,7 +605,7 @@ func (s *Service) resolveProviderConfig(config providerConfig) (providerConfig, 
 	if modelErr != nil || channelModel.Protocol == "" {
 		return providerConfig{}, errors.New("当前模型尚未配置请求协议")
 	}
-	config.InterfaceType = string(channelModel.Protocol)
+	config.InterfaceType = string(normalizeProviderModelProtocol(channelModel.Protocol, modelName))
 	// 模型协议是实际请求契约；混合渠道中鉴权格式也必须随模型协议切换。
 	if config.InterfaceType == string(model.ChannelInterfaceGeminiVeo) {
 		config.APIFormat = "gemini"
@@ -609,6 +621,23 @@ func (s *Service) resolveProviderConfig(config providerConfig) (providerConfig, 
 	}
 	config.Model = modelName
 	return config, nil
+}
+
+func normalizeProviderModelProtocol(protocol model.ChannelInterfaceType, modelName string) model.ChannelInterfaceType {
+	if protocol != "" {
+		return protocol
+	}
+	value := strings.ToLower(strings.TrimSpace(modelName))
+	if strings.HasPrefix(value, "gpt-image") || strings.HasPrefix(value, "gpt image") {
+		return model.ChannelInterfaceOpenAIImage
+	}
+	if strings.HasPrefix(value, "grok-imagine-image") {
+		return model.ChannelInterfaceGrok2APIImage
+	}
+	if strings.HasPrefix(value, "grok-imagine-video") {
+		return model.ChannelInterfaceGrok2APIVideo
+	}
+	return protocol
 }
 
 func stringInSlice(value string, values []string) bool {
@@ -638,6 +667,18 @@ func systemChannelIDFromBaseURL(baseURL string) string {
 }
 
 func runImageTask(ctx context.Context, input canvasGenerationInput) (map[string]interface{}, error) {
+	if input.Config.InterfaceType == string(model.ChannelInterfaceZarkLabImage) {
+		return runZarkLabMediaTask(ctx, input, "image")
+	}
+	if input.Config.InterfaceType == string(model.ChannelInterfaceGrok2APINewImage) {
+		return runGrok2APINewImageTask(ctx, input)
+	}
+	if input.Config.InterfaceType == string(model.ChannelInterfaceGrok2APIImage) {
+		return runGrok2APIImageTask(ctx, input)
+	}
+	if input.Config.InterfaceType == string(model.ChannelInterfaceFlow2APIImage) {
+		return runFlow2APIImageTask(ctx, input)
+	}
 	if input.Config.InterfaceType == string(model.ChannelInterfaceGrokImage) {
 		return runGrokImageTask(ctx, input)
 	}
@@ -663,7 +704,9 @@ func runImageTask(ctx context.Context, input canvasGenerationInput) (map[string]
 		writeField(writer, "model", input.Config.Model)
 		writeField(writer, "prompt", withSystemPrompt(input.Config, input.Prompt))
 		writeField(writer, "n", "1")
-		if imageParameterSupported(input.ImageCapability, "response_format") {
+		if customProviderImageResponseFormat(input) != "" {
+			writeField(writer, "response_format", customProviderImageResponseFormat(input))
+		} else if imageParameterSupported(input.ImageCapability, "response_format") {
 			writeField(writer, "response_format", "b64_json")
 		}
 		if imageParameterSupported(input.ImageCapability, "output_format") {
@@ -700,7 +743,9 @@ func runImageTask(ctx context.Context, input canvasGenerationInput) (map[string]
 			"prompt": withSystemPrompt(input.Config, input.Prompt),
 			"n":      1,
 		}
-		if imageParameterSupported(input.ImageCapability, "response_format") {
+		if customProviderImageResponseFormat(input) != "" {
+			body["response_format"] = customProviderImageResponseFormat(input)
+		} else if imageParameterSupported(input.ImageCapability, "response_format") {
 			body["response_format"] = "b64_json"
 		}
 		if imageParameterSupported(input.ImageCapability, "output_format") {
@@ -724,6 +769,13 @@ func runImageTask(ctx context.Context, input canvasGenerationInput) (map[string]
 		return nil, err
 	}
 	return map[string]interface{}{"mode": "image", "images": images}, nil
+}
+
+func customProviderImageResponseFormat(input canvasGenerationInput) string {
+	if strings.TrimSpace(input.Config.ChannelID) == "" && input.Config.InterfaceType == string(model.ChannelInterfaceOpenAIImage) {
+		return "url"
+	}
+	return ""
 }
 
 func runGrokImageTask(ctx context.Context, input canvasGenerationInput) (map[string]interface{}, error) {
@@ -1251,6 +1303,18 @@ func audioFormatMimeType(format string) string {
 }
 
 func runVideoTask(ctx context.Context, input canvasGenerationInput) (map[string]interface{}, error) {
+	if input.Config.InterfaceType == string(model.ChannelInterfaceFlow2APIVideo) {
+		return runFlow2APIVideoTask(ctx, input)
+	}
+	if input.Config.InterfaceType == string(model.ChannelInterfaceGrok2APIVideo) {
+		return runGrok2APIVideoTask(ctx, input)
+	}
+	if input.Config.InterfaceType == string(model.ChannelInterfaceGrok2APINewVideo) {
+		return runGrok2APINewVideoTask(ctx, input)
+	}
+	if input.Config.InterfaceType == string(model.ChannelInterfaceZarkLabVideo) {
+		return runZarkLabMediaTask(ctx, input, "video")
+	}
 	if input.Config.InterfaceType == string(model.ChannelInterfaceVolcengineJiMengVideo) {
 		return runVolcengineJiMengVideoTask(ctx, input)
 	}
@@ -1363,6 +1427,306 @@ func runVideoTask(ctx context.Context, input canvasGenerationInput) (map[string]
 		}
 	}
 	return nil, errors.New("视频生成超时")
+}
+
+func runGrok2APIVideoTask(ctx context.Context, input canvasGenerationInput) (map[string]interface{}, error) {
+	if len(input.ReferenceVideos) > 0 || len(input.ReferenceAudios) > 0 {
+		return nil, errors.New("Grok2API 视频不支持参考视频或参考音频")
+	}
+	if len(input.ReferenceImages) > 1 {
+		return nil, errors.New("Grok2API 视频最多支持 1 张参考图")
+	}
+	body, err := grok2APIVideoRequestBody(input)
+	if err != nil {
+		return nil, err
+	}
+	var created map[string]interface{}
+	if err := postJSON(ctx, input.Config, "/videos/generations", body, &created); err != nil {
+		return nil, err
+	}
+	id := firstNonEmptyString(stringField(created, "request_id"), stringField(created, "id"), stringField(created, "task_id"))
+	if id == "" {
+		if data, ok := created["data"].(map[string]interface{}); ok {
+			id = firstNonEmptyString(stringField(data, "request_id"), stringField(data, "id"), stringField(data, "task_id"))
+		}
+	}
+	if id == "" {
+		return nil, errors.New("Grok2API 视频接口没有返回 request_id")
+	}
+	for deadline := providerPollingDeadline(ctx); time.Now().Before(deadline); {
+		var state map[string]interface{}
+		if err := getJSON(ctx, input.Config, "/videos/"+url.PathEscape(id), &state); err != nil {
+			return nil, err
+		}
+		status := strings.ToLower(firstNonEmptyString(stringField(state, "status"), stringField(state, "state")))
+		if data, ok := state["data"].(map[string]interface{}); ok {
+			if nestedStatus := strings.ToLower(firstNonEmptyString(stringField(data, "status"), stringField(data, "state"))); nestedStatus != "" {
+				status = nestedStatus
+			}
+		}
+		if status == "completed" || status == "succeeded" || status == "success" || status == "done" {
+			videoURL := newAPIVideoResultURL(state)
+			if videoURL == "" {
+				return nil, errors.New("Grok2API 视频已完成但没有返回视频地址")
+			}
+			data, mimeType, err := getProviderExternalBinary(withProviderRequestKind(ctx, "download"), input.Config, videoURL)
+			if err != nil {
+				return nil, fmt.Errorf("Grok2API 视频结果下载失败：%w", err)
+			}
+			mimeType = normalizedMediaMimeType(mimeType, data)
+			return map[string]interface{}{"mode": "video", "video": map[string]interface{}{"dataUrl": dataURL(mimeType, data), "mimeType": mimeType}}, nil
+		}
+		if status == "failed" || status == "cancelled" || status == "error" {
+			return nil, errors.New("Grok2API 视频生成失败")
+		}
+		if err := sleepContext(ctx, 2500*time.Millisecond); err != nil {
+			return nil, err
+		}
+	}
+	return nil, errors.New("Grok2API 视频生成超时")
+}
+
+func runGrok2APINewVideoTask(ctx context.Context, input canvasGenerationInput) (map[string]interface{}, error) {
+	if len(input.ReferenceVideos) > 0 || len(input.ReferenceAudios) > 0 {
+		return nil, errors.New("Grok2API New 视频不支持参考视频或参考音频")
+	}
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(input.Config.Model)), "console/") && len(input.ReferenceImages) > 7 {
+		return nil, errors.New("Grok2API New Console 视频的参考图最多支持 7 张")
+	}
+	if len(input.ReferenceImages) > 8 {
+		return nil, errors.New("Grok2API New 视频最多支持 8 张图片输入")
+	}
+	body, err := grok2APINewVideoRequestBody(input)
+	if err != nil {
+		return nil, err
+	}
+	var created map[string]interface{}
+	if err := postJSON(ctx, input.Config, "/videos/generations", body, &created); err != nil {
+		return nil, err
+	}
+	id := firstNonEmptyString(stringField(created, "request_id"), stringField(created, "id"), stringField(created, "task_id"))
+	if id == "" {
+		return nil, errors.New("Grok2API New 视频接口没有返回 request_id")
+	}
+	for deadline := providerPollingDeadline(ctx); time.Now().Before(deadline); {
+		var state map[string]interface{}
+		if err := getJSON(ctx, input.Config, "/videos/"+url.PathEscape(id), &state); err != nil {
+			return nil, err
+		}
+		status := strings.ToLower(firstNonEmptyString(stringField(state, "status"), stringField(state, "state")))
+		if status == "completed" || status == "succeeded" || status == "success" || status == "done" {
+			videoURL := newAPIVideoResultURL(state)
+			if videoURL == "" {
+				data, mimeType, err := getBinary(withProviderRequestKind(ctx, "download"), input.Config, "/videos/"+url.PathEscape(id)+"/content")
+				if err != nil {
+					return nil, fmt.Errorf("Grok2API New 视频结果下载失败：%w", err)
+				}
+				mimeType = normalizedMediaMimeType(mimeType, data)
+				return map[string]interface{}{"mode": "video", "video": map[string]interface{}{"dataUrl": dataURL(mimeType, data), "mimeType": mimeType}}, nil
+			}
+			data, mimeType, err := getProviderExternalBinary(withProviderRequestKind(ctx, "download"), input.Config, videoURL)
+			if err != nil {
+				return nil, fmt.Errorf("Grok2API New 视频结果下载失败：%w", err)
+			}
+			mimeType = normalizedMediaMimeType(mimeType, data)
+			return map[string]interface{}{"mode": "video", "video": map[string]interface{}{"dataUrl": dataURL(mimeType, data), "mimeType": mimeType}}, nil
+		}
+		if status == "failed" || status == "cancelled" || status == "error" {
+			return nil, errors.New(firstNonEmptyString(seedanceErrorMessage(state), "Grok2API New 视频生成失败"))
+		}
+		if err := sleepContext(ctx, 2500*time.Millisecond); err != nil {
+			return nil, err
+		}
+	}
+	return nil, errors.New("Grok2API New 视频生成超时")
+}
+
+func grok2APINewVideoRequestBody(input canvasGenerationInput) (map[string]interface{}, error) {
+	modelName := strings.TrimSpace(input.Config.Model)
+	if !isGrok2APINewVideoModel(modelName) {
+		return nil, errors.New("Grok2API New 视频模型必须使用完整的 Web/ 或 Console/ 模型 ID")
+	}
+	body := map[string]interface{}{
+		"model":        modelName,
+		"prompt":       strings.TrimSpace(input.Prompt),
+		"duration":     normalizeGrok2APINewVideoDurationForConfig(input.Config.VideoSeconds, input.Config.CapabilityConfig),
+		"aspect_ratio": normalizeGrok2APIVideoAspect(input.Config.Size),
+		"resolution":   normalizeGrok2APINewVideoResolutionForConfig(modelName, input.Config.VQuality, input.Config.CapabilityConfig),
+	}
+	if len(input.ReferenceImages) == 0 {
+		return body, nil
+	}
+	imageValues := make([]map[string]string, 0, len(input.ReferenceImages))
+	for _, image := range input.ReferenceImages {
+		value, err := openAIImageInputURL(image)
+		if err != nil {
+			return nil, err
+		}
+		imageValues = append(imageValues, map[string]string{"url": value})
+	}
+	firstFrameIndex := -1
+	firstFrameID := metadataString(input.Metadata, "videoStartFrameNodeId")
+	for index, image := range input.ReferenceImages {
+		if firstFrameID != "" && image.ID == firstFrameID {
+			firstFrameIndex = index
+			break
+		}
+	}
+	isConsoleModel := strings.HasPrefix(strings.ToLower(modelName), "console/")
+	if isConsoleModel && firstFrameID != "" && len(imageValues) > 1 {
+		return nil, errors.New("Grok2API New Console 视频不能同时使用首帧和参考图；请只保留一张首帧，或清除首帧设置后使用多张参考图")
+	}
+	if firstFrameIndex < 0 && metadataString(input.Metadata, "videoEditOperation") == "image_to_video" && (!isConsoleModel || len(imageValues) == 1) {
+		firstFrameIndex = 0
+	}
+	if isConsoleModel && len(imageValues) > 1 {
+		body["reference_images"] = imageValues
+		return body, nil
+	}
+	if firstFrameIndex >= 0 {
+		body["image"] = imageValues[firstFrameIndex]
+	}
+	references := make([]map[string]string, 0, len(imageValues))
+	for index, image := range imageValues {
+		if index != firstFrameIndex {
+			references = append(references, image)
+		}
+	}
+	if len(references) > 0 {
+		body["reference_images"] = references
+	}
+	return body, nil
+}
+
+func normalizeGrok2APINewVideoDurationForConfig(value string, capability *ModelCapabilityConfig) int {
+	if capability == nil || capability.Video == nil {
+		return normalizeGrok2APINewVideoDuration(value)
+	}
+	profile := capability.Video.Duration
+	if profile.Selection == "enum" && len(profile.Values) > 0 {
+		candidate, err := strconv.Atoi(strings.TrimSuffix(strings.TrimSpace(value), "s"))
+		if err != nil {
+			return profile.Default
+		}
+		best := profile.Values[0]
+		for _, option := range profile.Values {
+			if absInt(option-candidate) < absInt(best-candidate) {
+				best = option
+			}
+		}
+		return best
+	}
+	seconds := normalizeGrok2APINewVideoDuration(value)
+	if profile.Min > 0 && seconds < profile.Min {
+		seconds = profile.Min
+	}
+	if profile.Max > 0 && seconds > profile.Max {
+		seconds = profile.Max
+	}
+	if profile.Step > 1 && profile.Min > 0 {
+		seconds = profile.Min + int(math.Round(float64(seconds-profile.Min)/float64(profile.Step)))*profile.Step
+	}
+	return seconds
+}
+
+func normalizeGrok2APINewVideoResolutionForConfig(modelName string, value string, capability *ModelCapabilityConfig) string {
+	resolution := normalizeGrok2APINewVideoResolution(modelName, value)
+	if capability == nil || capability.Video == nil || len(capability.Video.Resolutions) == 0 {
+		return resolution
+	}
+	if containsCapabilityString(capability.Video.Resolutions, resolution) {
+		return resolution
+	}
+	return capability.Video.DefaultResolution
+}
+
+func isGrok2APINewVideoModel(modelName string) bool {
+	value := strings.ToLower(strings.TrimSpace(modelName))
+	return value == "web/grok-imagine-video" || value == "console/grok-imagine-video" || value == "console/grok-imagine-video-1.5" || value == "build/grok-imagine-video-1.5"
+}
+
+func normalizeGrok2APINewVideoDuration(value string) int {
+	seconds, err := strconv.Atoi(strings.TrimSuffix(strings.TrimSpace(strings.ToLower(value)), "s"))
+	if err != nil || seconds <= 0 {
+		return 8
+	}
+	return min(15, max(1, seconds))
+}
+
+func normalizeGrok2APINewVideoResolution(modelName string, value string) string {
+	resolution := strings.ToLower(strings.TrimSpace(value))
+	resolution = strings.TrimSuffix(resolution, "p") + "p"
+	if resolution != "480p" && resolution != "720p" && resolution != "1080p" {
+		resolution = "720p"
+	}
+	modelName = strings.ToLower(strings.TrimSpace(modelName))
+	if modelName == "console/grok-imagine-video" && resolution == "1080p" {
+		return "720p"
+	}
+	return resolution
+}
+
+func grok2APIVideoRequestBody(input canvasGenerationInput) (map[string]interface{}, error) {
+	duration := normalizeGrok2APIVideoDuration(input.Config.VideoSeconds)
+	body := map[string]interface{}{
+		"model":        input.Config.Model,
+		"prompt":       strings.TrimSpace(input.Prompt),
+		"duration":     duration,
+		"aspect_ratio": normalizeGrok2APIVideoAspect(input.Config.Size),
+		"resolution":   normalizeGrok2APIVideoResolution(input.Config.VQuality),
+	}
+	if len(input.ReferenceImages) > 0 {
+		images := make([]map[string]string, 0, len(input.ReferenceImages))
+		for _, image := range input.ReferenceImages {
+			url, err := openAIImageInputURL(image)
+			if err != nil {
+				return nil, err
+			}
+			images = append(images, map[string]string{"url": url})
+		}
+		body["reference_images"] = images
+	}
+	return body, nil
+}
+
+func normalizeGrok2APIVideoDuration(value string) int {
+	seconds, err := strconv.Atoi(strings.TrimSuffix(strings.TrimSpace(strings.ToLower(value)), "s"))
+	if err != nil || seconds <= 0 {
+		return 6
+	}
+	best := 6
+	for _, option := range []int{6, 10, 15} {
+		if absInt(option-seconds) < absInt(best-seconds) {
+			best = option
+		}
+	}
+	return best
+}
+
+func normalizeGrok2APIVideoAspect(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "16:9" || value == "9:16" || value == "1:1" || value == "4:3" || value == "3:4" || value == "3:2" || value == "2:3" {
+		return value
+	}
+	return normalizeXAIVideoAspectRatio(value)
+}
+
+func normalizeGrok2APIVideoResolution(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "480", "480p", "low":
+		return "480p"
+	case "720", "720p", "high":
+		return "720p"
+	default:
+		return "720p"
+	}
+}
+
+func absInt(value int) int {
+	if value < 0 {
+		return -value
+	}
+	return value
 }
 
 func runGeminiVeoVideoTask(ctx context.Context, input canvasGenerationInput) (map[string]interface{}, error) {
@@ -1940,8 +2304,8 @@ func validateGenerationInterface(mode string, interfaceType string) error {
 	}
 	allowed := map[string]map[string]bool{
 		"text":  {"chat-completion": true, "openai-response": true},
-		"image": {"openai-image": true, "grok-image": true, "volcengine-ark-image": true, "volcengine-jimeng-image": true},
-		"video": {"newapi": true, "newapi-channel-1": true, "newapi-channel-2": true, "xai-video": true, "volcengine-ark-video": true, "volcengine-jimeng-video": true, "gemini-veo": true},
+		"image": {"openai-image": true, "grok-image": true, "grok2api-image": true, "grok2api-new-image": true, "zarklab-image": true, "flow2api-image": true, "volcengine-ark-image": true, "volcengine-jimeng-image": true},
+		"video": {"newapi": true, "newapi-channel-1": true, "newapi-channel-2": true, "flow2api-video": true, "grok2api-video": true, "grok2api-new-video": true, "zarklab-video": true, "xai-video": true, "volcengine-ark-video": true, "volcengine-jimeng-video": true, "gemini-veo": true},
 		"audio": {"openai-audio": true, "async-audio": true},
 	}
 	if allowed[mode] != nil && !allowed[mode][interfaceType] {

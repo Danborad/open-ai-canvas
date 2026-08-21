@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"infinite-canvas/backend/internal/model"
 )
 
 const testReferenceImageDataURL = "data:image/png;base64,aGVsbG8="
@@ -57,7 +59,7 @@ func TestWriteMediaPartSanitizesFilenameAndSetsMimeType(t *testing.T) {
 
 func TestParseTextEventStreamSupportsResponsesAndChat(t *testing.T) {
 	responses := []byte(`event: response.output_text.delta
-data: {"delta":"{\"title\":\"分镜\"}"}
+data: {"delta":"{\"title\":\"分镜\""}
 
 event: response.output_text.delta
 data: {"delta":"}"}
@@ -106,6 +108,18 @@ data: [DONE]
 	got, err := postStreamingText(context.Background(), providerConfig{BaseURL: server.URL, APIKey: "test-key"}, "/chat/completions", map[string]interface{}{"model": "test-model"}, "chat-completion")
 	if err != nil || got != "流式分镜" {
 		t.Fatalf("postStreamingText() = %q, err = %v", got, err)
+	}
+}
+
+func TestNormalizeProviderModelProtocolRespectsExplicitProtocol(t *testing.T) {
+	if got := normalizeProviderModelProtocol(model.ChannelInterfaceZarkLabImage, "GPT Image 2"); got != model.ChannelInterfaceZarkLabImage {
+		t.Fatalf("normalizeProviderModelProtocol(zarklab-image, GPT Image 2) = %q, want %q", got, model.ChannelInterfaceZarkLabImage)
+	}
+	if got := normalizeProviderModelProtocol(model.ChannelInterfaceZarkLabVideo, "Happy Horse"); got != model.ChannelInterfaceZarkLabVideo {
+		t.Fatalf("normalizeProviderModelProtocol(zarklab-video, Happy Horse) = %q, want %q", got, model.ChannelInterfaceZarkLabVideo)
+	}
+	if got := normalizeProviderModelProtocol("", "GPT Image 2"); got != model.ChannelInterfaceOpenAIImage {
+		t.Fatalf("normalizeProviderModelProtocol('', GPT Image 2) = %q, want %q", got, model.ChannelInterfaceOpenAIImage)
 	}
 }
 
@@ -159,6 +173,7 @@ func TestVolcengineArkImageRejectsMaskBeforeRequest(t *testing.T) {
 }
 
 func TestRunGrokImageTaskUsesJSONEditContract(t *testing.T) {
+	t.Setenv("CANVAS_ALLOW_PRIVATE_UPSTREAMS", "true")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/images/edits" {
 			t.Errorf("path = %q, want /v1/images/edits", r.URL.Path)
@@ -193,6 +208,17 @@ func TestRunGrokImageTaskUsesJSONEditContract(t *testing.T) {
 	images, _ := result["images"].([]map[string]string)
 	if len(images) != 1 || images[0]["dataUrl"] != "https://example.com/result.png" {
 		t.Fatalf("images = %#v", result["images"])
+	}
+}
+
+func TestCustomOpenAIImageUsesURLResponseFormat(t *testing.T) {
+	input := canvasGenerationInput{Config: providerConfig{InterfaceType: string(model.ChannelInterfaceOpenAIImage)}}
+	if got := customProviderImageResponseFormat(input); got != "url" {
+		t.Fatalf("customProviderImageResponseFormat() = %q, want url", got)
+	}
+	input.Config.ChannelID = "system-channel"
+	if got := customProviderImageResponseFormat(input); got != "" {
+		t.Fatalf("system customProviderImageResponseFormat() = %q, want empty", got)
 	}
 }
 
@@ -1093,6 +1119,117 @@ func TestValidateGenerationInterfaceRejectsMismatchedType(t *testing.T) {
 	}
 }
 
+func TestGrok2APIVideoRequestBodyOmitsUnsupportedBatchField(t *testing.T) {
+	body, err := grok2APIVideoRequestBody(canvasGenerationInput{
+		Prompt: "make it move",
+		Config: providerConfig{Model: "grok-imagine-video", VideoSeconds: "7", Size: "16:9", VQuality: "1080"},
+	})
+	if err != nil {
+		t.Fatalf("grok2APIVideoRequestBody() error = %v", err)
+	}
+	if _, ok := body["n"]; ok {
+		t.Fatalf("request body contains unsupported n field: %#v", body)
+	}
+	for _, key := range []string{"model", "prompt", "duration", "aspect_ratio", "resolution"} {
+		if _, ok := body[key]; !ok {
+			t.Fatalf("request body missing %q: %#v", key, body)
+		}
+	}
+	if body["duration"] != 6 || body["resolution"] != "720p" {
+		t.Fatalf("request body normalization = %#v", body)
+	}
+}
+
+func TestGrok2APINewImageRequestBodyPreservesQualifiedModelAndEditShape(t *testing.T) {
+	body, path, err := grok2APINewImageRequestBody(canvasGenerationInput{
+		Prompt:          "merge styles",
+		Config:          providerConfig{Model: "Console/grok-imagine-image-quality-2.0", Count: "2", Size: "9:16", Quality: "2k"},
+		ReferenceImages: []providerMedia{{ID: "a", DataURL: testReferenceImageDataURL}, {ID: "b", DataURL: testReferenceImageDataURL}},
+	})
+	if err != nil {
+		t.Fatalf("grok2APINewImageRequestBody() error = %v", err)
+	}
+	if path != "/images/edits" || body["model"] != "Console/grok-imagine-image-quality-2.0" || body["n"] != 2 || body["aspect_ratio"] != "9:16" || body["resolution"] != "2k" {
+		t.Fatalf("new image request = path %q body %#v", path, body)
+	}
+	if images, ok := body["images"].([]map[string]string); !ok || len(images) != 2 {
+		t.Fatalf("new image edit inputs = %#v", body["images"])
+	}
+}
+
+func TestGrok2APINewConsoleVideoRequestBodyUsesExclusiveReferenceImages(t *testing.T) {
+	body, err := grok2APINewVideoRequestBody(canvasGenerationInput{
+		Prompt:          "make it move",
+		Config:          providerConfig{Model: "Console/grok-imagine-video-1.5", VideoSeconds: "8", Size: "9:16", VQuality: "1080p"},
+		ReferenceImages: []providerMedia{{ID: "style", DataURL: testReferenceImageDataURL}, {ID: "first", DataURL: testReferenceImageDataURL}},
+		Metadata:        map[string]interface{}{"videoEditOperation": "image_to_video"},
+	})
+	if err != nil {
+		t.Fatalf("grok2APINewVideoRequestBody() error = %v", err)
+	}
+	if body["model"] != "Console/grok-imagine-video-1.5" || body["duration"] != 8 || body["aspect_ratio"] != "9:16" || body["resolution"] != "1080p" {
+		t.Fatalf("new video request = %#v", body)
+	}
+	if _, ok := body["image"]; ok {
+		t.Fatalf("new Console video request must not combine image and reference_images: %#v", body)
+	}
+	if references, ok := body["reference_images"].([]map[string]string); !ok || len(references) != 2 {
+		t.Fatalf("new video references = %#v", body["reference_images"])
+	}
+	if _, ok := body["n"]; ok {
+		t.Fatalf("new video request contains unsupported n: %#v", body)
+	}
+}
+
+func TestGrok2APINewConsoleVideoRejectsFirstFrameWithReferences(t *testing.T) {
+	_, err := grok2APINewVideoRequestBody(canvasGenerationInput{
+		Prompt:          "make it move",
+		Config:          providerConfig{Model: "Console/grok-imagine-video", VideoSeconds: "8", Size: "16:9", VQuality: "720p"},
+		ReferenceImages: []providerMedia{{ID: "first", DataURL: testReferenceImageDataURL}, {ID: "style", DataURL: testReferenceImageDataURL}},
+		Metadata:        map[string]interface{}{"videoStartFrameNodeId": "first", "videoEditOperation": "image_to_video"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "不能同时使用首帧和参考图") {
+		t.Fatalf("grok2APINewVideoRequestBody() error = %v", err)
+	}
+}
+
+func TestGrok2APINewConsoleVideoSingleImageUsesImageOnly(t *testing.T) {
+	body, err := grok2APINewVideoRequestBody(canvasGenerationInput{
+		Prompt:          "make it move",
+		Config:          providerConfig{Model: "Console/grok-imagine-video-1.5", VideoSeconds: "8", Size: "16:9", VQuality: "1080p"},
+		ReferenceImages: []providerMedia{{ID: "first", DataURL: testReferenceImageDataURL}},
+		Metadata:        map[string]interface{}{"videoEditOperation": "image_to_video"},
+	})
+	if err != nil {
+		t.Fatalf("grok2APINewVideoRequestBody() error = %v", err)
+	}
+	if _, ok := body["image"].(map[string]string); !ok {
+		t.Fatalf("new Console single image = %#v", body)
+	}
+	if _, ok := body["reference_images"]; ok {
+		t.Fatalf("new Console single-image request contains reference_images: %#v", body)
+	}
+}
+
+func TestGrok2APINewVideoRequestUsesConfiguredFixedDurationAndResolution(t *testing.T) {
+	body, err := grok2APINewVideoRequestBody(canvasGenerationInput{
+		Prompt: "make it move",
+		Config: providerConfig{
+			Model: "Web/grok-imagine-video", VideoSeconds: "7", Size: "16:9", VQuality: "1080p",
+			CapabilityConfig: &ModelCapabilityConfig{Video: &VideoCapabilityConfig{
+				Duration:    VideoDurationConfig{Selection: "enum", Values: []int{6, 10, 15}, Default: 6},
+				Resolutions: []string{"480p", "720p"}, DefaultResolution: "720p",
+			}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("grok2APINewVideoRequestBody() error = %v", err)
+	}
+	if body["duration"] != 6 || body["resolution"] != "720p" {
+		t.Fatalf("configured new video request = %#v", body)
+	}
+}
+
 func TestProcessTaskValidatesInterfaceBeforeHydratingMedia(t *testing.T) {
 	t.Setenv("CANVAS_ALLOW_PRIVATE_UPSTREAMS", "true")
 	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
@@ -1160,5 +1297,23 @@ func TestEquivalentStyleProfileJSONIgnoresObjectKeyOrder(t *testing.T) {
 	equal, err := equivalentStyleProfileJSON(`{"schemaVersion":1,"presetId":"style-1","assets":[]}`, `{"assets":[],"presetId":"style-1","schemaVersion":1}`)
 	if err != nil || !equal {
 		t.Fatalf("equivalentStyleProfileJSON() equal = %v, err = %v", equal, err)
+	}
+}
+
+func TestBuildZarkMCPPrompt(t *testing.T) {
+	prompt := buildZarkMCPPrompt(canvasGenerationInput{
+		Prompt: "A cyberpunk avatar",
+		Config: providerConfig{Model: "GPT Image 2", Count: "2", Size: "9:16", Quality: "High"},
+	}, "image")
+	if !strings.HasPrefix(prompt, "Use GPT Image 2: A cyberpunk avatar") || !strings.Contains(prompt, "aspect ratio 9:16") || !strings.Contains(prompt, "High quality") {
+		t.Fatalf("buildZarkMCPPrompt(image) = %q", prompt)
+	}
+
+	videoPrompt := buildZarkMCPPrompt(canvasGenerationInput{
+		Prompt: "A galloping horse",
+		Config: providerConfig{Model: "Happy Horse", VideoSeconds: "6", Size: "16:9", VQuality: "720p"},
+	}, "video")
+	if !strings.HasPrefix(videoPrompt, "Use Happy Horse: A galloping horse") || !strings.Contains(videoPrompt, "aspect ratio 16:9") || !strings.Contains(videoPrompt, "6s duration") {
+		t.Fatalf("buildZarkMCPPrompt(video) = %q", videoPrompt)
 	}
 }

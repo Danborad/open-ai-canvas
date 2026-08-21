@@ -4,6 +4,7 @@ import type { GenerationTask, TaskStatus } from "@/services/api/task-center";
 import type { CanvasDrawingEngineSetting } from "@/lib/canvas/canvas-drawing-engine";
 import type { FeatureAvailability } from "@/stores/use-user-store";
 import { apiClient, request } from "@/services/api/request";
+import { clearSessionToken, writeSessionToken } from "@/services/api/session-token";
 
 const api = apiClient;
 
@@ -354,20 +355,28 @@ export function updateAdminFeatureAvailability(features: Pick<FeatureAvailabilit
     return request<{ features: FeatureAvailability }>(api.patch("/admin/settings/features", features));
 }
 
-export function login(input: { username: string; password: string }) {
-    return request<{ user: LocalUser }>(api.post("/auth/login", input));
+export async function login(input: { username: string; password: string }) {
+    const payload = await request<{ user: LocalUser; session?: string; maxAgeSecs?: number }>(api.post("/auth/login", input));
+    if (payload.session) writeSessionToken(payload.session, payload.maxAgeSecs);
+    return payload;
 }
 
 export function sendRegistrationEmailCode(email: string) {
     return request<{ sent: boolean }>(api.post("/auth/email-code", { email }));
 }
 
-export function register(input: { username: string; email?: string; emailCode?: string; displayName?: string; password: string }) {
-    return request<{ user: LocalUser }>(api.post("/auth/register", input));
+export async function register(input: { username: string; email?: string; emailCode?: string; displayName?: string; password: string }) {
+    const payload = await request<{ user: LocalUser; session?: string; maxAgeSecs?: number }>(api.post("/auth/register", input));
+    if (payload.session) writeSessionToken(payload.session, payload.maxAgeSecs);
+    return payload;
 }
 
-export function logout() {
-    return request<{ ok: boolean }>(api.post("/auth/logout"));
+export async function logout() {
+    try {
+        return await request<{ ok: boolean }>(api.post("/auth/logout"));
+    } finally {
+        clearSessionToken();
+    }
 }
 
 export type AdminListParams = { keyword?: string; status?: string; role?: string; page?: number; limit?: number };

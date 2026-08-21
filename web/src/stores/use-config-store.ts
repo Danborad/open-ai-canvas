@@ -354,7 +354,7 @@ export function createModelChannel(channel?: Partial<ModelChannel>): ModelChanne
         enabled: channel?.enabled !== false,
         hasApiKey: channel?.hasApiKey,
         hasSecretKey: channel?.hasSecretKey,
-        modelCosts: channel?.modelCosts?.map((item) => ({ ...item, protocol: normalizeModelProtocol(item.protocol) })),
+        modelCosts: channel?.modelCosts?.map((item) => ({ ...item, protocol: normalizeModelProtocol(item.protocol, item.capability) })),
     };
 }
 
@@ -432,7 +432,12 @@ export function resolveModelRequestConfig(config: AiConfig, value: string) {
     const channel = resolveModelChannel(config, value);
     const model = modelOptionName(value || config.model);
     const modelProtocol = channel.modelCosts?.find((item) => item.model === model)?.protocol;
-    const interfaceType = modelProtocol || channel.interfaceType;
+    const explicitProtocol = modelProtocol || channel.interfaceType;
+    const interfaceType = explicitProtocol
+        ? normalizeModelProtocolForName(explicitProtocol, model)
+        : isGPTImageModelName(model)
+        ? "openai-image"
+        : normalizeModelProtocolForName(undefined, model);
     return {
         ...config,
         model,
@@ -444,6 +449,19 @@ export function resolveModelRequestConfig(config: AiConfig, value: string) {
         interfaceType,
         channelId: channel.scope === "system" ? channel.id : "",
     };
+}
+
+function isGPTImageModelName(value: string) {
+    const modelName = value.trim().toLowerCase();
+    return modelName.startsWith("gpt-image") || modelName.startsWith("gpt image");
+}
+
+function normalizeModelProtocolForName(protocol: ModelProtocol | undefined, model: string) {
+	if (protocol === "grok2api-new-image" || protocol === "grok2api-new-video" || protocol === "zarklab-image" || protocol === "zarklab-video") return protocol;
+    const modelName = model.trim().toLowerCase();
+    if (modelName.startsWith("grok-imagine-image")) return "grok2api-image" as const;
+    if (modelName.startsWith("grok-imagine-video")) return "grok2api-video" as const;
+    return protocol;
 }
 
 function normalizeChannels(config: AiConfig, ensureDefault = true) {
@@ -488,10 +506,11 @@ export function defaultBaseUrlForApiFormat(apiFormat: ApiCallFormat) {
 }
 
 export function defaultBaseUrlForChannelInterface(interfaceType?: ChannelInterfaceType) {
+    if (interfaceType === "zarklab-image" || interfaceType === "zarklab-video") return "https://api.zarklab.ai";
     if (interfaceType === "gemini-veo") return GEMINI_BASE_URL;
     if (interfaceType === "volcengine-ark-image" || interfaceType === "volcengine-ark-video") return "https://ark.cn-beijing.volces.com/api/v3";
     if (interfaceType === "volcengine-jimeng-image" || interfaceType === "volcengine-jimeng-video") return "https://visual.volcengineapi.com";
-    if (interfaceType === "grok-image" || interfaceType === "newapi" || interfaceType === "newapi-channel-1" || interfaceType === "newapi-channel-2" || interfaceType === "xai-video") return "";
+    if (interfaceType === "grok-image" || interfaceType === "grok2api-image" || interfaceType === "grok2api-video" || interfaceType === "grok2api-new-image" || interfaceType === "grok2api-new-video" || interfaceType === "flow2api-image" || interfaceType === "flow2api-video" || interfaceType === "newapi" || interfaceType === "newapi-channel-1" || interfaceType === "newapi-channel-2" || interfaceType === "xai-video") return "";
     return OPENAI_BASE_URL;
 }
 

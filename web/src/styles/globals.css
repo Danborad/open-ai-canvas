@@ -3378,8 +3378,10 @@
     .canvas-project-empty-icon { width: 32px; height: 32px; margin-bottom: 4px; color: color-mix(in srgb, var(--foreground) 38%, transparent); stroke-width: 1.4; }
     .canvas-project-empty span { font-size: var(--fs-label); }
     .canvas-project-empty small { color: color-mix(in srgb, var(--foreground) 34%, transparent); font-size: var(--fs-micro); }
-    .canvas-project-cover-meta { position: absolute; z-index: 1; right: 14px; bottom: 13px; left: 14px; display: flex; align-items: end; justify-content: flex-end; color: rgba(255, 255, 255, .82); pointer-events: none; }
-    .canvas-project-node-count { border-radius: var(--r-full); background: rgba(5, 6, 8, .52); padding: 5px 9px; font-size: var(--fs-micro); backdrop-filter: blur(8px); }
+    .canvas-project-cover-meta { position: absolute; z-index: 1; right: 14px; bottom: 13px; left: 14px; display: flex; align-items: end; justify-content: space-between; gap: 8px; color: rgba(255, 255, 255, .82); pointer-events: none; }
+    .canvas-project-node-count { flex: 0 0 auto; white-space: nowrap; border-radius: var(--r-full); background: rgba(5, 6, 8, .52); padding: 5px 9px; font-size: var(--fs-micro); backdrop-filter: blur(8px); }
+    .canvas-project-media-stats { display: flex; min-width: 0; flex: 1 1 auto; flex-direction: column; align-items: flex-start; gap: 4px; }
+    .canvas-project-media-stats span { display: inline-flex; max-width: 100%; align-items: center; gap: 3px; border-radius: var(--r-full); background: rgba(5, 6, 8, .62); padding: 5px 8px; font-size: var(--fs-micro); line-height: 1; white-space: nowrap; backdrop-filter: blur(8px); }
     .canvas-project-select { position: absolute; z-index: 2; top: 12px; left: 12px; display: grid; width: 24px; height: 24px; place-items: center; border: 1px solid rgba(255, 255, 255, .42); border-radius: 4px; background: rgba(5, 6, 8, .42); opacity: 0; transition: opacity var(--motion-instant) ease-out, background-color var(--motion-instant) ease-out; }
     .canvas-project-select.is-visible, .app-canvas-project-card:hover .canvas-project-select, .app-canvas-project-card:focus-within .canvas-project-select { opacity: 1; }
     .canvas-project-checkbox { width: 14px; height: 14px; margin: 0; accent-color: var(--workspace-accent); }
