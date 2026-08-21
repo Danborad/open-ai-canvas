@@ -25,7 +25,11 @@ export function CanvasProjectSelectionToolbar({ anchorRef, containerRef, count, 
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
 
     const handlers = {
-        onAlign, onArrange, onCreateStoryboard, onCreateReferenceGroup, onMergeVideos,
+        onAlign,
+        onArrange,
+        onCreateStoryboard,
+        onCreateReferenceGroup,
+        onMergeVideos,
     } as Partial<ToolbarHandlers> as ToolbarHandlers;
 
     const ctx: ToolContext = {

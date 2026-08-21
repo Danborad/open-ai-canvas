@@ -5,15 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ListToolbar, TableSurface } from "@/components/layout/workspace-page";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import {
-    closeAdminAnnouncement,
-    createAdminAnnouncement,
-    listAdminAnnouncements,
-    updateAdminAnnouncement,
-    type AnnouncementLevel,
-    type AnnouncementStatus,
-    type SystemAnnouncement,
-} from "@/services/api/announcements";
+import { closeAdminAnnouncement, createAdminAnnouncement, listAdminAnnouncements, updateAdminAnnouncement, type AnnouncementLevel, type AnnouncementStatus, type SystemAnnouncement } from "@/services/api/announcements";
 
 type AnnouncementFormValues = {
     title: string;
@@ -119,7 +111,9 @@ export default function AdminAnnouncementsPanel() {
             minWidth: 360,
             render: (_, announcement) => (
                 <div className="min-w-0 py-0.5">
-                    <div className="truncate text-sm font-medium text-foreground" title={announcement.title}>{announcement.title}</div>
+                    <div className="truncate text-sm font-medium text-foreground" title={announcement.title}>
+                        {announcement.title}
+                    </div>
                     <div className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs leading-5 text-foreground/50">{announcement.content}</div>
                 </div>
             ),
@@ -131,14 +125,18 @@ export default function AdminAnnouncementsPanel() {
             render: (level: AnnouncementLevel) => {
                 const meta = levelMeta[level] || levelMeta.info;
                 const Icon = meta.icon;
-                return <Tag color={meta.color} icon={<Icon className="size-3" />}>{meta.label}</Tag>;
+                return (
+                    <Tag color={meta.color} icon={<Icon className="size-3" />}>
+                        {meta.label}
+                    </Tag>
+                );
             },
         },
         {
             title: "状态",
             dataIndex: "status",
             width: 100,
-            render: (value: AnnouncementStatus) => value === "active" ? <Tag color="green">发布中</Tag> : <Tag>已关闭</Tag>,
+            render: (value: AnnouncementStatus) => (value === "active" ? <Tag color="green">发布中</Tag> : <Tag>已关闭</Tag>),
         },
         {
             title: "发布时间",
@@ -150,7 +148,7 @@ export default function AdminAnnouncementsPanel() {
             title: "关闭时间",
             dataIndex: "closedAt",
             width: 170,
-            render: (value?: string) => value ? formatDateTime(value) : "--",
+            render: (value?: string) => (value ? formatDateTime(value) : "--"),
         },
         {
             title: "操作",
@@ -159,10 +157,14 @@ export default function AdminAnnouncementsPanel() {
             width: 160,
             render: (_, announcement) => (
                 <div className="flex items-center gap-1">
-                    <Button type="text" size="small" onClick={() => openEditModal(announcement)}>编辑</Button>
+                    <Button type="text" size="small" onClick={() => openEditModal(announcement)}>
+                        编辑
+                    </Button>
                     {announcement.status === "active" ? (
                         <Popconfirm title="关闭这条公告？" description="关闭后用户公告中心将不再展示，历史记录会保留。" okText="关闭公告" cancelText="取消" onConfirm={() => void closeAnnouncement(announcement)}>
-                            <Button type="text" danger size="small" loading={closingId === announcement.id}>关闭</Button>
+                            <Button type="text" danger size="small" loading={closingId === announcement.id}>
+                                关闭
+                            </Button>
                         </Popconfirm>
                     ) : null}
                 </div>
@@ -174,18 +176,51 @@ export default function AdminAnnouncementsPanel() {
         <>
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
                 <div className="flex min-w-0 items-center gap-3">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-full border border-border bg-muted/45 text-foreground"><BellRing className="size-4" /></span>
+                    <span className="grid size-9 shrink-0 place-items-center rounded-full border border-border bg-muted/45 text-foreground">
+                        <BellRing className="size-4" />
+                    </span>
                     <div className="min-w-0">
                         <div className="text-sm font-medium text-foreground">共保留 {total} 条公告记录</div>
                         <div className="mt-0.5 text-xs text-foreground/50">关闭公告会立即从用户公告中心移除</div>
                     </div>
                 </div>
-                <Button type="primary" icon={<Plus className="size-4" />} onClick={openPublishModal}>发布公告</Button>
+                <Button type="primary" icon={<Plus className="size-4" />} onClick={openPublishModal}>
+                    发布公告
+                </Button>
             </div>
 
-            <ListToolbar active={Boolean(keyword || status !== "all")} onReset={() => { setKeyword(""); setStatus("all"); setPage(1); }}>
-                <Input allowClear className="app-list-search" prefix={<Search className="size-4 text-foreground/40" />} value={keyword} placeholder="搜索公告标题或正文" onChange={(event) => { setKeyword(event.target.value); setPage(1); }} />
-                <Select className="w-32" value={status} onChange={(value) => { setStatus(value); setPage(1); }} options={[{ label: "全部状态", value: "all" }, { label: "发布中", value: "active" }, { label: "已关闭", value: "closed" }]} />
+            <ListToolbar
+                active={Boolean(keyword || status !== "all")}
+                onReset={() => {
+                    setKeyword("");
+                    setStatus("all");
+                    setPage(1);
+                }}
+            >
+                <Input
+                    allowClear
+                    className="app-list-search"
+                    prefix={<Search className="size-4 text-foreground/40" />}
+                    value={keyword}
+                    placeholder="搜索公告标题或正文"
+                    onChange={(event) => {
+                        setKeyword(event.target.value);
+                        setPage(1);
+                    }}
+                />
+                <Select
+                    className="w-32"
+                    value={status}
+                    onChange={(value) => {
+                        setStatus(value);
+                        setPage(1);
+                    }}
+                    options={[
+                        { label: "全部状态", value: "all" },
+                        { label: "发布中", value: "active" },
+                        { label: "已关闭", value: "closed" },
+                    ]}
+                />
             </ListToolbar>
             <TableSurface>
                 <Table
@@ -195,20 +230,59 @@ export default function AdminAnnouncementsPanel() {
                     loading={loading}
                     columns={columns}
                     dataSource={announcements}
-                    pagination={{ current: page, pageSize, total, showSizeChanger: true, pageSizeOptions: [20, 50, 100], showTotal: (value, range) => `${range[0]}-${range[1]} / 共 ${value} 条`, onChange: (nextPage, nextPageSize) => { setPage(nextPageSize !== pageSize ? 1 : nextPage); setPageSize(nextPageSize); } }}
+                    pagination={{
+                        current: page,
+                        pageSize,
+                        total,
+                        showSizeChanger: true,
+                        pageSizeOptions: [20, 50, 100],
+                        showTotal: (value, range) => `${range[0]}-${range[1]} / 共 ${value} 条`,
+                        onChange: (nextPage, nextPageSize) => {
+                            setPage(nextPageSize !== pageSize ? 1 : nextPage);
+                            setPageSize(nextPageSize);
+                        },
+                    }}
                     scroll={{ x: 1020 }}
                 />
             </TableSurface>
 
-            <Modal title={editingAnnouncement ? "编辑并重新发布公告" : "发布系统公告"} open={modalOpen} width={680} centered okText={editingAnnouncement ? "保存并重新发布" : "立即发布"} cancelText="取消" confirmLoading={publishing} onOk={() => void publish()} onCancel={() => { setModalOpen(false); setEditingAnnouncement(null); }} destroyOnHidden>
+            <Modal
+                title={editingAnnouncement ? "编辑并重新发布公告" : "发布系统公告"}
+                open={modalOpen}
+                width={680}
+                centered
+                okText={editingAnnouncement ? "保存并重新发布" : "立即发布"}
+                cancelText="取消"
+                confirmLoading={publishing}
+                onOk={() => void publish()}
+                onCancel={() => {
+                    setModalOpen(false);
+                    setEditingAnnouncement(null);
+                }}
+                destroyOnHidden
+            >
                 <Form form={form} layout="vertical" className="pt-3" requiredMark={false}>
-                    <Form.Item name="title" label="公告标题" rules={[{ required: true, whitespace: true, message: "请填写公告标题" }, { max: 120, message: "标题不能超过 120 个字符" }]}>
+                    <Form.Item
+                        name="title"
+                        label="公告标题"
+                        rules={[
+                            { required: true, whitespace: true, message: "请填写公告标题" },
+                            { max: 120, message: "标题不能超过 120 个字符" },
+                        ]}
+                    >
                         <Input maxLength={120} showCount placeholder="例如：视频模型已恢复正常使用" />
                     </Form.Item>
                     <Form.Item name="level" label="公告级别" rules={[{ required: true, message: "请选择公告级别" }]}>
                         <Select options={levelOptions} />
                     </Form.Item>
-                    <Form.Item name="content" label="公告正文" rules={[{ required: true, whitespace: true, message: "请填写公告正文" }, { max: 4000, message: "正文不能超过 4000 个字符" }]}>
+                    <Form.Item
+                        name="content"
+                        label="公告正文"
+                        rules={[
+                            { required: true, whitespace: true, message: "请填写公告正文" },
+                            { max: 4000, message: "正文不能超过 4000 个字符" },
+                        ]}
+                    >
                         <Input.TextArea maxLength={4000} showCount autoSize={{ minRows: 6, maxRows: 12 }} placeholder="填写服务状态、影响范围和用户需要采取的操作" />
                     </Form.Item>
                 </Form>

@@ -20,7 +20,19 @@ export type CanvasAgentChatMessage = {
 
 const WORKING_TEXT = "正在推演...";
 
-export function AgentChatMessage({ item, theme, user, onRejectTool, onApproveTool }: { item: CanvasAgentChatMessage; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; user: LocalUser | null; onRejectTool?: (id: string) => void; onApproveTool?: (id: string) => void }) {
+export function AgentChatMessage({
+    item,
+    theme,
+    user,
+    onRejectTool,
+    onApproveTool,
+}: {
+    item: CanvasAgentChatMessage;
+    theme: (typeof canvasThemes)[keyof typeof canvasThemes];
+    user: LocalUser | null;
+    onRejectTool?: (id: string) => void;
+    onApproveTool?: (id: string) => void;
+}) {
     const isUser = item.role === "user";
     const isSystem = item.role === "system";
     const color = item.role === "error" ? "#dc2626" : item.role === "tool" ? "#2563eb" : theme.node.text;
@@ -69,9 +81,13 @@ export function AgentPendingToolCard({ summary, detail, theme, onReject, onAppro
                     <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2 text-sm font-semibold leading-5">
                             <span>确认工具调用</span>
-                            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[var(--fs-label)] font-medium" style={{ color: "#d97706", background: "rgba(217,119,6,.1)" }}>等待确认</span>
+                            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[var(--fs-label)] font-medium" style={{ color: "#d97706", background: "rgba(217,119,6,.1)" }}>
+                                等待确认
+                            </span>
                         </div>
-                        <div className="mt-2 text-sm leading-6" style={{ color: theme.node.text }}>{summary}</div>
+                        <div className="mt-2 text-sm leading-6" style={{ color: theme.node.text }}>
+                            {summary}
+                        </div>
                     </div>
                 </div>
                 {impact?.operationCount ? (
@@ -82,11 +98,27 @@ export function AgentPendingToolCard({ summary, detail, theme, onReject, onAppro
                             <ImpactMetric label="删除" value={impact.destructiveCount} attention={impact.destructiveCount > 0} theme={theme} />
                             <ImpactMetric label="生成" value={impact.generationCount} attention={impact.generationCount > 0} theme={theme} />
                         </div>
-                        {impact.items.length ? <div className="mt-3 space-y-1.5">{impact.items.map((item, index) => <div key={`${item}-${index}`} className="flex gap-2 text-xs leading-5" style={{ color: theme.node.muted }}><span className="mt-2 size-1 shrink-0 rounded-full bg-current" /><span>{item}</span></div>)}</div> : null}
+                        {impact.items.length ? (
+                            <div className="mt-3 space-y-1.5">
+                                {impact.items.map((item, index) => (
+                                    <div key={`${item}-${index}`} className="flex gap-2 text-xs leading-5" style={{ color: theme.node.muted }}>
+                                        <span className="mt-2 size-1 shrink-0 rounded-full bg-current" />
+                                        <span>{item}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : null}
                         {impact.warning ? <div className="mt-3 rounded-md bg-amber-500/[.08] px-2.5 py-2 text-xs leading-5 text-amber-700 dark:text-amber-300">{impact.warning}</div> : null}
                     </div>
                 ) : null}
-                {detail ? <details className="mt-3 pt-1"><summary className="cursor-pointer text-xs" style={{ color: theme.node.muted }}>技术详情</summary><AgentDetailBlock detail={detail} theme={theme} /></details> : null}
+                {detail ? (
+                    <details className="mt-3 pt-1">
+                        <summary className="cursor-pointer text-xs" style={{ color: theme.node.muted }}>
+                            技术详情
+                        </summary>
+                        <AgentDetailBlock detail={detail} theme={theme} />
+                    </details>
+                ) : null}
                 {onReject || onApprove ? (
                     <div className="mt-4 grid grid-cols-2 gap-2">
                         <Button danger className="!h-9" icon={<XCircle className="size-4" />} onClick={() => onReject?.()}>
@@ -103,7 +135,16 @@ export function AgentPendingToolCard({ summary, detail, theme, onReject, onAppro
 }
 
 function ImpactMetric({ label, value, attention = false, theme }: { label: string; value: number; attention?: boolean; theme: (typeof canvasThemes)[keyof typeof canvasThemes] }) {
-    return <div className="px-1 py-1"><div className="text-[var(--fs-tiny)]" style={{ color: theme.node.muted }}>{label}</div><div className="mt-0.5 text-sm font-semibold tabular-nums" style={{ color: attention ? "#d97706" : theme.node.text }}>{value}</div></div>;
+    return (
+        <div className="px-1 py-1">
+            <div className="text-[var(--fs-tiny)]" style={{ color: theme.node.muted }}>
+                {label}
+            </div>
+            <div className="mt-0.5 text-sm font-semibold tabular-nums" style={{ color: attention ? "#d97706" : theme.node.text }}>
+                {value}
+            </div>
+        </div>
+    );
 }
 
 function agentImpactFromDetail(detail: unknown) {
@@ -135,7 +176,11 @@ export function AgentToolCard({ title, text, detail, theme }: { title: string; t
                             <span className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[var(--fs-label)] font-medium" style={{ color: state.color, background: state.softBg }}>
                                 {state.label}
                             </span>
-                            {detail ? <span className="ml-auto text-xs font-normal" style={{ color: theme.node.muted }}>详情</span> : null}
+                            {detail ? (
+                                <span className="ml-auto text-xs font-normal" style={{ color: theme.node.muted }}>
+                                    详情
+                                </span>
+                            ) : null}
                         </div>
                         <div className="mt-2 text-sm leading-6" style={{ color: state.isError ? state.color : theme.node.muted }}>
                             {text}
@@ -195,14 +240,23 @@ export function AgentChatComposer({
     const canSubmit = !disabled && !sending && Boolean(prompt.trim() || attachments.length);
     return (
         <div className="px-3 pb-3 pt-1" onWheelCapture={(event) => event.stopPropagation()}>
-            <div className="rounded-lg border px-3 pb-2.5 pt-3 transition-[border-color,box-shadow] duration-150 focus-within:border-current" style={{ background: theme.node.fill, borderColor: theme.toolbar.border, color: theme.accent.primary, boxShadow: `0 10px 30px ${theme.spatial.shadow}` }}>
+            <div
+                className="rounded-lg border px-3 pb-2.5 pt-3 transition-[border-color,box-shadow] duration-150 focus-within:border-current"
+                style={{ background: theme.node.fill, borderColor: theme.toolbar.border, color: theme.accent.primary, boxShadow: `0 10px 30px ${theme.spatial.shadow}` }}
+            >
                 {attachments.length ? (
                     <div className="thin-scrollbar mb-2 flex gap-2 overflow-x-auto pb-1">
                         {attachments.map((item) => (
                             <div key={item.id} className="group relative size-14 shrink-0 overflow-hidden rounded-md" title={item.name}>
                                 <img src={item.url} alt={item.name} className="size-full object-cover" />
                                 {onRemoveAttachment ? (
-                                    <button type="button" className="absolute right-1 top-1 grid size-5 place-items-center rounded-full border opacity-0 shadow-sm transition group-hover:opacity-100" style={{ background: theme.toolbar.panel, borderColor: theme.node.stroke, color: theme.node.text }} onClick={() => onRemoveAttachment(item.id)} aria-label="移除图片">
+                                    <button
+                                        type="button"
+                                        className="absolute right-1 top-1 grid size-5 place-items-center rounded-full border opacity-0 shadow-sm transition group-hover:opacity-100"
+                                        style={{ background: theme.toolbar.panel, borderColor: theme.node.stroke, color: theme.node.text }}
+                                        onClick={() => onRemoveAttachment(item.id)}
+                                        aria-label="移除图片"
+                                    >
                                         <X className="size-3" />
                                     </button>
                                 ) : null}
@@ -233,10 +287,17 @@ export function AgentChatComposer({
                     <div className="flex min-w-0 items-center gap-1">
                         {onAddFiles ? (
                             <>
-                                <input ref={fileInputRef} hidden type="file" accept="image/*" multiple onChange={(event) => {
-                                    void onAddFiles(event.target.files);
-                                    event.target.value = "";
-                                }} />
+                                <input
+                                    ref={fileInputRef}
+                                    hidden
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={(event) => {
+                                        void onAddFiles(event.target.files);
+                                        event.target.value = "";
+                                    }}
+                                />
                                 <Tooltip title="上传图片">
                                     <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" disabled={sending} style={{ color: theme.node.muted }} icon={<ImagePlus className="size-4" />} onClick={() => fileInputRef.current?.click()} />
                                 </Tooltip>
@@ -244,20 +305,47 @@ export function AgentChatComposer({
                         ) : null}
                         {left}
                     </div>
-                    <Button type="primary" className="!h-8 !w-8 !min-w-8 !rounded-md !p-0" disabled={!canSubmit} icon={sending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowUp className="size-4" />} onClick={() => void onSubmit()} aria-label="发送" />
+                    <Button
+                        type="primary"
+                        className="!h-8 !w-8 !min-w-8 !rounded-md !p-0"
+                        disabled={!canSubmit}
+                        icon={sending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
+                        onClick={() => void onSubmit()}
+                        aria-label="发送"
+                    />
                 </div>
             </div>
         </div>
     );
 }
 
-export function AgentPanelTabs<T extends string>({ value, items, theme, right, onChange }: { value: T; items: { value: T; label: string; icon?: ReactNode; count?: number }[]; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; right?: ReactNode; onChange: (value: T) => void }) {
+export function AgentPanelTabs<T extends string>({
+    value,
+    items,
+    theme,
+    right,
+    onChange,
+}: {
+    value: T;
+    items: { value: T; label: string; icon?: ReactNode; count?: number }[];
+    theme: (typeof canvasThemes)[keyof typeof canvasThemes];
+    right?: ReactNode;
+    onChange: (value: T) => void;
+}) {
     return (
         <div className="shrink-0 px-3 pb-2">
             <div className="flex min-h-9 items-center justify-between gap-2 rounded-md p-1" style={{ background: theme.spatial.surface }}>
                 <nav className="grid min-w-0 flex-1 grid-flow-col auto-cols-fr items-center gap-0.5 text-xs" role="tablist" aria-label="Agent 面板">
                     {items.map((item) => (
-                        <button key={item.value} type="button" role="tab" aria-selected={value === item.value} className={`inline-flex h-8 min-w-0 items-center justify-center gap-1 rounded-[var(--r-sm)] px-1.5 transition-colors ${value === item.value ? "font-medium" : "font-normal"}`} style={{ background: value === item.value ? theme.node.fill : "transparent", color: value === item.value ? theme.node.text : theme.node.muted, boxShadow: value === item.value ? `0 1px 5px ${theme.spatial.shadow}` : "none" }} onClick={() => onChange(item.value)}>
+                        <button
+                            key={item.value}
+                            type="button"
+                            role="tab"
+                            aria-selected={value === item.value}
+                            className={`inline-flex h-8 min-w-0 items-center justify-center gap-1 rounded-[var(--r-sm)] px-1.5 transition-colors ${value === item.value ? "font-medium" : "font-normal"}`}
+                            style={{ background: value === item.value ? theme.node.fill : "transparent", color: value === item.value ? theme.node.text : theme.node.muted, boxShadow: value === item.value ? `0 1px 5px ${theme.spatial.shadow}` : "none" }}
+                            onClick={() => onChange(item.value)}
+                        >
                             <span className="shrink-0">{item.icon}</span>
                             <span className="min-w-0 truncate">{item.label}</span>
                             {item.count ? <span className="shrink-0 tabular-nums opacity-60">{item.count}</span> : null}
@@ -312,7 +400,8 @@ function toolCardState(title: string, text: string, detail?: unknown) {
     if (objectField(detail, "status") === "noop" || /未生效|无需|没有找到|没有.*可|已存在/.test(raw)) return { label: "未生效", color: "#d97706", softBg: "rgba(217,119,6,.04)", icon: <CircleAlert className="size-4" />, isError: false };
     if (/拒绝|取消/.test(raw) || lower.includes("rejected")) return { label: "拒绝执行", color: "#dc2626", softBg: "rgba(220,38,38,.04)", icon: <XCircle className="size-4" />, isError: true };
     if (/失败|错误/.test(raw) || lower.includes("failed") || lower.includes("error")) return { label: "执行失败", color: "#dc2626", softBg: "rgba(220,38,38,.04)", icon: <XCircle className="size-4" />, isError: true };
-    if (/完成|成功/.test(raw) || lower.includes("completed") || lower.includes("succeeded")) return { label: tool === "canvas_apply_ops" || /画布操作/.test(title) ? "已批准执行" : "执行完成", color: "#16a34a", softBg: "rgba(22,163,74,.04)", icon: <CheckCircle2 className="size-4" />, isError: false };
+    if (/完成|成功/.test(raw) || lower.includes("completed") || lower.includes("succeeded"))
+        return { label: tool === "canvas_apply_ops" || /画布操作/.test(title) ? "已批准执行" : "执行完成", color: "#16a34a", softBg: "rgba(22,163,74,.04)", icon: <CheckCircle2 className="size-4" />, isError: false };
     return { label: "工具调用", color: "#2563eb", softBg: "rgba(37,99,235,.04)", icon: <Wrench className="size-4" />, isError: false };
 }
 

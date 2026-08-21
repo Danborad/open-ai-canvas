@@ -58,11 +58,23 @@ export async function executeTextGeneration({
     const answers = await Promise.all(
         textTargetIds.map((targetNodeId) => {
             let localStreamed = "";
-            return runBackendCanvasGenerationTask({ projectId, nodeId: targetNodeId, mode: "text", prompt: effectivePrompt, config: generationConfig, referenceImages: generationContext.referenceImages, referenceVideos: generationContext.referenceVideos, signal: controller.signal, metadata: { sourceNodeId: nodeId, resolvedCharacterVersions: generationContext.resolvedCharacterVersions }, onTaskCreated: (task) => bindGenerationTask(targetNodeId, task) })
+            return runBackendCanvasGenerationTask({
+                projectId,
+                nodeId: targetNodeId,
+                mode: "text",
+                prompt: effectivePrompt,
+                config: generationConfig,
+                referenceImages: generationContext.referenceImages,
+                referenceVideos: generationContext.referenceVideos,
+                signal: controller.signal,
+                metadata: { sourceNodeId: nodeId, resolvedCharacterVersions: generationContext.resolvedCharacterVersions },
+                onTaskCreated: (task) => bindGenerationTask(targetNodeId, task),
+            })
                 .then((result) => {
                     localStreamed = result.text || "";
                     streamed = localStreamed;
-                    if (!isConfigNode) setNodes((current) => current.map((node) => (node.id === targetNodeId ? { ...node, type: CanvasNodeType.Text, metadata: { ...node.metadata, content: localStreamed, richText: undefined, status: NODE_STATUS_LOADING } } : node)));
+                    if (!isConfigNode)
+                        setNodes((current) => current.map((node) => (node.id === targetNodeId ? { ...node, type: CanvasNodeType.Text, metadata: { ...node.metadata, content: localStreamed, richText: undefined, status: NODE_STATUS_LOADING } } : node)));
                     return { nodeId: targetNodeId, content: localStreamed };
                 })
                 .finally(() => finishGenerationRequest(targetNodeId, controller));
@@ -77,7 +89,12 @@ export async function executeTextGeneration({
                 : node.id === nodeId && isConfigNode
                   ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS, errorDetails: undefined, generationErrorCode: undefined, failedPromptFingerprint: undefined } }
                   : node.id === nodeId && !editingTextNode
-                    ? { ...node, type: CanvasNodeType.Text, title: effectivePrompt.slice(0, 32) || "Generated Text", metadata: { ...node.metadata, content: answerByNodeId.get(node.id) || streamed, richText: undefined, status: NODE_STATUS_SUCCESS, errorDetails: undefined, generationErrorCode: undefined, failedPromptFingerprint: undefined } }
+                    ? {
+                          ...node,
+                          type: CanvasNodeType.Text,
+                          title: effectivePrompt.slice(0, 32) || "Generated Text",
+                          metadata: { ...node.metadata, content: answerByNodeId.get(node.id) || streamed, richText: undefined, status: NODE_STATUS_SUCCESS, errorDetails: undefined, generationErrorCode: undefined, failedPromptFingerprint: undefined },
+                      }
                     : node,
         ),
     );

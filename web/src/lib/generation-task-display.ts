@@ -45,4 +45,3 @@ export function formatTaskKind(task: GenerationTask) {
     if (task.type.startsWith("video_")) return "视频任务";
     return "生成任务";
 }
-

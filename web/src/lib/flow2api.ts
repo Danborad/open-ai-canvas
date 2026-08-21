@@ -29,7 +29,9 @@ export const flow2APIOmniDurationOptions = [4, 6, 8, 10] as const;
 export function isFlow2APIImageConfig(config: AiConfig) {
     const model = config.model || config.imageModel || "";
     const request = resolveModelRequestConfig(config, model);
-    const modelName = String(request.model || model).trim().toLowerCase();
+    const modelName = String(request.model || model)
+        .trim()
+        .toLowerCase();
     // GPT Image 2 follows OpenAI Images even if an old channel record carried
     // the generic Flow2API image label.
     if (modelName.startsWith("gpt-image") || modelName.startsWith("gpt image") || modelName.includes("grok-imagine-image")) return false;
@@ -39,7 +41,9 @@ export function isFlow2APIImageConfig(config: AiConfig) {
 export function isFlow2APIVideoConfig(config: AiConfig) {
     const model = config.model || config.videoModel || "";
     const request = resolveModelRequestConfig(config, model);
-    const modelName = String(request.model || model).trim().toLowerCase();
+    const modelName = String(request.model || model)
+        .trim()
+        .toLowerCase();
     return !modelName.includes("grok-imagine-video") && request.interfaceType === "flow2api-video";
 }
 
@@ -54,7 +58,9 @@ export function isFlow2APIImagen(config: Pick<AiConfig, "model" | "imageModel">)
 }
 
 export function normalizeFlow2APIImageAspect(size?: string) {
-    const value = String(size || "").trim().toLowerCase();
+    const value = String(size || "")
+        .trim()
+        .toLowerCase();
     if (!value || value === "auto") return "16:9";
     if (value.includes("x")) {
         const [w, h] = value.split("x").map((part) => Number(part));

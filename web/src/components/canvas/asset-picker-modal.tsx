@@ -14,7 +14,21 @@ export type InsertAssetPayload =
     | { kind: "image"; dataUrl: string; title: string; storageKey?: string; assetId?: string }
     | { kind: "video"; url: string; title: string; storageKey?: string; width?: number; height?: number; durationMs?: number; bytes?: number; mimeType?: string; assetId?: string }
     | { kind: "audio"; url: string; title: string; storageKey?: string; durationMs?: number; bytes?: number; mimeType?: string; assetId?: string }
-    | { kind: "character"; title: string; assetId: string; versionId: string; prompt: string; aliases: string[]; definition: Record<string, unknown>; coverUrl?: string; visualStatus: string; voiceStatus: string; voiceName?: string; voiceProfile?: { name: string; provider: string; language: string; timbre: string }; voiceInstructions?: string };
+    | {
+          kind: "character";
+          title: string;
+          assetId: string;
+          versionId: string;
+          prompt: string;
+          aliases: string[];
+          definition: Record<string, unknown>;
+          coverUrl?: string;
+          visualStatus: string;
+          voiceStatus: string;
+          voiceName?: string;
+          voiceProfile?: { name: string; provider: string; language: string; timbre: string };
+          voiceInstructions?: string;
+      };
 
 type Props = {
     open: boolean;
@@ -49,7 +63,12 @@ function PickerCard({ asset, onClick }: { asset: InsertableAsset; onClick: () =>
             className="group relative cursor-pointer overflow-hidden rounded-lg border border-stone-200 bg-white text-left transition hover:border-stone-400 hover:shadow-md dark:border-stone-700 dark:bg-stone-900 dark:hover:border-stone-500"
             onClick={onClick}
         >
-            <AssetMediaPreview asset={asset} alt={title} className="aspect-[4/3] w-full bg-black object-cover" fallback={<div className="flex aspect-[4/3] items-center justify-center bg-stone-100 p-3 text-center text-xs leading-5 text-stone-500 dark:bg-stone-800 dark:text-stone-400">{title}</div>} />
+            <AssetMediaPreview
+                asset={asset}
+                alt={title}
+                className="aspect-[4/3] w-full bg-black object-cover"
+                fallback={<div className="flex aspect-[4/3] items-center justify-center bg-stone-100 p-3 text-center text-xs leading-5 text-stone-500 dark:bg-stone-800 dark:text-stone-400">{title}</div>}
+            />
             <div className="p-2.5">
                 <div className="flex items-center justify-between gap-2">
                     <span className="line-clamp-1 text-xs font-medium text-stone-800 dark:text-stone-200">{title}</span>
@@ -88,7 +107,18 @@ function MyAssetsTab({ onInsert }: { onInsert: (payload: InsertAssetPayload) => 
         } else if (asset.kind === "audio") {
             onInsert({ kind: "audio", url: asset.data.url, storageKey: asset.data.storageKey, title: asset.title, durationMs: asset.data.durationMs, bytes: asset.data.bytes, mimeType: asset.data.mimeType, assetId: asset.id });
         } else if (asset.kind === "video") {
-            onInsert({ kind: "video", url: asset.data.url, storageKey: asset.data.storageKey, title: asset.title, width: asset.data.width, height: asset.data.height, durationMs: asset.data.durationMs, bytes: asset.data.bytes, mimeType: asset.data.mimeType, assetId: asset.id });
+            onInsert({
+                kind: "video",
+                url: asset.data.url,
+                storageKey: asset.data.storageKey,
+                title: asset.title,
+                width: asset.data.width,
+                height: asset.data.height,
+                durationMs: asset.data.durationMs,
+                bytes: asset.data.bytes,
+                mimeType: asset.data.mimeType,
+                assetId: asset.id,
+            });
         } else if (asset.kind === "image") {
             onInsert({ kind: "image", dataUrl: asset.data.dataUrl, storageKey: asset.data.storageKey, title: asset.title, assetId: asset.id });
         }

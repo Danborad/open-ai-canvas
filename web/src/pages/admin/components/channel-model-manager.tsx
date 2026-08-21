@@ -91,13 +91,37 @@ export function ChannelModelManager({ channel, onClose, onChanged }: { channel: 
 
     const startCreate = () => {
         setEditing(null);
-        form.setFieldsValue({ modelKey: "", displayName: "", capability: "text", protocol: "chat-completion", billingMode: "fixed_request", unitPrice: 0, inputTokenPrice: 0, outputTokenPrice: 0, cachedTokenPrice: 0, enabled: true, capabilityConfig: undefined });
+        form.setFieldsValue({
+            modelKey: "",
+            displayName: "",
+            capability: "text",
+            protocol: "chat-completion",
+            billingMode: "fixed_request",
+            unitPrice: 0,
+            inputTokenPrice: 0,
+            outputTokenPrice: 0,
+            cachedTokenPrice: 0,
+            enabled: true,
+            capabilityConfig: undefined,
+        });
         setEditorOpen(true);
     };
 
     const startEdit = (item: ChannelModel) => {
         setEditing(item);
-        form.setFieldsValue({ modelKey: item.modelKey, displayName: item.displayName, capability: item.capability || undefined, protocol: item.protocol, billingMode: item.billingMode, unitPrice: item.unitPriceMicrocredits / 1_000_000, inputTokenPrice: item.inputTokenPriceMicrocredits / 1_000_000, outputTokenPrice: item.outputTokenPriceMicrocredits / 1_000_000, cachedTokenPrice: item.cachedTokenPriceMicrocredits / 1_000_000, enabled: item.enabled, capabilityConfig: item.capability === "image" || item.capability === "video" ? item.capabilityConfig || defaultModelCapabilityConfig(item.protocol, item.modelKey) : undefined });
+        form.setFieldsValue({
+            modelKey: item.modelKey,
+            displayName: item.displayName,
+            capability: item.capability || undefined,
+            protocol: item.protocol,
+            billingMode: item.billingMode,
+            unitPrice: item.unitPriceMicrocredits / 1_000_000,
+            inputTokenPrice: item.inputTokenPriceMicrocredits / 1_000_000,
+            outputTokenPrice: item.outputTokenPriceMicrocredits / 1_000_000,
+            cachedTokenPrice: item.cachedTokenPriceMicrocredits / 1_000_000,
+            enabled: item.enabled,
+            capabilityConfig: item.capability === "image" || item.capability === "video" ? item.capabilityConfig || defaultModelCapabilityConfig(item.protocol, item.modelKey) : undefined,
+        });
         setEditorOpen(true);
     };
 
@@ -184,7 +208,9 @@ export function ChannelModelManager({ channel, onClose, onChanged }: { channel: 
             title: "模型",
             render: (_, item) => (
                 <div className="flex min-w-0 items-center gap-2.5">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-md border border-border/70 bg-muted/35"><ModelIcon model={item.modelKey} /></span>
+                    <span className="grid size-8 shrink-0 place-items-center rounded-md border border-border/70 bg-muted/35">
+                        <ModelIcon model={item.modelKey} />
+                    </span>
                     <div className="min-w-0">
                         <div className="truncate font-medium">{item.displayName || item.modelKey}</div>
                         <div className="truncate text-xs text-foreground/45">{item.modelKey}</div>
@@ -193,7 +219,20 @@ export function ChannelModelManager({ channel, onClose, onChanged }: { channel: 
             ),
         },
         { title: "能力", dataIndex: "capability", width: 90, render: capabilityLabel },
-        { title: "请求协议", dataIndex: "protocol", width: 230, render: (value: ModelProtocol) => value ? <div><div className="text-xs font-medium">{modelProtocolLabel(value)}</div><div className="truncate text-[var(--fs-tiny)] text-foreground/45">{modelProtocolDefinition(value)?.create}</div></div> : <Tag color="orange">待配置</Tag> },
+        {
+            title: "请求协议",
+            dataIndex: "protocol",
+            width: 230,
+            render: (value: ModelProtocol) =>
+                value ? (
+                    <div>
+                        <div className="text-xs font-medium">{modelProtocolLabel(value)}</div>
+                        <div className="truncate text-[var(--fs-tiny)] text-foreground/45">{modelProtocolDefinition(value)?.create}</div>
+                    </div>
+                ) : (
+                    <Tag color="orange">待配置</Tag>
+                ),
+        },
         { title: "计费", width: 220, render: (_, item) => (item.priceConfigured ? billingSummary(item) : <Tag color="orange">未配置价格</Tag>) },
         { title: "版本", dataIndex: "priceVersion", width: 75, render: (value) => `v${value}` },
         { title: "状态", dataIndex: "enabled", width: 85, render: (enabled) => (enabled ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>) },
@@ -202,7 +241,9 @@ export function ChannelModelManager({ channel, onClose, onChanged }: { channel: 
             width: 120,
             render: (_, item) => (
                 <Space>
-                    <Button size="small" onClick={() => startEdit(item)}>编辑</Button>
+                    <Button size="small" onClick={() => startEdit(item)}>
+                        编辑
+                    </Button>
                     <Popconfirm title="删除模型" description="删除后模型不再显示，历史账单仍会保留。该操作不能在页面恢复。" okText="删除" cancelText="取消" onConfirm={() => void remove(item)}>
                         <Button size="small" danger title="删除模型" aria-label="删除模型" icon={<Trash2 className="size-3.5" />} />
                     </Popconfirm>
@@ -225,12 +266,65 @@ export function ChannelModelManager({ channel, onClose, onChanged }: { channel: 
             title={`${channel.name} / 模型管理`}
             description="维护模型能力、请求协议、计费与启用状态"
             back={{ label: "返回系统渠道", onClick: onClose }}
-            actions={<Space wrap><Button loading={fetching} icon={<RefreshCw className="size-4" />} onClick={() => void fetchModels()}>拉取模型</Button><Button type="primary" icon={<Plus className="size-4" />} onClick={startCreate}>新增模型</Button></Space>}
+            actions={
+                <Space wrap>
+                    <Button loading={fetching} icon={<RefreshCw className="size-4" />} onClick={() => void fetchModels()}>
+                        拉取模型
+                    </Button>
+                    <Button type="primary" icon={<Plus className="size-4" />} onClick={startCreate}>
+                        新增模型
+                    </Button>
+                </Space>
+            }
         >
-            <ListToolbar active={Boolean(keyword || capability !== "all" || status !== "all")} onReset={() => { setKeyword(""); setCapability("all"); setStatus("all"); setPage(1); }}>
-                <Input allowClear className="app-list-search" prefix={<Search className="size-4 text-foreground/40" />} value={keyword} placeholder="搜索模型标识或显示名称" onChange={(event) => { setKeyword(event.target.value); setPage(1); }} />
-                <Select className="w-32" value={capability} onChange={(value) => { setCapability(value); setPage(1); }} options={[{ label: "全部能力", value: "all" }, { label: "文本", value: "text" }, { label: "图片", value: "image" }, { label: "视频", value: "video" }, { label: "音频", value: "audio" }]} />
-                <Select className="w-32" value={status} onChange={(value) => { setStatus(value); setPage(1); }} options={[{ label: "全部状态", value: "all" }, { label: "已启用", value: "enabled" }, { label: "已停用", value: "disabled" }]} />
+            <ListToolbar
+                active={Boolean(keyword || capability !== "all" || status !== "all")}
+                onReset={() => {
+                    setKeyword("");
+                    setCapability("all");
+                    setStatus("all");
+                    setPage(1);
+                }}
+            >
+                <Input
+                    allowClear
+                    className="app-list-search"
+                    prefix={<Search className="size-4 text-foreground/40" />}
+                    value={keyword}
+                    placeholder="搜索模型标识或显示名称"
+                    onChange={(event) => {
+                        setKeyword(event.target.value);
+                        setPage(1);
+                    }}
+                />
+                <Select
+                    className="w-32"
+                    value={capability}
+                    onChange={(value) => {
+                        setCapability(value);
+                        setPage(1);
+                    }}
+                    options={[
+                        { label: "全部能力", value: "all" },
+                        { label: "文本", value: "text" },
+                        { label: "图片", value: "image" },
+                        { label: "视频", value: "video" },
+                        { label: "音频", value: "audio" },
+                    ]}
+                />
+                <Select
+                    className="w-32"
+                    value={status}
+                    onChange={(value) => {
+                        setStatus(value);
+                        setPage(1);
+                    }}
+                    options={[
+                        { label: "全部状态", value: "all" },
+                        { label: "已启用", value: "enabled" },
+                        { label: "已停用", value: "disabled" },
+                    ]}
+                />
             </ListToolbar>
             <TableSurface>
                 <Table
@@ -240,14 +334,45 @@ export function ChannelModelManager({ channel, onClose, onChanged }: { channel: 
                     loading={loading}
                     columns={columns}
                     dataSource={filteredItems}
-                    pagination={{ current: page, pageSize, total: filteredItems.length, showSizeChanger: true, pageSizeOptions: [20, 50, 100], showTotal: (total, range) => `${range[0]}-${range[1]} / 共 ${total} 个模型`, onChange: (nextPage, nextPageSize) => { setPage(nextPageSize !== pageSize ? 1 : nextPage); setPageSize(nextPageSize); } }}
+                    pagination={{
+                        current: page,
+                        pageSize,
+                        total: filteredItems.length,
+                        showSizeChanger: true,
+                        pageSizeOptions: [20, 50, 100],
+                        showTotal: (total, range) => `${range[0]}-${range[1]} / 共 ${total} 个模型`,
+                        onChange: (nextPage, nextPageSize) => {
+                            setPage(nextPageSize !== pageSize ? 1 : nextPage);
+                            setPageSize(nextPageSize);
+                        },
+                    }}
                     scroll={{ x: 990 }}
                 />
             </TableSurface>
-            <Drawer title={editing ? "编辑模型" : "新增模型"} open={editorOpen} size="min(720px, 100vw)" onClose={() => setEditorOpen(false)} styles={{ body: { paddingBottom: 88 } }} extra={editing ? <Button size="small" icon={<Plus className="size-3.5" />} onClick={startCreate}>新增</Button> : null}>
+            <Drawer
+                title={editing ? "编辑模型" : "新增模型"}
+                open={editorOpen}
+                size="min(720px, 100vw)"
+                onClose={() => setEditorOpen(false)}
+                styles={{ body: { paddingBottom: 88 } }}
+                extra={
+                    editing ? (
+                        <Button size="small" icon={<Plus className="size-3.5" />} onClick={startCreate}>
+                            新增
+                        </Button>
+                    ) : null
+                }
+            >
                 <Form form={form} layout="vertical" requiredMark={false} onValuesChange={handleFormValuesChange}>
                     <Form.Item name="modelKey" label="模型标识" rules={[{ required: true, message: "请输入模型标识" }]}>
-                        <Input prefix={<span className="grid size-6 place-items-center"><ModelIcon model={modelKey} /></span>} placeholder="例如：deepseek-chat、gpt-5、glm-4.5" />
+                        <Input
+                            prefix={
+                                <span className="grid size-6 place-items-center">
+                                    <ModelIcon model={modelKey} />
+                                </span>
+                            }
+                            placeholder="例如：deepseek-chat、gpt-5、glm-4.5"
+                        />
                     </Form.Item>
                     {form.getFieldValue("protocol") === "zarklab-image" ? (
                         <div className="mb-3 flex flex-wrap gap-1.5">
@@ -288,9 +413,20 @@ export function ChannelModelManager({ channel, onClose, onChanged }: { channel: 
                     <Form.Item name="protocol" label="请求协议" rules={[{ required: true, message: "请选择模型请求协议" }]}>
                         <ProtocolCardPicker capability={modelCapability} />
                     </Form.Item>
-                    {modelCapability === "image" || modelCapability === "video" ? <Form.Item name="capabilityConfig" rules={[{ required: true, message: `请配置${modelCapability === "image" ? "图片" : "视频"}能力参数` }]}><ModelCapabilityEditor capability={modelCapability} model={modelKey} protocol={form.getFieldValue("protocol")} /></Form.Item> : null}
+                    {modelCapability === "image" || modelCapability === "video" ? (
+                        <Form.Item name="capabilityConfig" rules={[{ required: true, message: `请配置${modelCapability === "image" ? "图片" : "视频"}能力参数` }]}>
+                            <ModelCapabilityEditor capability={modelCapability} model={modelKey} protocol={form.getFieldValue("protocol")} />
+                        </Form.Item>
+                    ) : null}
                     <Form.Item name="billingMode" label="计费方式" rules={[{ required: true }]}>
-                        <Segmented block options={[{ label: "按次计费", value: "fixed_request" }, { label: "按秒计费", value: "per_second", disabled: modelCapability !== "video" }, { label: "Token 计费", value: "token", disabled: modelCapability !== "text" }]} />
+                        <Segmented
+                            block
+                            options={[
+                                { label: "按次计费", value: "fixed_request" },
+                                { label: "按秒计费", value: "per_second", disabled: modelCapability !== "video" },
+                                { label: "Token 计费", value: "token", disabled: modelCapability !== "text" },
+                            ]}
+                        />
                     </Form.Item>
                     {billingMode === "token" ? (
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -312,12 +448,14 @@ export function ChannelModelManager({ channel, onClose, onChanged }: { channel: 
                     <Form.Item name="enabled" label="启用" valuePropName="checked">
                         <Switch />
                     </Form.Item>
-                    <div className="mb-2 text-xs text-foreground/45">
-                        测试会向上游发起真实请求并可能产生供应商费用{modelCapability === "video" ? "，视频测试可能需要数分钟" : ""}。
-                    </div>
+                    <div className="mb-2 text-xs text-foreground/45">测试会向上游发起真实请求并可能产生供应商费用{modelCapability === "video" ? "，视频测试可能需要数分钟" : ""}。</div>
                     <div className="grid grid-cols-2 gap-2">
-                        <Button icon={<FlaskConical className="size-4" />} loading={testing} disabled={saving} onClick={() => void testModel()}>测试模型</Button>
-                        <Button type="primary" loading={saving} disabled={testing} onClick={() => void save()}>{editing ? "保存修改" : "添加模型"}</Button>
+                        <Button icon={<FlaskConical className="size-4" />} loading={testing} disabled={saving} onClick={() => void testModel()}>
+                            测试模型
+                        </Button>
+                        <Button type="primary" loading={saving} disabled={testing} onClick={() => void save()}>
+                            {editing ? "保存修改" : "添加模型"}
+                        </Button>
                     </div>
                 </Form>
             </Drawer>

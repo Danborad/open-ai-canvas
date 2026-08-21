@@ -44,12 +44,7 @@ export function CanvasVideoPromptTools({ metadata, frameOptions, onMetadataChang
     if (!frameOptions.length) return null;
 
     return (
-        <div
-            className="grid min-w-0 grid-cols-2 items-center gap-1"
-            data-canvas-no-zoom
-            onMouseDown={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
-        >
+        <div className="grid min-w-0 grid-cols-2 items-center gap-1" data-canvas-no-zoom onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
             <FrameMenu label="首帧" value={startFrame} options={frameOptions} theme={theme} onChange={(value) => setFrame("videoStartFrameNodeId", value)} />
             <FrameMenu label="尾帧" value={endFrame} options={frameOptions} theme={theme} onChange={(value) => setFrame("videoEndFrameNodeId", value)} />
         </div>
@@ -59,19 +54,7 @@ export function CanvasVideoPromptTools({ metadata, frameOptions, onMetadataChang
 function FrameMenu({ label, value, options, theme, onChange }: { label: string; value: string; options: VideoFrameOption[]; theme: CanvasTheme; onChange: (value: string) => void }) {
     const selected = options.find((item) => item.nodeId === value);
     const items = [{ value: EMPTY_FRAME_VALUE, label: "不指定" }, ...options.map((option) => ({ value: option.nodeId, label: `${option.label} · ${option.title}`, previewUrl: option.previewUrl }))];
-    return (
-        <CompactMenuButton
-            theme={theme}
-            title={label}
-            label={selected?.label || label}
-            icon={<ImageIcon className="size-3.5 shrink-0 opacity-90" />}
-            value={value}
-            items={items}
-            menuWidth={220}
-            maxMenuHeight={208}
-            onSelect={onChange}
-        />
-    );
+    return <CompactMenuButton theme={theme} title={label} label={selected?.label || label} icon={<ImageIcon className="size-3.5 shrink-0 opacity-90" />} value={value} items={items} menuWidth={220} maxMenuHeight={208} onSelect={onChange} />;
 }
 
 function CompactMenuButton({

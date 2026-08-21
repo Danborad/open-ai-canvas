@@ -21,7 +21,27 @@ export type DirectorKeyframe = {
     easing?: "step" | "linear" | "smooth";
 };
 
-export type DirectorHumanoidBone = "root" | "hips" | "spine" | "chest" | "neck" | "head" | "leftShoulder" | "leftUpperArm" | "leftLowerArm" | "leftHand" | "rightShoulder" | "rightUpperArm" | "rightLowerArm" | "rightHand" | "leftUpperLeg" | "leftLowerLeg" | "leftFoot" | "rightUpperLeg" | "rightLowerLeg" | "rightFoot";
+export type DirectorHumanoidBone =
+    | "root"
+    | "hips"
+    | "spine"
+    | "chest"
+    | "neck"
+    | "head"
+    | "leftShoulder"
+    | "leftUpperArm"
+    | "leftLowerArm"
+    | "leftHand"
+    | "rightShoulder"
+    | "rightUpperArm"
+    | "rightLowerArm"
+    | "rightHand"
+    | "leftUpperLeg"
+    | "leftLowerLeg"
+    | "leftFoot"
+    | "rightUpperLeg"
+    | "rightLowerLeg"
+    | "rightFoot";
 
 export type DirectorBoneKeyframe = {
     id: string;

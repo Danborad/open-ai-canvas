@@ -80,8 +80,21 @@ export function sourceTypeLabel(value: string) {
 }
 
 export function StatusPill({ status }: { status: string }) {
-    const color = status === "completed" || status === "confirmed" || status === "succeeded" ? "success" : status === "failed" ? "error" : status === "running" || status === "active" ? "processing" : status === "review" || status === "pending_confirmation" ? "warning" : "default";
-    return <Tag color={color} className="m-0 !rounded-full !px-2 !text-[var(--fs-label)]">{statusLabel(status)}</Tag>;
+    const color =
+        status === "completed" || status === "confirmed" || status === "succeeded"
+            ? "success"
+            : status === "failed"
+              ? "error"
+              : status === "running" || status === "active"
+                ? "processing"
+                : status === "review" || status === "pending_confirmation"
+                  ? "warning"
+                  : "default";
+    return (
+        <Tag color={color} className="m-0 !rounded-full !px-2 !text-[var(--fs-label)]">
+            {statusLabel(status)}
+        </Tag>
+    );
 }
 
 export function SectionTitle({ eyebrow, title, description, action }: { eyebrow?: string; title: string; description?: string; action?: ReactNode }) {
@@ -101,14 +114,21 @@ export function MetricTile({ label, value, detail, accent = false }: { label: st
     return (
         <div className={`overflow-hidden rounded-lg border px-3 py-3 ${accent ? "border-[color-mix(in_srgb,var(--workspace-accent)_30%,transparent)] bg-[var(--workspace-accent-soft)]" : "border-border/80 bg-background/70"}`}>
             <div className="text-xs text-foreground/50">{label}</div>
-            <div className="mt-2 flex items-end gap-2"><strong className="text-2xl font-semibold tracking-normal">{value}</strong>{detail ? <span className="pb-0.5 text-xs text-foreground/45">{detail}</span> : null}</div>
+            <div className="mt-2 flex items-end gap-2">
+                <strong className="text-2xl font-semibold tracking-normal">{value}</strong>
+                {detail ? <span className="pb-0.5 text-xs text-foreground/45">{detail}</span> : null}
+            </div>
         </div>
     );
 }
 
 export function UnitProgress({ unit }: { unit: ProjectUnit }) {
     const progress = unit.status === "completed" ? 100 : unit.status === "ready" ? 66 : 24;
-    return <div className="h-1.5 w-20 overflow-hidden rounded-full bg-foreground/10"><div className="h-full rounded-full bg-[var(--workspace-accent)] transition-[width] duration-200" style={{ width: `${progress}%` }} /></div>;
+    return (
+        <div className="h-1.5 w-20 overflow-hidden rounded-full bg-foreground/10">
+            <div className="h-full rounded-full bg-[var(--workspace-accent)] transition-[width] duration-200" style={{ width: `${progress}%` }} />
+        </div>
+    );
 }
 
 export function formatTime(value?: string) {

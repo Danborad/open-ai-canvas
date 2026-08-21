@@ -191,22 +191,24 @@ export const AnimatedThemeToggler = ({ children, className, duration = 400, vari
 
         const ready = transition?.ready;
         if (ready && typeof ready.then === "function") {
-            void ready.then(() => {
-                if (cleaned) return;
-                themeClipAnimation?.cancel();
-                themeClipAnimation = document.documentElement.animate(
-                    {
-                        clipPath,
-                    },
-                    {
-                        duration,
-                        // Star: linear avoids easing overshoot that fights polygon interpolation at t→1; VT group duration is synced above.
-                        easing: shape === "star" ? "linear" : "ease-in-out",
-                        fill: "forwards",
-                        pseudoElement: "::view-transition-new(root)",
-                    },
-                );
-            }).catch(() => undefined);
+            void ready
+                .then(() => {
+                    if (cleaned) return;
+                    themeClipAnimation?.cancel();
+                    themeClipAnimation = document.documentElement.animate(
+                        {
+                            clipPath,
+                        },
+                        {
+                            duration,
+                            // Star: linear avoids easing overshoot that fights polygon interpolation at t→1; VT group duration is synced above.
+                            easing: shape === "star" ? "linear" : "ease-in-out",
+                            fill: "forwards",
+                            pseudoElement: "::view-transition-new(root)",
+                        },
+                    );
+                })
+                .catch(() => undefined);
         }
     }, [shape, fromCenter, duration, targetTheme, onThemeChange]);
 

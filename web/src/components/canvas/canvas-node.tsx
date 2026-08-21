@@ -316,7 +316,10 @@ export const CanvasNode = React.memo(function CanvasNode({
                 onDraftChange={setTitleDraft}
                 onEdit={() => setIsEditingTitle(true)}
                 onCommit={commitTitle}
-                onCancel={() => { setTitleDraft(data.title); setIsEditingTitle(false); }}
+                onCancel={() => {
+                    setTitleDraft(data.title);
+                    setIsEditingTitle(false);
+                }}
             />
             <CometCard
                 containerClassName="overflow-visible"
@@ -333,12 +336,12 @@ export const CanvasNode = React.memo(function CanvasNode({
                     boxShadow: isFocusRelated
                         ? `0 0 0 1px ${theme.accent.primary}66, 0 0 0 6px ${theme.accent.primary}1a, 0 28px 80px ${theme.spatial.shadow}` // active：最强强调（外发光环6px + inner glow）
                         : isConnectionTarget
-                            ? `0 0 0 1px ${theme.accent.primary}66, 0 0 0 4px ${theme.accent.primary}1a, 0 24px 72px ${theme.spatial.shadow}` // selected-primary：4px软色环 + resize handle
-                            : isSelected || (isRelated && !isBatchChild)
-                                ? `0 0 0 2px ${theme.accent.primary}40, 0 22px 60px ${theme.spatial.shadow}` // selected：2px边框环
-                                : hovered
-                                    ? `0 16px 48px ${theme.spatial.shadow}` // hover：轻微抬升阴影
-                                    : undefined, // idle：无额外阴影
+                          ? `0 0 0 1px ${theme.accent.primary}66, 0 0 0 4px ${theme.accent.primary}1a, 0 24px 72px ${theme.spatial.shadow}` // selected-primary：4px软色环 + resize handle
+                          : isSelected || (isRelated && !isBatchChild)
+                            ? `0 0 0 2px ${theme.accent.primary}40, 0 22px 60px ${theme.spatial.shadow}` // selected：2px边框环
+                            : hovered
+                              ? `0 16px 48px ${theme.spatial.shadow}` // hover：轻微抬升阴影
+                              : undefined, // idle：无额外阴影
                     transition: "border-color 120ms ease-out, box-shadow 150ms ease-out",
                 }}
                 onMouseDown={(event) => onMouseDown(event, data.id)}
@@ -381,15 +384,17 @@ export const CanvasNode = React.memo(function CanvasNode({
                             "--batch-from-x": `${batchMotion?.x || 0}px`,
                             "--batch-from-y": `${batchMotion?.y || 0}px`,
                             "--batch-from-rotate": `${6 + (batchMotion?.index || 0) * 4}deg`,
-                            animation: data.metadata?.batchRootId ? (batchClosing ? `canvas-batch-child-out var(--motion-dur-base-calc) var(--motion-ease-in-out) both` : `canvas-batch-child-in var(--motion-dur-slow-calc) var(--motion-ease-out) both`) : undefined,
+                            animation: data.metadata?.batchRootId
+                                ? batchClosing
+                                    ? `canvas-batch-child-out var(--motion-dur-base-calc) var(--motion-ease-in-out) both`
+                                    : `canvas-batch-child-in var(--motion-dur-slow-calc) var(--motion-ease-out) both`
+                                : undefined,
                             animationDelay: data.metadata?.batchRootId ? `${batchClosing ? 0 : 45 + (batchMotion?.index || 0) * 24}ms` : undefined,
                         } as React.CSSProperties
                     }
                 >
                     {/* 节点状态徽章（对应 #97 决策2：左上角 loading/success/error，近距离确认信号）*/}
-                    {data.metadata?.status && data.metadata.status !== "idle" && data.type !== CanvasNodeType.Frame ? (
-                        <NodeStatusBadge status={data.metadata.status} />
-                    ) : null}
+                    {data.metadata?.status && data.metadata.status !== "idle" && data.type !== CanvasNodeType.Frame ? <NodeStatusBadge status={data.metadata.status} /> : null}
                     <NodeContent
                         node={data}
                         theme={theme}
@@ -414,13 +419,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                     />
                 </div>
 
-                {flushMediaContent ? (
-                    <div
-                        aria-hidden
-                        className="pointer-events-none absolute inset-0 z-[var(--node-z-content)] rounded-[inherit]"
-                        style={{ boxShadow: `inset 0 0 0 1px ${mediaBorderColor}` }}
-                    />
-                ) : null}
+                {flushMediaContent ? <div aria-hidden className="pointer-events-none absolute inset-0 z-[var(--node-z-content)] rounded-[inherit]" style={{ boxShadow: `inset 0 0 0 1px ${mediaBorderColor}` }} /> : null}
 
                 {(hasImageContent || hasVideoContent) && !readOnly ? (
                     <div
@@ -432,7 +431,10 @@ export const CanvasNode = React.memo(function CanvasNode({
                             type="button"
                             className="inline-flex h-9 items-center gap-2 rounded-full border px-4 text-xs font-semibold shadow-lg backdrop-blur-xl transition hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:hover:translate-y-0"
                             style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text, outlineColor: theme.accent.primary }}
-                            onClick={(event) => { event.stopPropagation(); onReplaceMedia?.(data); }}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onReplaceMedia?.(data);
+                            }}
                             aria-label="替换媒体"
                         >
                             <Replace className="size-3.5" />
@@ -451,7 +453,10 @@ export const CanvasNode = React.memo(function CanvasNode({
                             type="button"
                             className="inline-flex h-9 items-center gap-2 rounded-full border px-4 text-xs font-semibold shadow-lg backdrop-blur-xl transition hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:hover:translate-y-0"
                             style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text, outlineColor: theme.accent.primary }}
-                            onClick={(event) => { event.stopPropagation(); onOpenTextEditor?.(data); }}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onOpenTextEditor?.(data);
+                            }}
                             aria-label="放大编辑文本"
                         >
                             <Maximize2 className="size-3.5" />
@@ -474,7 +479,10 @@ export const CanvasNode = React.memo(function CanvasNode({
                         title={data.metadata.versionLabel + (data.metadata.versionPrimary ? " · 主版本" : "") + "，点击查看版本对比"}
                         aria-label={data.metadata.versionLabel + (data.metadata.versionPrimary ? "，主版本" : "") + "，查看版本对比"}
                         onMouseDown={(event) => event.stopPropagation()}
-                        onClick={(event) => { event.stopPropagation(); onOpenVersions?.(data); }}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onOpenVersions?.(data);
+                        }}
                     >
                         {data.metadata.versionLabel}
                     </button>
@@ -495,30 +503,38 @@ export const CanvasNode = React.memo(function CanvasNode({
                     </div>
                 ) : null}
 
-                {!hasImageContent && !hasVideoContent && !hasAudioContent && data.type !== CanvasNodeType.Drawing ? <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12" style={{ background: `linear-gradient(to top, ${theme.canvas.background}66, transparent)` }} /> : null}
+                {!hasImageContent && !hasVideoContent && !hasAudioContent && data.type !== CanvasNodeType.Drawing ? (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12" style={{ background: `linear-gradient(to top, ${theme.canvas.background}66, transparent)` }} />
+                ) : null}
 
-                {!readOnly && !data.metadata?.locked ? <>
-                    <ResizeHandle corner="top-left" onMouseDown={handleResizeMouseDown} />
-                    <ResizeHandle corner="top-right" onMouseDown={handleResizeMouseDown} />
-                    <ResizeHandle corner="bottom-left" onMouseDown={handleResizeMouseDown} />
-                    <ResizeHandle corner="bottom-right" onMouseDown={handleResizeMouseDown} />
-                </> : null}
+                {!readOnly && !data.metadata?.locked ? (
+                    <>
+                        <ResizeHandle corner="top-left" onMouseDown={handleResizeMouseDown} />
+                        <ResizeHandle corner="top-right" onMouseDown={handleResizeMouseDown} />
+                        <ResizeHandle corner="bottom-left" onMouseDown={handleResizeMouseDown} />
+                        <ResizeHandle corner="bottom-right" onMouseDown={handleResizeMouseDown} />
+                    </>
+                ) : null}
             </CometCard>
 
-            {!readOnly && data.type !== CanvasNodeType.Script ? <ConnectionSideRail side="left" scale={scale} visible={hovered} theme={theme} onPointerDown={(event, anchorRatio) => onConnectStart(event, data.id, "target", undefined, anchorRatio)} /> : null}
-            {!readOnly && data.type !== CanvasNodeType.Script && data.type !== CanvasNodeType.Config ? <ConnectionSideRail side="right" scale={scale} visible={hovered} theme={theme} onPointerDown={(event, anchorRatio) => onConnectStart(event, data.id, "source", undefined, anchorRatio)} /> : null}
-
+            {!readOnly && data.type !== CanvasNodeType.Script ? (
+                <ConnectionSideRail side="left" scale={scale} visible={hovered} theme={theme} onPointerDown={(event, anchorRatio) => onConnectStart(event, data.id, "target", undefined, anchorRatio)} />
+            ) : null}
+            {!readOnly && data.type !== CanvasNodeType.Script && data.type !== CanvasNodeType.Config ? (
+                <ConnectionSideRail side="right" scale={scale} visible={hovered} theme={theme} onPointerDown={(event, anchorRatio) => onConnectStart(event, data.id, "source", undefined, anchorRatio)} />
+            ) : null}
         </div>
     );
 });
 
 function NodeContent(props: NodeContentRendererProps) {
-    const hasCustomContent = props.node.type === CanvasNodeType.Config
-        || props.node.type === CanvasNodeType.Script
-        || Boolean(props.node.metadata?.directorSceneId)
-        || (props.node.metadata?.workflowKind === "character" && Boolean(props.node.metadata.characterAssetId))
-        || (props.node.metadata?.workflowKind === "story_input" && !props.isEditingContent)
-        || (props.node.metadata?.workflowKind === "styleboard" && !props.node.metadata.content);
+    const hasCustomContent =
+        props.node.type === CanvasNodeType.Config ||
+        props.node.type === CanvasNodeType.Script ||
+        Boolean(props.node.metadata?.directorSceneId) ||
+        (props.node.metadata?.workflowKind === "character" && Boolean(props.node.metadata.characterAssetId)) ||
+        (props.node.metadata?.workflowKind === "story_input" && !props.isEditingContent) ||
+        (props.node.metadata?.workflowKind === "styleboard" && !props.node.metadata.content);
     if (hasCustomContent && props.renderNodeContent) return props.renderNodeContent(props.node);
     if (props.isBatchRoot) return <ImageNodeContent {...props} />;
     if (props.node.metadata?.status === "loading") return <LoadingContent node={props.node} theme={props.theme} onCancelTask={props.onCancelTask} onOpenTaskDetails={props.onOpenTaskDetails} />;
@@ -552,15 +568,17 @@ function DrawingContent({ node, theme, drawingProjectId }: NodeContentRendererPr
         if (!drawingProjectId || !drawingId) return;
         let active = true;
         let objectUrl = "";
-        void loadCanvasDrawingPreview(drawingProjectId, drawingId).then((preview) => {
-            if (!active) return;
-            if (!preview) {
-                setPreviewUrl(fallbackPreview);
-                return;
-            }
-            objectUrl = URL.createObjectURL(preview);
-            setPreviewUrl(objectUrl);
-        }).catch((error) => console.warn("读取绘图节点预览失败", error));
+        void loadCanvasDrawingPreview(drawingProjectId, drawingId)
+            .then((preview) => {
+                if (!active) return;
+                if (!preview) {
+                    setPreviewUrl(fallbackPreview);
+                    return;
+                }
+                objectUrl = URL.createObjectURL(preview);
+                setPreviewUrl(objectUrl);
+            })
+            .catch((error) => console.warn("读取绘图节点预览失败", error));
         return () => {
             active = false;
             if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -580,8 +598,12 @@ function DrawingContent({ node, theme, drawingProjectId }: NodeContentRendererPr
             )}
             <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 px-4 pb-3 pt-12" style={{ background: `linear-gradient(to top, ${theme.node.fill}, ${theme.node.fill}e6 55%, transparent)` }}>
                 <div className="min-w-0">
-                    <div className="truncate text-xs font-semibold" title={node.title || "绘图"}>{node.title || "绘图"}</div>
-                    <div className="mt-0.5 text-[var(--fs-tiny)]" style={{ color: theme.node.muted }}>{shapeCount} 个图形 · {pageCount} 个页面</div>
+                    <div className="truncate text-xs font-semibold" title={node.title || "绘图"}>
+                        {node.title || "绘图"}
+                    </div>
+                    <div className="mt-0.5 text-[var(--fs-tiny)]" style={{ color: theme.node.muted }}>
+                        {shapeCount} 个图形 · {pageCount} 个页面
+                    </div>
                 </div>
                 <Pencil className="size-3.5 shrink-0" style={{ color: theme.accent.primary }} />
             </div>
@@ -610,11 +632,36 @@ function LoadingContent({ node, theme, onCancelTask, onOpenTaskDetails }: Pick<N
                         </div>
                     ) : null}
                     <div className="max-w-full truncate text-[var(--fs-tiny)] tabular-nums" style={{ color: theme.node.muted }}>
-                        <Clock3 className="mr-1 inline size-3" />{elapsed} · {shortTaskId(taskId)}
+                        <Clock3 className="mr-1 inline size-3" />
+                        {elapsed} · {shortTaskId(taskId)}
                     </div>
                     <div className="mt-0.5 flex items-center gap-1.5">
-                        <button type="button" className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[var(--fs-tiny)] font-medium transition hover:brightness-110" style={{ background: theme.toolbar.itemHover, color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onOpenTaskDetails?.(node); }}><FileText className="size-3" />详情</button>
-                        <button type="button" className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[var(--fs-tiny)] font-medium transition hover:brightness-110" style={{ background: `${theme.accent.danger}16`, color: theme.accent.danger }} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onCancelTask?.(node); }}><Square className="size-2.5 fill-current" />取消</button>
+                        <button
+                            type="button"
+                            className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[var(--fs-tiny)] font-medium transition hover:brightness-110"
+                            style={{ background: theme.toolbar.itemHover, color: theme.node.text }}
+                            onMouseDown={(event) => event.stopPropagation()}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onOpenTaskDetails?.(node);
+                            }}
+                        >
+                            <FileText className="size-3" />
+                            详情
+                        </button>
+                        <button
+                            type="button"
+                            className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[var(--fs-tiny)] font-medium transition hover:brightness-110"
+                            style={{ background: `${theme.accent.danger}16`, color: theme.accent.danger }}
+                            onMouseDown={(event) => event.stopPropagation()}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onCancelTask?.(node);
+                            }}
+                        >
+                            <Square className="size-2.5 fill-current" />
+                            取消
+                        </button>
                     </div>
                 </div>
             ) : null}
@@ -654,7 +701,9 @@ function ErrorContent({ node, theme, onRetry }: Pick<NodeContentRendererProps, "
     const moderationFailure = node.metadata?.generationErrorCode === CONTENT_MODERATION_ERROR_CODE || isContentModerationError(node.metadata?.errorDetails);
     return (
         <div className="flex max-w-[260px] flex-col items-center gap-3 px-5 text-center">
-            <div className="text-xs leading-5" style={{ color: theme.accent.danger }}>{generationErrorMessage(node.metadata?.errorDetails)}</div>
+            <div className="text-xs leading-5" style={{ color: theme.accent.danger }}>
+                {generationErrorMessage(node.metadata?.errorDetails)}
+            </div>
             {moderationFailure ? (
                 <div className="rounded-md border px-3 py-2 text-[var(--fs-label)] leading-4" style={{ background: theme.node.fill, borderColor: theme.toolbar.border, color: theme.node.muted }}>
                     修改节点提示词后，可重新点击生成。
@@ -718,11 +767,7 @@ function TextContent({ node, theme, isEditingContent, textareaRef, mentionRefere
                     dangerouslySetInnerHTML={{ __html: richTextHTML }}
                 />
             ) : (
-                <div
-                    className="thin-scrollbar block h-full w-full overflow-y-auto whitespace-pre-wrap break-words bg-transparent px-4 pt-0 pb-4 font-mono"
-                    style={textStyle}
-                    onWheel={(event) => event.stopPropagation()}
-                >
+                <div className="thin-scrollbar block h-full w-full overflow-y-auto whitespace-pre-wrap break-words bg-transparent px-4 pt-0 pb-4 font-mono" style={textStyle} onWheel={(event) => event.stopPropagation()}>
                     {node.metadata?.content || <span style={{ color: theme.node.placeholder }}>双击编辑文字</span>}
                 </div>
             )}
@@ -744,7 +789,9 @@ function SkillContent({ node, theme }: NodeContentRendererProps) {
                             <BookOpenCheck className="size-4" />
                         </span>
                         <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold" title={skill?.name || node.title || "技能"}>{skill?.name || node.title || "技能"}</div>
+                            <div className="truncate text-sm font-semibold" title={skill?.name || node.title || "技能"}>
+                                {skill?.name || node.title || "技能"}
+                            </div>
                             <div className="mt-0.5 flex items-center gap-1.5 text-[var(--fs-label)]" style={{ color: theme.node.muted }}>
                                 <span>{skillCategoryLabel(skill?.category)}</span>
                                 <span>·</span>
@@ -761,7 +808,11 @@ function SkillContent({ node, theme }: NodeContentRendererProps) {
                 </div>
             </div>
 
-            {skill?.description ? <div className="mt-3 line-clamp-2 text-xs leading-5" style={{ color: theme.node.muted }}>{skill.description}</div> : null}
+            {skill?.description ? (
+                <div className="mt-3 line-clamp-2 text-xs leading-5" style={{ color: theme.node.muted }}>
+                    {skill.description}
+                </div>
+            ) : null}
 
             <div className="thin-scrollbar mt-3 min-h-0 flex-1 overflow-hidden rounded-xl border px-3 py-2 text-xs leading-5" style={{ borderColor: theme.node.stroke, background: theme.node.panel, color: theme.node.text }}>
                 <div className="mb-1 font-semibold opacity-55">模板</div>
@@ -769,11 +820,17 @@ function SkillContent({ node, theme }: NodeContentRendererProps) {
             </div>
 
             <div className="mt-3 flex flex-wrap gap-1.5">
-                {tags.length ? tags.map((tag) => (
-                    <span key={tag} className="rounded-md border px-1.5 py-0.5 text-[var(--fs-tiny)]" style={{ borderColor: theme.node.stroke, color: theme.node.muted }}>
-                        {tag}
+                {tags.length ? (
+                    tags.map((tag) => (
+                        <span key={tag} className="rounded-md border px-1.5 py-0.5 text-[var(--fs-tiny)]" style={{ borderColor: theme.node.stroke, color: theme.node.muted }}>
+                            {tag}
+                        </span>
+                    ))
+                ) : (
+                    <span className="text-[var(--fs-label)]" style={{ color: theme.node.muted }}>
+                        连接到图片、视频、音频或文本节点后生效
                     </span>
-                )) : <span className="text-[var(--fs-label)]" style={{ color: theme.node.muted }}>连接到图片、视频、音频或文本节点后生效</span>}
+                )}
             </div>
         </div>
     );
@@ -796,7 +853,11 @@ function skillOutputModeLabel(mode?: string) {
 
 function ResourceLabelBadge({ reference, theme }: { reference: CanvasResourceReference; theme: CanvasTheme }) {
     return (
-        <span className="pointer-events-none min-w-0 max-w-28 truncate rounded-md px-1.5 py-1 text-[var(--fs-tiny)] font-medium leading-none text-white shadow-sm" style={{ background: reference.active ? theme.accent.primary : "rgba(0,0,0,.35)", opacity: reference.active ? 1 : 0.75 }} title={reference.title || reference.label}>
+        <span
+            className="pointer-events-none min-w-0 max-w-28 truncate rounded-md px-1.5 py-1 text-[var(--fs-tiny)] font-medium leading-none text-white shadow-sm"
+            style={{ background: reference.active ? theme.accent.primary : "rgba(0,0,0,.35)", opacity: reference.active ? 1 : 0.75 }}
+            title={reference.title || reference.label}
+        >
             {reference.label}
         </span>
     );
@@ -813,13 +874,30 @@ function ResourceStorageBadge({ storageKey, active, theme }: { storageKey?: stri
 }
 
 function NodeLockBadge({ theme }: { theme: CanvasTheme }) {
-    return <span className="pointer-events-none grid size-7 shrink-0 place-items-center rounded-md border backdrop-blur" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.muted }} title="节点已锁定"><Lock className="size-3.5" /></span>;
+    return (
+        <span className="pointer-events-none grid size-7 shrink-0 place-items-center rounded-md border backdrop-blur" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.muted }} title="节点已锁定">
+            <Lock className="size-3.5" />
+        </span>
+    );
 }
 
 function BatchToggleBadge({ count, expanded, theme, onToggle }: { count: number; expanded: boolean; theme: CanvasTheme; onToggle: () => void }) {
     return (
-        <button type="button" className="canvas-node-tool-button inline-flex h-7 shrink-0 items-center gap-1 rounded-md border px-2 text-[var(--fs-tiny)] font-semibold backdrop-blur-md" style={{ background: `${theme.toolbar.panel}d9`, borderColor: `${theme.toolbar.border}cc`, color: theme.node.text }} aria-label={expanded ? "图片组已展开" : "图片组已收起"} onClick={(event) => { event.stopPropagation(); onToggle(); }} onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
-            <span className="leading-none" style={{ color: theme.accent.primary }}>{count}</span>
+        <button
+            type="button"
+            className="canvas-node-tool-button inline-flex h-7 shrink-0 items-center gap-1 rounded-md border px-2 text-[var(--fs-tiny)] font-semibold backdrop-blur-md"
+            style={{ background: `${theme.toolbar.panel}d9`, borderColor: `${theme.toolbar.border}cc`, color: theme.node.text }}
+            aria-label={expanded ? "图片组已展开" : "图片组已收起"}
+            onClick={(event) => {
+                event.stopPropagation();
+                onToggle();
+            }}
+            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+        >
+            <span className="leading-none" style={{ color: theme.accent.primary }}>
+                {count}
+            </span>
             <ChevronRight className={`size-3 opacity-55 transition-transform ${expanded ? "rotate-90" : ""}`} />
         </button>
     );
@@ -827,7 +905,19 @@ function BatchToggleBadge({ count, expanded, theme, onToggle }: { count: number;
 
 function BatchPrimaryBadge({ visible, selected, theme, onSelect }: { visible: boolean; selected: boolean; theme: CanvasTheme; onSelect: () => void }) {
     return (
-        <button type="button" className={`canvas-node-tool-button inline-flex h-7 shrink-0 items-center gap-1 rounded-md border px-2 text-[var(--fs-tiny)] font-medium backdrop-blur-md transition-opacity ${visible ? "opacity-100" : "pointer-events-none opacity-0"}`} style={{ background: theme.toolbar.panel, borderColor: selected ? theme.accent.primary : theme.toolbar.border, color: selected ? theme.accent.primary : theme.node.text }} aria-label={selected ? "当前主图" : "设置为主图"} aria-pressed={selected} onClick={(event) => { event.stopPropagation(); onSelect(); }} onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+        <button
+            type="button"
+            className={`canvas-node-tool-button inline-flex h-7 shrink-0 items-center gap-1 rounded-md border px-2 text-[var(--fs-tiny)] font-medium backdrop-blur-md transition-opacity ${visible ? "opacity-100" : "pointer-events-none opacity-0"}`}
+            style={{ background: theme.toolbar.panel, borderColor: selected ? theme.accent.primary : theme.toolbar.border, color: selected ? theme.accent.primary : theme.node.text }}
+            aria-label={selected ? "当前主图" : "设置为主图"}
+            aria-pressed={selected}
+            onClick={(event) => {
+                event.stopPropagation();
+                onSelect();
+            }}
+            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+        >
             <Star className={`size-3 ${selected ? "fill-current" : ""}`} style={{ color: theme.accent.primary }} />
             {selected ? "当前主图" : "主图"}
         </button>
@@ -891,10 +981,14 @@ function EmptyImageContent({ node, theme, isBatchRoot, batchCount, batchExpanded
             </div>
             {isCharacterReference ? (
                 <div className="max-w-[80%] text-center">
-                    <div className="truncate text-xs font-medium" title={node.metadata?.characterName || node.title} style={{ color: theme.node.muted }}>{node.metadata?.characterName || node.title}</div>
+                    <div className="truncate text-xs font-medium" title={node.metadata?.characterName || node.title} style={{ color: theme.node.muted }}>
+                        {node.metadata?.characterName || node.title}
+                    </div>
                     <div className="mt-1 text-[var(--fs-tiny)] tracking-[0.12em] opacity-50">多视角参考 · 待生成</div>
                 </div>
-            ) : <span className="text-[var(--fs-tiny)] tracking-[0.18em] opacity-50">空图片节点</span>}
+            ) : (
+                <span className="text-[var(--fs-tiny)] tracking-[0.18em] opacity-50">空图片节点</span>
+            )}
         </div>
     );
     if (isBatchRoot)
@@ -917,9 +1011,34 @@ function VideoNodeContent({ node, theme, reduceMediaEffects }: NodeContentRender
             </div>
         );
     if (!url) {
-        return <DeferredMediaLoad icon={loading ? <LoaderCircle className="size-5 animate-spin" /> : <Play className="size-5 fill-current" />} label={loading ? "正在缓存视频" : "加载并缓存视频"} disabled={loading} onClick={() => { playWhenReadyRef.current = true; void load(); }} />;
+        return (
+            <DeferredMediaLoad
+                icon={loading ? <LoaderCircle className="size-5 animate-spin" /> : <Play className="size-5 fill-current" />}
+                label={loading ? "正在缓存视频" : "加载并缓存视频"}
+                disabled={loading}
+                onClick={() => {
+                    playWhenReadyRef.current = true;
+                    void load();
+                }}
+            />
+        );
     }
-    return <VideoPlayer src={url} mimeType={node.metadata?.mimeType} title={node.title || "视频"} preload={reduceMediaEffects ? "none" : "metadata"} autoPlay={playWhenReadyRef.current} onCanPlay={() => { playWhenReadyRef.current = false; }} brandColor={theme.accent.primary} className="h-full w-full rounded-[var(--node-radius)] bg-black" dataCanvasNoZoom compactControls />;
+    return (
+        <VideoPlayer
+            src={url}
+            mimeType={node.metadata?.mimeType}
+            title={node.title || "视频"}
+            preload={reduceMediaEffects ? "none" : "metadata"}
+            autoPlay={playWhenReadyRef.current}
+            onCanPlay={() => {
+                playWhenReadyRef.current = false;
+            }}
+            brandColor={theme.accent.primary}
+            className="h-full w-full rounded-[var(--node-radius)] bg-black"
+            dataCanvasNoZoom
+            compactControls
+        />
+    );
 }
 
 function AudioNodeContent({ node, theme }: NodeContentRendererProps) {
@@ -939,13 +1058,25 @@ function AudioNodeContent({ node, theme }: NodeContentRendererProps) {
             </div>
         );
     if (!url) {
-        return <DeferredMediaLoad icon={loading ? <LoaderCircle className="size-5 animate-spin" /> : <Play className="size-5 fill-current" />} label={loading ? "正在缓存音频" : "加载并缓存音频"} disabled={loading} onClick={() => { playWhenReadyRef.current = true; void load(); }} />;
+        return (
+            <DeferredMediaLoad
+                icon={loading ? <LoaderCircle className="size-5 animate-spin" /> : <Play className="size-5 fill-current" />}
+                label={loading ? "正在缓存音频" : "加载并缓存音频"}
+                disabled={loading}
+                onClick={() => {
+                    playWhenReadyRef.current = true;
+                    void load();
+                }}
+            />
+        );
     }
     return (
         <div className="flex h-full w-full flex-col justify-center gap-3 px-4" style={{ background: theme.node.fill, color: theme.node.text }}>
             <div className="flex min-w-0 items-center gap-2 text-sm opacity-70">
                 <Music2 className="size-4 shrink-0" />
-                <span className="min-w-0 truncate" title={node.title || "音频"}>{node.title || "音频"}</span>
+                <span className="min-w-0 truncate" title={node.title || "音频"}>
+                    {node.title || "音频"}
+                </span>
             </div>
             <audio ref={audioRef} src={url} controls preload="metadata" className="w-full" data-canvas-no-zoom />
         </div>
@@ -988,7 +1119,11 @@ function ImageContent({
                         onDragStart={(event) => event.preventDefault()}
                         className={`pointer-events-none block h-full w-full select-none ${node.metadata?.freeResize ? "object-fill" : "object-contain"}`}
                     />
-                ) : <div className="grid size-full place-items-center" style={{ color: theme.node.muted }}>{loading ? <LoaderCircle className="size-5 animate-spin" /> : <ImageIcon className="size-5 opacity-45" />}</div>}
+                ) : (
+                    <div className="grid size-full place-items-center" style={{ color: theme.node.muted }}>
+                        {loading ? <LoaderCircle className="size-5 animate-spin" /> : <ImageIcon className="size-5 opacity-45" />}
+                    </div>
+                )}
             </div>
         </BatchFrame>
     );
@@ -996,7 +1131,18 @@ function ImageContent({
 
 function DeferredMediaLoad({ icon, label, disabled, onClick }: { icon: ReactNode; label: string; disabled: boolean; onClick: () => void }) {
     return (
-        <button type="button" data-canvas-no-zoom className="flex size-full flex-col items-center justify-center gap-2 rounded-[var(--r-2xl)] bg-black text-white/75 transition hover:text-white disabled:cursor-wait" disabled={disabled} onClick={(event) => { event.stopPropagation(); onClick(); }} onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+        <button
+            type="button"
+            data-canvas-no-zoom
+            className="flex size-full flex-col items-center justify-center gap-2 rounded-[var(--r-2xl)] bg-black text-white/75 transition hover:text-white disabled:cursor-wait"
+            disabled={disabled}
+            onClick={(event) => {
+                event.stopPropagation();
+                onClick();
+            }}
+            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+        >
             <span className="grid size-10 place-items-center rounded-full bg-white/10">{icon}</span>
             <span className="text-xs font-medium">{label}</span>
         </button>
@@ -1091,7 +1237,23 @@ function ImageInfoBar({ node }: { node: CanvasNodeData }) {
     );
 }
 
-function BatchFrame({ batchCount, batchExpanded, batchOpening, batchRecovering, theme, onToggleBatch, children }: { batchCount: number; batchExpanded: boolean; batchOpening: boolean; batchRecovering: boolean; theme: CanvasTheme; onToggleBatch?: () => void; children: ReactNode }) {
+function BatchFrame({
+    batchCount,
+    batchExpanded,
+    batchOpening,
+    batchRecovering,
+    theme,
+    onToggleBatch,
+    children,
+}: {
+    batchCount: number;
+    batchExpanded: boolean;
+    batchOpening: boolean;
+    batchRecovering: boolean;
+    theme: CanvasTheme;
+    onToggleBatch?: () => void;
+    children: ReactNode;
+}) {
     const isBatchRoot = batchCount > 1;
     return (
         <div
@@ -1141,7 +1303,19 @@ function ResizeHandle({ corner, onMouseDown }: { corner: ResizeCorner; onMouseDo
 
 const NODE_EXTERNAL_HEADER_MIN_SCALE = 0.35;
 
-function NodeExternalHeader({ node, scale, active, editable, editing, draft, theme, onDraftChange, onEdit, onCommit, onCancel }: {
+function NodeExternalHeader({
+    node,
+    scale,
+    active,
+    editable,
+    editing,
+    draft,
+    theme,
+    onDraftChange,
+    onEdit,
+    onCommit,
+    onCancel,
+}: {
     node: CanvasNodeData;
     scale: number;
     active: boolean;
@@ -1184,12 +1358,22 @@ function NodeExternalHeader({ node, scale, active, editable, editing, draft, the
                     aria-label="节点名称"
                 />
             ) : editable ? (
-                <button type="button" className="group flex min-w-0 flex-1 items-center gap-1 rounded px-0.5 text-xs font-medium outline-none transition-opacity hover:opacity-100 focus-visible:ring-1" style={{ opacity: active ? 1 : 0.78, "--tw-ring-color": theme.node.activeStroke } as React.CSSProperties} onClick={onEdit} aria-label={`编辑节点名称：${node.title}`}>
-                    <span className="min-w-0 flex-1 truncate" title={node.title}>{node.title}</span>
+                <button
+                    type="button"
+                    className="group flex min-w-0 flex-1 items-center gap-1 rounded px-0.5 text-xs font-medium outline-none transition-opacity hover:opacity-100 focus-visible:ring-1"
+                    style={{ opacity: active ? 1 : 0.78, "--tw-ring-color": theme.node.activeStroke } as React.CSSProperties}
+                    onClick={onEdit}
+                    aria-label={`编辑节点名称：${node.title}`}
+                >
+                    <span className="min-w-0 flex-1 truncate" title={node.title}>
+                        {node.title}
+                    </span>
                     <Pencil className="size-2.5 shrink-0 opacity-55 transition-opacity group-hover:opacity-100" />
                 </button>
             ) : (
-                <span className="min-w-0 flex-1 truncate text-xs font-medium" title={node.title} style={{ opacity: active ? 1 : 0.78 }}>{node.title}</span>
+                <span className="min-w-0 flex-1 truncate text-xs font-medium" title={node.title} style={{ opacity: active ? 1 : 0.78 }}>
+                    {node.title}
+                </span>
             )}
         </div>
     );

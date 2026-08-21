@@ -15,7 +15,16 @@ export async function generateCharacterTurnaround(input: { projectId: string; as
         mode: "image",
         prompt: "使用当前启用的角色三视图模板。",
         config: { ...input.config, model: input.config.imageModel || input.config.model, count: "1" },
-        metadata: { operation: "character_turnaround", promptTemplateOperation: "character_turnaround", promptTemplateVariables, characterAssetId: input.assetId, stylePresetId: input.projectStyle?.id, styleProfileJson: input.projectStyle?.profile ? serializeStyleProfile(input.projectStyle.profile) : undefined, styleExecutionPlan, resolvedCharacterVersions: [{ assetId: input.assetId, versionId: input.versionId }] },
+        metadata: {
+            operation: "character_turnaround",
+            promptTemplateOperation: "character_turnaround",
+            promptTemplateVariables,
+            characterAssetId: input.assetId,
+            stylePresetId: input.projectStyle?.id,
+            styleProfileJson: input.projectStyle?.profile ? serializeStyleProfile(input.projectStyle.profile) : undefined,
+            styleExecutionPlan,
+            resolvedCharacterVersions: [{ assetId: input.assetId, versionId: input.versionId }],
+        },
     });
 }
 
@@ -36,8 +45,5 @@ function characterStyleConstraint(projectStyle?: ProjectStylePrompt) {
         const title = line.match(/^【([^】]+)】/)?.[1];
         return title ? characterSections.has(title) : false;
     });
-    return [
-        `项目画风：${projectStyle.title}。角色造型、配色、服装材质与最终渲染媒介必须遵循以下规范：`,
-        ...rules,
-    ].join("\n");
+    return [`项目画风：${projectStyle.title}。角色造型、配色、服装材质与最终渲染媒介必须遵循以下规范：`, ...rules].join("\n");
 }

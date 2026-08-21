@@ -39,7 +39,24 @@ type PinchState = {
     initialScale: number;
 };
 
-export function InfiniteCanvas({ containerRef, viewport, backgroundMode = "dots", onViewportChange, onViewportPreviewChange, onCanvasMouseDown, boxSelectEnabled = false, onCanvasDoubleClick, onCanvasDeselect, onContextMenu, onDrop, onFileDragEnter, onFileDragLeave, onFileDragOver, graphicsLayer, children }: InfiniteCanvasProps) {
+export function InfiniteCanvas({
+    containerRef,
+    viewport,
+    backgroundMode = "dots",
+    onViewportChange,
+    onViewportPreviewChange,
+    onCanvasMouseDown,
+    boxSelectEnabled = false,
+    onCanvasDoubleClick,
+    onCanvasDeselect,
+    onContextMenu,
+    onDrop,
+    onFileDragEnter,
+    onFileDragLeave,
+    onFileDragOver,
+    graphicsLayer,
+    children,
+}: InfiniteCanvasProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const panState = useRef({
         isPanning: false,
@@ -162,11 +179,14 @@ export function InfiniteCanvas({ containerRef, viewport, backgroundMode = "dots"
 
             if (looksLikeTrackpadPan) {
                 const panX = event.shiftKey && absX < 1 ? deltaY : deltaX;
-                scheduleViewportChange({
-                    x: current.x - panX,
-                    y: current.y - (event.shiftKey && absX < 1 ? 0 : deltaY),
-                    k: current.k,
-                }, true);
+                scheduleViewportChange(
+                    {
+                        x: current.x - panX,
+                        y: current.y - (event.shiftKey && absX < 1 ? 0 : deltaY),
+                        k: current.k,
+                    },
+                    true,
+                );
                 return;
             }
 
@@ -180,11 +200,14 @@ export function InfiniteCanvas({ containerRef, viewport, backgroundMode = "dots"
             const worldX = (mouseX - current.x) / current.k;
             const worldY = (mouseY - current.y) / current.k;
 
-            scheduleViewportChange({
-                x: mouseX - worldX * newScale,
-                y: mouseY - worldY * newScale,
-                k: newScale,
-            }, true);
+            scheduleViewportChange(
+                {
+                    x: mouseX - worldX * newScale,
+                    y: mouseY - worldY * newScale,
+                    k: newScale,
+                },
+                true,
+            );
         },
         [containerRef, scheduleViewportChange],
     );
@@ -265,7 +288,6 @@ export function InfiniteCanvas({ containerRef, viewport, backgroundMode = "dots"
             setIsPanning(true);
             document.body.style.cursor = "grabbing";
         }
-
     };
 
     useEffect(() => {
@@ -370,20 +392,22 @@ export function InfiniteCanvas({ containerRef, viewport, backgroundMode = "dots"
         <div
             ref={containerRef}
             className={`relative h-full w-full select-none overflow-hidden touch-none ${isPanning ? "cursor-grabbing" : boxSelectEnabled ? "cursor-crosshair" : "cursor-grab"}`}
-            style={{
-                background: theme.canvas.background,
-                overscrollBehavior: "none",
-                "--canvas-live-x": `${viewport.x}px`,
-                "--canvas-live-y": `${viewport.y}px`,
-                "--canvas-live-scale": viewport.k,
-                "--canvas-live-inverse-scale": 1 / Math.max(viewport.k, 0.05),
-                "--canvas-committed-scale": viewport.k,
-                "--canvas-live-scale-ratio": 1,
-                "--canvas-grid-size": `${48 * viewport.k}px`,
-                "--canvas-grid-x": `${viewport.x % (48 * viewport.k)}px`,
-                "--canvas-grid-y": `${viewport.y % (48 * viewport.k)}px`,
-                "--canvas-dot-size": viewport.k < 0.12 ? "0.8px" : "1.15px",
-            } as React.CSSProperties}
+            style={
+                {
+                    background: theme.canvas.background,
+                    overscrollBehavior: "none",
+                    "--canvas-live-x": `${viewport.x}px`,
+                    "--canvas-live-y": `${viewport.y}px`,
+                    "--canvas-live-scale": viewport.k,
+                    "--canvas-live-inverse-scale": 1 / Math.max(viewport.k, 0.05),
+                    "--canvas-committed-scale": viewport.k,
+                    "--canvas-live-scale-ratio": 1,
+                    "--canvas-grid-size": `${48 * viewport.k}px`,
+                    "--canvas-grid-x": `${viewport.x % (48 * viewport.k)}px`,
+                    "--canvas-grid-y": `${viewport.y % (48 * viewport.k)}px`,
+                    "--canvas-dot-size": viewport.k < 0.12 ? "0.8px" : "1.15px",
+                } as React.CSSProperties
+            }
             onPointerDown={handlePointerDown}
             onDoubleClick={(event) => {
                 const target = event.target instanceof Element ? event.target : null;
@@ -400,10 +424,7 @@ export function InfiniteCanvas({ containerRef, viewport, backgroundMode = "dots"
         >
             <CanvasGrid mode={backgroundMode} />
             {graphicsLayer}
-            <div
-                data-canvas-world-layer
-                className="canvas-world-layer absolute origin-top-left"
-            >
+            <div data-canvas-world-layer className="canvas-world-layer absolute origin-top-left">
                 <div data-canvas-world-raster-layer className="canvas-world-raster-layer absolute origin-top-left">
                     {children}
                 </div>
@@ -414,7 +435,10 @@ export function InfiniteCanvas({ containerRef, viewport, backgroundMode = "dots"
 
 function CanvasGrid({ mode }: { mode: CanvasBackgroundMode }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
-    const backgroundImage = mode === "dots" ? `radial-gradient(circle, ${theme.canvas.dot} var(--canvas-dot-size), transparent calc(var(--canvas-dot-size) + 0.2px))` : `linear-gradient(${theme.canvas.line} 1px, transparent 1px), linear-gradient(90deg, ${theme.canvas.line} 1px, transparent 1px)`;
+    const backgroundImage =
+        mode === "dots"
+            ? `radial-gradient(circle, ${theme.canvas.dot} var(--canvas-dot-size), transparent calc(var(--canvas-dot-size) + 0.2px))`
+            : `linear-gradient(${theme.canvas.line} 1px, transparent 1px), linear-gradient(90deg, ${theme.canvas.line} 1px, transparent 1px)`;
     if (mode === "blank") return null;
 
     return (

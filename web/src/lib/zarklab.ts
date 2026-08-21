@@ -43,12 +43,10 @@ export function isZarkLabVideoConfig(config: AiConfig) {
 }
 
 export function normalizeZarkLabAspectRatio(value?: string, mediaKind: "image" | "video" = "image") {
-    const raw = String(value || "").trim().toLowerCase();
-    const supported = [
-        "1:1", "4:5", "2:3", "3:2", "9:16", "16:9",
-        "4:3", "3:4", "21:9", "5:4", "9:21",
-        "4:1", "1:4", "8:1", "1:8",
-    ];
+    const raw = String(value || "")
+        .trim()
+        .toLowerCase();
+    const supported = ["1:1", "4:5", "2:3", "3:2", "9:16", "16:9", "4:3", "3:4", "21:9", "5:4", "9:21", "4:1", "1:4", "8:1", "1:8"];
     if (supported.includes(raw)) return raw;
     if (raw === "auto") return "1:1";
     return mediaKind === "video" ? "16:9" : "1:1";

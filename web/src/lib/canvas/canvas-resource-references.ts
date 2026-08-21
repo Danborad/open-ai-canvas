@@ -82,7 +82,14 @@ function labelResourceNodes(nodes: CanvasNodeData[], active: boolean) {
                 title: node.title || label,
                 previewUrl: node.metadata?.workflowKind === "character" ? node.metadata.characterCoverUrl : node.type === CanvasNodeType.Drawing ? node.metadata?.drawingPreviewUrl : node.metadata?.content,
                 storageKey: node.metadata?.storageKey,
-                text: node.metadata?.workflowKind === "character" ? node.metadata.characterPrompt : node.type === CanvasNodeType.Text ? node.metadata?.content || node.metadata?.prompt : node.type === CanvasNodeType.Skill ? skillResourceText(node) : undefined,
+                text:
+                    node.metadata?.workflowKind === "character"
+                        ? node.metadata.characterPrompt
+                        : node.type === CanvasNodeType.Text
+                          ? node.metadata?.content || node.metadata?.prompt
+                          : node.type === CanvasNodeType.Skill
+                            ? skillResourceText(node)
+                            : undefined,
                 active,
                 sourceType: node.type,
             },

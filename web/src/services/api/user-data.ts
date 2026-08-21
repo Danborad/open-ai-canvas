@@ -12,7 +12,6 @@ export type RemoteUserDataSummary = {
     updatedAt: string;
 };
 
-
 export function listRemoteAssets() {
     return request<{ assets: RemoteUserDataSummary[] }>(api.get("/assets"));
 }

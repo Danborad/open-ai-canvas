@@ -176,7 +176,7 @@ export function CanvasNodeToolbar({
                 toolbarRef.current.style.top = `${top}px`;
                 return;
             }
-            setAnchor((current) => current?.left === left && current.top === top ? current : { left, top });
+            setAnchor((current) => (current?.left === left && current.top === top ? current : { left, top }));
         };
         update();
         const resizeObserver = new ResizeObserver(update);
@@ -235,12 +235,32 @@ export function CanvasNodeToolbar({
 
     // 构建 ToolContext——供注册表解析工具
     const nodeHoverHandlers = {
-        onNodeInfo: onInfo, onNodeDelete: onDelete, onNodeRetry: onRetry, onNodeEditText: onEditText, onNodeDecreaseFont: onDecreaseFont, onNodeIncreaseFont: onIncreaseFont,
-        onNodeToggleDialog: onToggleDialog, onNodeAnnotate: onAnnotate, onNodeGenerateImage: onGenerateImage, onNodeUpload: onUpload, onNodeDownload: onDownload,
-        onNodeSaveAsset: onSaveAsset, onNodeMaskEdit: onMaskEdit, onNodeEmotion: onEmotion, onNodePortraitTexture: onPortraitTexture, onNodeCrop: onCrop,
-        onNodeSplit: onSplit, onNodeUpscale: onUpscale, onNodeSuperResolve: onSuperResolve, onNodeAngle: onAngle, onNodeViewImage: onViewImage,
-        onNodeExtractVideoLastFrame: onExtractVideoLastFrame, onNodeReversePrompt: onReversePrompt, onNodeToggleFreeResize: onToggleFreeResize,
-        onNodeToggleLocked: onToggleLocked, onNodeCopyPrompt: copyImagePrompt,
+        onNodeInfo: onInfo,
+        onNodeDelete: onDelete,
+        onNodeRetry: onRetry,
+        onNodeEditText: onEditText,
+        onNodeDecreaseFont: onDecreaseFont,
+        onNodeIncreaseFont: onIncreaseFont,
+        onNodeToggleDialog: onToggleDialog,
+        onNodeAnnotate: onAnnotate,
+        onNodeGenerateImage: onGenerateImage,
+        onNodeUpload: onUpload,
+        onNodeDownload: onDownload,
+        onNodeSaveAsset: onSaveAsset,
+        onNodeMaskEdit: onMaskEdit,
+        onNodeEmotion: onEmotion,
+        onNodePortraitTexture: onPortraitTexture,
+        onNodeCrop: onCrop,
+        onNodeSplit: onSplit,
+        onNodeUpscale: onUpscale,
+        onNodeSuperResolve: onSuperResolve,
+        onNodeAngle: onAngle,
+        onNodeViewImage: onViewImage,
+        onNodeExtractVideoLastFrame: onExtractVideoLastFrame,
+        onNodeReversePrompt: onReversePrompt,
+        onNodeToggleFreeResize: onToggleFreeResize,
+        onNodeToggleLocked: onToggleLocked,
+        onNodeCopyPrompt: copyImagePrompt,
     } as Partial<ToolbarHandlers> as ToolbarHandlers;
 
     const nodeHoverCtx: ToolContext = {
@@ -270,7 +290,7 @@ export function CanvasNodeToolbar({
     const otherTools: ToolbarTool[] = otherRegistryTools.map((tool) => ({
         id: tool.id,
         title: typeof tool.label === "function" ? tool.label(nodeHoverCtx) : tool.label,
-        label: tool.displayLabel ? (typeof tool.displayLabel === "function" ? tool.displayLabel(nodeHoverCtx) : tool.displayLabel) : (typeof tool.label === "function" ? tool.label(nodeHoverCtx) : tool.label),
+        label: tool.displayLabel ? (typeof tool.displayLabel === "function" ? tool.displayLabel(nodeHoverCtx) : tool.displayLabel) : typeof tool.label === "function" ? tool.label(nodeHoverCtx) : tool.label,
         icon: typeof tool.icon === "function" ? tool.icon(nodeHoverCtx) : tool.icon,
         active: tool.active?.(nodeHoverCtx),
         danger: tool.danger,
@@ -278,7 +298,8 @@ export function CanvasNodeToolbar({
         onClick: () => tool.run(nodeHoverCtx),
     }));
     // 合并图片工具（当 hasImage && !simpleMode 时追加到 otherTools 末尾）
-    const allTools: ToolbarTool[] = hasImage && !simpleMode ? [...otherTools, ...imageTools.map((tool) => ({ id: tool.id, title: tool.title, label: tool.label, icon: tool.icon, active: tool.active, danger: undefined, disabled: undefined, onClick: tool.onClick }))] : otherTools;
+    const allTools: ToolbarTool[] =
+        hasImage && !simpleMode ? [...otherTools, ...imageTools.map((tool) => ({ id: tool.id, title: tool.title, label: tool.label, icon: tool.icon, active: tool.active, danger: undefined, disabled: undefined, onClick: tool.onClick }))] : otherTools;
     // hasImage 时按 quickImageToolIds 过滤
     const toolbarTools = hasImage ? allTools.filter((tool) => quickImageToolIdSet.has(tool.id as ImageQuickToolId)) : allTools;
     const selectableImageToolbarTools = allTools.filter((tool): tool is ToolbarTool & { id: ImageQuickToolId } => isImageQuickToolId(tool.id));
@@ -286,7 +307,14 @@ export function CanvasNodeToolbar({
     const dockItems: FloatingDockEntry[] = [
         ...toolbarTools.map((tool) => ({ id: tool.id, label: tool.title, displayLabel: tool.label, icon: tool.icon, active: tool.active, danger: tool.danger, disabled: tool.disabled, onClick: () => tool.onClick() })),
         { kind: "separator", id: "node-state-separator" },
-        { id: "node-lock", label: node.metadata?.locked ? "解锁节点" : "锁定位置和尺寸", displayLabel: node.metadata?.locked ? "解锁" : "锁定", icon: node.metadata?.locked ? <Unlock className="size-3.5" /> : <Lock className="size-3.5" />, active: Boolean(node.metadata?.locked), onClick: () => onToggleLocked(node) },
+        {
+            id: "node-lock",
+            label: node.metadata?.locked ? "解锁节点" : "锁定位置和尺寸",
+            displayLabel: node.metadata?.locked ? "解锁" : "锁定",
+            icon: node.metadata?.locked ? <Unlock className="size-3.5" /> : <Lock className="size-3.5" />,
+            active: Boolean(node.metadata?.locked),
+            onClick: () => onToggleLocked(node),
+        },
     ];
 
     const closeImageToolSettings = () => {
@@ -333,9 +361,7 @@ export function CanvasNodeToolbar({
     const embeddedDockStyle = { ...dockShellStyle, background: "transparent", borderColor: "transparent", boxShadow: "none" };
     const labeledDockStyle = {
         ...dockShellStyle,
-        boxShadow: themeName === "dark"
-            ? `0 18px 52px ${theme.spatial.shadow}`
-            : "0 10px 30px rgba(15,23,42,.12), 0 1px 2px rgba(15,23,42,.05), inset 0 1px 0 rgba(255,255,255,.7)",
+        boxShadow: themeName === "dark" ? `0 18px 52px ${theme.spatial.shadow}` : "0 10px 30px rgba(15,23,42,.12), 0 1px 2px rgba(15,23,42,.05), inset 0 1px 0 rgba(255,255,255,.7)",
     };
 
     return (
@@ -351,8 +377,21 @@ export function CanvasNodeToolbar({
                 onMouseDown={(event) => event.stopPropagation()}
                 onPointerDown={(event) => event.stopPropagation()}
             >
-                <div className={`aceternity-floating-dock thin-scrollbar relative flex max-w-full overflow-x-auto rounded-[var(--dock-radius)] border backdrop-blur-2xl ${showDockLabels ? "h-11 items-center px-2 py-1" : "h-10 items-end gap-1 px-1.5 pb-1"}`} style={showDockLabels ? labeledDockStyle : dockShellStyle}>
-                    {dockItems.length ? <FloatingDock embedded items={dockItems} size="compact" showLabels={showDockLabels} ariaLabel="节点快捷工具" className={`pointer-events-auto shrink-0 ${showDockLabels ? "" : "max-w-[min(calc(100vw-20px),400px)]"}`} style={embeddedDockStyle} /> : null}
+                <div
+                    className={`aceternity-floating-dock thin-scrollbar relative flex max-w-full overflow-x-auto rounded-[var(--dock-radius)] border backdrop-blur-2xl ${showDockLabels ? "h-11 items-center px-2 py-1" : "h-10 items-end gap-1 px-1.5 pb-1"}`}
+                    style={showDockLabels ? labeledDockStyle : dockShellStyle}
+                >
+                    {dockItems.length ? (
+                        <FloatingDock
+                            embedded
+                            items={dockItems}
+                            size="compact"
+                            showLabels={showDockLabels}
+                            ariaLabel="节点快捷工具"
+                            className={`pointer-events-auto shrink-0 ${showDockLabels ? "" : "max-w-[min(calc(100vw-20px),400px)]"}`}
+                            style={embeddedDockStyle}
+                        />
+                    ) : null}
                     {hasImage && !simpleMode ? (
                         <Dropdown
                             open={imageToolMenuOpen}
@@ -397,7 +436,21 @@ export function CanvasNodeToolbar({
     );
 }
 
-export function CanvasNodeInfoModal({ node, open, onClose, onMetadataChange, readOnly = false, onUnauthorized }: { node: CanvasNodeData | null; open: boolean; onClose: () => void; onMetadataChange?: (nodeId: string, metadata: Partial<CanvasNodeMetadata>) => void; readOnly?: boolean; onUnauthorized?: () => void }) {
+export function CanvasNodeInfoModal({
+    node,
+    open,
+    onClose,
+    onMetadataChange,
+    readOnly = false,
+    onUnauthorized,
+}: {
+    node: CanvasNodeData | null;
+    open: boolean;
+    onClose: () => void;
+    onMetadataChange?: (nodeId: string, metadata: Partial<CanvasNodeMetadata>) => void;
+    readOnly?: boolean;
+    onUnauthorized?: () => void;
+}) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const [view, setView] = useState<"info" | "json">("info");
     const [assetTags, setAssetTags] = useState<string[]>([]);
@@ -405,7 +458,24 @@ export function CanvasNodeInfoModal({ node, open, onClose, onMetadataChange, rea
     const [assetCategory, setAssetCategory] = useState<CanvasAssetCategory>("other");
     const imageBytes = node?.type === CanvasNodeType.Image && node.metadata?.content ? getDataUrlByteSize(node.metadata.content) : 0;
     const batchCount = node?.type === CanvasNodeType.Image ? node.metadata?.batchChildIds?.length || 0 : 0;
-    const nodeTypeLabel = node?.type === CanvasNodeType.Text ? "文本" : node?.type === CanvasNodeType.Script ? "分镜脚本" : node?.type === CanvasNodeType.Skill ? "技能" : node?.type === CanvasNodeType.Image ? "图片" : node?.type === CanvasNodeType.Video ? "视频" : node?.type === CanvasNodeType.Audio ? "音频" : node?.type === CanvasNodeType.Drawing ? "绘图" : node?.type === CanvasNodeType.Frame ? "背板" : "生成配置";
+    const nodeTypeLabel =
+        node?.type === CanvasNodeType.Text
+            ? "文本"
+            : node?.type === CanvasNodeType.Script
+              ? "分镜脚本"
+              : node?.type === CanvasNodeType.Skill
+                ? "技能"
+                : node?.type === CanvasNodeType.Image
+                  ? "图片"
+                  : node?.type === CanvasNodeType.Video
+                    ? "视频"
+                    : node?.type === CanvasNodeType.Audio
+                      ? "音频"
+                      : node?.type === CanvasNodeType.Drawing
+                        ? "绘图"
+                        : node?.type === CanvasNodeType.Frame
+                          ? "背板"
+                          : "生成配置";
     const json = useMemo(() => {
         if (!node) return "";
         return JSON.stringify(
@@ -477,16 +547,7 @@ export function CanvasNodeInfoModal({ node, open, onClose, onMetadataChange, rea
     );
 
     return (
-        <Modal
-            className="canvas-node-info-modal"
-            title={title}
-            open={open && Boolean(node)}
-            centered
-            footer={null}
-            width={720}
-            onCancel={onClose}
-            styles={{ body: { paddingTop: 8 } }}
-        >
+        <Modal className="canvas-node-info-modal" title={title} open={open && Boolean(node)} centered footer={null} width={720} onCancel={onClose} styles={{ body: { paddingTop: 8 } }}>
             {node ? (
                 <div className="h-[min(68vh,640px)] min-h-[420px] text-sm" style={{ color: theme.node.text }}>
                     {view === "info" ? (
@@ -506,7 +567,22 @@ export function CanvasNodeInfoModal({ node, open, onClose, onMetadataChange, rea
                                         <div className="flex flex-wrap gap-1.5">
                                             {assetCategoryOptions.map((option) => {
                                                 const active = assetCategory === option.value;
-                                                return <button key={option.value} type="button" disabled={readOnly} onClick={() => saveAssetCategory(option.value)} className="h-7 rounded-md border px-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60" style={{ borderColor: active ? theme.accent.primary : theme.toolbar.border, background: active ? theme.accent.primarySoft : theme.toolbar.panel, color: active ? theme.accent.primary : theme.node.muted }}>{option.label}</button>;
+                                                return (
+                                                    <button
+                                                        key={option.value}
+                                                        type="button"
+                                                        disabled={readOnly}
+                                                        onClick={() => saveAssetCategory(option.value)}
+                                                        className="h-7 rounded-md border px-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                                                        style={{
+                                                            borderColor: active ? theme.accent.primary : theme.toolbar.border,
+                                                            background: active ? theme.accent.primarySoft : theme.toolbar.panel,
+                                                            color: active ? theme.accent.primary : theme.node.muted,
+                                                        }}
+                                                    >
+                                                        {option.label}
+                                                    </button>
+                                                );
                                             })}
                                         </div>
                                         <div className="mt-2 text-[var(--fs-label)] leading-5 opacity-45">生成后会按此分类进入项目资产；角色、场景和画风工作流会自动预填。</div>
@@ -547,12 +623,7 @@ export function CanvasNodeInfoModal({ node, open, onClose, onMetadataChange, rea
                                         </div>
                                     ) : (
                                         <div className="flex gap-2">
-                                            <Input
-                                                value={assetTagInput}
-                                                placeholder="例如：角色: 张三"
-                                                onChange={(event) => setAssetTagInput(event.target.value)}
-                                                onPressEnter={addAssetTag}
-                                            />
+                                            <Input value={assetTagInput} placeholder="例如：角色: 张三" onChange={(event) => setAssetTagInput(event.target.value)} onPressEnter={addAssetTag} />
                                             <Button type="primary" icon={<Plus className="size-4" />} disabled={!assetTagInput.trim()} onClick={addAssetTag}>
                                                 加入
                                             </Button>

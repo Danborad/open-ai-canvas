@@ -2,13 +2,7 @@ import { App, Button, Form, InputNumber, Tag } from "antd";
 import { Database, Gauge, Infinity as InfinityIcon, Network, RotateCcw, Save, ShieldCheck, TimerReset } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
-import {
-    getAdminRuntimePolicySetting,
-    getAdminSelfUseRuntimePolicy,
-    resetAdminRuntimePolicySetting,
-    updateAdminRuntimePolicySetting,
-    type RuntimePolicySetting,
-} from "@/services/api/auth";
+import { getAdminRuntimePolicySetting, getAdminSelfUseRuntimePolicy, resetAdminRuntimePolicySetting, updateAdminRuntimePolicySetting, type RuntimePolicySetting } from "@/services/api/auth";
 import { useAdminContext } from "../admin-context";
 import { AdminPageFrame } from "../components/admin-shell";
 import { SettingsSectionCard } from "../components/admin-ui";
@@ -162,18 +156,41 @@ export default function RuntimePolicySettingsPage() {
         <AdminPageFrame
             title="资源与策略"
             description="账号配额、任务调度与请求安全策略"
-            actions={<div className="flex items-center gap-2"><Button icon={<RotateCcw className="size-4" />} disabled={loading || saving} onClick={reset}>重置</Button><Button icon={<InfinityIcon className="size-4" />} disabled={loading || saving} onClick={() => void useSelfMode()}>自用模式</Button></div>}
+            actions={
+                <div className="flex items-center gap-2">
+                    <Button icon={<RotateCcw className="size-4" />} disabled={loading || saving} onClick={reset}>
+                        重置
+                    </Button>
+                    <Button icon={<InfinityIcon className="size-4" />} disabled={loading || saving} onClick={() => void useSelfMode()}>
+                        自用模式
+                    </Button>
+                </div>
+            }
         >
             <Form form={form} layout="vertical" requiredMark={false} disabled={loading} onValuesChange={() => setDirty(true)}>
                 <div className="space-y-3 pt-4">
                     <PolicySection icon={<Database className="size-4" />} title="资源与账号配额" description="上传、文件容量、结构化数据和历史记录上限。" fields={resourceFields} />
-                    <PolicySection icon={<Gauge className="size-4" />} title="任务与并发" description="后台任务消费、渠道调度和单账号活动任务上限。" fields={concurrencyFields} status={<Tag variant="filled" color="blue">热更新</Tag>} />
+                    <PolicySection
+                        icon={<Gauge className="size-4" />}
+                        title="任务与并发"
+                        description="后台任务消费、渠道调度和单账号活动任务上限。"
+                        fields={concurrencyFields}
+                        status={
+                            <Tag variant="filled" color="blue">
+                                热更新
+                            </Tag>
+                        }
+                    />
                     <PolicySection icon={<TimerReset className="size-4" />} title="任务超时" description="不同生成类型的最长执行时间。" fields={timeoutFields} />
                     <PolicySection icon={<ShieldCheck className="size-4" />} title="业务频控" description="账号与 IP 维度的固定窗口请求限制。" fields={rateFields} />
                     <PolicySection icon={<Network className="size-4" />} title="渠道中转与熔断" description="请求体、响应体、并发、超时和上游故障保护。" fields={relayFields} />
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border py-4">
-                        <div className="text-xs text-foreground/45">{setting?.updatedAt ? `上次更新：${formatTime(setting.updatedAt)}${setting.updatedBy ? ` · ${userNameById.get(setting.updatedBy) || setting.updatedBy}` : ""}` : "当前使用系统默认策略"}</div>
-                        <Button type="primary" icon={<Save className="size-4" />} loading={saving} disabled={loading || !dirty} onClick={() => void save()}>保存配置</Button>
+                        <div className="text-xs text-foreground/45">
+                            {setting?.updatedAt ? `上次更新：${formatTime(setting.updatedAt)}${setting.updatedBy ? ` · ${userNameById.get(setting.updatedBy) || setting.updatedBy}` : ""}` : "当前使用系统默认策略"}
+                        </div>
+                        <Button type="primary" icon={<Save className="size-4" />} loading={saving} disabled={loading || !dirty} onClick={() => void save()}>
+                            保存配置
+                        </Button>
                     </div>
                 </div>
             </Form>
@@ -186,7 +203,16 @@ function PolicySection({ icon, title, description, fields, status }: { icon: Rea
         <SettingsSectionCard icon={icon} title={title} description={description} status={status}>
             <div className="grid grid-cols-1 gap-x-4 px-4 pt-4 md:grid-cols-2 xl:grid-cols-3">
                 {fields.map((field) => (
-                    <Form.Item key={`${field.group}.${field.name}`} name={[field.group, field.name]} label={field.label} extra={field.extra} rules={[{ required: true, message: `请填写${field.label}` }, { type: "number", min: 1, max: field.max, message: `${field.label}必须是 1-${field.max} 的整数` }]}>
+                    <Form.Item
+                        key={`${field.group}.${field.name}`}
+                        name={[field.group, field.name]}
+                        label={field.label}
+                        extra={field.extra}
+                        rules={[
+                            { required: true, message: `请填写${field.label}` },
+                            { type: "number", min: 1, max: field.max, message: `${field.label}必须是 1-${field.max} 的整数` },
+                        ]}
+                    >
                         <InputNumber className="w-full" min={1} max={field.max} precision={0} addonAfter={field.unit} />
                     </Form.Item>
                 ))}

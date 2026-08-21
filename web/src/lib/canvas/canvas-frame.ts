@@ -36,20 +36,18 @@ export function findFrameDropTarget(nodes: CanvasNodeData[], draggedNodeIds: Set
     if (!dragged.length) return null;
 
     return (
-        [...nodes]
-            .reverse()
-            .find((frame) => {
-                if (!isFrameNode(frame) || frame.metadata?.frame?.collapsed || draggedNodeIds.has(frame.id)) return false;
-                const left = frame.position.x;
-                const top = frame.position.y + FRAME_HEADER_HEIGHT;
-                const right = frame.position.x + frame.width;
-                const bottom = frame.position.y + frame.height;
-                return dragged.every((node) => {
-                    const centerX = node.position.x + node.width / 2;
-                    const centerY = node.position.y + node.height / 2;
-                    return centerX >= left && centerX <= right && centerY >= top && centerY <= bottom;
-                });
-            })?.id || null
+        [...nodes].reverse().find((frame) => {
+            if (!isFrameNode(frame) || frame.metadata?.frame?.collapsed || draggedNodeIds.has(frame.id)) return false;
+            const left = frame.position.x;
+            const top = frame.position.y + FRAME_HEADER_HEIGHT;
+            const right = frame.position.x + frame.width;
+            const bottom = frame.position.y + frame.height;
+            return dragged.every((node) => {
+                const centerX = node.position.x + node.width / 2;
+                const centerY = node.position.y + node.height / 2;
+                return centerX >= left && centerX <= right && centerY >= top && centerY <= bottom;
+            });
+        })?.id || null
     );
 }
 

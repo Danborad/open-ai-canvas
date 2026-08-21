@@ -1,5 +1,25 @@
 import { Tooltip } from "antd";
-import { ArrowLeft, BarChart3, BellRing, Coins, FileClock, HardDrive, Home, Infinity as InfinityIcon, Mail, MessageSquareText, Paintbrush, PanelLeftClose, PanelLeftOpen, RadioTower, Settings2, ShieldCheck, TicketCheck, ToggleLeft, UsersRound } from "lucide-react";
+import {
+    ArrowLeft,
+    BarChart3,
+    BellRing,
+    Coins,
+    FileClock,
+    HardDrive,
+    Home,
+    Infinity as InfinityIcon,
+    Mail,
+    MessageSquareText,
+    Paintbrush,
+    PanelLeftClose,
+    PanelLeftOpen,
+    RadioTower,
+    Settings2,
+    ShieldCheck,
+    TicketCheck,
+    ToggleLeft,
+    UsersRound,
+} from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet } from "react-router";
 
@@ -66,8 +86,13 @@ export function AdminShell() {
                 <div className={cn("flex h-13 shrink-0 items-center", collapsed ? "justify-center" : "gap-2 px-3")}>
                     {!collapsed ? (
                         <Link to="/" className="flex min-w-0 flex-1 items-center gap-2" title="影策">
-                            <span className="grid size-7 shrink-0 place-items-center rounded-md bg-foreground text-background"><InfinityIcon className="size-4" /></span>
-                            <span className="min-w-0"><span className="block truncate text-[var(--fs-body)] font-semibold">影策</span><span className="block truncate text-[var(--fs-micro)] text-foreground/42">管理后台</span></span>
+                            <span className="grid size-7 shrink-0 place-items-center rounded-md bg-foreground text-background">
+                                <InfinityIcon className="size-4" />
+                            </span>
+                            <span className="min-w-0">
+                                <span className="block truncate text-[var(--fs-body)] font-semibold">影策</span>
+                                <span className="block truncate text-[var(--fs-micro)] text-foreground/42">管理后台</span>
+                            </span>
                         </Link>
                     ) : null}
                     <Tooltip title={collapsed ? "展开侧栏" : "折叠侧栏"} placement="right">
@@ -79,7 +104,10 @@ export function AdminShell() {
                 <AdminNavigation collapsed={collapsed} />
                 <div className="shrink-0 border-t border-border/70 p-2">
                     <Tooltip title={collapsed ? "更新日志" : undefined} placement="right">
-                        <AppChangelogButton className={cn("flex h-8 w-full items-center rounded text-[var(--fs-label)] text-foreground/52 transition-colors hover:bg-foreground/[.055] hover:text-foreground", collapsed ? "justify-center px-0" : "gap-2 px-2")} showVersion={!collapsed} />
+                        <AppChangelogButton
+                            className={cn("flex h-8 w-full items-center rounded text-[var(--fs-label)] text-foreground/52 transition-colors hover:bg-foreground/[.055] hover:text-foreground", collapsed ? "justify-center px-0" : "gap-2 px-2")}
+                            showVersion={!collapsed}
+                        />
                     </Tooltip>
                     <Tooltip title={collapsed ? "返回创作台" : undefined} placement="right">
                         <NavLink to="/canvas" className={cn("flex h-8 items-center rounded text-[var(--fs-label)] text-foreground/52 transition-colors hover:bg-foreground/[.055] hover:text-foreground", collapsed ? "justify-center px-0" : "gap-2 px-2")}>
@@ -126,11 +154,21 @@ export function AdminPageFrame({ title, description, actions, back, children }: 
 function MobileAdminNavigation() {
     return (
         <nav className="app-workspace-navigation hide-scrollbar flex shrink-0 gap-1 overflow-x-auto border-b border-border/70 px-3 py-2 lg:hidden" aria-label="管理后台分区">
-            {adminNavigation.flatMap((group) => group.items).map((item) => (
-                <NavLink key={item.path} to={item.path} end={item.path === "/admin"} className={({ isActive }) => cn("app-workspace-nav-link flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors", isActive ? "is-active font-medium" : "text-foreground/60 hover:bg-foreground/[.05] hover:text-foreground")}>
-                    {item.icon}<span>{item.label}</span>
-                </NavLink>
-            ))}
+            {adminNavigation
+                .flatMap((group) => group.items)
+                .map((item) => (
+                    <NavLink
+                        key={item.path}
+                        to={item.path}
+                        end={item.path === "/admin"}
+                        className={({ isActive }) =>
+                            cn("app-workspace-nav-link flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors", isActive ? "is-active font-medium" : "text-foreground/60 hover:bg-foreground/[.05] hover:text-foreground")
+                        }
+                    >
+                        {item.icon}
+                        <span>{item.label}</span>
+                    </NavLink>
+                ))}
             <AppChangelogButton className="grid size-8 shrink-0 place-items-center rounded-md text-foreground/55 transition-colors hover:bg-foreground/[.05] hover:text-foreground [&_svg]:size-4" />
         </nav>
     );
@@ -148,13 +186,16 @@ function AdminNavigation({ collapsed }: { collapsed: boolean }) {
                                 <NavLink
                                     to={item.path}
                                     end={item.path === "/admin"}
-                                    className={({ isActive }) => cn(
-                                        "app-workspace-nav-link flex h-9 items-center rounded-md text-[var(--fs-body)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-                                        collapsed ? "justify-center px-0" : "gap-2.5 px-2.5",
-                                        isActive ? "is-active font-medium" : "text-foreground/62 hover:bg-foreground/[.05] hover:text-foreground",
-                                    )}
+                                    className={({ isActive }) =>
+                                        cn(
+                                            "app-workspace-nav-link flex h-9 items-center rounded-md text-[var(--fs-body)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                                            collapsed ? "justify-center px-0" : "gap-2.5 px-2.5",
+                                            isActive ? "is-active font-medium" : "text-foreground/62 hover:bg-foreground/[.05] hover:text-foreground",
+                                        )
+                                    }
                                 >
-                                    {item.icon}{!collapsed ? <span className="truncate">{item.label}</span> : null}
+                                    {item.icon}
+                                    {!collapsed ? <span className="truncate">{item.label}</span> : null}
                                 </NavLink>
                             </Tooltip>
                         ))}

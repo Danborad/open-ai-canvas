@@ -71,7 +71,6 @@ export type SkillMutationInput = {
     extra_info: string;
 };
 
-
 export function listSkills(input: ListSkillsInput = {}) {
     const params = serializeApiParams(compactApiParams(input as ApiParams));
     return request<SkillList>(api.get(`/skills?${params.toString()}`));

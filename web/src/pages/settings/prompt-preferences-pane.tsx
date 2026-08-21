@@ -3,13 +3,7 @@ import { RotateCcw, Save, ShieldCheck, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { PromptCodeEditor } from "@/components/prompt/prompt-code-editor";
-import {
-    listUserPromptPreferences,
-    resetUserPromptCustomization,
-    updateUserPromptCustomization,
-    type UserPromptCustomization,
-    type UserPromptPreference,
-} from "@/services/api/auth";
+import { listUserPromptPreferences, resetUserPromptCustomization, updateUserPromptCustomization, type UserPromptCustomization, type UserPromptPreference } from "@/services/api/auth";
 
 type CustomizationMode = UserPromptCustomization["mode"];
 
@@ -52,7 +46,9 @@ export function PromptPreferencesPane() {
         }
     };
 
-    useEffect(() => { void reload(); }, []);
+    useEffect(() => {
+        void reload();
+    }, []);
 
     const selected = useMemo(() => preferences.find((item) => item.definition.operation === selectedOperation), [preferences, selectedOperation]);
     const savedMode = selected?.customization?.mode || "inherit";
@@ -69,7 +65,9 @@ export function PromptPreferencesPane() {
         setRewriteContent(customization?.mode === "rewrite" ? customization.content : preference?.template?.content || "");
     };
 
-    useEffect(() => { restoreDraft(selected); }, [selected]);
+    useEffect(() => {
+        restoreDraft(selected);
+    }, [selected]);
 
     useEffect(() => {
         if (!dirty) return undefined;
@@ -137,7 +135,9 @@ export function PromptPreferencesPane() {
         return (
             <div className="flex flex-col items-center justify-center gap-3 py-16">
                 <Alert type="error" showIcon message="加载提示词偏好失败" description={loadError} />
-                <Button icon={<RotateCcw className="size-4" />} onClick={() => void reload()}>重试</Button>
+                <Button icon={<RotateCcw className="size-4" />} onClick={() => void reload()}>
+                    重试
+                </Button>
             </div>
         );
     }
@@ -152,7 +152,9 @@ export function PromptPreferencesPane() {
             <header className="shrink-0 border-b border-border pb-4">
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div className="min-w-0 flex-1">
-                        <label className="mb-2 block text-xs font-medium text-foreground/55" htmlFor="prompt-template-select">提示词模板</label>
+                        <label className="mb-2 block text-xs font-medium text-foreground/55" htmlFor="prompt-template-select">
+                            提示词模板
+                        </label>
                         <Select
                             id="prompt-template-select"
                             className="w-full max-w-md"
@@ -165,9 +167,15 @@ export function PromptPreferencesPane() {
                         />
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
-                        <Button icon={<Undo2 className="size-4" />} disabled={!dirty || saving} onClick={() => restoreDraft()}>撤销修改</Button>
-                        <Button icon={<RotateCcw className="size-4" />} disabled={!selected.customization || saving} onClick={reset}>恢复平台</Button>
-                        <Button type="primary" icon={<Save className="size-4" />} loading={saving} disabled={!dirty} onClick={() => void save()}>保存更改</Button>
+                        <Button icon={<Undo2 className="size-4" />} disabled={!dirty || saving} onClick={() => restoreDraft()}>
+                            撤销修改
+                        </Button>
+                        <Button icon={<RotateCcw className="size-4" />} disabled={!selected.customization || saving} onClick={reset}>
+                            恢复平台
+                        </Button>
+                        <Button type="primary" icon={<Save className="size-4" />} loading={saving} disabled={!dirty} onClick={() => void save()}>
+                            保存更改
+                        </Button>
                     </div>
                 </div>
 
@@ -177,7 +185,11 @@ export function PromptPreferencesPane() {
                             <h2 className="text-base font-semibold">{selected.definition.label}</h2>
                             <Tag variant="filled">平台 v{selected.template?.version || "--"}</Tag>
                             <Tag variant="filled">{outputLabel}</Tag>
-                            {dirty ? <Tag variant="filled" color="warning">未保存</Tag> : null}
+                            {dirty ? (
+                                <Tag variant="filled" color="warning">
+                                    未保存
+                                </Tag>
+                            ) : null}
                         </div>
                         <p className="mt-1 text-xs leading-5 text-foreground/55">{selected.definition.description}</p>
                     </div>
@@ -228,12 +240,31 @@ export function PromptPreferencesPane() {
                             {
                                 key: "contract",
                                 label: "输出契约",
-                                children: <div><div className="mb-3 flex items-center gap-2 text-xs font-medium"><ShieldCheck className="size-4" />服务端只读</div><pre className="thin-scrollbar max-h-96 overflow-auto whitespace-pre-wrap text-xs leading-6 text-foreground/65">{selected.definition.outputContract}</pre></div>,
+                                children: (
+                                    <div>
+                                        <div className="mb-3 flex items-center gap-2 text-xs font-medium">
+                                            <ShieldCheck className="size-4" />
+                                            服务端只读
+                                        </div>
+                                        <pre className="thin-scrollbar max-h-96 overflow-auto whitespace-pre-wrap text-xs leading-6 text-foreground/65">{selected.definition.outputContract}</pre>
+                                    </div>
+                                ),
                             },
                             {
                                 key: "preview",
                                 label: "最终结构",
-                                children: <div className="space-y-4 text-xs leading-6"><section><div className="mb-2 font-medium text-foreground/80">创作策略</div><pre className="thin-scrollbar max-h-64 overflow-auto whitespace-pre-wrap text-foreground/65">{previewCreative || "尚未填写"}</pre></section><section className="border-t border-border pt-4"><div className="mb-2 font-medium text-foreground/80">运行时强制追加</div><p className="text-foreground/55">当前剧情、项目画风、当前角色版本、画布资产与受保护输出契约。</p></section></div>,
+                                children: (
+                                    <div className="space-y-4 text-xs leading-6">
+                                        <section>
+                                            <div className="mb-2 font-medium text-foreground/80">创作策略</div>
+                                            <pre className="thin-scrollbar max-h-64 overflow-auto whitespace-pre-wrap text-foreground/65">{previewCreative || "尚未填写"}</pre>
+                                        </section>
+                                        <section className="border-t border-border pt-4">
+                                            <div className="mb-2 font-medium text-foreground/80">运行时强制追加</div>
+                                            <p className="text-foreground/55">当前剧情、项目画风、当前角色版本、画布资产与受保护输出契约。</p>
+                                        </section>
+                                    </div>
+                                ),
                             },
                         ]}
                     />

@@ -71,10 +71,22 @@ export async function runProjectAgentTool(name: ProjectAgentToolName, rawInput: 
         return linkProjectAsset(projectId, { assetId: String(rawInput.assetId || ""), category: String(rawInput.category || "other") });
     }
     if (name === "project_upsert_asset_version") {
-        return createProjectAssetVersion(projectId, String(rawInput.assetId || ""), { prompt: String(rawInput.prompt || ""), definitionJson: typeof rawInput.definitionJson === "string" ? rawInput.definitionJson : undefined, note: String(rawInput.note || "") });
+        return createProjectAssetVersion(projectId, String(rawInput.assetId || ""), {
+            prompt: String(rawInput.prompt || ""),
+            definitionJson: typeof rawInput.definitionJson === "string" ? rawInput.definitionJson : undefined,
+            note: String(rawInput.note || ""),
+        });
     }
     if (name === "project_register_task_output") {
-        return registerProjectTaskOutput(projectId, String(rawInput.stepId || ""), { taskId: String(rawInput.taskId || ""), assetVersionId: String(rawInput.assetVersionId || "") || undefined, resourceId: String(rawInput.resourceId || "") || undefined, mediaType: String(rawInput.mediaType || "") || undefined, role: String(rawInput.role || "output"), metadataJson: typeof rawInput.metadataJson === "string" ? rawInput.metadataJson : undefined, outputJson: typeof rawInput.outputJson === "string" ? rawInput.outputJson : undefined });
+        return registerProjectTaskOutput(projectId, String(rawInput.stepId || ""), {
+            taskId: String(rawInput.taskId || ""),
+            assetVersionId: String(rawInput.assetVersionId || "") || undefined,
+            resourceId: String(rawInput.resourceId || "") || undefined,
+            mediaType: String(rawInput.mediaType || "") || undefined,
+            role: String(rawInput.role || "output"),
+            metadataJson: typeof rawInput.metadataJson === "string" ? rawInput.metadataJson : undefined,
+            outputJson: typeof rawInput.outputJson === "string" ? rawInput.outputJson : undefined,
+        });
     }
     throw new Error(`未知项目工具：${name}`);
 }

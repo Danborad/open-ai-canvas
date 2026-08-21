@@ -80,8 +80,18 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
     if (protocol === "grok-image" || protocol === "grok2api-image" || protocol === "grok2api-new-image") {
         image.references.maxImages = protocol === "grok2api-image" || protocol === "grok2api-new-image" ? 8 : 1;
         image.references.maskSupported = false;
-        image.size = protocol === "grok2api-new-image" ? { parameter: "aspect_ratio", values: ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "2:1", "1:2", "19.5:9", "9:19.5", "20:9", "9:20"], default: "auto", allowCustom: false } : protocol === "grok2api-image" ? { parameter: "aspect_ratio", values: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"], default: "16:9", allowCustom: false } : { parameter: "none", values: [], default: "auto", allowCustom: false };
-        image.quality = protocol === "grok2api-new-image" ? { supported: true, values: ["1k", "2k"], default: "1k" } : protocol === "grok2api-image" ? { supported: true, values: ["auto", "medium"], default: "auto" } : { supported: false, values: [], default: "auto" };
+        image.size =
+            protocol === "grok2api-new-image"
+                ? { parameter: "aspect_ratio", values: ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "2:1", "1:2", "19.5:9", "9:19.5", "20:9", "9:20"], default: "auto", allowCustom: false }
+                : protocol === "grok2api-image"
+                  ? { parameter: "aspect_ratio", values: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"], default: "16:9", allowCustom: false }
+                  : { parameter: "none", values: [], default: "auto", allowCustom: false };
+        image.quality =
+            protocol === "grok2api-new-image"
+                ? { supported: true, values: ["1k", "2k"], default: "1k" }
+                : protocol === "grok2api-image"
+                  ? { supported: true, values: ["auto", "medium"], default: "auto" }
+                  : { supported: false, values: [], default: "auto" };
         image.transparentBackground = { supported: false, default: false };
         image.responseFormat = { supported: true };
         image.outputFormat = { supported: false };
@@ -312,7 +322,10 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
     return { version: 1, image: defaultImageCapabilityConfig(protocol, model), video };
 }
 
-export function modelCapabilityConfigFor(config: { channels: Array<{ id: string; models: string[]; interfaceType?: ModelProtocol; modelCosts?: Array<{ model: string; capabilityConfig?: ModelCapabilityConfig; protocol?: ModelProtocol }> }> }, model: string) {
+export function modelCapabilityConfigFor(
+    config: { channels: Array<{ id: string; models: string[]; interfaceType?: ModelProtocol; modelCosts?: Array<{ model: string; capabilityConfig?: ModelCapabilityConfig; protocol?: ModelProtocol }> }> },
+    model: string,
+) {
     const separator = model.indexOf("::");
     const channelId = separator >= 0 ? model.slice(0, separator) : "";
     const modelName = separator >= 0 ? model.slice(separator + 2) : model;
@@ -320,15 +333,16 @@ export function modelCapabilityConfigFor(config: { channels: Array<{ id: string;
     const cost = channel?.modelCosts?.find((item) => item.model === modelName);
     const normalizedModelName = modelName.toLowerCase();
     const explicitProtocol = cost?.protocol || channel?.interfaceType;
-    const protocol = explicitProtocol === "grok2api-new-image" || explicitProtocol === "grok2api-new-video" || explicitProtocol === "zarklab-image" || explicitProtocol === "zarklab-video"
-        ? explicitProtocol
-        : normalizedModelName.startsWith("gpt-image") || normalizedModelName.startsWith("gpt image")
-        ? "openai-image"
-        : normalizedModelName.startsWith("grok-imagine-image")
-            ? "grok2api-image"
-            : normalizedModelName.startsWith("grok-imagine-video")
-                ? "grok2api-video"
-                : cost?.protocol;
+    const protocol =
+        explicitProtocol === "grok2api-new-image" || explicitProtocol === "grok2api-new-video" || explicitProtocol === "zarklab-image" || explicitProtocol === "zarklab-video"
+            ? explicitProtocol
+            : normalizedModelName.startsWith("gpt-image") || normalizedModelName.startsWith("gpt image")
+              ? "openai-image"
+              : normalizedModelName.startsWith("grok-imagine-image")
+                ? "grok2api-image"
+                : normalizedModelName.startsWith("grok-imagine-video")
+                  ? "grok2api-video"
+                  : cost?.protocol;
     const fallback = defaultModelCapabilityConfig(protocol, modelName);
     if (protocol === "grok2api-video" || protocol === "grok2api-image") return { ...fallback, image: fallback.image, video: fallback.video };
     if (cost?.capabilityConfig) {
@@ -387,9 +401,7 @@ export function imageSizeRequest(profile: ImageCapabilityConfig, value?: string)
 }
 
 export function normalizeVideoValue(profile: VideoCapabilityConfig, value: { seconds?: string; ratio?: string; resolution?: string }) {
-    const duration = profile.duration.selection === "enum"
-        ? (profile.duration.values || []).includes(Number(value.seconds)) ? Number(value.seconds) : profile.duration.default
-        : normalizeRangeDuration(profile, Number(value.seconds));
+    const duration = profile.duration.selection === "enum" ? ((profile.duration.values || []).includes(Number(value.seconds)) ? Number(value.seconds) : profile.duration.default) : normalizeRangeDuration(profile, Number(value.seconds));
     const ratio = profile.ratios.includes(value.ratio || "") ? value.ratio! : profile.defaultRatio;
     const resolution = profile.resolutions.includes(value.resolution || "") ? value.resolution! : profile.defaultResolution;
     return { seconds: String(duration), ratio, resolution };

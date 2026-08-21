@@ -51,10 +51,12 @@ function withDownloadSlot<T>(task: () => Promise<T>) {
     return new Promise<T>((resolve, reject) => {
         downloadQueue.push(() => {
             activeDownloads += 1;
-            task().then(resolve, reject).finally(() => {
-                activeDownloads -= 1;
-                runDownloadQueue();
-            });
+            task()
+                .then(resolve, reject)
+                .finally(() => {
+                    activeDownloads -= 1;
+                    runDownloadQueue();
+                });
         });
         runDownloadQueue();
     });

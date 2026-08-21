@@ -28,7 +28,9 @@ export function isGrok2APINewImageConfig(config: AiConfig) {
 }
 
 export function normalizeGrok2APINewImageAspect(value?: string) {
-    let current = String(value || "").trim().toLowerCase();
+    let current = String(value || "")
+        .trim()
+        .toLowerCase();
     if (current.includes("-")) current = current.split("-", 1)[0];
     const supported = ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "2:1", "1:2", "19.5:9", "9:19.5", "20:9", "9:20"];
     if (supported.includes(current)) return current;
@@ -40,12 +42,16 @@ export function normalizeGrok2APINewImageAspect(value?: string) {
 }
 
 export function normalizeGrok2APINewImageResolution(value?: string) {
-    const raw = String(value || "").trim().toLowerCase();
+    const raw = String(value || "")
+        .trim()
+        .toLowerCase();
     return ["2k", "2x", "medium", "high", "4k", "hd"].some((item) => raw.includes(item)) ? "2k" : "1k";
 }
 
 export function normalizeGrok2APIImageAspect(value?: string) {
-    let current = String(value || "").trim().toLowerCase();
+    let current = String(value || "")
+        .trim()
+        .toLowerCase();
     if (current.includes("-")) current = current.split("-", 1)[0];
     if (current.includes("x")) {
         const [width, height] = current.split("x").map(Number);
@@ -57,7 +63,9 @@ export function normalizeGrok2APIImageAspect(value?: string) {
 }
 
 export function normalizeGrok2APIImageResolution(value?: string) {
-    const raw = String(value || "").trim().toLowerCase();
+    const raw = String(value || "")
+        .trim()
+        .toLowerCase();
     return ["medium", "2k", "2x", "high", "4k", "hd"].some((item) => raw.includes(item)) ? "medium" : "auto";
 }
 

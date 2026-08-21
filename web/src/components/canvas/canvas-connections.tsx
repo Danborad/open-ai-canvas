@@ -6,88 +6,104 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { STORYBOARD_HEADER_HEIGHT, STORYBOARD_ROW_HEIGHT, storyboardTableHeight } from "@/components/canvas/canvas-script-node";
 import type { CanvasConnection, CanvasNodeData, ConnectionHandle, Position } from "@/types/canvas";
 
-export const ConnectionPath = React.memo(function ConnectionPath({
-    connection,
-    from,
-    to,
-    fromScrollTop = 0,
-    toScrollTop = 0,
-    active,
-    visualMode = "full",
-    onSelect,
-    onContextMenu,
-}: {
-    connection: CanvasConnection;
-    from: CanvasNodeData;
-    to: CanvasNodeData;
-    fromScrollTop?: number;
-    toScrollTop?: number;
-    active: boolean;
-    visualMode?: "full" | "hover-only";
-    onSelect: () => void;
-    onContextMenu?: (event: ReactMouseEvent<SVGPathElement>) => void;
-}) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
-    const [hovered, setHovered] = useState(false);
-    const { pathD, startX, startY, endX, endY } = canvasConnectionPath(connection, from, to, fromScrollTop, toScrollTop);
-    const emphasized = active || hovered;
-    const showVisual = visualMode === "full" || hovered;
-    const gradientId = `canvas-flow-${connection.id.replace(/[^a-zA-Z0-9_-]/g, "")}`;
+export const ConnectionPath = React.memo(
+    function ConnectionPath({
+        connection,
+        from,
+        to,
+        fromScrollTop = 0,
+        toScrollTop = 0,
+        active,
+        visualMode = "full",
+        onSelect,
+        onContextMenu,
+    }: {
+        connection: CanvasConnection;
+        from: CanvasNodeData;
+        to: CanvasNodeData;
+        fromScrollTop?: number;
+        toScrollTop?: number;
+        active: boolean;
+        visualMode?: "full" | "hover-only";
+        onSelect: () => void;
+        onContextMenu?: (event: ReactMouseEvent<SVGPathElement>) => void;
+    }) {
+        const theme = canvasThemes[useThemeStore((state) => state.theme)];
+        const [hovered, setHovered] = useState(false);
+        const { pathD, startX, startY, endX, endY } = canvasConnectionPath(connection, from, to, fromScrollTop, toScrollTop);
+        const emphasized = active || hovered;
+        const showVisual = visualMode === "full" || hovered;
+        const gradientId = `canvas-flow-${connection.id.replace(/[^a-zA-Z0-9_-]/g, "")}`;
 
-    return (
-        <g>
-            {emphasized ? <defs>
-                <linearGradient id={gradientId} gradientUnits="userSpaceOnUse" x1={startX} y1={startY} x2={endX} y2={endY}>
-                    <stop offset="0%" stopColor={theme.node.muted} stopOpacity={0.18} />
-                    <stop offset="48%" stopColor={theme.accent.primary} stopOpacity={0.58} />
-                    <stop offset="100%" stopColor={theme.accent.primary} stopOpacity={0.34} />
-                </linearGradient>
-            </defs> : null}
-            <path
-                data-connection-id={connection.id}
-                d={pathD}
-                stroke="transparent"
-                strokeWidth="16"
-                vectorEffect="non-scaling-stroke"
-                fill="none"
-                style={{ cursor: "pointer", pointerEvents: "stroke" }}
-                onMouseEnter={() => setHovered(true)}
-                onMouseLeave={() => setHovered(false)}
-                onClick={(event) => {
-                    event.stopPropagation();
-                    onSelect();
-                }}
-                onContextMenu={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onContextMenu?.(event);
-                }}
-            />
-            {showVisual ? <path
-                d={pathD}
-                stroke={emphasized ? theme.accent.primary : theme.node.muted}
-                strokeWidth={emphasized ? 1.6 : 1}
-                vectorEffect="non-scaling-stroke"
-                strokeOpacity={emphasized ? 0.52 : 0.24}
-                fill="none"
-                strokeLinecap="round"
-                style={{ pointerEvents: "none" }}
-            /> : null}
-            {showVisual && emphasized ? <path
-                className="canvas-connection-flow"
-                d={pathD}
-                stroke={`url(#${gradientId})`}
-                strokeWidth="1.8"
-                vectorEffect="non-scaling-stroke"
-                strokeOpacity="1"
-                strokeDasharray="18 26"
-                fill="none"
-                strokeLinecap="round"
-                style={{ filter: `drop-shadow(0 0 3px ${theme.accent.primary}35)`, pointerEvents: "none" }}
-            /> : null}
-        </g>
-    );
-}, (previous, next) => previous.connection === next.connection && previous.from === next.from && previous.to === next.to && previous.active === next.active && previous.visualMode === next.visualMode && previous.fromScrollTop === next.fromScrollTop && previous.toScrollTop === next.toScrollTop);
+        return (
+            <g>
+                {emphasized ? (
+                    <defs>
+                        <linearGradient id={gradientId} gradientUnits="userSpaceOnUse" x1={startX} y1={startY} x2={endX} y2={endY}>
+                            <stop offset="0%" stopColor={theme.node.muted} stopOpacity={0.18} />
+                            <stop offset="48%" stopColor={theme.accent.primary} stopOpacity={0.58} />
+                            <stop offset="100%" stopColor={theme.accent.primary} stopOpacity={0.34} />
+                        </linearGradient>
+                    </defs>
+                ) : null}
+                <path
+                    data-connection-id={connection.id}
+                    d={pathD}
+                    stroke="transparent"
+                    strokeWidth="16"
+                    vectorEffect="non-scaling-stroke"
+                    fill="none"
+                    style={{ cursor: "pointer", pointerEvents: "stroke" }}
+                    onMouseEnter={() => setHovered(true)}
+                    onMouseLeave={() => setHovered(false)}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onSelect();
+                    }}
+                    onContextMenu={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onContextMenu?.(event);
+                    }}
+                />
+                {showVisual ? (
+                    <path
+                        d={pathD}
+                        stroke={emphasized ? theme.accent.primary : theme.node.muted}
+                        strokeWidth={emphasized ? 1.6 : 1}
+                        vectorEffect="non-scaling-stroke"
+                        strokeOpacity={emphasized ? 0.52 : 0.24}
+                        fill="none"
+                        strokeLinecap="round"
+                        style={{ pointerEvents: "none" }}
+                    />
+                ) : null}
+                {showVisual && emphasized ? (
+                    <path
+                        className="canvas-connection-flow"
+                        d={pathD}
+                        stroke={`url(#${gradientId})`}
+                        strokeWidth="1.8"
+                        vectorEffect="non-scaling-stroke"
+                        strokeOpacity="1"
+                        strokeDasharray="18 26"
+                        fill="none"
+                        strokeLinecap="round"
+                        style={{ filter: `drop-shadow(0 0 3px ${theme.accent.primary}35)`, pointerEvents: "none" }}
+                    />
+                ) : null}
+            </g>
+        );
+    },
+    (previous, next) =>
+        previous.connection === next.connection &&
+        previous.from === next.from &&
+        previous.to === next.to &&
+        previous.active === next.active &&
+        previous.visualMode === next.visualMode &&
+        previous.fromScrollTop === next.fromScrollTop &&
+        previous.toScrollTop === next.toScrollTop,
+);
 
 export function canvasConnectionPath(connection: CanvasConnection, from: CanvasNodeData, to: CanvasNodeData, fromScrollTop = 0, toScrollTop = 0) {
     const startX = from.position.x + from.width;

@@ -38,12 +38,31 @@ export function RequireFeature({ feature, children }: { feature: FeatureKey; chi
         };
     }, [location.pathname]);
 
-    if (checking) return <WorkspacePage><WorkspaceLoadingState label="正在确认功能状态" detail={featureNames[feature]} rows={3} /></WorkspacePage>;
-    if (error) return <WorkspacePage><WorkspaceErrorState title="无法确认功能状态" description={error} actionLabel="返回创作台" onRetry={() => navigate("/create", { replace: true })} /></WorkspacePage>;
+    if (checking)
+        return (
+            <WorkspacePage>
+                <WorkspaceLoadingState label="正在确认功能状态" detail={featureNames[feature]} rows={3} />
+            </WorkspacePage>
+        );
+    if (error)
+        return (
+            <WorkspacePage>
+                <WorkspaceErrorState title="无法确认功能状态" description={error} actionLabel="返回创作台" onRetry={() => navigate("/create", { replace: true })} />
+            </WorkspacePage>
+        );
     if (!features[feature]) {
         return (
             <WorkspacePage>
-                <WorkspaceState icon="empty" title={`${featureNames[feature]}暂未开放`} description="当前功能已由平台管理员关闭。" action={<Button type="primary" onClick={() => navigate("/create", { replace: true })}>返回创作台</Button>} />
+                <WorkspaceState
+                    icon="empty"
+                    title={`${featureNames[feature]}暂未开放`}
+                    description="当前功能已由平台管理员关闭。"
+                    action={
+                        <Button type="primary" onClick={() => navigate("/create", { replace: true })}>
+                            返回创作台
+                        </Button>
+                    }
+                />
             </WorkspacePage>
         );
     }

@@ -15,9 +15,7 @@ type AdjustmentFormValues = { userId: string; amount: number; note: string };
 type ResolutionFormValues = { note: string };
 type PolicyFormValues = { signupBonus: number; checkinBonus: number; defaultMultiplier: number; modelMultipliers: string };
 type BillingResolutionAction = "settle" | "refund";
-type BillingResolutionTarget =
-    | { kind: "single"; order: BillingOrder; action: BillingResolutionAction }
-    | { kind: "batch"; orderIds: string[]; amountMicrocredits: number; action: BillingResolutionAction };
+type BillingResolutionTarget = { kind: "single"; order: BillingOrder; action: BillingResolutionAction } | { kind: "batch"; orderIds: string[]; amountMicrocredits: number; action: BillingResolutionAction };
 
 export default function CreditOperationsPanel({ users }: { users: AdminReferenceData["users"] }) {
     const { message } = App.useApp();
@@ -199,12 +197,17 @@ export default function CreditOperationsPanel({ users }: { users: AdminReference
         {
             title: "实际结算 / 用量",
             width: 190,
-            render: (_, order) => order.billingMode === "token" ? (
-                <div className="text-xs leading-5">
-                    <div className="font-medium tabular-nums">{order.status === "settled" ? `${formatCredits(order.actualAmountMicrocredits)} 积分` : "待 usage 结算"}</div>
-                    <div className="text-foreground/50">输入 {order.inputTokens} · 输出 {order.outputTokens} · 缓存 {order.cachedTokens}</div>
-                </div>
-            ) : <span className="tabular-nums">{order.status === "settled" ? formatCredits(order.actualAmountMicrocredits || order.amountMicrocredits) : "--"}</span>,
+            render: (_, order) =>
+                order.billingMode === "token" ? (
+                    <div className="text-xs leading-5">
+                        <div className="font-medium tabular-nums">{order.status === "settled" ? `${formatCredits(order.actualAmountMicrocredits)} 积分` : "待 usage 结算"}</div>
+                        <div className="text-foreground/50">
+                            输入 {order.inputTokens} · 输出 {order.outputTokens} · 缓存 {order.cachedTokens}
+                        </div>
+                    </div>
+                ) : (
+                    <span className="tabular-nums">{order.status === "settled" ? formatCredits(order.actualAmountMicrocredits || order.amountMicrocredits) : "--"}</span>
+                ),
         },
         {
             title: "状态",
@@ -227,17 +230,10 @@ export default function CreditOperationsPanel({ users }: { users: AdminReference
                     <span className="text-xs text-foreground/40">处理完成</span>
                 ) : (
                     <Space size={6}>
-                        <Button
-                            size="small"
-                            onClick={() => openSingleResolution(order, "settle")}
-                        >
+                        <Button size="small" onClick={() => openSingleResolution(order, "settle")}>
                             确认扣费
                         </Button>
-                        <Button
-                            size="small"
-                            danger
-                            onClick={() => openSingleResolution(order, "refund")}
-                        >
+                        <Button size="small" danger onClick={() => openSingleResolution(order, "refund")}>
                             退回积分
                         </Button>
                     </Space>
@@ -311,7 +307,14 @@ export default function CreditOperationsPanel({ users }: { users: AdminReference
                     </div>
                     <Form form={adjustmentForm} layout="vertical" requiredMark={false} className="mt-5">
                         <Form.Item name="userId" label="目标用户" rules={[{ required: true, message: "请选择用户" }]}>
-                            <Select showSearch filterOption={false} loading={searchingUsers} placeholder="搜索用户名或显示名称" onSearch={(value) => void searchUsers(value)} options={adjustmentUsers.map((user) => ({ label: `${user.displayName || user.username} · @${user.username}`, value: user.id }))} />
+                            <Select
+                                showSearch
+                                filterOption={false}
+                                loading={searchingUsers}
+                                placeholder="搜索用户名或显示名称"
+                                onSearch={(value) => void searchUsers(value)}
+                                options={adjustmentUsers.map((user) => ({ label: `${user.displayName || user.username} · @${user.username}`, value: user.id }))}
+                            />
                         </Form.Item>
                         <div className="grid gap-4 sm:grid-cols-2">
                             <Form.Item name="amount" label="积分变化" extra="正数增加，负数扣减。" rules={[{ required: true, message: "请填写积分变化" }]}>
@@ -430,7 +433,7 @@ export default function CreditOperationsPanel({ users }: { users: AdminReference
             </section>
 
             <Modal
-                title={resolutionTarget?.action === "settle" ? (resolutionTarget.kind === "batch" ? "批量确认扣除冻结积分" : "确认扣除冻结积分") : (resolutionTarget?.kind === "batch" ? "批量确认退回冻结积分" : "确认退回冻结积分")}
+                title={resolutionTarget?.action === "settle" ? (resolutionTarget.kind === "batch" ? "批量确认扣除冻结积分" : "确认扣除冻结积分") : resolutionTarget?.kind === "batch" ? "批量确认退回冻结积分" : "确认退回冻结积分"}
                 open={Boolean(resolutionTarget)}
                 okText={resolutionTarget?.action === "settle" ? "确认扣费" : "退回积分"}
                 cancelText="取消"
@@ -446,7 +449,8 @@ export default function CreditOperationsPanel({ users }: { users: AdminReference
             >
                 {resolutionTarget?.kind === "batch" ? (
                     <div className="mb-4 rounded-md border border-border bg-muted/25 px-3 py-2.5 text-sm text-foreground/65">
-                        已选择 <span className="font-semibold text-foreground">{resolutionTarget.orderIds.length}</span> 条订单，涉及冻结积分 <span className="font-semibold tabular-nums text-foreground">{formatCredits(resolutionTarget.amountMicrocredits)}</span>。本次核对依据将写入每条订单的审计记录。
+                        已选择 <span className="font-semibold text-foreground">{resolutionTarget.orderIds.length}</span> 条订单，涉及冻结积分{" "}
+                        <span className="font-semibold tabular-nums text-foreground">{formatCredits(resolutionTarget.amountMicrocredits)}</span>。本次核对依据将写入每条订单的审计记录。
                     </div>
                 ) : null}
                 <Form form={resolutionForm} layout="vertical" requiredMark={false}>

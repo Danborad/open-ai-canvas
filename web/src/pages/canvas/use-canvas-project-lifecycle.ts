@@ -159,11 +159,14 @@ export function useCanvasProjectLifecycle({
         };
     }, [projectId, projectLoaded, updateProject, viewport, viewportRef]);
 
-    useEffect(() => () => {
-        if (!projectLoaded) return;
-        if (viewportSaveTimerRef.current) clearTimeout(viewportSaveTimerRef.current);
-        updateProject(projectId, { viewport: viewportRef.current });
-    }, [projectId, projectLoaded, updateProject, viewportRef]);
+    useEffect(
+        () => () => {
+            if (!projectLoaded) return;
+            if (viewportSaveTimerRef.current) clearTimeout(viewportSaveTimerRef.current);
+            updateProject(projectId, { viewport: viewportRef.current });
+        },
+        [projectId, projectLoaded, updateProject, viewportRef],
+    );
 
     const createAndOpenProject = useCallback(() => {
         void createCanvasProjectWithRemoteSync(`自由画布 ${useCanvasStore.getState().projects.length + 1}`).then(({ id, syncError }) => {
@@ -173,19 +176,21 @@ export function useCanvasProjectLifecycle({
     }, [message, navigate]);
 
     const deleteCurrentProject = useCallback(() => {
-        const drawingIds = nodesRef.current.flatMap((node) => node.type === "drawing" && node.metadata?.drawingId ? [node.metadata.drawingId] : []);
+        const drawingIds = nodesRef.current.flatMap((node) => (node.type === "drawing" && node.metadata?.drawingId ? [node.metadata.drawingId] : []));
         if (drawingIds.length) {
-            void Promise.all(drawingIds.map((drawingId) => removeCanvasDrawing(projectId, drawingId)))
-                .catch(() => message.warning("项目已删除，但部分本地绘图缓存清理失败"));
+            void Promise.all(drawingIds.map((drawingId) => removeCanvasDrawing(projectId, drawingId))).catch(() => message.warning("项目已删除，但部分本地绘图缓存清理失败"));
         }
         deleteProjects([projectId]);
         cleanupAssetImages();
         navigate("/canvas");
     }, [cleanupAssetImages, deleteProjects, message, navigate, nodesRef, projectId]);
 
-    const renameCurrentProject = useCallback((title: string) => {
-        renameProject(projectId, title);
-    }, [projectId, renameProject]);
+    const renameCurrentProject = useCallback(
+        (title: string) => {
+            renameProject(projectId, title);
+        },
+        [projectId, renameProject],
+    );
 
     const saveCanvasProject = useCallback(async () => {
         try {

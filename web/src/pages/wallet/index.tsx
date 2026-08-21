@@ -120,7 +120,12 @@ export default function WalletPage() {
     return (
         <main className="app-user-content app-workspace-scroll library-page wallet-library-page relative h-full overflow-y-auto text-foreground">
             <div className="relative mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
-                <motion.header initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: aceternityMotion.duration.panel, ease: aceternityMotion.easing.enter }} className="app-page-header flex flex-wrap items-start justify-between gap-4 pb-6">
+                <motion.header
+                    initial={reducedMotion ? false : { opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: aceternityMotion.duration.panel, ease: aceternityMotion.easing.enter }}
+                    className="app-page-header flex flex-wrap items-start justify-between gap-4 pb-6"
+                >
                     <div className="flex items-center gap-3">
                         <WorkspaceSignalIcon variant="wallet" />
                         <div>
@@ -162,7 +167,12 @@ export default function WalletPage() {
                         </div>
                     </CometCard>
 
-                    <motion.div initial={reducedMotion ? false : { opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: aceternityMotion.duration.panel, ease: aceternityMotion.easing.enter }} className="wallet-redeem-panel app-workspace-surface flex flex-col rounded-lg border p-5 backdrop-blur-xl sm:p-6">
+                    <motion.div
+                        initial={reducedMotion ? false : { opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: aceternityMotion.duration.panel, ease: aceternityMotion.easing.enter }}
+                        className="wallet-redeem-panel app-workspace-surface flex flex-col rounded-lg border p-5 backdrop-blur-xl sm:p-6"
+                    >
                         <div className="flex items-start gap-3">
                             <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-amber-400/25 bg-amber-400/10 text-amber-600 dark:text-amber-300">
                                 <TicketCheck className="size-4" />
@@ -174,7 +184,17 @@ export default function WalletPage() {
                         </div>
                         <label className="mt-6 block">
                             <span className="text-xs font-medium text-foreground/70">兑换码</span>
-                            <Input className="mt-2 font-mono" size="large" value={code} maxLength={32} spellCheck={false} autoComplete="off" onChange={(event) => setCode(event.target.value.replace(/[-\s]/g, ""))} placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" onPressEnter={() => void redeem()} />
+                            <Input
+                                className="mt-2 font-mono"
+                                size="large"
+                                value={code}
+                                maxLength={32}
+                                spellCheck={false}
+                                autoComplete="off"
+                                onChange={(event) => setCode(event.target.value.replace(/[-\s]/g, ""))}
+                                placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                                onPressEnter={() => void redeem()}
+                            />
                         </label>
                         <div className="mt-2 flex items-center justify-between text-xs text-foreground/45">
                             <span>兑换成功后立即到账</span>
@@ -208,7 +228,13 @@ export default function WalletPage() {
                             <Table className="app-data-table wallet-ledger-table" rowKey="id" size="middle" loading={loading} columns={columns} dataSource={entries} pagination={false} tableLayout="fixed" scroll={{ x: 990 }} />
                         </TableSurface>
                     ) : (
-                        <div className="overflow-hidden rounded-md border border-border/70 bg-background">{entries.length ? entries.map((entry) => <LedgerMobileRow key={entry.id} config={config} entry={entry} />) : <WorkspaceState compact icon="wallet" title="没有匹配的积分记录" description="切换流水类型，或完成一次生成后再回来查看。" />}</div>
+                        <div className="overflow-hidden rounded-md border border-border/70 bg-background">
+                            {entries.length ? (
+                                entries.map((entry) => <LedgerMobileRow key={entry.id} config={config} entry={entry} />)
+                            ) : (
+                                <WorkspaceState compact icon="wallet" title="没有匹配的积分记录" description="切换流水类型，或完成一次生成后再回来查看。" />
+                            )}
+                        </div>
                     )}
                     <PaginationBar
                         current={page}

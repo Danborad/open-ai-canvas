@@ -28,25 +28,28 @@ export function SystemAnnouncementCenter({ userId, className, style, showLabel =
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    const refresh = useCallback(async (showLoading = false) => {
-        if (!userId) return null;
-        const requestUserId = userId;
-        if (showLoading) setLoading(true);
-        try {
-            const feed = await getAnnouncementFeed();
-            if (activeUserIdRef.current !== requestUserId) return null;
-            setAnnouncements(feed.announcements || []);
-            setUnreadCount(Math.max(0, feed.unreadCount || 0));
-            setError("");
-            return feed;
-        } catch (requestError) {
-            if (activeUserIdRef.current !== requestUserId) return null;
-            setError(requestError instanceof Error ? requestError.message : "读取公告失败");
-            return null;
-        } finally {
-            if (showLoading && activeUserIdRef.current === requestUserId) setLoading(false);
-        }
-    }, [userId]);
+    const refresh = useCallback(
+        async (showLoading = false) => {
+            if (!userId) return null;
+            const requestUserId = userId;
+            if (showLoading) setLoading(true);
+            try {
+                const feed = await getAnnouncementFeed();
+                if (activeUserIdRef.current !== requestUserId) return null;
+                setAnnouncements(feed.announcements || []);
+                setUnreadCount(Math.max(0, feed.unreadCount || 0));
+                setError("");
+                return feed;
+            } catch (requestError) {
+                if (activeUserIdRef.current !== requestUserId) return null;
+                setError(requestError instanceof Error ? requestError.message : "读取公告失败");
+                return null;
+            } finally {
+                if (showLoading && activeUserIdRef.current === requestUserId) setLoading(false);
+            }
+        },
+        [userId],
+    );
 
     useEffect(() => {
         setAnnouncements([]);
@@ -114,7 +117,9 @@ export function SystemAnnouncementCenter({ userId, className, style, showLabel =
                 {showLabel ? (
                     <span className={`min-w-0 flex-1 items-center justify-between gap-2 whitespace-nowrap ${labelClassName || ""}`}>
                         <span>系统公告</span>
-                        <Tag color={unreadCount > 0 ? "gold" : undefined} className="!m-0 !min-w-6 !px-1.5 !text-center !text-[var(--fs-micro)] !font-medium !leading-[18px] tabular-nums">{announcements.length}</Tag>
+                        <Tag color={unreadCount > 0 ? "gold" : undefined} className="!m-0 !min-w-6 !px-1.5 !text-center !text-[var(--fs-micro)] !font-medium !leading-[18px] tabular-nums">
+                            {announcements.length}
+                        </Tag>
                     </span>
                 ) : null}
             </motion.button>

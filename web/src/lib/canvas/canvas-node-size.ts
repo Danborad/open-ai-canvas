@@ -43,20 +43,19 @@ export function ensureMediaNodeMinimumSize(node: CanvasNodeData) {
     let height = node.height;
     const naturalWidth = node.metadata?.naturalWidth || 0;
     const naturalHeight = node.metadata?.naturalHeight || 0;
-    const requestedSize = node.type === CanvasNodeType.Image && node.metadata?.generationType === "edit"
-        ? nodeSizeFromRatio(node.metadata.size || "auto", node.width, node.height)
-        : node.type === CanvasNodeType.Video
-            ? nodeSizeFromRatio(node.metadata?.size || "auto", node.width, node.height)
-            : null;
+    const requestedSize =
+        node.type === CanvasNodeType.Image && node.metadata?.generationType === "edit"
+            ? nodeSizeFromRatio(node.metadata.size || "auto", node.width, node.height)
+            : node.type === CanvasNodeType.Video
+              ? nodeSizeFromRatio(node.metadata?.size || "auto", node.width, node.height)
+              : null;
     const naturalRatio = naturalWidth / Math.max(1, naturalHeight);
     const nodeRatio = node.width / Math.max(1, node.height);
     const requestedRatio = requestedSize ? requestedSize.width / Math.max(1, requestedSize.height) : nodeRatio;
     const targetRatio = naturalWidth > 0 && naturalHeight > 0 ? naturalRatio : requestedRatio;
     // 生成结果缺少媒体尺寸时按请求画幅修正；已有自然尺寸时优先保留真实媒体比例。
     if (requestedSize && !node.metadata?.freeResize && !node.metadata?.locked && (node.type === CanvasNodeType.Video || (naturalWidth > 0 && naturalHeight > 0)) && Math.abs(targetRatio - nodeRatio) > 0.01) {
-        const alignedSize = naturalWidth > 0 && naturalHeight > 0
-            ? fitNodeSize(naturalWidth, naturalHeight, requestedSize.width, requestedSize.height)
-            : requestedSize;
+        const alignedSize = naturalWidth > 0 && naturalHeight > 0 ? fitNodeSize(naturalWidth, naturalHeight, requestedSize.width, requestedSize.height) : requestedSize;
         width = alignedSize.width;
         height = alignedSize.height;
     }

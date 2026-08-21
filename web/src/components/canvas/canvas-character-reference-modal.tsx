@@ -15,15 +15,7 @@ export function CanvasCharacterReferenceModal({ node, open, onClose }: { node: C
     const voiceProfile = metadata?.characterVoiceProfile;
 
     return (
-        <Modal
-            open={open}
-            title={null}
-            footer={null}
-            destroyOnHidden
-            width="min(1180px, calc(100vw - 32px))"
-            onCancel={onClose}
-            styles={{ container: { padding: 0, overflow: "hidden" }, body: { padding: 0 } }}
-        >
+        <Modal open={open} title={null} footer={null} destroyOnHidden width="min(1180px, calc(100vw - 32px))" onCancel={onClose} styles={{ container: { padding: 0, overflow: "hidden" }, body: { padding: 0 } }}>
             <div className="grid h-[min(720px,calc(100dvh-48px))] min-h-0 grid-rows-[minmax(240px,42vh)_minmax(0,1fr)] overflow-hidden bg-background text-foreground md:grid-cols-[minmax(0,1.55fr)_minmax(360px,.85fr)] md:grid-rows-1">
                 <section className="relative min-h-0 overflow-hidden border-b border-border bg-foreground/[.035] md:border-b-0 md:border-r" aria-label="角色三视图">
                     <div className="absolute inset-x-0 top-0 z-10 flex h-14 items-center justify-between px-5 pr-14">
@@ -35,12 +27,7 @@ export function CanvasCharacterReferenceModal({ node, open, onClose }: { node: C
                     </div>
                     {metadata?.characterCoverUrl ? (
                         <div className="flex h-full w-full items-center justify-center p-5 pt-16 md:p-8 md:pt-20">
-                            <img
-                                src={metadata.characterCoverUrl}
-                                alt={`${name}人物三视图`}
-                                className="max-h-full max-w-full select-none object-contain drop-shadow-[0_22px_42px_rgba(0,0,0,.14)]"
-                                draggable={false}
-                            />
+                            <img src={metadata.characterCoverUrl} alt={`${name}人物三视图`} className="max-h-full max-w-full select-none object-contain drop-shadow-[0_22px_42px_rgba(0,0,0,.14)]" draggable={false} />
                         </div>
                     ) : (
                         <div className="grid h-full place-items-center px-8 text-center text-foreground/35">
@@ -118,7 +105,9 @@ function DetailRow({ label, value, emphasis = false }: { label: string; value?: 
 
 function StatusDot({ icon, ready, readyLabel, emptyLabel }: { icon: ReactNode; ready: boolean; readyLabel: string; emptyLabel: string }) {
     return (
-        <span className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-[var(--fs-tiny)] font-medium ${ready ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-border bg-background/65 text-foreground/42"}`}>
+        <span
+            className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-[var(--fs-tiny)] font-medium ${ready ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-border bg-background/65 text-foreground/42"}`}
+        >
             <span className="[&_svg]:size-3">{icon}</span>
             {ready ? readyLabel : emptyLabel}
         </span>

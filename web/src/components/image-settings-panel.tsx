@@ -100,67 +100,75 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 }}
             >
                 {showTitle ? <div className="text-base font-semibold">图像设置</div> : null}
-                {profile.quality.supported ? <div className="space-y-2">
-                    <SettingTitle color={theme.node.muted}>质量</SettingTitle>
-                    <div className="grid grid-cols-4 gap-1.5">
-                        {activeQualityOptions.map((item) => (
-                            <OptionPill key={item.value} selected={quality === item.value} theme={theme} onClick={() => onConfigChange("quality", item.value)}>
-                                {item.label}
-                            </OptionPill>
-                        ))}
-                    </div>
-                </div> : null}
-                {profile.transparentBackground.supported ? <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                        <SettingTitle color={theme.node.muted}>透明背景</SettingTitle>
-                        <div className="mt-1 text-[var(--fs-label)]" style={{ color: theme.node.muted }}>
-                            请求模型输出保留 Alpha 通道的 PNG
+                {profile.quality.supported ? (
+                    <div className="space-y-2">
+                        <SettingTitle color={theme.node.muted}>质量</SettingTitle>
+                        <div className="grid grid-cols-4 gap-1.5">
+                            {activeQualityOptions.map((item) => (
+                                <OptionPill key={item.value} selected={quality === item.value} theme={theme} onClick={() => onConfigChange("quality", item.value)}>
+                                    {item.label}
+                                </OptionPill>
+                            ))}
                         </div>
                     </div>
-                    <span title="是否支持透明背景由当前模型接口决定" onMouseDown={(event) => event.stopPropagation()}>
-                        <Switch
-                            size="small"
-                            checked={transparentBackground}
-                            onChange={(checked) => onConfigChange("transparentBackground", checked ? "true" : "false")}
-                        />
-                    </span>
-                </div> : null}
-                {profile.size.parameter !== "none" ? <div className="space-y-2">
+                ) : null}
+                {profile.transparentBackground.supported ? (
                     <div className="flex items-center justify-between gap-3">
-                        <SettingTitle color={theme.node.muted}>尺寸</SettingTitle>
-                        {profile.size.allowCustom ? <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium" style={{ color: theme.node.muted }}>
-                                16倍数对齐
-                            </span>
-                            <span title="输入完成后自动向上补成 16 的倍数" onMouseDown={(event) => event.stopPropagation()}>
-                                <Switch size="small" checked={snapDimensionToStep} onChange={setSnapDimensionToStep} />
-                            </span>
-                        </div> : null}
+                        <div className="min-w-0">
+                            <SettingTitle color={theme.node.muted}>透明背景</SettingTitle>
+                            <div className="mt-1 text-[var(--fs-label)]" style={{ color: theme.node.muted }}>
+                                请求模型输出保留 Alpha 通道的 PNG
+                            </div>
+                        </div>
+                        <span title="是否支持透明背景由当前模型接口决定" onMouseDown={(event) => event.stopPropagation()}>
+                            <Switch size="small" checked={transparentBackground} onChange={(checked) => onConfigChange("transparentBackground", checked ? "true" : "false")} />
+                        </span>
                     </div>
-                    {profile.size.allowCustom ? <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
-                        <DimensionInput prefix="W" value={dimensions.width} disabled={activeSize === "auto"} theme={theme} alignToStep={snapDimensionToStep} onChange={(value) => updateDimension("width", value)} />
-                        <span className="text-sm opacity-45">↔</span>
-                        <DimensionInput prefix="H" value={dimensions.height} disabled={activeSize === "auto"} theme={theme} alignToStep={snapDimensionToStep} onChange={(value) => updateDimension("height", value)} />
-                    </div> : null}
-                </div> : null}
-                {availableAspects.length ? <div className="space-y-2">
-                    <SettingTitle color={theme.node.muted}>宽高比</SettingTitle>
-                    <div className="grid grid-cols-4 gap-1.5 min-[380px]:grid-cols-5">
-                        {availableAspects.map((item) => (
-                            <button
-                                key={item.value}
-                                type="button"
-                                className="flex h-[52px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg bg-transparent text-[var(--fs-label)] transition-colors hover:brightness-110 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
-                                style={{ background: selectedAspect?.value === item.value ? theme.toolbar.activeBg : "transparent", color: theme.node.text, outlineColor: theme.node.muted }}
-                                onMouseDown={(event) => event.stopPropagation()}
-                                onClick={() => selectAspect(item.value)}
-                            >
-                                <AspectIcon type={item.icon} width={item.width} height={item.height} color={theme.node.text} />
-                                <span className="whitespace-nowrap">{item.label}</span>
-                            </button>
-                        ))}
+                ) : null}
+                {profile.size.parameter !== "none" ? (
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                            <SettingTitle color={theme.node.muted}>尺寸</SettingTitle>
+                            {profile.size.allowCustom ? (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium" style={{ color: theme.node.muted }}>
+                                        16倍数对齐
+                                    </span>
+                                    <span title="输入完成后自动向上补成 16 的倍数" onMouseDown={(event) => event.stopPropagation()}>
+                                        <Switch size="small" checked={snapDimensionToStep} onChange={setSnapDimensionToStep} />
+                                    </span>
+                                </div>
+                            ) : null}
+                        </div>
+                        {profile.size.allowCustom ? (
+                            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+                                <DimensionInput prefix="W" value={dimensions.width} disabled={activeSize === "auto"} theme={theme} alignToStep={snapDimensionToStep} onChange={(value) => updateDimension("width", value)} />
+                                <span className="text-sm opacity-45">↔</span>
+                                <DimensionInput prefix="H" value={dimensions.height} disabled={activeSize === "auto"} theme={theme} alignToStep={snapDimensionToStep} onChange={(value) => updateDimension("height", value)} />
+                            </div>
+                        ) : null}
                     </div>
-                </div> : null}
+                ) : null}
+                {availableAspects.length ? (
+                    <div className="space-y-2">
+                        <SettingTitle color={theme.node.muted}>宽高比</SettingTitle>
+                        <div className="grid grid-cols-4 gap-1.5 min-[380px]:grid-cols-5">
+                            {availableAspects.map((item) => (
+                                <button
+                                    key={item.value}
+                                    type="button"
+                                    className="flex h-[52px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg bg-transparent text-[var(--fs-label)] transition-colors hover:brightness-110 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                    style={{ background: selectedAspect?.value === item.value ? theme.toolbar.activeBg : "transparent", color: theme.node.text, outlineColor: theme.node.muted }}
+                                    onMouseDown={(event) => event.stopPropagation()}
+                                    onClick={() => selectAspect(item.value)}
+                                >
+                                    <AspectIcon type={item.icon} width={item.width} height={item.height} color={theme.node.text} />
+                                    <span className="whitespace-nowrap">{item.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
                 {showCount && effectiveMaxCount > 1 ? (
                     <div className="space-y-2">
                         <SettingTitle color={theme.node.muted}>生成张数</SettingTitle>
@@ -188,9 +196,43 @@ function Grok2APINewImageSettingsPanel({ config, onConfigChange, theme, showTitl
         <ImageSettingsTheme theme={theme}>
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-base font-semibold">Grok2API New 图像设置</div> : null}
-                {profile.size.parameter !== "none" ? <div className="space-y-2"><SettingTitle color={theme.node.muted}>画幅</SettingTitle><div className="grid grid-cols-4 gap-1.5">{profile.size.values.map((value) => <OptionPill key={value} selected={normalized.size === value} theme={theme} onClick={() => onConfigChange("size", value)}>{value}</OptionPill>)}</div></div> : null}
-                {profile.quality.supported ? <div className="space-y-2"><SettingTitle color={theme.node.muted}>分辨率</SettingTitle><div className="grid grid-cols-2 gap-1.5">{profile.quality.values.map((value) => <OptionPill key={value} selected={normalized.quality === value} theme={theme} onClick={() => onConfigChange("quality", value)}>{value.toUpperCase()}</OptionPill>)}</div></div> : null}
-                {showCount ? <div className="space-y-2"><SettingTitle color={theme.node.muted}>生成张数</SettingTitle><div className="grid grid-cols-4 gap-1.5">{Array.from({ length: Math.min(quickCount, countLimit) }, (_, index) => index + 1).map((value) => <OptionPill key={value} selected={count === value} theme={theme} onClick={() => onConfigChange("count", String(value))}>{value}</OptionPill>)}<CountInput value={count} quickCount={quickCount} max={countLimit} theme={theme} onChange={(value) => onConfigChange("count", String(value || 1))} /></div></div> : null}
+                {profile.size.parameter !== "none" ? (
+                    <div className="space-y-2">
+                        <SettingTitle color={theme.node.muted}>画幅</SettingTitle>
+                        <div className="grid grid-cols-4 gap-1.5">
+                            {profile.size.values.map((value) => (
+                                <OptionPill key={value} selected={normalized.size === value} theme={theme} onClick={() => onConfigChange("size", value)}>
+                                    {value}
+                                </OptionPill>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
+                {profile.quality.supported ? (
+                    <div className="space-y-2">
+                        <SettingTitle color={theme.node.muted}>分辨率</SettingTitle>
+                        <div className="grid grid-cols-2 gap-1.5">
+                            {profile.quality.values.map((value) => (
+                                <OptionPill key={value} selected={normalized.quality === value} theme={theme} onClick={() => onConfigChange("quality", value)}>
+                                    {value.toUpperCase()}
+                                </OptionPill>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
+                {showCount ? (
+                    <div className="space-y-2">
+                        <SettingTitle color={theme.node.muted}>生成张数</SettingTitle>
+                        <div className="grid grid-cols-4 gap-1.5">
+                            {Array.from({ length: Math.min(quickCount, countLimit) }, (_, index) => index + 1).map((value) => (
+                                <OptionPill key={value} selected={count === value} theme={theme} onClick={() => onConfigChange("count", String(value))}>
+                                    {value}
+                                </OptionPill>
+                            ))}
+                            <CountInput value={count} quickCount={quickCount} max={countLimit} theme={theme} onChange={(value) => onConfigChange("count", String(value || 1))} />
+                        </div>
+                    </div>
+                ) : null}
             </div>
         </ImageSettingsTheme>
     );
@@ -224,7 +266,19 @@ function Flow2APIImageSettingsPanel({ config, onConfigChange, theme, showTitle, 
                         ))}
                     </div>
                 </div>
-                {showCount ? <div className="space-y-2"><SettingTitle color={theme.node.muted}>生成张数</SettingTitle><div className="grid grid-cols-4 gap-1.5">{countOptions.map((value) => <OptionPill key={value} selected={count === value} theme={theme} onClick={() => onConfigChange("count", String(value))}>{value}</OptionPill>)}<CountInput value={count} quickCount={quickCount} max={Math.min(maxCount, 4)} theme={theme} onChange={(value) => onConfigChange("count", String(value || 1))} /></div></div> : null}
+                {showCount ? (
+                    <div className="space-y-2">
+                        <SettingTitle color={theme.node.muted}>生成张数</SettingTitle>
+                        <div className="grid grid-cols-4 gap-1.5">
+                            {countOptions.map((value) => (
+                                <OptionPill key={value} selected={count === value} theme={theme} onClick={() => onConfigChange("count", String(value))}>
+                                    {value}
+                                </OptionPill>
+                            ))}
+                            <CountInput value={count} quickCount={quickCount} max={Math.min(maxCount, 4)} theme={theme} onChange={(value) => onConfigChange("count", String(value || 1))} />
+                        </div>
+                    </div>
+                ) : null}
                 <div className="space-y-2">
                     <SettingTitle color={theme.node.muted}>分辨率</SettingTitle>
                     <div className="grid grid-cols-2 gap-1.5">
@@ -249,9 +303,47 @@ function Grok2APIImageSettingsPanel({ config, onConfigChange, theme, showTitle, 
         <ImageSettingsTheme theme={theme}>
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-base font-semibold">图像设置</div> : null}
-                <div className="space-y-2"><SettingTitle color={theme.node.muted}>画幅</SettingTitle><div className="grid grid-cols-4 gap-1.5">{grok2APIImageAspectOptions.map((item) => <button key={item.value} type="button" className="flex h-[52px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors hover:brightness-110 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1" style={{ background: aspect === item.value ? theme.toolbar.activeBg : "transparent", color: theme.node.text, outlineColor: theme.node.muted }} onMouseDown={(event) => event.stopPropagation()} onClick={() => onConfigChange("size", item.value)}><AspectIcon type={item.icon} width={item.width} height={item.height} color={theme.node.text} /><span>{item.label}</span></button>)}</div></div>
-                <div className="space-y-2"><SettingTitle color={theme.node.muted}>分辨率</SettingTitle><div className="grid grid-cols-2 gap-1.5">{grok2APIImageResolutionOptions.map((item) => <OptionPill key={item.value} selected={resolution === item.value} theme={theme} onClick={() => onConfigChange("quality", item.value)}>{item.label}</OptionPill>)}</div></div>
-                {showCount ? <div className="space-y-2"><SettingTitle color={theme.node.muted}>生成张数</SettingTitle><div className="grid grid-cols-4 gap-1.5">{countOptions.map((value) => <OptionPill key={value} selected={count === value} theme={theme} onClick={() => onConfigChange("count", String(value))}>{value}</OptionPill>)}<CountInput value={count} quickCount={quickCount} max={Math.min(maxCount, 4)} theme={theme} onChange={(value) => onConfigChange("count", String(value || 1))} /></div></div> : null}
+                <div className="space-y-2">
+                    <SettingTitle color={theme.node.muted}>画幅</SettingTitle>
+                    <div className="grid grid-cols-4 gap-1.5">
+                        {grok2APIImageAspectOptions.map((item) => (
+                            <button
+                                key={item.value}
+                                type="button"
+                                className="flex h-[52px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg text-[var(--fs-label)] transition-colors hover:brightness-110 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                style={{ background: aspect === item.value ? theme.toolbar.activeBg : "transparent", color: theme.node.text, outlineColor: theme.node.muted }}
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onClick={() => onConfigChange("size", item.value)}
+                            >
+                                <AspectIcon type={item.icon} width={item.width} height={item.height} color={theme.node.text} />
+                                <span>{item.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <SettingTitle color={theme.node.muted}>分辨率</SettingTitle>
+                    <div className="grid grid-cols-2 gap-1.5">
+                        {grok2APIImageResolutionOptions.map((item) => (
+                            <OptionPill key={item.value} selected={resolution === item.value} theme={theme} onClick={() => onConfigChange("quality", item.value)}>
+                                {item.label}
+                            </OptionPill>
+                        ))}
+                    </div>
+                </div>
+                {showCount ? (
+                    <div className="space-y-2">
+                        <SettingTitle color={theme.node.muted}>生成张数</SettingTitle>
+                        <div className="grid grid-cols-4 gap-1.5">
+                            {countOptions.map((value) => (
+                                <OptionPill key={value} selected={count === value} theme={theme} onClick={() => onConfigChange("count", String(value))}>
+                                    {value}
+                                </OptionPill>
+                            ))}
+                            <CountInput value={count} quickCount={quickCount} max={Math.min(maxCount, 4)} theme={theme} onChange={(value) => onConfigChange("count", String(value || 1))} />
+                        </div>
+                    </div>
+                ) : null}
             </div>
         </ImageSettingsTheme>
     );

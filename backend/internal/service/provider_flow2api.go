@@ -114,7 +114,7 @@ func flow2APIChatBody(input canvasGenerationInput, mode string) (map[string]inte
 		}
 		if flow2APIVideoSupportsDuration(input.Config.Model) {
 			if duration := flow2APIDurationSeconds(input.Config.VideoSeconds); duration > 0 {
-			generationConfig["durationSeconds"] = duration
+				generationConfig["durationSeconds"] = duration
 			}
 		}
 		count := normalizeFlow2APIImageCount(input.Config.Count)

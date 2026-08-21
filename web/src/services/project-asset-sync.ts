@@ -57,9 +57,7 @@ async function persistCanvasNodeAsset(options: EnsureCanvasNodeAssetOptions): Pr
         assetId: asset.id,
         category: declaredCategory || asset.category || "other",
     });
-    const linked = declaredCategory && linkedAsset.category !== declaredCategory
-        ? (await updateProjectAssetCategory(options.domainProjectId, asset.id, declaredCategory)).asset
-        : linkedAsset;
+    const linked = declaredCategory && linkedAsset.category !== declaredCategory ? (await updateProjectAssetCategory(options.domainProjectId, asset.id, declaredCategory)).asset : linkedAsset;
     useAssetStore.getState().updateAsset(asset.id, {
         category: linked.category as AssetCategory,
         status: linked.status as AssetStatus,

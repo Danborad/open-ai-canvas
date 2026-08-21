@@ -27,9 +27,14 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClass
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
     const requestInterface = resolveModelRequestConfig(config, config.model || config.videoModel).interfaceType || "";
     const videoProfile = modelCapabilityConfigFor(config, config.model || config.videoModel).video!;
-    const displayVideoProfile = modelOptionName(config.model || config.videoModel).toLowerCase().startsWith("web/") ? { ...videoProfile, duration: { selection: "enum" as const, values: [6, 10, 15], default: 6 } } : videoProfile;
+    const displayVideoProfile = modelOptionName(config.model || config.videoModel)
+        .toLowerCase()
+        .startsWith("web/")
+        ? { ...videoProfile, duration: { selection: "enum" as const, values: [6, 10, 15], default: 6 } }
+        : videoProfile;
     const normalizedVideo = normalizeVideoValue(displayVideoProfile, { seconds: config.videoSeconds, ratio: config.size, resolution: `${String(config.vquality).replace(/p$/i, "")}p` });
-    const summary = requestInterface === "gemini-veo" ? `${videoResolutionLabel(config.vquality)} · ${videoSizeLabel(config.size)}` : `${videoResolutionLabel(config.vquality)} · ${videoSizeLabel(config.size)} · ${videoSecondsLabel(normalizedVideo.seconds)}`;
+    const summary =
+        requestInterface === "gemini-veo" ? `${videoResolutionLabel(config.vquality)} · ${videoSizeLabel(config.size)}` : `${videoResolutionLabel(config.vquality)} · ${videoSizeLabel(config.size)} · ${videoSecondsLabel(normalizedVideo.seconds)}`;
 
     useEffect(() => {
         if (!open) return;
@@ -57,21 +62,31 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClass
     return (
         <>
             <span ref={buttonRef} className="inline-flex min-w-0">
-                <Button size="small" type="text" className={`canvas-generation-settings-trigger ${buttonClassName || "!h-8 !max-w-[170px] !justify-start !rounded-full !px-2.5"}`} style={{ background: theme.node.fill, color: theme.node.text }} icon={<Settings2 className="size-3.5" />} aria-expanded={open} aria-label={`视频设置：${summary}`} title={`视频设置 · ${summary}`} onClick={() => setOpen((current) => !current)}>
+                <Button
+                    size="small"
+                    type="text"
+                    className={`canvas-generation-settings-trigger ${buttonClassName || "!h-8 !max-w-[170px] !justify-start !rounded-full !px-2.5"}`}
+                    style={{ background: theme.node.fill, color: theme.node.text }}
+                    icon={<Settings2 className="size-3.5" />}
+                    aria-expanded={open}
+                    aria-label={`视频设置：${summary}`}
+                    title={`视频设置 · ${summary}`}
+                    onClick={() => setOpen((current) => !current)}
+                >
                     <span className="truncate">
                         {requestInterface === "gemini-veo"
                             ? `${videoSizeLabel(config.size)} · ${videoResolutionLabel(config.vquality)}`
                             : isGrok2APINewVideoConfig(config)
                               ? `${normalizedVideo.resolution} · ${normalizedVideo.ratio} · ${normalizedVideo.seconds}s`
-                            : isGrok2APIVideoConfig(config)
-                              ? `${normalizeGrok2APIVideoResolution(config.vquality)} · ${videoSizeLabel(config.size)} · ${config.videoSeconds}s`
-                            : isSeedanceVideoConfig(config)
-                            ? `${normalizeSeedanceResolution(config.vquality, modelOptionName(config.model || config.videoModel || "")).toUpperCase()} · ${normalizeSeedanceRatio(config.size)} · ${normalizedVideo.seconds}s`
-                            : isFlow2APIVideoConfig(config)
-                            ? `${normalizeFlow2APIVideoAspect(config.size)}${isFlow2APIOmniFlash(config) ? ` · ${normalizeFlow2APIOmniDuration(config.videoSeconds)}s` : ""}`
-                            : isGrokVideoConfig(config)
-                              ? `${normalizeGrokVideoResolution(config.vquality, modelOptionName(config.model || config.videoModel || ""))} · ${normalizeGrokVideoRatio(config.size, modelOptionName(config.model || config.videoModel || ""))} · ${normalizeGrokVideoDuration(config.videoSeconds, modelOptionName(config.model || config.videoModel || ""))}s`
-                              : `${videoResolutionLabel(config.vquality)} · ${videoSizeLabel(config.size)} · ${videoSecondsLabel(config.videoSeconds)}`}
+                              : isGrok2APIVideoConfig(config)
+                                ? `${normalizeGrok2APIVideoResolution(config.vquality)} · ${videoSizeLabel(config.size)} · ${config.videoSeconds}s`
+                                : isSeedanceVideoConfig(config)
+                                  ? `${normalizeSeedanceResolution(config.vquality, modelOptionName(config.model || config.videoModel || "")).toUpperCase()} · ${normalizeSeedanceRatio(config.size)} · ${normalizedVideo.seconds}s`
+                                  : isFlow2APIVideoConfig(config)
+                                    ? `${normalizeFlow2APIVideoAspect(config.size)}${isFlow2APIOmniFlash(config) ? ` · ${normalizeFlow2APIOmniDuration(config.videoSeconds)}s` : ""}`
+                                    : isGrokVideoConfig(config)
+                                      ? `${normalizeGrokVideoResolution(config.vquality, modelOptionName(config.model || config.videoModel || ""))} · ${normalizeGrokVideoRatio(config.size, modelOptionName(config.model || config.videoModel || ""))} · ${normalizeGrokVideoDuration(config.videoSeconds, modelOptionName(config.model || config.videoModel || ""))}s`
+                                      : `${videoResolutionLabel(config.vquality)} · ${videoSizeLabel(config.size)} · ${videoSecondsLabel(config.videoSeconds)}`}
                     </span>
                 </Button>
             </span>

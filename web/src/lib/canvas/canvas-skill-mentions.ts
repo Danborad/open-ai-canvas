@@ -40,14 +40,7 @@ export function expandSkillMentions(prompt: string, skills: Skill[]) {
 }
 
 export function renderSkillPrompt(skill: Pick<Skill, "skill_name" | "description" | "instruction">) {
-    return [
-        `【技能：${skill.skill_name}】`,
-        skill.description ? `用途：${skill.description}` : "",
-        skill.instruction ? `执行指令：\n${skill.instruction}` : "",
-        "请严格执行该技能，只输出结果，不要输出解释性套话。",
-    ]
-        .filter(Boolean)
-        .join("\n\n");
+    return [`【技能：${skill.skill_name}】`, skill.description ? `用途：${skill.description}` : "", skill.instruction ? `执行指令：\n${skill.instruction}` : "", "请严格执行该技能，只输出结果，不要输出解释性套话。"].filter(Boolean).join("\n\n");
 }
 
 function replaceNaturalSkillMention(value: string, skill: Skill) {

@@ -79,7 +79,9 @@ export function grokVideoResolutionOptionsForModel(model: string) {
 }
 
 export function normalizeGrokVideoRatio(size: string | undefined, model: string) {
-    const value = String(size || "").trim().toLowerCase();
+    const value = String(size || "")
+        .trim()
+        .toLowerCase();
     const options = grokVideoRatioOptionsForModel(model).map((item) => item.value);
     if (options.includes(value as (typeof options)[number])) return value;
     if (value.includes("x")) {
@@ -102,25 +104,31 @@ export function normalizeGrokVideoDuration(seconds: string | number | undefined,
 
 export function normalizeGrokVideoResolution(value: string | undefined, model: string) {
     if (isGrokVideo15_1080pModel(model)) return "1080p";
-    const token = String(value || "").trim().toLowerCase();
+    const token = String(value || "")
+        .trim()
+        .toLowerCase();
     if (token === "480" || token === "480p" || token === "low") return "480p";
     if (token === "1080" || token === "1080p") return "720p";
     return "720p";
 }
 
 export function normalizeGrok2APIVideoResolution(value: string | undefined) {
-    const token = String(value || "").trim().toLowerCase();
+    const token = String(value || "")
+        .trim()
+        .toLowerCase();
     if (token === "480" || token === "480p" || token === "low") return "480p";
     return "720p";
 }
 
 export function normalizeGrok2APIVideoDuration(value: string | number | undefined) {
     const seconds = Math.floor(Number(String(value || "").replace(/s$/i, "")) || 6);
-    return [6, 10, 15].reduce((nearest, option) => Math.abs(option - seconds) < Math.abs(nearest - seconds) ? option : nearest, 6);
+    return [6, 10, 15].reduce((nearest, option) => (Math.abs(option - seconds) < Math.abs(nearest - seconds) ? option : nearest), 6);
 }
 
 export function normalizeGrok2APIVideoAspect(value: string | undefined) {
-    const raw = String(value || "").trim().toLowerCase();
+    const raw = String(value || "")
+        .trim()
+        .toLowerCase();
     if (["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"].includes(raw)) return raw;
     const match = raw.match(/^(\d+)x(\d+)$/);
     if (match) return Number(match[1]) / Number(match[2]) >= 1 ? "16:9" : "9:16";
@@ -133,7 +141,9 @@ export function normalizeGrok2APINewVideoDuration(value: string | number | undef
 }
 
 export function normalizeGrok2APINewVideoResolution(value: string | undefined, model: string) {
-    const raw = String(value || "").trim().toLowerCase();
+    const raw = String(value || "")
+        .trim()
+        .toLowerCase();
     const requested = raw === "480" || raw === "480p" ? "480p" : raw === "1080" || raw === "1080p" ? "1080p" : "720p";
     const modelName = modelOptionName(model).toLowerCase();
     return modelName === "console/grok-imagine-video" && requested === "1080p" ? "720p" : requested;

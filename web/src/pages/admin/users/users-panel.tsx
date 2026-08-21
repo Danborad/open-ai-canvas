@@ -70,41 +70,57 @@ export default function UsersPanel({ onUserChanged }: { onUserChanged?: (user: L
             });
     }, [debouncedFilter, message, state.page, state.pageSize, state.role, state.status, update]);
 
-    const replaceUser = useCallback((nextUser: LocalUser) => {
-        setUsers((items) => items.map((item) => item.id === nextUser.id ? { ...item, ...nextUser } : item));
-        onUserChanged?.(nextUser);
-    }, [onUserChanged]);
+    const replaceUser = useCallback(
+        (nextUser: LocalUser) => {
+            setUsers((items) => items.map((item) => (item.id === nextUser.id ? { ...item, ...nextUser } : item)));
+            onUserChanged?.(nextUser);
+        },
+        [onUserChanged],
+    );
 
-    const addUser = useCallback((user: AdminUser) => {
-        setUsers((items) => [user, ...items].slice(0, state.pageSize));
-        setTotal((value) => value + 1);
-        onUserChanged?.(user);
-        setCreateUserOpen(false);
-    }, [onUserChanged, state.pageSize]);
+    const addUser = useCallback(
+        (user: AdminUser) => {
+            setUsers((items) => [user, ...items].slice(0, state.pageSize));
+            setTotal((value) => value + 1);
+            onUserChanged?.(user);
+            setCreateUserOpen(false);
+        },
+        [onUserChanged, state.pageSize],
+    );
 
-    const toggleStatus = useCallback(async (user: AdminUser) => {
-        try {
-            if (user.status === "active") {
-                await deleteAdminUser(user.id);
-                replaceUser({ ...user, status: "disabled" });
-                message.success("用户已停用并清除登录状态");
-                return;
+    const toggleStatus = useCallback(
+        async (user: AdminUser) => {
+            try {
+                if (user.status === "active") {
+                    await deleteAdminUser(user.id);
+                    replaceUser({ ...user, status: "disabled" });
+                    message.success("用户已停用并清除登录状态");
+                    return;
+                }
+                const result = await updateAdminUser(user.id, { status: "active" });
+                replaceUser(result.user);
+                message.success("用户已重新启用");
+            } catch (error) {
+                message.error(error instanceof Error ? error.message : "更新用户状态失败");
             }
-            const result = await updateAdminUser(user.id, { status: "active" });
-            replaceUser(result.user);
-            message.success("用户已重新启用");
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : "更新用户状态失败");
-        }
-    }, [message, replaceUser]);
+        },
+        [message, replaceUser],
+    );
 
-    const columns = useMemo(() => createUserColumns({
-        actorId: actor?.id,
-        visibleColumns,
-        onView: (user) => setDetailUserId(user.id),
-        onEdit: (user) => { setCreateUserOpen(false); setEditingUser(user); },
-        onToggleStatus: toggleStatus,
-    }), [actor?.id, toggleStatus, visibleColumns]);
+    const columns = useMemo(
+        () =>
+            createUserColumns({
+                actorId: actor?.id,
+                visibleColumns,
+                onView: (user) => setDetailUserId(user.id),
+                onEdit: (user) => {
+                    setCreateUserOpen(false);
+                    setEditingUser(user);
+                },
+                onToggleStatus: toggleStatus,
+            }),
+        [actor?.id, toggleStatus, visibleColumns],
+    );
 
     const resetFilters = () => update({ filter: "", role: "all", status: "all", page: 1 });
 
@@ -137,36 +153,46 @@ export default function UsersPanel({ onUserChanged }: { onUserChanged?: (user: L
                 active={hasFilters}
                 onReset={resetFilters}
                 trailing={
-                        <div className="flex items-center gap-2">
-                            <Button icon={<UserPlus className="size-4" />} onClick={() => { setEditingUser(null); setCreateUserOpen(true); }}>{"\u6dfb\u52a0\u7528\u6237"}</Button>
-                    <Dropdown
-                        trigger={["click"]}
-                        dropdownRender={() => (
-                            <div className="w-48 rounded-md border border-border bg-popover p-2 shadow-lg">
-                                <div className="px-2 pb-2 text-xs font-medium text-foreground/55">显示列</div>
-                                <div className="space-y-0.5">
-                                    {userColumnOptions.map((option) => (
-                                        <label key={option.key} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/60">
-                                            <Checkbox
-                                                checked={visibleColumns.has(option.key)}
-                                                disabled={option.locked}
-                                                onChange={(event) => setVisibleColumns((current) => {
-                                                    const next = new Set(current);
-                                                    if (event.target.checked) next.add(option.key);
-                                                    else next.delete(option.key);
-                                                    return next;
-                                                })}
-                                            />
-                                            {option.label}
-                                        </label>
-                                    ))}
+                    <div className="flex items-center gap-2">
+                        <Button
+                            icon={<UserPlus className="size-4" />}
+                            onClick={() => {
+                                setEditingUser(null);
+                                setCreateUserOpen(true);
+                            }}
+                        >
+                            {"\u6dfb\u52a0\u7528\u6237"}
+                        </Button>
+                        <Dropdown
+                            trigger={["click"]}
+                            dropdownRender={() => (
+                                <div className="w-48 rounded-md border border-border bg-popover p-2 shadow-lg">
+                                    <div className="px-2 pb-2 text-xs font-medium text-foreground/55">显示列</div>
+                                    <div className="space-y-0.5">
+                                        {userColumnOptions.map((option) => (
+                                            <label key={option.key} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/60">
+                                                <Checkbox
+                                                    checked={visibleColumns.has(option.key)}
+                                                    disabled={option.locked}
+                                                    onChange={(event) =>
+                                                        setVisibleColumns((current) => {
+                                                            const next = new Set(current);
+                                                            if (event.target.checked) next.add(option.key);
+                                                            else next.delete(option.key);
+                                                            return next;
+                                                        })
+                                                    }
+                                                />
+                                                {option.label}
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    >
-                        <Button icon={<Settings2 className="size-4" />}>列设置</Button>
-                    </Dropdown>
-                        </div>
+                            )}
+                        >
+                            <Button icon={<Settings2 className="size-4" />}>列设置</Button>
+                        </Dropdown>
+                    </div>
                 }
             >
                 <Input
@@ -180,25 +206,57 @@ export default function UsersPanel({ onUserChanged }: { onUserChanged?: (user: L
                 <FilterMenu
                     label="角色"
                     value={state.role}
-                    options={[{ value: "all", label: "全部角色" }, { value: "admin", label: "管理员" }, { value: "user", label: "普通用户" }]}
+                    options={[
+                        { value: "all", label: "全部角色" },
+                        { value: "admin", label: "管理员" },
+                        { value: "user", label: "普通用户" },
+                    ]}
                     onChange={(role) => update({ role, page: 1 })}
                 />
                 <FilterMenu
                     label="状态"
                     value={state.status}
-                    options={[{ value: "all", label: "全部状态" }, { value: "active", label: "已启用" }, { value: "disabled", label: "已停用" }]}
+                    options={[
+                        { value: "all", label: "全部状态" },
+                        { value: "active", label: "已启用" },
+                        { value: "disabled", label: "已停用" },
+                    ]}
                     onChange={(status) => update({ status, page: 1 })}
                 />
-                {state.role !== "all" ? <Tag closable onClose={(event) => { event.preventDefault(); update({ role: "all", page: 1 }); }}>角色：{state.role === "admin" ? "管理员" : "普通用户"}</Tag> : null}
-                {state.status !== "all" ? <Tag closable onClose={(event) => { event.preventDefault(); update({ status: "all", page: 1 }); }}>状态：{state.status === "active" ? "已启用" : "已停用"}</Tag> : null}
+                {state.role !== "all" ? (
+                    <Tag
+                        closable
+                        onClose={(event) => {
+                            event.preventDefault();
+                            update({ role: "all", page: 1 });
+                        }}
+                    >
+                        角色：{state.role === "admin" ? "管理员" : "普通用户"}
+                    </Tag>
+                ) : null}
+                {state.status !== "all" ? (
+                    <Tag
+                        closable
+                        onClose={(event) => {
+                            event.preventDefault();
+                            update({ status: "all", page: 1 });
+                        }}
+                    >
+                        状态：{state.status === "active" ? "已启用" : "已停用"}
+                    </Tag>
+                ) : null}
             </ListToolbar>
 
             <AdminBatchBar count={selectedUserIds.length} onClear={() => setSelectedUserIds([])}>
-                <Button danger size="small" icon={<Ban className="size-3.5" />} loading={bulkDisabling} onClick={bulkDisable}>批量停用</Button>
+                <Button danger size="small" icon={<Ban className="size-3.5" />} loading={bulkDisabling} onClick={bulkDisable}>
+                    批量停用
+                </Button>
             </AdminBatchBar>
 
             <TableSurface>
-                {loading && users.length === 0 ? <AdminTableSkeleton rows={8} columns={Math.max(4, columns.length)} /> : (
+                {loading && users.length === 0 ? (
+                    <AdminTableSkeleton rows={8} columns={Math.max(4, columns.length)} />
+                ) : (
                     <>
                         <Table
                             className="app-data-table"
@@ -217,12 +275,7 @@ export default function UsersPanel({ onUserChanged }: { onUserChanged?: (user: L
                             scroll={{ x: 860 }}
                             locale={{ emptyText: <AdminTableEmpty filtered={hasFilters} /> }}
                         />
-                        <PaginationBar
-                            current={state.page}
-                            pageSize={state.pageSize}
-                            total={total}
-                            onChange={(page, pageSize) => update({ page: pageSize !== state.pageSize ? 1 : page, pageSize })}
-                        />
+                        <PaginationBar current={state.page} pageSize={state.pageSize} total={total} onChange={(page, pageSize) => update({ page: pageSize !== state.pageSize ? 1 : page, pageSize })} />
                     </>
                 )}
             </TableSurface>
@@ -246,7 +299,10 @@ function FilterMenu({ label, value, options, onChange }: { label: string; value:
                 onClick: ({ key }) => onChange(key),
             }}
         >
-            <Button>{value === "all" ? label : selected}<ChevronDown className="ml-1 size-3.5" /></Button>
+            <Button>
+                {value === "all" ? label : selected}
+                <ChevronDown className="ml-1 size-3.5" />
+            </Button>
         </Dropdown>
     );
 }

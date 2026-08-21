@@ -2,14 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { App, Button, Form, Input, Select, Switch } from "antd";
 import { ChevronDown, KeyRound, LockKeyhole, ShieldCheck, UserPlus } from "lucide-react";
 
-import {
-    getAdminLinuxDOSetting,
-    getAdminRegistrationSetting,
-    updateAdminLinuxDOSetting,
-    updateAdminRegistrationSetting,
-    type LinuxDOSetting,
-    type RegistrationSetting,
-} from "@/services/api/wallet";
+import { getAdminLinuxDOSetting, getAdminRegistrationSetting, updateAdminLinuxDOSetting, updateAdminRegistrationSetting, type LinuxDOSetting, type RegistrationSetting } from "@/services/api/wallet";
 import { configuredSecretText, SettingsSectionCard } from "./admin-ui";
 
 type LinuxDOFormValues = Omit<LinuxDOSetting, "hasClientSecret" | "updatedAt">;
@@ -66,7 +59,6 @@ export default function AccessSettingsPanel() {
         }
     };
 
-
     return (
         <div className="space-y-4 pt-4">
             <SettingsSectionCard
@@ -89,7 +81,14 @@ export default function AccessSettingsPanel() {
                 title="Linux.do 单点登录"
                 description="连接 Linux.do OAuth，让用户使用社区账号登录。"
                 status={{ label: linuxdo?.enabled ? "运行中" : "未启用", color: linuxdo?.enabled ? "success" : "default" }}
-                footer={<><span className="text-xs text-foreground/45">Client Secret 加密保存，接口不会回显明文。</span><Button type="primary" loading={savingLinuxDO} onClick={() => void saveLinuxDO()}>保存登录配置</Button></>}
+                footer={
+                    <>
+                        <span className="text-xs text-foreground/45">Client Secret 加密保存，接口不会回显明文。</span>
+                        <Button type="primary" loading={savingLinuxDO} onClick={() => void saveLinuxDO()}>
+                            保存登录配置
+                        </Button>
+                    </>
+                }
             >
                 <Form form={form} layout="vertical" requiredMark={false} disabled={loading}>
                     <div>
@@ -101,7 +100,12 @@ export default function AccessSettingsPanel() {
                                 <Switch />
                             </Form.Item>
                             <Form.Item name="clientAuthMethod" label="Token 请求鉴权方式" rules={[{ required: true, message: "请选择鉴权方式" }]} extra="Linux.do 应用未特别要求时使用 Client Secret Post。">
-                                <Select options={[{ label: "Client Secret Post（推荐）", value: "client_secret_post" }, { label: "Client Secret Basic", value: "client_secret_basic" }]} />
+                                <Select
+                                    options={[
+                                        { label: "Client Secret Post（推荐）", value: "client_secret_post" },
+                                        { label: "Client Secret Basic", value: "client_secret_basic" },
+                                    ]}
+                                />
                             </Form.Item>
                             <Form.Item name="clientId" label="Client ID">
                                 <Input autoComplete="off" placeholder="Linux.do OAuth 应用的 Client ID" />
@@ -159,14 +163,17 @@ export default function AccessSettingsPanel() {
                             </div>
                         </details>
                     </div>
-
                 </Form>
             </SettingsSectionCard>
-
         </div>
     );
 }
 
 function FormSectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
-    return <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground/85">{icon}{title}</div>;
+    return (
+        <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground/85">
+            {icon}
+            {title}
+        </div>
+    );
 }

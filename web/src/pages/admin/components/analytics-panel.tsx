@@ -274,12 +274,29 @@ export default function AnalyticsPanel({ users, channels }: Props) {
 
     return (
         <div className="space-y-5">
-            <ListToolbar trailing={<><Button icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => void reload()}>刷新</Button><AdminExportButton exportFile={() => exportAdminAnalytics(filters)} fileName={() => `usage-${filters.from}-${filters.to}.csv`} label="导出 CSV" /></>}>
+            <ListToolbar
+                trailing={
+                    <>
+                        <Button icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => void reload()}>
+                            刷新
+                        </Button>
+                        <AdminExportButton exportFile={() => exportAdminAnalytics(filters)} fileName={() => `usage-${filters.from}-${filters.to}.csv`} label="导出 CSV" />
+                    </>
+                }
+            >
                 <div>
                     <div className="mb-1 text-xs text-foreground/55">时间范围</div>
                     <DatePicker.RangePicker allowClear={false} value={range} onChange={(value) => value?.[0] && value?.[1] && setRange([value[0], value[1]])} />
                 </div>
-                <FilterSelect label="用户" value={userId} onChange={setUserId} options={userOptions.map((user) => ({ label: user.displayName || user.username, value: user.id }))} filterOption={false} loading={searchingUsers} onSearch={(value) => void searchUsers(value)} />
+                <FilterSelect
+                    label="用户"
+                    value={userId}
+                    onChange={setUserId}
+                    options={userOptions.map((user) => ({ label: user.displayName || user.username, value: user.id }))}
+                    filterOption={false}
+                    loading={searchingUsers}
+                    onSearch={(value) => void searchUsers(value)}
+                />
                 <FilterSelect label="模型" value={model} onChange={setModel} options={modelOptions} width={210} />
                 <FilterSelect label="渠道" value={channelId} onChange={setChannelId} options={channels.map((channel) => ({ label: channel.name, value: channel.id }))} />
                 <FilterSelect label="能力" value={capability} onChange={setCapability} options={capabilityOptions} />
@@ -375,7 +392,25 @@ export default function AnalyticsPanel({ users, channels }: Props) {
     );
 }
 
-function FilterSelect({ label, value, onChange, options, width = 150, filterOption = true, loading, onSearch }: { label: string; value?: string; onChange: (value?: string) => void; options: Array<{ label: string; value: string }>; width?: number; filterOption?: boolean; loading?: boolean; onSearch?: (value: string) => void }) {
+function FilterSelect({
+    label,
+    value,
+    onChange,
+    options,
+    width = 150,
+    filterOption = true,
+    loading,
+    onSearch,
+}: {
+    label: string;
+    value?: string;
+    onChange: (value?: string) => void;
+    options: Array<{ label: string; value: string }>;
+    width?: number;
+    filterOption?: boolean;
+    loading?: boolean;
+    onSearch?: (value: string) => void;
+}) {
     return (
         <div>
             <div className="mb-1 text-xs text-foreground/55">{label}</div>

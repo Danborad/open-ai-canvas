@@ -45,29 +45,21 @@ export function AdminExportButton({
         }
     };
 
-    return <Button {...buttonProps} size={size} icon={<Download className={size === "small" ? "size-3.5" : "size-4"} />} loading={exporting} onClick={() => void runExport()}>{label}</Button>;
+    return (
+        <Button {...buttonProps} size={size} icon={<Download className={size === "small" ? "size-3.5" : "size-4"} />} loading={exporting} onClick={() => void runExport()}>
+            {label}
+        </Button>
+    );
 }
 
-export function AdminTableEmpty({
-    filtered = false,
-    title,
-    description,
-    action,
-}: {
-    filtered?: boolean;
-    title?: string;
-    description?: string;
-    action?: ReactNode;
-}) {
+export function AdminTableEmpty({ filtered = false, title, description, action }: { filtered?: boolean; title?: string; description?: string; action?: ReactNode }) {
     return (
         <div className="flex min-h-64 flex-col items-center justify-center px-6 py-12 text-center">
             <span className="grid size-11 place-items-center rounded-lg border border-border bg-muted/35 text-foreground/45">
                 <SearchX className="size-5" />
             </span>
             <div className="mt-3 text-sm font-medium">{title || (filtered ? "没有符合筛选条件的数据" : "暂无数据")}</div>
-            <p className="mt-1 max-w-sm text-xs leading-5 text-foreground/50">
-                {description || (filtered ? "调整搜索词或筛选条件后再试。" : "数据产生后会显示在这里。")}
-            </p>
+            <p className="mt-1 max-w-sm text-xs leading-5 text-foreground/50">{description || (filtered ? "调整搜索词或筛选条件后再试。" : "数据产生后会显示在这里。")}</p>
             {action ? <div className="mt-4">{action}</div> : null}
         </div>
     );
@@ -77,7 +69,9 @@ export function AdminTableSkeleton({ rows = 8, columns = 6 }: { rows?: number; c
     return (
         <div className="animate-pulse motion-reduce:animate-none" aria-label="正在加载表格" role="status">
             <div className="grid h-11 items-center gap-4 border-b border-border bg-muted/30 px-4" style={{ gridTemplateColumns: `repeat(${columns}, minmax(72px, 1fr))` }}>
-                {Array.from({ length: columns }).map((_, index) => <span key={index} className="h-3 w-16 max-w-full rounded bg-foreground/10" />)}
+                {Array.from({ length: columns }).map((_, index) => (
+                    <span key={index} className="h-3 w-16 max-w-full rounded bg-foreground/10" />
+                ))}
             </div>
             {Array.from({ length: Math.max(8, rows) }).map((_, rowIndex) => (
                 <div key={rowIndex} className="grid min-h-14 items-center gap-4 border-b border-border/70 px-4 last:border-b-0" style={{ gridTemplateColumns: `repeat(${columns}, minmax(72px, 1fr))` }}>
@@ -94,8 +88,16 @@ export function AdminBatchBar({ count, onClear, children }: { count: number; onC
     if (count <= 0) return null;
     return (
         <div className="sticky top-0 z-20 mt-3 flex min-h-11 flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-background/95 px-3 py-2 shadow-sm backdrop-blur">
-            <div className="flex items-center gap-2 text-sm font-medium"><CheckSquare2 className="size-4 text-foreground/60" />已选择 {count} 项</div>
-            <div className="flex flex-wrap items-center gap-2">{children}<Button type="text" size="small" icon={<X className="size-3.5" />} onClick={onClear}>取消选择</Button></div>
+            <div className="flex items-center gap-2 text-sm font-medium">
+                <CheckSquare2 className="size-4 text-foreground/60" />
+                已选择 {count} 项
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+                {children}
+                <Button type="text" size="small" icon={<X className="size-3.5" />} onClick={onClear}>
+                    取消选择
+                </Button>
+            </div>
         </div>
     );
 }
@@ -114,13 +116,7 @@ export type AdminRowAction = {
     };
 };
 
-export function AdminRowActions({
-    primary,
-    actions,
-}: {
-    primary?: { label: ReactNode; icon?: ReactNode; onClick: () => void; disabled?: boolean };
-    actions: AdminRowAction[];
-}) {
+export function AdminRowActions({ primary, actions }: { primary?: { label: ReactNode; icon?: ReactNode; onClick: () => void; disabled?: boolean }; actions: AdminRowAction[] }) {
     const { modal } = App.useApp();
     const items: MenuProps["items"] = actions.map((action) => ({
         key: action.key,
@@ -197,7 +193,17 @@ export function SettingsSectionCard({
                         <p className="mt-1 text-xs leading-5 text-foreground/55">{description}</p>
                     </div>
                 </div>
-                {status ? <div className="shrink-0 lg:mt-4">{isStatusConfig(status) ? <Tag variant="filled" color={status.color}>{status.label}</Tag> : status}</div> : null}
+                {status ? (
+                    <div className="shrink-0 lg:mt-4">
+                        {isStatusConfig(status) ? (
+                            <Tag variant="filled" color={status.color}>
+                                {status.label}
+                            </Tag>
+                        ) : (
+                            status
+                        )}
+                    </div>
+                ) : null}
             </div>
             <div className="min-w-0 lg:col-span-3">
                 {children}

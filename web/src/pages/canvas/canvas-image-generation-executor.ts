@@ -54,7 +54,7 @@ export async function executeImageGeneration({
     const imageConfig = requestedImageSize || imageDefaults;
     // auto 图生图沿用来源节点尺寸；用户明确选择比例时必须以目标比例创建节点。
     const referenceNode = referenceImages.length === 1 ? canvasNodes.find((node) => node.id === referenceImages[0].id && node.type === CanvasNodeType.Image) : undefined;
-    const imageSizeSource = requestedImageSize ? undefined : (isImageNode && sourceNode?.metadata?.content ? sourceNode : referenceNode);
+    const imageSizeSource = requestedImageSize ? undefined : isImageNode && sourceNode?.metadata?.content ? sourceNode : referenceNode;
     const outputNodeSize = imageSizeSource ? { width: imageSizeSource.width, height: imageSizeSource.height } : imageConfig;
     const parentPosition = sourceNode?.position || { x: 0, y: 0 };
     const parentWidth = sourceNode?.width || parentConfig.width;
@@ -100,7 +100,16 @@ export async function executeImageGeneration({
         position: imageGenerationChildPosition(rootNode.position, rootNode.width, outputNodeSize, index),
         width: outputNodeSize.width,
         height: outputNodeSize.height,
-        metadata: { prompt: effectivePrompt, status: NODE_STATUS_LOADING, size: generationConfig.size, batchRootId: count > 1 && !directCopiedBatch ? rootId : undefined, ...generationMetadata, ...styleMetadata, generationErrorCode: undefined, failedPromptFingerprint: undefined },
+        metadata: {
+            prompt: effectivePrompt,
+            status: NODE_STATUS_LOADING,
+            size: generationConfig.size,
+            batchRootId: count > 1 && !directCopiedBatch ? rootId : undefined,
+            ...generationMetadata,
+            ...styleMetadata,
+            generationErrorCode: undefined,
+            failedPromptFingerprint: undefined,
+        },
     }));
     const batchConnections = directCopiedBatch
         ? childIds.map((childId) => ({ id: nanoid(), fromNodeId: nodeId, toNodeId: childId }))
@@ -147,7 +156,13 @@ export async function executeImageGeneration({
                     config: { ...generationConfig, count: "1" },
                     referenceImages,
                     signal: controller.signal,
-                    metadata: { sourceNodeId: nodeId, resolvedCharacterVersions: generationContext.resolvedCharacterVersions, promptTemplateOperation: sourceNode?.metadata?.promptTemplateOperation, promptTemplateVariables: sourceNode?.metadata?.promptTemplateVariables, ...styleMetadata },
+                    metadata: {
+                        sourceNodeId: nodeId,
+                        resolvedCharacterVersions: generationContext.resolvedCharacterVersions,
+                        promptTemplateOperation: sourceNode?.metadata?.promptTemplateOperation,
+                        promptTemplateVariables: sourceNode?.metadata?.promptTemplateVariables,
+                        ...styleMetadata,
+                    },
                     onTaskCreated: (task) => bindGenerationTask(targetId, task),
                 });
                 const image = result.images?.[0];

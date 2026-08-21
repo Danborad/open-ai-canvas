@@ -9,7 +9,9 @@ export function normalizeVideoDuration(value: string | number | undefined) {
 }
 
 export function normalizeVideoResolution(value: string | number | undefined) {
-    const token = String(value || "").trim().toLowerCase();
+    const token = String(value || "")
+        .trim()
+        .toLowerCase();
     if (token === "low") return "480";
     if (token === "auto" || token === "medium" || token === "high") return "720";
     if (token === "4k") return "2160";
@@ -18,5 +20,5 @@ export function normalizeVideoResolution(value: string | number | undefined) {
 }
 
 function nearestOption(value: number, options: readonly number[]) {
-    return options.reduce((nearest, option) => Math.abs(option - value) < Math.abs(nearest - value) ? option : nearest, options[0]);
+    return options.reduce((nearest, option) => (Math.abs(option - value) < Math.abs(nearest - value) ? option : nearest), options[0]);
 }

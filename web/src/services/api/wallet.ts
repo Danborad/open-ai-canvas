@@ -243,7 +243,7 @@ export function updateAdminChannelModel(channelId: string, id: string, input: Om
 }
 
 export function deleteAdminChannelModel(channelId: string, id: string) {
-	return request<{ ok: boolean }>(api.delete(`/admin/channels/${encodeURIComponent(channelId)}/models/${encodeURIComponent(id)}`));
+    return request<{ ok: boolean }>(api.delete(`/admin/channels/${encodeURIComponent(channelId)}/models/${encodeURIComponent(id)}`));
 }
 
 export type AdminFinanceListParams = { keyword?: string; status?: string; validity?: string; page?: number; limit?: number };

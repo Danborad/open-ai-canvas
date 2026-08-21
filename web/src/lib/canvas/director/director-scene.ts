@@ -89,12 +89,12 @@ export function upsertDirectorKeyframe(keyframes: DirectorKeyframe[], time: numb
 export function upsertDirectorBoneKeyframe(tracks: DirectorBoneTrack[], bone: DirectorHumanoidBone, time: number, rotation: DirectorQuat) {
     const track = tracks.find((item) => item.bone === bone);
     const nextKeyframes = upsertBoneKeyframe(track?.keyframes || [], time, rotation);
-    return track ? tracks.map((item) => item.bone === bone ? { ...item, keyframes: nextKeyframes } : item) : [...tracks, { bone, keyframes: nextKeyframes }];
+    return track ? tracks.map((item) => (item.bone === bone ? { ...item, keyframes: nextKeyframes } : item)) : [...tracks, { bone, keyframes: nextKeyframes }];
 }
 
 function upsertBoneKeyframe(keyframes: DirectorBoneKeyframe[], time: number, rotation: DirectorQuat) {
     const current = keyframes.find((item) => Math.abs(item.time - time) < 0.001);
-    const next = current ? keyframes.map((item) => item.id === current.id ? { ...item, rotation } : item) : [...keyframes, { id: nanoid(), time, rotation }];
+    const next = current ? keyframes.map((item) => (item.id === current.id ? { ...item, rotation } : item)) : [...keyframes, { id: nanoid(), time, rotation }];
     return next.toSorted((a, b) => a.time - b.time);
 }
 
@@ -122,11 +122,59 @@ export function interpolateDirectorBoneRotation(base: DirectorQuat, keyframes: D
 }
 
 export function directorBoneLabel(bone: string) {
-    return ({ hips: "骨盆", spine: "脊柱", chest: "胸腔", neck: "颈部", head: "头部", leftShoulder: "左肩", leftUpperArm: "左上臂", leftLowerArm: "左前臂", leftHand: "左手", rightShoulder: "右肩", rightUpperArm: "右上臂", rightLowerArm: "右前臂", rightHand: "右手", leftUpperLeg: "左大腿", leftLowerLeg: "左小腿", leftFoot: "左脚", rightUpperLeg: "右大腿", rightLowerLeg: "右小腿", rightFoot: "右脚" } as Record<string, string>)[bone] || bone;
+    return (
+        (
+            {
+                hips: "骨盆",
+                spine: "脊柱",
+                chest: "胸腔",
+                neck: "颈部",
+                head: "头部",
+                leftShoulder: "左肩",
+                leftUpperArm: "左上臂",
+                leftLowerArm: "左前臂",
+                leftHand: "左手",
+                rightShoulder: "右肩",
+                rightUpperArm: "右上臂",
+                rightLowerArm: "右前臂",
+                rightHand: "右手",
+                leftUpperLeg: "左大腿",
+                leftLowerLeg: "左小腿",
+                leftFoot: "左脚",
+                rightUpperLeg: "右大腿",
+                rightLowerLeg: "右小腿",
+                rightFoot: "右脚",
+            } as Record<string, string>
+        )[bone] || bone
+    );
 }
 
 export function directorPoseLabel(pose: DirectorPose) {
-    return ({ neutral: "自然", stand: "站立", t_pose: "T 型", walk: "行走", run: "跑步", sit: "坐姿", squat: "蹲下", kneel_single: "单膝跪", kneel_double: "双膝跪", hands_hips: "叉腰", lean: "倚靠", bow: "鞠躬", think: "思考", fight: "格斗", kick: "踢球", throw: "投掷", push: "推进", wave: "招手", reach: "伸手", arms_crossed: "抱臂", phone: "看手机" } as Record<DirectorPose, string>)[pose];
+    return (
+        {
+            neutral: "自然",
+            stand: "站立",
+            t_pose: "T 型",
+            walk: "行走",
+            run: "跑步",
+            sit: "坐姿",
+            squat: "蹲下",
+            kneel_single: "单膝跪",
+            kneel_double: "双膝跪",
+            hands_hips: "叉腰",
+            lean: "倚靠",
+            bow: "鞠躬",
+            think: "思考",
+            fight: "格斗",
+            kick: "踢球",
+            throw: "投掷",
+            push: "推进",
+            wave: "招手",
+            reach: "伸手",
+            arms_crossed: "抱臂",
+            phone: "看手机",
+        } as Record<DirectorPose, string>
+    )[pose];
 }
 
 export function directorPoseBoneDeltas(pose: DirectorPose): Partial<Record<DirectorHumanoidBone, DirectorQuat>> {
@@ -137,7 +185,16 @@ export function directorPoseBoneDeltas(pose: DirectorPose): Partial<Record<Direc
         stand: armsDown,
         t_pose: {},
         walk: { ...armsDown, leftUpperArm: poseQuaternion(0.36, 0, 1.2), rightUpperArm: poseQuaternion(-0.36, 0, 1.2), leftUpperLeg: poseQuaternion(-0.32, 0, 0), rightUpperLeg: poseQuaternion(0.32, 0, 0) },
-        run: { ...armsDown, leftUpperArm: poseQuaternion(0.75, 0, 1.05), rightUpperArm: poseQuaternion(-0.75, 0, 1.05), leftLowerArm: poseQuaternion(-0.7, 0, 0), rightLowerArm: poseQuaternion(-0.7, 0, 0), leftUpperLeg: poseQuaternion(-0.65, 0, 0), rightUpperLeg: poseQuaternion(0.55, 0, 0), rightLowerLeg: poseQuaternion(0.8, 0, 0) },
+        run: {
+            ...armsDown,
+            leftUpperArm: poseQuaternion(0.75, 0, 1.05),
+            rightUpperArm: poseQuaternion(-0.75, 0, 1.05),
+            leftLowerArm: poseQuaternion(-0.7, 0, 0),
+            rightLowerArm: poseQuaternion(-0.7, 0, 0),
+            leftUpperLeg: poseQuaternion(-0.65, 0, 0),
+            rightUpperLeg: poseQuaternion(0.55, 0, 0),
+            rightLowerLeg: poseQuaternion(0.8, 0, 0),
+        },
         sit: { ...armsDown, leftUpperLeg: poseQuaternion(-1.35, 0, 0), rightUpperLeg: poseQuaternion(-1.35, 0, 0), leftLowerLeg: poseQuaternion(1.25, 0, 0), rightLowerLeg: poseQuaternion(1.25, 0, 0) },
         squat: { ...armsDown, hips: poseQuaternion(0.25, 0, 0), leftUpperLeg: poseQuaternion(-0.75, 0, 0), rightUpperLeg: poseQuaternion(-0.75, 0, 0), leftLowerLeg: poseQuaternion(1.2, 0, 0), rightLowerLeg: poseQuaternion(1.2, 0, 0) },
         kneel_single: { ...armsDown, leftUpperLeg: poseQuaternion(-0.95, 0, 0), leftLowerLeg: poseQuaternion(1.45, 0, 0), rightUpperLeg: poseQuaternion(-0.35, 0, 0), rightLowerLeg: poseQuaternion(0.75, 0, 0) },
@@ -146,7 +203,15 @@ export function directorPoseBoneDeltas(pose: DirectorPose): Partial<Record<Direc
         lean: { ...armsDown, hips: poseQuaternion(0, 0, 0.18), spine: poseQuaternion(0, 0, -0.12), head: poseQuaternion(0, 0, -0.08) },
         bow: { ...armsDown, hips: poseQuaternion(0.5, 0, 0), spine: poseQuaternion(0.28, 0, 0), head: poseQuaternion(-0.18, 0, 0) },
         think: { ...armsDown, rightUpperArm: poseQuaternion(-0.25, 0, 0.55), rightLowerArm: poseQuaternion(-1.35, 0, 0.3), head: poseQuaternion(0.05, -0.22, 0) },
-        fight: { leftUpperArm: poseQuaternion(-0.65, 0, 0.7), rightUpperArm: poseQuaternion(-0.55, 0, 0.65), leftLowerArm: poseQuaternion(-1.2, 0, 0), rightLowerArm: poseQuaternion(-1.25, 0, 0), chest: poseQuaternion(0, 0.2, 0), leftUpperLeg: poseQuaternion(-0.15, 0, 0), rightUpperLeg: poseQuaternion(0.2, 0, 0) },
+        fight: {
+            leftUpperArm: poseQuaternion(-0.65, 0, 0.7),
+            rightUpperArm: poseQuaternion(-0.55, 0, 0.65),
+            leftLowerArm: poseQuaternion(-1.2, 0, 0),
+            rightLowerArm: poseQuaternion(-1.25, 0, 0),
+            chest: poseQuaternion(0, 0.2, 0),
+            leftUpperLeg: poseQuaternion(-0.15, 0, 0),
+            rightUpperLeg: poseQuaternion(0.2, 0, 0),
+        },
         kick: { ...armsDown, leftUpperArm: poseQuaternion(0.3, 0, 1.1), rightUpperArm: poseQuaternion(-0.3, 0, 1.1), rightUpperLeg: poseQuaternion(-1.1, 0, 0), rightLowerLeg: poseQuaternion(0.35, 0, 0) },
         throw: { leftUpperArm: poseQuaternion(-0.35, 0.2, 0.35), rightUpperArm: poseQuaternion(-1.2, 0, 0.25), rightLowerArm: poseQuaternion(-1.05, 0, 0), chest: poseQuaternion(0, -0.3, 0) },
         push: { leftUpperArm: poseQuaternion(-0.9, 0, 0.3), rightUpperArm: poseQuaternion(-0.9, 0, 0.3), leftLowerArm: poseQuaternion(-0.35, 0, 0), rightLowerArm: poseQuaternion(-0.35, 0, 0), chest: poseQuaternion(0.15, 0, 0) },

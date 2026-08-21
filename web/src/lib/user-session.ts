@@ -18,10 +18,7 @@ export async function applyUserSession(payload: AuthSessionPayload) {
         resetRemoteUserDataSync();
         await flushCanvasStorePersistence();
         setActiveUserScope(payload.user?.id);
-        const [persistedCanvas, persistedAssets] = await Promise.all([
-            localForageStorage.getItem(CANVAS_STORE_KEY),
-            localForageStorage.getItem(ASSET_STORE_KEY),
-        ]);
+        const [persistedCanvas, persistedAssets] = await Promise.all([localForageStorage.getItem(CANVAS_STORE_KEY), localForageStorage.getItem(ASSET_STORE_KEY)]);
         const persistedConfig = scopedLocalStorage.getItem(CONFIG_STORE_KEY);
         useUserStore.getState().setUser(payload.user);
         useUserStore.getState().setRuntimeLimits(payload.runtimeLimits);

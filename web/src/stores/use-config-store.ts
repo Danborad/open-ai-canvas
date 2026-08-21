@@ -134,29 +134,31 @@ export type ConfigStoreSnapshot = {
 
 function isVideoModelName(model: string) {
     const value = modelOptionName(model).toLowerCase();
-    return value.includes("seedance")
-        || value.includes("video")
-        || value.includes("sora")
-        || value.includes("veo")
-        || value.includes("kling")
-        || value.includes("wan")
-        || value.includes("hailuo")
-        || value.includes("pika")
-        || value.includes("runway")
-        || value.includes("gen-3")
-        || value.includes("gen3")
-        || value.includes("hunyuan-video")
-        || value.includes("hunyuanvideo")
-        || value.includes("cogvideo")
-        || value.includes("mochi")
-        || value.includes("latte")
-        || value.includes("stable-video")
-        || value.includes("svd")
-        || value.includes("animatediff")
-        || value.includes("ltx-video")
-        || value.includes("ltxvideo")
-        || value.includes("minimax-video")
-        || value.includes("abab-video");
+    return (
+        value.includes("seedance") ||
+        value.includes("video") ||
+        value.includes("sora") ||
+        value.includes("veo") ||
+        value.includes("kling") ||
+        value.includes("wan") ||
+        value.includes("hailuo") ||
+        value.includes("pika") ||
+        value.includes("runway") ||
+        value.includes("gen-3") ||
+        value.includes("gen3") ||
+        value.includes("hunyuan-video") ||
+        value.includes("hunyuanvideo") ||
+        value.includes("cogvideo") ||
+        value.includes("mochi") ||
+        value.includes("latte") ||
+        value.includes("stable-video") ||
+        value.includes("svd") ||
+        value.includes("animatediff") ||
+        value.includes("ltx-video") ||
+        value.includes("ltxvideo") ||
+        value.includes("minimax-video") ||
+        value.includes("abab-video")
+    );
 }
 
 function isImageModelName(model: string) {
@@ -309,7 +311,7 @@ export function normalizeConfigSnapshot(snapshot: ConfigStoreSnapshot | undefine
             audioVoice: config.audioVoice || defaultConfig.audioVoice,
             audioFormat: config.audioFormat || defaultConfig.audioFormat,
             audioSpeed: config.audioSpeed || defaultConfig.audioSpeed,
-			audioInstructions: config.audioInstructions || "",
+            audioInstructions: config.audioInstructions || "",
             // 旧版全局 systemPrompt 会跨任务污染请求；提示词定制现已按 operation 由服务端编译。
             systemPrompt: "",
             videoSeconds: normalizeVideoDuration(config.videoSeconds),
@@ -433,11 +435,7 @@ export function resolveModelRequestConfig(config: AiConfig, value: string) {
     const model = modelOptionName(value || config.model);
     const modelProtocol = channel.modelCosts?.find((item) => item.model === model)?.protocol;
     const explicitProtocol = modelProtocol || channel.interfaceType;
-    const interfaceType = explicitProtocol
-        ? normalizeModelProtocolForName(explicitProtocol, model)
-        : isGPTImageModelName(model)
-        ? "openai-image"
-        : normalizeModelProtocolForName(undefined, model);
+    const interfaceType = explicitProtocol ? normalizeModelProtocolForName(explicitProtocol, model) : isGPTImageModelName(model) ? "openai-image" : normalizeModelProtocolForName(undefined, model);
     return {
         ...config,
         model,
@@ -445,7 +443,7 @@ export function resolveModelRequestConfig(config: AiConfig, value: string) {
         apiKey: channel.apiKey,
         secretKey: channel.secretKey,
         headers: channel.headers,
-        apiFormat: interfaceType ? (interfaceType === "gemini-veo" ? "gemini" as const : "openai" as const) : channel.apiFormat,
+        apiFormat: interfaceType ? (interfaceType === "gemini-veo" ? ("gemini" as const) : ("openai" as const)) : channel.apiFormat,
         interfaceType,
         channelId: channel.scope === "system" ? channel.id : "",
     };
@@ -457,7 +455,7 @@ function isGPTImageModelName(value: string) {
 }
 
 function normalizeModelProtocolForName(protocol: ModelProtocol | undefined, model: string) {
-	if (protocol === "grok2api-new-image" || protocol === "grok2api-new-video" || protocol === "zarklab-image" || protocol === "zarklab-video") return protocol;
+    if (protocol === "grok2api-new-image" || protocol === "grok2api-new-video" || protocol === "zarklab-image" || protocol === "zarklab-video") return protocol;
     const modelName = model.trim().toLowerCase();
     if (modelName.startsWith("grok-imagine-image")) return "grok2api-image" as const;
     if (modelName.startsWith("grok-imagine-video")) return "grok2api-video" as const;
@@ -510,7 +508,20 @@ export function defaultBaseUrlForChannelInterface(interfaceType?: ChannelInterfa
     if (interfaceType === "gemini-veo") return GEMINI_BASE_URL;
     if (interfaceType === "volcengine-ark-image" || interfaceType === "volcengine-ark-video") return "https://ark.cn-beijing.volces.com/api/v3";
     if (interfaceType === "volcengine-jimeng-image" || interfaceType === "volcengine-jimeng-video") return "https://visual.volcengineapi.com";
-    if (interfaceType === "grok-image" || interfaceType === "grok2api-image" || interfaceType === "grok2api-video" || interfaceType === "grok2api-new-image" || interfaceType === "grok2api-new-video" || interfaceType === "flow2api-image" || interfaceType === "flow2api-video" || interfaceType === "newapi" || interfaceType === "newapi-channel-1" || interfaceType === "newapi-channel-2" || interfaceType === "xai-video") return "";
+    if (
+        interfaceType === "grok-image" ||
+        interfaceType === "grok2api-image" ||
+        interfaceType === "grok2api-video" ||
+        interfaceType === "grok2api-new-image" ||
+        interfaceType === "grok2api-new-video" ||
+        interfaceType === "flow2api-image" ||
+        interfaceType === "flow2api-video" ||
+        interfaceType === "newapi" ||
+        interfaceType === "newapi-channel-1" ||
+        interfaceType === "newapi-channel-2" ||
+        interfaceType === "xai-video"
+    )
+        return "";
     return OPENAI_BASE_URL;
 }
 
@@ -531,7 +542,14 @@ function uniqueRawModels(models: string[]) {
 }
 
 function uniqueModelOptions(models: string[]) {
-    return Array.from(new Set((models || []).filter((model): model is string => typeof model === "string").map((model) => model.trim()).filter(Boolean)));
+    return Array.from(
+        new Set(
+            (models || [])
+                .filter((model): model is string => typeof model === "string")
+                .map((model) => model.trim())
+                .filter(Boolean),
+        ),
+    );
 }
 
 function normalizeRawModelName(value: unknown) {
@@ -551,7 +569,9 @@ export function buildApiUrl(baseUrl: string, path: string) {
 export function resolveBackendApiUrl(value: string) {
     const url = value.trim();
     if (!url.startsWith("/api/")) return url;
-    const backendBaseUrl = String(import.meta.env.VITE_CANVAS_BACKEND_URL || "/api").trim().replace(/\/+$/, "");
+    const backendBaseUrl = String(import.meta.env.VITE_CANVAS_BACKEND_URL || "/api")
+        .trim()
+        .replace(/\/+$/, "");
     return backendBaseUrl === "/api" ? url : `${backendBaseUrl}${url.slice("/api".length)}`;
 }
 

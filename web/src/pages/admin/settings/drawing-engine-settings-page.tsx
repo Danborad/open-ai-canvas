@@ -19,17 +19,22 @@ export default function DrawingEngineSettingsPage() {
 
     useEffect(() => {
         let cancelled = false;
-        void getAdminDrawingEngineSetting().then(({ setting }) => {
-            if (cancelled) return;
-            setDrawingEngine(setting);
-            setEngine(setting.defaultEngine);
-            setTldrawLicenseKey(setting.tldrawLicenseKey || "");
-        }).catch((error) => {
-            if (!cancelled) message.error(error instanceof Error ? error.message : "读取绘图工具配置失败");
-        }).finally(() => {
-            if (!cancelled) setLoading(false);
-        });
-        return () => { cancelled = true; };
+        void getAdminDrawingEngineSetting()
+            .then(({ setting }) => {
+                if (cancelled) return;
+                setDrawingEngine(setting);
+                setEngine(setting.defaultEngine);
+                setTldrawLicenseKey(setting.tldrawLicenseKey || "");
+            })
+            .catch((error) => {
+                if (!cancelled) message.error(error instanceof Error ? error.message : "读取绘图工具配置失败");
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
     }, [message, setDrawingEngine]);
 
     const tldrawAvailable = isDrawingEngineAvailable("tldraw", tldrawLicenseKey);
@@ -60,15 +65,19 @@ export default function DrawingEngineSettingsPage() {
                     icon={<Brush className="size-4" />}
                     title="默认绘图引擎"
                     description="已有绘图保持原引擎，仅新建绘图使用这里的选择。"
-                    status={<Tag variant="filled" color="blue">{drawingEngineLabel(current.defaultEngine)}</Tag>}
-                    footer={(
+                    status={
+                        <Tag variant="filled" color="blue">
+                            {drawingEngineLabel(current.defaultEngine)}
+                        </Tag>
+                    }
+                    footer={
                         <>
-                            <span className={`text-xs ${tldrawAvailable ? "text-foreground/45" : "text-amber-600 dark:text-amber-400"}`}>
-                                {tldrawAvailable ? "配置只影响之后新建的绘图节点。" : "未配置 tldraw License Key，暂不能将其设为默认引擎。"}
-                            </span>
-                            <Button type="primary" icon={<Save className="size-4" />} loading={saving} disabled={loading || !dirty} onClick={() => void save()}>保存配置</Button>
+                            <span className={`text-xs ${tldrawAvailable ? "text-foreground/45" : "text-amber-600 dark:text-amber-400"}`}>{tldrawAvailable ? "配置只影响之后新建的绘图节点。" : "未配置 tldraw License Key，暂不能将其设为默认引擎。"}</span>
+                            <Button type="primary" icon={<Save className="size-4" />} loading={saving} disabled={loading || !dirty} onClick={() => void save()}>
+                                保存配置
+                            </Button>
                         </>
-                    )}
+                    }
                 >
                     <div className="grid gap-4 px-4 py-4 md:grid-cols-2">
                         <div className="min-w-0">

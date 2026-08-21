@@ -39,19 +39,7 @@ type PreparedGenerationReferences = {
 };
 
 // 生成、计费、取消和任务记录必须共用后端任务生命周期，页面层不能再直连供应商。
-export async function runBackendGenerationTask({
-    projectId,
-    mode,
-    prompt,
-    config,
-    referenceImages = [],
-    referenceVideos = [],
-    referenceAudios = [],
-    mask,
-    signal,
-    metadata,
-    onTaskUpdate,
-}: BackendGenerationTaskOptions) {
+export async function runBackendGenerationTask({ projectId, mode, prompt, config, referenceImages = [], referenceVideos = [], referenceAudios = [], mask, signal, metadata, onTaskUpdate }: BackendGenerationTaskOptions) {
     throwIfAborted(signal);
     const prepared = await prepareGenerationReferences({ referenceImages, referenceVideos, referenceAudios, mask });
     throwIfAborted(signal);
@@ -63,17 +51,29 @@ export async function runBackendGenerationTaskBatch(options: BackendGenerationTa
     throwIfAborted(options.signal);
     const prepared = await prepareGenerationReferences(options);
     throwIfAborted(options.signal);
-    return Promise.allSettled(Array.from({ length: count }, (_, batchIndex) => createAndWaitGenerationTask({
-        ...options,
-        metadata: { ...options.metadata, batchIndex, batchCount: count },
-    }, prepared)));
+    return Promise.allSettled(
+        Array.from({ length: count }, (_, batchIndex) =>
+            createAndWaitGenerationTask(
+                {
+                    ...options,
+                    metadata: { ...options.metadata, batchIndex, batchCount: count },
+                },
+                prepared,
+            ),
+        ),
+    );
 }
 
 function throwIfAborted(signal?: AbortSignal) {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 }
 
-async function prepareGenerationReferences({ referenceImages = [], referenceVideos = [], referenceAudios = [], mask }: Pick<BackendGenerationTaskOptions, "referenceImages" | "referenceVideos" | "referenceAudios" | "mask">): Promise<PreparedGenerationReferences> {
+async function prepareGenerationReferences({
+    referenceImages = [],
+    referenceVideos = [],
+    referenceAudios = [],
+    mask,
+}: Pick<BackendGenerationTaskOptions, "referenceImages" | "referenceVideos" | "referenceAudios" | "mask">): Promise<PreparedGenerationReferences> {
     const preparedImages = await Promise.all(referenceImages.map(prepareBackendImageReference));
     const preparedVideos = await Promise.all(referenceVideos.map(prepareBackendMediaReference));
     const preparedAudios = await Promise.all(referenceAudios.map(prepareBackendMediaReference));

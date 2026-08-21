@@ -29,10 +29,7 @@ export default function IndexPage() {
     const userHydrated = useUserStore((state) => state.hydrated);
     const shortDramaEnabled = useUserStore((state) => state.features.shortDramaEnabled);
     const domainProjectsQuery = useQuery({ queryKey: ["projects"], queryFn: listProjects, enabled: Boolean(user && shortDramaEnabled) });
-    const domainProjects = useMemo(
-        () => [...(domainProjectsQuery.data?.projects || [])].sort((left, right) => right.project.updatedAt.localeCompare(left.project.updatedAt)),
-        [domainProjectsQuery.data],
-    );
+    const domainProjects = useMemo(() => [...(domainProjectsQuery.data?.projects || [])].sort((left, right) => right.project.updatedAt.localeCompare(left.project.updatedAt)), [domainProjectsQuery.data]);
     const activeProject = domainProjects.find(({ project }) => project.status !== "archived") || domainProjects[0];
     const activeProjectQuery = useQuery({
         queryKey: ["project", activeProject?.project.id],
@@ -40,7 +37,11 @@ export default function IndexPage() {
         enabled: Boolean(user && shortDramaEnabled && activeProject?.project.id),
     });
     const recentIndependentCanvases = useMemo(
-        () => canvasProjects.filter((project) => !project.projectId).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)).slice(0, 3),
+        () =>
+            canvasProjects
+                .filter((project) => !project.projectId)
+                .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+                .slice(0, 3),
         [canvasProjects],
     );
 
@@ -75,20 +76,22 @@ export default function IndexPage() {
                         onCreateIndependentCanvas={createIndependentCanvas}
                     />
                 ) : (
-                    <FirstProjectWorkspace
-                        authenticated={Boolean(user)}
-                        canvasHydrated={canvasHydrated}
-                        recentIndependentCanvases={recentIndependentCanvases}
-                        onCreateIndependentCanvas={createIndependentCanvas}
-                        shortDramaEnabled={shortDramaEnabled}
-                    />
+                    <FirstProjectWorkspace authenticated={Boolean(user)} canvasHydrated={canvasHydrated} recentIndependentCanvases={recentIndependentCanvases} onCreateIndependentCanvas={createIndependentCanvas} shortDramaEnabled={shortDramaEnabled} />
                 )}
             </div>
         </main>
     );
 }
 
-function ReturningWorkspace({ summary, detail, detailLoading, detailError, recentProjects, recentIndependentCanvases, onCreateIndependentCanvas }: {
+function ReturningWorkspace({
+    summary,
+    detail,
+    detailLoading,
+    detailError,
+    recentProjects,
+    recentIndependentCanvases,
+    onCreateIndependentCanvas,
+}: {
     summary: ProjectSummary;
     detail?: Awaited<ReturnType<typeof getProject>>;
     detailLoading: boolean;
@@ -100,7 +103,11 @@ function ReturningWorkspace({ summary, detail, detailLoading, detailError, recen
     const taskCenterEnabled = useUserStore((state) => state.features.taskCenterEnabled);
     const stage = detail ? projectDetailStage(detail) : { label: "进行中", detail: "读取项目进度" };
     const continueTarget = detail ? projectContinueTarget(detail) : { href: `/projects/${summary.project.id}/overview`, title: summary.project.name, context: "打开项目概览", updatedAt: summary.project.updatedAt };
-    const nextActions = detail ? projectNextActions(detail, 4).filter((action) => taskCenterEnabled || !action.href.startsWith("/tasks")).slice(0, 3) : [];
+    const nextActions = detail
+        ? projectNextActions(detail, 4)
+              .filter((action) => taskCenterEnabled || !action.href.startsWith("/tasks"))
+              .slice(0, 3)
+        : [];
     const completion = projectSummaryCompletion(summary);
     const attentionCount = detail ? projectAttentionCount(detail) : 0;
     return (
@@ -114,8 +121,16 @@ function ReturningWorkspace({ summary, detail, detailLoading, detailError, recen
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <Button icon={<LayoutGrid className="size-3.5" />} onClick={onCreateIndependentCanvas}>打开画布</Button>
-                    <Link className="inline-flex h-9 items-center gap-2 rounded-md bg-foreground px-3.5 text-sm font-medium text-background transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25" to="/projects?create=1"><Plus className="size-3.5" />创建项目</Link>
+                    <Button icon={<LayoutGrid className="size-3.5" />} onClick={onCreateIndependentCanvas}>
+                        打开画布
+                    </Button>
+                    <Link
+                        className="inline-flex h-9 items-center gap-2 rounded-md bg-foreground px-3.5 text-sm font-medium text-background transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25"
+                        to="/projects?create=1"
+                    >
+                        <Plus className="size-3.5" />
+                        创建项目
+                    </Link>
                 </div>
             </header>
 
@@ -135,7 +150,9 @@ function ReturningWorkspace({ summary, detail, detailLoading, detailError, recen
                     </div>
                     <h2 className="mt-3 truncate text-2xl font-semibold sm:text-3xl">{summary.project.name}</h2>
                     <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-foreground/52">
-                        <span>{summary.completedUnitCount}/{summary.unitCount} 章已完成</span>
+                        <span>
+                            {summary.completedUnitCount}/{summary.unitCount} 章已完成
+                        </span>
                         <span>{summary.canvasCount} 张项目画布</span>
                         <span>{summary.assetCount} 项资产</span>
                         <span>更新于 {formatRelativeTime(summary.project.updatedAt)}</span>
@@ -143,8 +160,13 @@ function ReturningWorkspace({ summary, detail, detailLoading, detailError, recen
                     <div className="mt-4 h-1.5 w-full max-w-[620px] overflow-hidden rounded-full bg-foreground/[.08]" aria-label={`章节完成度 ${completion}%`}>
                         <div className="h-full rounded-full bg-[var(--workspace-accent)] transition-[width]" style={{ width: `${completion}%` }} />
                     </div>
-                    <Link to={continueTarget.href} className="mt-6 inline-flex min-h-10 max-w-full items-center gap-3 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25">
-                        <span className="min-w-0 truncate">{continueTarget.context} · {continueTarget.title}</span>
+                    <Link
+                        to={continueTarget.href}
+                        className="mt-6 inline-flex min-h-10 max-w-full items-center gap-3 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25"
+                    >
+                        <span className="min-w-0 truncate">
+                            {continueTarget.context} · {continueTarget.title}
+                        </span>
                         <ArrowRight className="size-4 shrink-0" />
                     </Link>
                 </div>
@@ -154,13 +176,17 @@ function ReturningWorkspace({ summary, detail, detailLoading, detailError, recen
                 <div className="border-t border-border/75 p-5 sm:p-6 lg:border-l lg:border-t-0 lg:p-7">
                     <div className="flex items-center justify-between gap-3">
                         <h2 className="text-sm font-semibold">下一步</h2>
-                        <Link to={`/projects/${summary.project.id}/overview`} className="text-xs text-foreground/48 hover:text-foreground">查看项目</Link>
+                        <Link to={`/projects/${summary.project.id}/overview`} className="text-xs text-foreground/48 hover:text-foreground">
+                            查看项目
+                        </Link>
                     </div>
                     {detailLoading ? <div className="mt-4 text-xs text-foreground/45">正在整理项目待办...</div> : null}
                     {detailError ? <div className="mt-4 text-xs leading-5 text-foreground/48">项目详情暂时无法读取。可先打开项目概览或自由画布继续工作。</div> : null}
                     {!detailLoading && nextActions.length ? (
                         <div className="mt-3 divide-y divide-border/70">
-                            {nextActions.map((action) => <WorkbenchActionLink key={action.id} action={action} />)}
+                            {nextActions.map((action) => (
+                                <WorkbenchActionLink key={action.id} action={action} />
+                            ))}
                         </div>
                     ) : null}
                 </div>
@@ -169,26 +195,47 @@ function ReturningWorkspace({ summary, detail, detailLoading, detailError, recen
             <section className="grid gap-8 py-7 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]">
                 <div className="min-w-0">
                     <div className="mb-3 flex items-center justify-between gap-4">
-                        <div><h2 className="text-base font-semibold">最近项目</h2><p className="mt-1 text-xs text-foreground/45">按最近更新时间排列</p></div>
-                        <Link to="/projects" className="inline-flex items-center gap-1.5 text-xs text-foreground/50 hover:text-foreground">查看全部<ArrowRight className="size-3.5" /></Link>
+                        <div>
+                            <h2 className="text-base font-semibold">最近项目</h2>
+                            <p className="mt-1 text-xs text-foreground/45">按最近更新时间排列</p>
+                        </div>
+                        <Link to="/projects" className="inline-flex items-center gap-1.5 text-xs text-foreground/50 hover:text-foreground">
+                            查看全部
+                            <ArrowRight className="size-3.5" />
+                        </Link>
                     </div>
                     <div className="overflow-hidden rounded-lg border border-border/80 bg-background/65">
-                        {recentProjects.map((project, index) => <RecentProjectRow key={project.project.id} summary={project} divided={index > 0} />)}
+                        {recentProjects.map((project, index) => (
+                            <RecentProjectRow key={project.project.id} summary={project} divided={index > 0} />
+                        ))}
                     </div>
                 </div>
 
                 <div className="min-w-0">
                     <div className="mb-3 flex items-center justify-between gap-4">
-                        <div><h2 className="text-base font-semibold">最近自由画布</h2><p className="mt-1 text-xs text-foreground/45">不属于项目的自由创作空间</p></div>
-                        <Link to="/canvas" className="inline-flex items-center gap-1.5 text-xs text-foreground/50 hover:text-foreground">管理画布<ArrowRight className="size-3.5" /></Link>
+                        <div>
+                            <h2 className="text-base font-semibold">最近自由画布</h2>
+                            <p className="mt-1 text-xs text-foreground/45">不属于项目的自由创作空间</p>
+                        </div>
+                        <Link to="/canvas" className="inline-flex items-center gap-1.5 text-xs text-foreground/50 hover:text-foreground">
+                            管理画布
+                            <ArrowRight className="size-3.5" />
+                        </Link>
                     </div>
                     {recentIndependentCanvases.length ? (
                         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                            {recentIndependentCanvases.slice(0, 2).map((project) => <CanvasProjectCard key={project.id} project={project} variant="recent" />)}
+                            {recentIndependentCanvases.slice(0, 2).map((project) => (
+                                <CanvasProjectCard key={project.id} project={project} variant="recent" />
+                            ))}
                         </div>
                     ) : (
-                        <button type="button" className="flex min-h-32 w-full items-center justify-center gap-3 rounded-lg border border-dashed border-border text-sm text-foreground/55 hover:border-foreground/30 hover:text-foreground" onClick={onCreateIndependentCanvas}>
-                            <LayoutGrid className="size-4" />打开第一张画布
+                        <button
+                            type="button"
+                            className="flex min-h-32 w-full items-center justify-center gap-3 rounded-lg border border-dashed border-border text-sm text-foreground/55 hover:border-foreground/30 hover:text-foreground"
+                            onClick={onCreateIndependentCanvas}
+                        >
+                            <LayoutGrid className="size-4" />
+                            打开第一张画布
                         </button>
                     )}
                 </div>
@@ -197,7 +244,13 @@ function ReturningWorkspace({ summary, detail, detailLoading, detailError, recen
     );
 }
 
-function FirstProjectWorkspace({ authenticated, canvasHydrated, recentIndependentCanvases, onCreateIndependentCanvas, shortDramaEnabled }: {
+function FirstProjectWorkspace({
+    authenticated,
+    canvasHydrated,
+    recentIndependentCanvases,
+    onCreateIndependentCanvas,
+    shortDramaEnabled,
+}: {
     authenticated: boolean;
     canvasHydrated: boolean;
     recentIndependentCanvases: ReturnType<typeof useCanvasStore.getState>["projects"];
@@ -208,17 +261,33 @@ function FirstProjectWorkspace({ authenticated, canvasHydrated, recentIndependen
     return (
         <>
             <section className="app-first-project-intro border-b border-border/80 pb-8 pt-3 sm:pb-10 sm:pt-6">
-                <div className="inline-flex items-center gap-2 text-xs font-semibold text-foreground/48"><WorkspaceSignalIcon variant="home" size="sm" />影策</div>
+                <div className="inline-flex items-center gap-2 text-xs font-semibold text-foreground/48">
+                    <WorkspaceSignalIcon variant="home" size="sm" />
+                    影策
+                </div>
                 <h1 className="mt-5 max-w-[780px] text-3xl font-semibold leading-[1.08] sm:text-4xl lg:text-5xl">把一个故事推进到可交付的镜头</h1>
                 <p className="mt-5 max-w-[680px] text-sm leading-7 text-foreground/58 sm:text-base">从章节、角色和参考图开始，逐步生成分镜、视频和可复用资产。需要自由探索时，也可以先打开一张自由画布。</p>
                 <div className="mt-7 flex flex-wrap items-center gap-3">
-                    {shortDramaEnabled ? <Link className="inline-flex h-10 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25" to={projectHref}><FolderKanban className="size-4" />创建项目</Link> : null}
-                    <Button size="large" disabled={!canvasHydrated} icon={<LayoutGrid className="size-4" />} onClick={onCreateIndependentCanvas}>打开画布</Button>
+                    {shortDramaEnabled ? (
+                        <Link
+                            className="inline-flex h-10 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25"
+                            to={projectHref}
+                        >
+                            <FolderKanban className="size-4" />
+                            创建项目
+                        </Link>
+                    ) : null}
+                    <Button size="large" disabled={!canvasHydrated} icon={<LayoutGrid className="size-4" />} onClick={onCreateIndependentCanvas}>
+                        打开画布
+                    </Button>
                 </div>
             </section>
 
             <section className="border-b border-border/80 py-7">
-                <div className="mb-5"><h2 className="text-lg font-semibold">从故事到结果</h2><p className="mt-1 text-xs leading-5 text-foreground/48">每一步都保留输入、版本和生成记录，可以随时返回调整。</p></div>
+                <div className="mb-5">
+                    <h2 className="text-lg font-semibold">从故事到结果</h2>
+                    <p className="mt-1 text-xs leading-5 text-foreground/48">每一步都保留输入、版本和生成记录，可以随时返回调整。</p>
+                </div>
                 <div className="app-workflow-rail grid border-t border-border/75 sm:grid-cols-2 xl:grid-cols-4">
                     {workflow.map((item, index) => (
                         <div key={item.title} className={`app-workflow-step min-w-0 border-b border-border/75 py-4 sm:px-4 xl:border-b-0 xl:border-r ${index % 2 === 0 ? "sm:pl-0" : "sm:border-l"} ${index === workflow.length - 1 ? "xl:border-r-0" : ""}`}>
@@ -250,8 +319,17 @@ function FirstProjectWorkspace({ authenticated, canvasHydrated, recentIndependen
 
             {recentIndependentCanvases.length ? (
                 <section className="border-t border-border/80 pt-6">
-                    <div className="mb-4 flex items-center justify-between"><h2 className="text-base font-semibold">继续自由画布</h2><Link to="/canvas" className="text-xs text-foreground/50 hover:text-foreground">查看全部</Link></div>
-                    <div className="grid max-w-[940px] gap-4 sm:grid-cols-2 lg:grid-cols-3">{recentIndependentCanvases.map((project) => <CanvasProjectCard key={project.id} project={project} variant="recent" />)}</div>
+                    <div className="mb-4 flex items-center justify-between">
+                        <h2 className="text-base font-semibold">继续自由画布</h2>
+                        <Link to="/canvas" className="text-xs text-foreground/50 hover:text-foreground">
+                            查看全部
+                        </Link>
+                    </div>
+                    <div className="grid max-w-[940px] gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {recentIndependentCanvases.map((project) => (
+                            <CanvasProjectCard key={project.id} project={project} variant="recent" />
+                        ))}
+                    </div>
                 </section>
             ) : null}
         </>
@@ -273,29 +351,48 @@ function WorkspaceMetric({ icon, label, value, detail, attention = false }: { ic
 }
 
 function SpatialChapterStack({ detail, loading, projectId }: { detail?: Awaited<ReturnType<typeof getProject>>; loading: boolean; projectId: string }) {
-    const units = detail?.units.slice().sort((left, right) => left.position - right.position).slice(0, 6) || [];
+    const units =
+        detail?.units
+            .slice()
+            .sort((left, right) => left.position - right.position)
+            .slice(0, 6) || [];
     const activeUnitId = units.find((unit) => unit.status !== "completed")?.id || units.at(-1)?.id;
     return (
         <div className="spatial-chapter-panel min-w-0 border-t border-border/75 p-5 sm:p-6 lg:border-l lg:border-t-0 lg:p-7">
             <div className="flex items-center justify-between gap-3">
-                <div><div className="text-[var(--fs-tiny)] font-medium text-foreground/38">制作层级</div><h2 className="mt-1 text-sm font-semibold">章节轨道</h2></div>
+                <div>
+                    <div className="text-[var(--fs-tiny)] font-medium text-foreground/38">制作层级</div>
+                    <h2 className="mt-1 text-sm font-semibold">章节轨道</h2>
+                </div>
                 <span className="text-[var(--fs-tiny)] tabular-nums text-foreground/35">{units.length ? `${units.length} 章` : "待建立"}</span>
             </div>
             <div className="spatial-chapter-deck mt-4" aria-label="项目章节制作层级">
-                {loading ? Array.from({ length: 4 }, (_, index) => <span key={index} className="spatial-chapter-card is-loading" style={{ "--deck-x": `${index * 12}px`, "--deck-y": `${index * 28}px`, "--deck-z": `${-index * 18}px`, zIndex: 8 - index } as CSSProperties} />) : null}
-                {!loading && units.length ? units.map((unit, index) => (
-                    <Link
-                        key={unit.id}
-                        to={`/projects/${projectId}/chapters/${unit.id}`}
-                        className={`spatial-chapter-card ${unit.id === activeUnitId ? "is-active" : ""}`}
-                        style={{ "--deck-x": `${index * 12}px`, "--deck-y": `${index * 28}px`, "--deck-z": `${-index * 18}px`, zIndex: 8 - index } as CSSProperties}
-                    >
-                        <span className="text-[var(--fs-micro)] font-semibold tabular-nums opacity-55">{String(unit.position + 1).padStart(2, "0")}</span>
-                        <span className="mt-2 block truncate text-xs font-semibold">{unit.title}</span>
-                        <span className="mt-1 block text-[var(--fs-micro)] opacity-50">{unit.status === "completed" ? "已完成" : unit.id === activeUnitId ? "当前制作" : "等待推进"}</span>
-                    </Link>
-                )) : null}
-                {!loading && !units.length ? <div className="grid min-h-52 place-items-center text-center text-xs leading-5 text-foreground/42">创建剧情章节后<br />这里会形成制作层级</div> : null}
+                {loading
+                    ? Array.from({ length: 4 }, (_, index) => (
+                          <span key={index} className="spatial-chapter-card is-loading" style={{ "--deck-x": `${index * 12}px`, "--deck-y": `${index * 28}px`, "--deck-z": `${-index * 18}px`, zIndex: 8 - index } as CSSProperties} />
+                      ))
+                    : null}
+                {!loading && units.length
+                    ? units.map((unit, index) => (
+                          <Link
+                              key={unit.id}
+                              to={`/projects/${projectId}/chapters/${unit.id}`}
+                              className={`spatial-chapter-card ${unit.id === activeUnitId ? "is-active" : ""}`}
+                              style={{ "--deck-x": `${index * 12}px`, "--deck-y": `${index * 28}px`, "--deck-z": `${-index * 18}px`, zIndex: 8 - index } as CSSProperties}
+                          >
+                              <span className="text-[var(--fs-micro)] font-semibold tabular-nums opacity-55">{String(unit.position + 1).padStart(2, "0")}</span>
+                              <span className="mt-2 block truncate text-xs font-semibold">{unit.title}</span>
+                              <span className="mt-1 block text-[var(--fs-micro)] opacity-50">{unit.status === "completed" ? "已完成" : unit.id === activeUnitId ? "当前制作" : "等待推进"}</span>
+                          </Link>
+                      ))
+                    : null}
+                {!loading && !units.length ? (
+                    <div className="grid min-h-52 place-items-center text-center text-xs leading-5 text-foreground/42">
+                        创建剧情章节后
+                        <br />
+                        这里会形成制作层级
+                    </div>
+                ) : null}
             </div>
         </div>
     );
@@ -306,7 +403,10 @@ function WorkbenchActionLink({ action }: { action: ReturnType<typeof projectNext
     return (
         <Link to={action.href} className="group grid grid-cols-[20px_minmax(0,1fr)_auto] gap-2 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20">
             <Icon className={`mt-0.5 size-4 ${action.tone === "danger" ? "text-foreground/80" : action.tone === "attention" ? "text-foreground/60" : "text-foreground/35"}`} />
-            <span className="min-w-0"><span className="block text-xs font-medium">{action.title}</span><span className="mt-1 line-clamp-2 block text-[var(--fs-label)] leading-4 text-foreground/45">{action.description}</span></span>
+            <span className="min-w-0">
+                <span className="block text-xs font-medium">{action.title}</span>
+                <span className="mt-1 line-clamp-2 block text-[var(--fs-label)] leading-4 text-foreground/45">{action.description}</span>
+            </span>
             <span className="self-center text-[var(--fs-label)] font-medium text-foreground/45 transition-colors group-hover:text-foreground">{action.actionLabel}</span>
         </Link>
     );
@@ -315,23 +415,65 @@ function WorkbenchActionLink({ action }: { action: ReturnType<typeof projectNext
 function RecentProjectRow({ summary, divided }: { summary: ProjectSummary; divided: boolean }) {
     const completion = projectSummaryCompletion(summary);
     return (
-        <Link to={`/projects/${summary.project.id}/overview`} className={`group grid min-h-[68px] grid-cols-[minmax(0,1fr)_80px_20px] items-center gap-3 px-3 py-2.5 hover:bg-foreground/[.025] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/20 sm:grid-cols-[minmax(0,1fr)_100px_120px_20px] ${divided ? "border-t border-border/65" : ""}`}>
-            <span className="min-w-0"><span className="block truncate text-sm font-medium">{summary.project.name}</span><span className="mt-1 block truncate text-[var(--fs-label)] text-foreground/42">{summary.unitCount} 章 · {summary.canvasCount} 张项目画布 · {summary.assetCount} 项资产</span></span>
-            <span className="hidden text-[var(--fs-label)] text-foreground/45 sm:block">更新于<br />{formatRelativeTime(summary.project.updatedAt)}</span>
-            <span className="min-w-0"><span className="flex items-center justify-between text-[var(--fs-tiny)] text-foreground/42"><span>章节</span><span>{completion}%</span></span><span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-foreground/[.08]"><span className="block h-full rounded-full bg-foreground/65" style={{ width: `${completion}%` }} /></span></span>
+        <Link
+            to={`/projects/${summary.project.id}/overview`}
+            className={`group grid min-h-[68px] grid-cols-[minmax(0,1fr)_80px_20px] items-center gap-3 px-3 py-2.5 hover:bg-foreground/[.025] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/20 sm:grid-cols-[minmax(0,1fr)_100px_120px_20px] ${divided ? "border-t border-border/65" : ""}`}
+        >
+            <span className="min-w-0">
+                <span className="block truncate text-sm font-medium">{summary.project.name}</span>
+                <span className="mt-1 block truncate text-[var(--fs-label)] text-foreground/42">
+                    {summary.unitCount} 章 · {summary.canvasCount} 张项目画布 · {summary.assetCount} 项资产
+                </span>
+            </span>
+            <span className="hidden text-[var(--fs-label)] text-foreground/45 sm:block">
+                更新于
+                <br />
+                {formatRelativeTime(summary.project.updatedAt)}
+            </span>
+            <span className="min-w-0">
+                <span className="flex items-center justify-between text-[var(--fs-tiny)] text-foreground/42">
+                    <span>章节</span>
+                    <span>{completion}%</span>
+                </span>
+                <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-foreground/[.08]">
+                    <span className="block h-full rounded-full bg-foreground/65" style={{ width: `${completion}%` }} />
+                </span>
+            </span>
             <ArrowRight className="size-4 text-foreground/25 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground/60" />
         </Link>
     );
 }
 
 function StartMode({ icon, title, description, action, href, onClick }: { icon: ReactNode; title: string; description: string; action: string; href?: string; onClick?: () => void }) {
-    const content = <><span className="mt-0.5 text-foreground/45">{icon}</span><span className="min-w-0"><span className="block text-sm font-semibold">{title}</span><span className="mt-1 block text-xs leading-5 text-foreground/48">{description}</span></span><span className="self-center text-xs font-medium text-foreground/50">{action} →</span></>;
+    const content = (
+        <>
+            <span className="mt-0.5 text-foreground/45">{icon}</span>
+            <span className="min-w-0">
+                <span className="block text-sm font-semibold">{title}</span>
+                <span className="mt-1 block text-xs leading-5 text-foreground/48">{description}</span>
+            </span>
+            <span className="self-center text-xs font-medium text-foreground/50">{action} →</span>
+        </>
+    );
     const className = "grid grid-cols-[20px_minmax(0,1fr)_auto] gap-3 py-4 text-left hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20";
-    return href ? <Link to={href} className={className}>{content}</Link> : <button type="button" className={className} onClick={onClick}>{content}</button>;
+    return href ? (
+        <Link to={href} className={className}>
+            {content}
+        </Link>
+    ) : (
+        <button type="button" className={className} onClick={onClick}>
+            {content}
+        </button>
+    );
 }
 
 function FeatureLine({ icon, text }: { icon: ReactNode; text: string }) {
-    return <div className="grid grid-cols-[20px_minmax(0,1fr)] gap-2.5"><span className="text-foreground/35">{icon}</span><p>{text}</p></div>;
+    return (
+        <div className="grid grid-cols-[20px_minmax(0,1fr)] gap-2.5">
+            <span className="text-foreground/35">{icon}</span>
+            <p>{text}</p>
+        </div>
+    );
 }
 
 function formatRelativeTime(value: string) {

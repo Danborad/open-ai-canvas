@@ -26,13 +26,12 @@ export function AppWorkspaceShell({ children }: { children: ReactNode }) {
     const creationWorkspace = pathname === "/create";
     const slug = pathname.split("/").filter(Boolean)[0];
     const activeToolSlug = navigationTools.some((tool) => tool.slug === slug) ? (slug as NavigationToolSlug) : undefined;
-    const visibleNavigationTools = (spatialWorkbench ? navigationTools : navigationTools.filter((tool) => tool.section === "创作空间"))
-        .filter((tool) => {
-            if (tool.slug === "projects") return features.shortDramaEnabled;
-            if (tool.slug === "tasks") return features.taskCenterEnabled;
-            if (tool.slug === "wallet") return features.creditsEnabled;
-            return true;
-        });
+    const visibleNavigationTools = (spatialWorkbench ? navigationTools : navigationTools.filter((tool) => tool.section === "创作空间")).filter((tool) => {
+        if (tool.slug === "projects") return features.shortDramaEnabled;
+        if (tool.slug === "tasks") return features.taskCenterEnabled;
+        if (tool.slug === "wallet") return features.creditsEnabled;
+        return true;
+    });
 
     const handleScroll = () => {
         const element = scrollRef.current;
@@ -76,28 +75,23 @@ export function AppWorkspaceShell({ children }: { children: ReactNode }) {
                 {!hideChrome && mobileSidebarExpanded ? <button type="button" className="app-workspace-sidebar-scrim lg:hidden" aria-label="收起侧栏" onClick={() => setMobileSidebarExpanded(false)} /> : null}
                 {!hideChrome ? (
                     <aside className={cn("app-workspace-sidebar flex shrink-0 flex-col overflow-hidden transition-all duration-200", mobileSidebarExpanded ? "is-mobile-expanded w-[196px]" : "w-0 lg:w-[88px] lg:shrink-0")}>
-                        <div
-                            className={cn(
-                                "flex h-14 shrink-0 items-center border-b border-border/55 text-foreground",
-                                mobileSidebarExpanded ? "gap-2 px-3" : "justify-center",
-                                "lg:justify-center lg:px-0",
-                            )}
-                        >
+                        <div className={cn("flex h-14 shrink-0 items-center border-b border-border/55 text-foreground", mobileSidebarExpanded ? "gap-2 px-3" : "justify-center", "lg:justify-center lg:px-0")}>
                             <Link to="/" className={cn("min-w-0 items-center gap-2", mobileSidebarExpanded || spatialWorkbench ? "flex" : "hidden", "lg:flex")} title="影策">
-                                <span className="app-workspace-brand-mark grid size-7 shrink-0 place-items-center rounded-md bg-foreground text-background"><InfinityIcon className="size-4" /></span>
-                                {spatialWorkbench ? <span className="min-w-0"><span className="block truncate text-[var(--fs-body)] font-semibold">影策</span><span className="block truncate text-[var(--fs-micro)] text-foreground/36">AI 叙事工作台</span></span> : <span className="truncate text-[var(--fs-body)] font-semibold">影策</span>}
+                                <span className="app-workspace-brand-mark grid size-7 shrink-0 place-items-center rounded-md bg-foreground text-background">
+                                    <InfinityIcon className="size-4" />
+                                </span>
+                                {spatialWorkbench ? (
+                                    <span className="min-w-0">
+                                        <span className="block truncate text-[var(--fs-body)] font-semibold">影策</span>
+                                        <span className="block truncate text-[var(--fs-micro)] text-foreground/36">AI 叙事工作台</span>
+                                    </span>
+                                ) : (
+                                    <span className="truncate text-[var(--fs-body)] font-semibold">影策</span>
+                                )}
                             </Link>
                         </div>
 
-                        <nav
-                            ref={scrollRef}
-                            onScroll={handleScroll}
-                            className={cn(
-                                "app-workspace-sidebar-scroll-area flex min-h-0 flex-1 flex-col px-2 py-3",
-                                scrollState.hasTopFade && "has-top-fade",
-                                scrollState.hasBottomFade && "has-bottom-fade",
-                            )}
-                        >
+                        <nav ref={scrollRef} onScroll={handleScroll} className={cn("app-workspace-sidebar-scroll-area flex min-h-0 flex-1 flex-col px-2 py-3", scrollState.hasTopFade && "has-top-fade", scrollState.hasBottomFade && "has-bottom-fade")}>
                             {visibleNavigationTools.map((tool, index) => {
                                 const Icon = tool.icon;
                                 const active = tool.slug === activeToolSlug;
@@ -128,15 +122,9 @@ export function AppWorkspaceShell({ children }: { children: ReactNode }) {
                         </nav>
                         <div className="shrink-0 border-t border-border/55 p-2">
                             <WorkspaceSidebarFooter
-                                collapsedClassName={cn(
-                                    mobileSidebarExpanded ? "justify-start gap-2 px-2" : "justify-center gap-0 px-0",
-                                    "lg:justify-center lg:gap-0 lg:px-0",
-                                )}
+                                collapsedClassName={cn(mobileSidebarExpanded ? "justify-start gap-2 px-2" : "justify-center gap-0 px-0", "lg:justify-center lg:gap-0 lg:px-0")}
                                 expandedClassName={cn(mobileSidebarExpanded ? "flex" : "hidden", "lg:hidden")}
-                                accountClassName={cn(
-                                    mobileSidebarExpanded ? "flex-row gap-2 px-2" : "flex-col gap-0.5 px-0 py-1",
-                                    "lg:flex-col lg:gap-0.5 lg:px-0 lg:py-1",
-                                )}
+                                accountClassName={cn(mobileSidebarExpanded ? "flex-row gap-2 px-2" : "flex-col gap-0.5 px-0 py-1", "lg:flex-col lg:gap-0.5 lg:px-0 lg:py-1")}
                             />
                         </div>
                     </aside>
@@ -144,7 +132,12 @@ export function AppWorkspaceShell({ children }: { children: ReactNode }) {
 
                 <div className="app-workspace-stage relative min-h-0 min-w-0 flex-1 overflow-hidden">
                     {!hideChrome ? (
-                        <button type="button" className="app-workspace-sidebar-toggle absolute left-2 top-2 z-30 grid size-8 place-items-center rounded-md border border-border/60 bg-background/75 text-foreground/80 backdrop-blur transition hover:bg-foreground/[0.06] lg:hidden" aria-label={mobileSidebarExpanded ? "收起侧栏" : "展开侧栏"} onClick={() => setMobileSidebarExpanded((current) => !current)}>
+                        <button
+                            type="button"
+                            className="app-workspace-sidebar-toggle absolute left-2 top-2 z-30 grid size-8 place-items-center rounded-md border border-border/60 bg-background/75 text-foreground/80 backdrop-blur transition hover:bg-foreground/[0.06] lg:hidden"
+                            aria-label={mobileSidebarExpanded ? "收起侧栏" : "展开侧栏"}
+                            onClick={() => setMobileSidebarExpanded((current) => !current)}
+                        >
                             {mobileSidebarExpanded ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
                         </button>
                     ) : null}

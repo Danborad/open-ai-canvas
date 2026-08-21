@@ -29,7 +29,6 @@ export function persistCanvasWorkspaceMode(mode: CanvasWorkspaceMode) {
     }
 }
 
-
 export function createCanvasNode(type: CanvasNodeType, position: Position, metadata?: CanvasNodeMetadata): CanvasNodeData {
     const spec = getNodeSpec(type);
     const id = `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -44,9 +43,14 @@ export function createCanvasNode(type: CanvasNodeType, position: Position, metad
         },
         width: spec.width,
         height: spec.height,
-        metadata: type === CanvasNodeType.Script
-            ? { ...spec.metadata, ...metadata, storyboard: metadata?.storyboard || { rows: [1, 2, 3].map((shotNumber) => createStoryboardRow(shotNumber)), visibleColumns: ["shotNumber", "durationSeconds", "plotDescription", "dialogue"], referenceNodeIds: [] } }
-            : { ...spec.metadata, ...metadata, ...(type === CanvasNodeType.Drawing ? { drawingId: metadata?.drawingId || `${id}-document` } : {}) },
+        metadata:
+            type === CanvasNodeType.Script
+                ? {
+                      ...spec.metadata,
+                      ...metadata,
+                      storyboard: metadata?.storyboard || { rows: [1, 2, 3].map((shotNumber) => createStoryboardRow(shotNumber)), visibleColumns: ["shotNumber", "durationSeconds", "plotDescription", "dialogue"], referenceNodeIds: [] },
+                  }
+                : { ...spec.metadata, ...metadata, ...(type === CanvasNodeType.Drawing ? { drawingId: metadata?.drawingId || `${id}-document` } : {}) },
     };
 }
 
@@ -83,25 +87,25 @@ export function createStoryboardRow(shotNumber: number, patch: Partial<Storyboar
 // 有结构化变量时由服务端按最新平台模板和用户偏好编译；变量被清除表示用户已做镜头级手动覆盖。
 export function storyboardPromptTemplateMetadata(row: StoryboardRow, kind: "image" | "video"): Pick<CanvasNodeMetadata, "promptTemplateOperation" | "promptTemplateVariables"> {
     const variables = kind === "image" ? row.imagePromptTemplateVariables : row.videoPromptTemplateVariables;
-    return variables
-        ? { promptTemplateOperation: kind === "image" ? "storyboard_first_frame" : "storyboard_video", promptTemplateVariables: variables }
-        : { promptTemplateOperation: undefined, promptTemplateVariables: undefined };
+    return variables ? { promptTemplateOperation: kind === "image" ? "storyboard_first_frame" : "storyboard_video", promptTemplateVariables: variables } : { promptTemplateOperation: undefined, promptTemplateVariables: undefined };
 }
 
 export function cinematicStoryboardColumns(columns?: StoryboardColumn[]): StoryboardColumn[] {
-    return Array.from(new Set([
-        ...(columns || ["shotNumber", "durationSeconds", "plotDescription", "dialogue"]),
-        "shotSize",
-        "narrativeIntent",
-        "viewerPOV",
-        "performanceBlocking",
-        "camera",
-        "motion",
-        "timeBeats",
-        "lightingAndAtmosphere",
-        "continuityOut",
-        "negativePrompt",
-    ])) as StoryboardColumn[];
+    return Array.from(
+        new Set([
+            ...(columns || ["shotNumber", "durationSeconds", "plotDescription", "dialogue"]),
+            "shotSize",
+            "narrativeIntent",
+            "viewerPOV",
+            "performanceBlocking",
+            "camera",
+            "motion",
+            "timeBeats",
+            "lightingAndAtmosphere",
+            "continuityOut",
+            "negativePrompt",
+        ]),
+    ) as StoryboardColumn[];
 }
 
 export function storyboardRowsFromTask(task: GenerationTask) {
@@ -124,7 +128,6 @@ export function storyboardRowsFromTask(task: GenerationTask) {
         }),
     };
 }
-
 
 export function applyNodeConfigPatch(node: CanvasNodeData, patch: Partial<CanvasNodeMetadata>) {
     const safePatch = patch || {};
@@ -197,7 +200,22 @@ export function attachNodeToStoryboardRow(nodes: CanvasNodeData[], connection: P
 
     return nodes.map((node) => {
         if (row && node.id === linkedNode.id && scriptNodeId === connection.fromNodeId && node.type === CanvasNodeType.Video) {
-            return { ...node, title: `镜头 ${row.shotNumber} · 视频`, metadata: { ...node.metadata, prompt: videoPrompt, composerContent: videoPrompt, ...storyboardPromptTemplateMetadata(row, "video"), workflowKind: "shot" as const, workflowTitle: `镜头 ${row.shotNumber} 视频`, shotIndex: row.shotNumber, generationMode: "video" as const, videoEditOperation: node.metadata?.videoEditOperation || "text_to_video", seconds: String(row.durationSeconds) } };
+            return {
+                ...node,
+                title: `镜头 ${row.shotNumber} · 视频`,
+                metadata: {
+                    ...node.metadata,
+                    prompt: videoPrompt,
+                    composerContent: videoPrompt,
+                    ...storyboardPromptTemplateMetadata(row, "video"),
+                    workflowKind: "shot" as const,
+                    workflowTitle: `镜头 ${row.shotNumber} 视频`,
+                    shotIndex: row.shotNumber,
+                    generationMode: "video" as const,
+                    videoEditOperation: node.metadata?.videoEditOperation || "text_to_video",
+                    seconds: String(row.durationSeconds),
+                },
+            };
         }
         if (node.id !== scriptNodeId || node.type !== CanvasNodeType.Script) return node;
         const storyboard = node.metadata?.storyboard;
@@ -206,9 +224,13 @@ export function attachNodeToStoryboardRow(nodes: CanvasNodeData[], connection: P
             metadata: {
                 ...node.metadata,
                 storyboard: {
-                    rows: (storyboard?.rows || []).map((item) => item.id !== rowId ? item : scriptNodeId === connection.fromNodeId
-                        ? { ...item, imageNodeId: linkedNode.type === CanvasNodeType.Image ? linkedNode.id : item.imageNodeId, videoNodeId: linkedNode.type === CanvasNodeType.Video ? linkedNode.id : item.videoNodeId }
-                        : { ...item, referenceNodeIds: Array.from(new Set([...(item.referenceNodeIds || []), linkedNode.id])) }),
+                    rows: (storyboard?.rows || []).map((item) =>
+                        item.id !== rowId
+                            ? item
+                            : scriptNodeId === connection.fromNodeId
+                              ? { ...item, imageNodeId: linkedNode.type === CanvasNodeType.Image ? linkedNode.id : item.imageNodeId, videoNodeId: linkedNode.type === CanvasNodeType.Video ? linkedNode.id : item.videoNodeId }
+                              : { ...item, referenceNodeIds: Array.from(new Set([...(item.referenceNodeIds || []), linkedNode.id])) },
+                    ),
                     visibleColumns: storyboard?.visibleColumns || ["shotNumber", "durationSeconds", "plotDescription", "dialogue"],
                     referenceNodeIds: handleId === "storyboard:context" ? Array.from(new Set([...(storyboard?.referenceNodeIds || []), linkedNode.id])) : storyboard?.referenceNodeIds || [],
                 },
@@ -224,11 +246,13 @@ export function storyboardRowFromHandle(nodes: CanvasNodeData[], nodeId: string,
 
 export function expandStoryboardTextMentions(prompt: string, references: CanvasResourceReference[]) {
     let expanded = prompt;
-    references.filter((reference) => reference.active && reference.kind === "text" && reference.text?.trim()).forEach((reference) => {
-        const token = `@${reference.label}`;
-        if (!expanded.includes(token)) return;
-        expanded = expanded.split(token).join(`【项目设定：${reference.title}】\n${reference.text!.trim()}`);
-    });
+    references
+        .filter((reference) => reference.active && reference.kind === "text" && reference.text?.trim())
+        .forEach((reference) => {
+            const token = `@${reference.label}`;
+            if (!expanded.includes(token)) return;
+            expanded = expanded.split(token).join(`【项目设定：${reference.title}】\n${reference.text!.trim()}`);
+        });
     return expanded;
 }
 
@@ -266,10 +290,12 @@ export function createNodeAlignmentContext(nodes: CanvasNodeData[], initialPosit
         if (batchRoot && !batchRoot.metadata?.imageBatchExpanded) return [];
         const parent = node.parentId ? nodeById.get(node.parentId) : null;
         if (parent && isFrameNode(parent) && parent.metadata?.frame?.collapsed) return [];
-        return [{
-            x: [node.position.x, node.position.x + node.width / 2, node.position.x + node.width],
-            y: [node.position.y, node.position.y + node.height / 2, node.position.y + node.height],
-        }];
+        return [
+            {
+                x: [node.position.x, node.position.x + node.width / 2, node.position.x + node.width],
+                y: [node.position.y, node.position.y + node.height / 2, node.position.y + node.height],
+            },
+        ];
     });
     return { movingBounds: { left, top, right, bottom }, targets };
 }
@@ -306,7 +332,6 @@ export function calculateNodeAlignment(context: NodeAlignmentContext | null, raw
         guides: { vertical: bestXGuide, horizontal: bestYGuide },
     };
 }
-
 
 export function isHiddenBatchChild(node: CanvasNodeData, nodes: CanvasNodeData[], collapsingBatchIds?: Set<string>) {
     const rootId = node.metadata?.batchRootId;

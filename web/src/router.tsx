@@ -51,23 +51,130 @@ export const router = createBrowserRouter([
         errorElement: <RouteErrorPage />,
         children: [
             { path: "/", element: <Navigate to="/create" replace /> },
-            { path: "/create", element: <RequireAuth><CreatePage /></RequireAuth> },
+            {
+                path: "/create",
+                element: (
+                    <RequireAuth>
+                        <CreatePage />
+                    </RequireAuth>
+                ),
+            },
             { path: "/home", element: <HomePage /> },
-            { path: "/tasks", element: <RequireAuth><RequireFeature feature="taskCenterEnabled"><TasksPage /></RequireFeature></RequireAuth> },
-            { path: "/assets", element: <RequireAuth><AssetsPage /></RequireAuth> },
-            { path: "/skills", element: <RequireAuth><SkillsPage /></RequireAuth> },
-            { path: "/wallet", element: <RequireAuth><RequireFeature feature="creditsEnabled"><WalletPage /></RequireFeature></RequireAuth> },
-            { path: "/settings", element: <RequireAuth><SettingsPage /></RequireAuth> },
-            { path: "/test-voice-recording", element: <RequireAuth><TestVoiceRecording /></RequireAuth> },
-            { path: "/projects", element: <RequireAuth><RequireFeature feature="shortDramaEnabled"><ProjectsPage /></RequireFeature></RequireAuth> },
-            { path: "/projects/:projectId", element: <RequireAuth><RequireFeature feature="shortDramaEnabled"><ProjectDetailPage /></RequireFeature></RequireAuth> },
-            { path: "/projects/:projectId/:view", element: <RequireAuth><RequireFeature feature="shortDramaEnabled"><ProjectDetailPage /></RequireFeature></RequireAuth> },
-            { path: "/projects/:projectId/chapters/:chapterId", element: <RequireAuth><RequireFeature feature="shortDramaEnabled"><ProjectDetailPage /></RequireFeature></RequireAuth> },
-            { path: "/canvas", element: <RequireAuth><CanvasPage /></RequireAuth> },
-            { path: "/canvas/:id", element: <RequireAuth><CanvasProjectPage /></RequireAuth> },
+            {
+                path: "/tasks",
+                element: (
+                    <RequireAuth>
+                        <RequireFeature feature="taskCenterEnabled">
+                            <TasksPage />
+                        </RequireFeature>
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "/assets",
+                element: (
+                    <RequireAuth>
+                        <AssetsPage />
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "/skills",
+                element: (
+                    <RequireAuth>
+                        <SkillsPage />
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "/wallet",
+                element: (
+                    <RequireAuth>
+                        <RequireFeature feature="creditsEnabled">
+                            <WalletPage />
+                        </RequireFeature>
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "/settings",
+                element: (
+                    <RequireAuth>
+                        <SettingsPage />
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "/test-voice-recording",
+                element: (
+                    <RequireAuth>
+                        <TestVoiceRecording />
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "/projects",
+                element: (
+                    <RequireAuth>
+                        <RequireFeature feature="shortDramaEnabled">
+                            <ProjectsPage />
+                        </RequireFeature>
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "/projects/:projectId",
+                element: (
+                    <RequireAuth>
+                        <RequireFeature feature="shortDramaEnabled">
+                            <ProjectDetailPage />
+                        </RequireFeature>
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "/projects/:projectId/:view",
+                element: (
+                    <RequireAuth>
+                        <RequireFeature feature="shortDramaEnabled">
+                            <ProjectDetailPage />
+                        </RequireFeature>
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "/projects/:projectId/chapters/:chapterId",
+                element: (
+                    <RequireAuth>
+                        <RequireFeature feature="shortDramaEnabled">
+                            <ProjectDetailPage />
+                        </RequireFeature>
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "/canvas",
+                element: (
+                    <RequireAuth>
+                        <CanvasPage />
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "/canvas/:id",
+                element: (
+                    <RequireAuth>
+                        <CanvasProjectPage />
+                    </RequireAuth>
+                ),
+            },
             {
                 path: "/admin",
-                element: <RequireAuth><AdminPage /></RequireAuth>,
+                element: (
+                    <RequireAuth>
+                        <AdminPage />
+                    </RequireAuth>
+                ),
                 children: [
                     { index: true, element: <AnalyticsPage /> },
                     { path: "users", element: <UsersPage /> },

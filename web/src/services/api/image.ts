@@ -843,14 +843,19 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
         try {
             const modelName = requestConfig.model.toLowerCase();
             const supportsParameters = modelName !== "web/grok-imagine-image-lite";
-            const responseData = await postChannelJSON<ImageApiResponse>(requestConfig, aiApiUrl(requestConfig, "/images/generations"), {
-                model: requestConfig.model,
-                prompt: withSystemPrompt(requestConfig, prompt),
-                n,
-                ...(supportsParameters && normalizedImage.size !== "auto" ? { aspect_ratio: normalizeGrok2APINewImageAspect(normalizedImage.size) } : {}),
-                ...(supportsParameters ? { resolution: normalizeGrok2APINewImageResolution(normalizedImage.quality) } : {}),
-                response_format: "url",
-            }, options);
+            const responseData = await postChannelJSON<ImageApiResponse>(
+                requestConfig,
+                aiApiUrl(requestConfig, "/images/generations"),
+                {
+                    model: requestConfig.model,
+                    prompt: withSystemPrompt(requestConfig, prompt),
+                    n,
+                    ...(supportsParameters && normalizedImage.size !== "auto" ? { aspect_ratio: normalizeGrok2APINewImageAspect(normalizedImage.size) } : {}),
+                    ...(supportsParameters ? { resolution: normalizeGrok2APINewImageResolution(normalizedImage.quality) } : {}),
+                    response_format: "url",
+                },
+                options,
+            );
             return parseImagePayload(responseData);
         } catch (error) {
             throw new Error(readAxiosError(error, "Grok2API New 图片生成失败"));
@@ -1103,15 +1108,20 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
         if (modelName.startsWith("web/") && n !== 1) throw new Error("Grok2API New Web 图片编辑仅支持生成 1 张图片");
         try {
             const images = await Promise.all(references.map(grokImageInputURL));
-            const responseData = await postChannelJSON<ImageApiResponse>(requestConfig, aiApiUrl(requestConfig, "/images/edits"), {
-                model: requestConfig.model,
-                prompt: withSystemPrompt(requestConfig, requestPrompt),
-                ...(images.length === 1 ? { image: { url: images[0] } } : { images: images.map((url) => ({ url })) }),
-                n,
-                aspect_ratio: normalizeGrok2APINewImageAspect(normalizedImage.size),
-                resolution: modelName.startsWith("web/") ? "1k" : normalizeGrok2APINewImageResolution(normalizedImage.quality),
-                response_format: "url",
-            }, options);
+            const responseData = await postChannelJSON<ImageApiResponse>(
+                requestConfig,
+                aiApiUrl(requestConfig, "/images/edits"),
+                {
+                    model: requestConfig.model,
+                    prompt: withSystemPrompt(requestConfig, requestPrompt),
+                    ...(images.length === 1 ? { image: { url: images[0] } } : { images: images.map((url) => ({ url })) }),
+                    n,
+                    aspect_ratio: normalizeGrok2APINewImageAspect(normalizedImage.size),
+                    resolution: modelName.startsWith("web/") ? "1k" : normalizeGrok2APINewImageResolution(normalizedImage.quality),
+                    response_format: "url",
+                },
+                options,
+            );
             return parseImagePayload(responseData);
         } catch (error) {
             throw new Error(readAxiosError(error, "Grok2API New 图片编辑失败"));
@@ -1263,17 +1273,7 @@ export async function fetchImageModels(config: Pick<AiConfig, "baseUrl" | "apiKe
     try {
         const lowerBase = (config.baseUrl || "").toLowerCase();
         if (lowerBase.includes("zarklab.ai") || lowerBase.includes("api.zarklab")) {
-            return [
-                "auto",
-                "GPT Image 2",
-                "Seedream",
-                "Kling Image",
-                "Nano Banana",
-                "Seedance",
-                "Kling",
-                "Veo",
-                "Happy Horse",
-            ];
+            return ["auto", "GPT Image 2", "Seedream", "Kling Image", "Nano Banana", "Seedance", "Kling", "Veo", "Happy Horse"];
         }
         if (config.apiFormat === "gemini") {
             const requestConfig = { ...defaultGeminiConfig, ...config };

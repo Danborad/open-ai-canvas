@@ -111,28 +111,32 @@ describe("Seedance 视频时长能力", () => {
 
     test("新版 Grok2API 使用后台保存的分辨率列表", () => {
         const config = {
-            channels: [{
-                id: "grok-new",
-                interfaceType: "grok2api-new-video" as const,
-                models: ["Web/grok-imagine-video"],
-                modelCosts: [{
-                    model: "Web/grok-imagine-video",
-                    capability: "video" as const,
-                    protocol: "grok2api-new-video" as const,
-                    billingMode: "fixed_request" as const,
-                    unitPriceMicrocredits: 1,
-                    capabilityConfig: {
-                        version: 1,
-                        video: {
-                            duration: { selection: "enum" as const, values: [6, 10, 15], default: 6 },
-                            ratios: ["16:9"],
-                            defaultRatio: "16:9",
-                            resolutions: ["480p", "720p"],
-                            defaultResolution: "720p",
+            channels: [
+                {
+                    id: "grok-new",
+                    interfaceType: "grok2api-new-video" as const,
+                    models: ["Web/grok-imagine-video"],
+                    modelCosts: [
+                        {
+                            model: "Web/grok-imagine-video",
+                            capability: "video" as const,
+                            protocol: "grok2api-new-video" as const,
+                            billingMode: "fixed_request" as const,
+                            unitPriceMicrocredits: 1,
+                            capabilityConfig: {
+                                version: 1,
+                                video: {
+                                    duration: { selection: "enum" as const, values: [6, 10, 15], default: 6 },
+                                    ratios: ["16:9"],
+                                    defaultRatio: "16:9",
+                                    resolutions: ["480p", "720p"],
+                                    defaultResolution: "720p",
+                                },
+                            },
                         },
-                    },
-                }],
-            }],
+                    ],
+                },
+            ],
         };
         const video = modelCapabilityConfigFor(config, "grok-new::Web/grok-imagine-video").video!;
         expect(video.duration.selection).toBe("enum");
