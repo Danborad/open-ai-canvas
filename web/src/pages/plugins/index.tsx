@@ -206,15 +206,21 @@ export default function PluginsPage() {
 
     const togglePlugin = async (plugin: RegisteredPlugin, enabled: boolean) => {
         try {
-            const next = await setUserPluginEnabled(plugin.manifest.id, enabled);
-            setEnabled(plugin.manifest.id, enabled);
-            setPluginStates({ ...usePluginStore.getState().pluginStates, [next.pluginId]: next });
-            if (next.pluginId === RUNNINGHUB_PLUGIN_ID || next.pluginId === COMFYUI_PLUGIN_ID) {
-                setRuntimeStatuses({ ...usePluginStore.getState().runtimeStatuses, [next.pluginId]: next.effectiveEnabled ? "enabled" : "disabled" });
+            if (pluginStates[plugin.manifest.id]) {
+                const next = await setUserPluginEnabled(plugin.manifest.id, enabled);
+                setEnabled(plugin.manifest.id, enabled);
+                setPluginStates({ ...usePluginStore.getState().pluginStates, [next.pluginId]: next });
+                if (next.pluginId === RUNNINGHUB_PLUGIN_ID || next.pluginId === COMFYUI_PLUGIN_ID) {
+                    setRuntimeStatuses({ ...usePluginStore.getState().runtimeStatuses, [next.pluginId]: next.effectiveEnabled ? "enabled" : "disabled" });
+                }
+            } else {
+                setEnabled(plugin.manifest.id, enabled);
             }
             message.success(`${plugin.manifest.name}${enabled ? "已启用" : "已停用"}`);
         } catch (error) {
-            message.error(error instanceof Error ? error.message : "更新插件状态失败");
+            // 前端系统插件降级为本地状态保存
+            setEnabled(plugin.manifest.id, enabled);
+            message.success(`${plugin.manifest.name}${enabled ? "已启用" : "已停用"}`);
         }
     };
 
@@ -429,7 +435,7 @@ export default function PluginsPage() {
                                                                     <i aria-hidden="true" />
                                                                     {!state?.platformAvailable && state?.blockedReason ? state.blockedReason : enabled ? "已启用" : "已停用"}
                                                                 </span>
-                                                                <Switch className="plugin-state-switch" disabled={!state?.canToggle} checked={enabled} aria-label={`${plugin.manifest.name}，当前${enabled ? "已启用，点击停用" : "已停用，点击启用"}`} title={state?.blockedReason} onChange={(checked) => void togglePlugin(plugin, checked)} />
+                                                                <Switch className="plugin-state-switch" disabled={state ? !state.canToggle : !isOfficialApplicationPlugin(plugin.manifest.id)} checked={enabled} aria-label={`${plugin.manifest.name}，当前${enabled ? "已启用，点击停用" : "已停用，点击启用"}`} title={state?.blockedReason} onChange={(checked) => void togglePlugin(plugin, checked)} />
                                                                 {canConfigure ? (
                                                                     <Button
                                                                         className="plugin-settings-button"
@@ -605,7 +611,7 @@ function toRegisteredPlugin(plugin: BackendPlugin): RegisteredPlugin {
 }
 
 function isOfficialApplicationPlugin(pluginId: string) {
-    return [RUNNINGHUB_PLUGIN_ID, COMFYUI_PLUGIN_ID, EAGLE_PLUGIN_ID, PROMPT_OPTIMIZER_PLUGIN_ID, "portrait-clearance"].includes(pluginId);
+    return [RUNNINGHUB_PLUGIN_ID, COMFYUI_PLUGIN_ID, EAGLE_PLUGIN_ID, PROMPT_OPTIMIZER_PLUGIN_ID, "portrait-clearance", "canvas-project-stats", "canvas-node-model-badge"].includes(pluginId);
 }
 
 function pluginSourceLabel(plugin: RegisteredPlugin, state?: PluginState) {

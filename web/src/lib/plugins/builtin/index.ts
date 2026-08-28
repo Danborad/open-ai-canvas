@@ -3,3 +3,4 @@ import "./prompt-optimizer";
 import "./workflows";
 import "./portrait-clearance";
 import "./canvas-stats";
+import "./canvas-node-model-badge";
