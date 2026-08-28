@@ -741,47 +741,85 @@ func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, it
 			changed = true
 		}
 		if item.ModelKey == "indextts2-v1" {
-			item.Capability = "audio"
-			item.Protocol = "autodl-comfyui-audio"
+			if item.Capability != "audio" || item.Protocol != "autodl-comfyui-audio" {
+				item.Capability = "audio"
+				item.Protocol = "autodl-comfyui-audio"
+				changed = true
+			}
 		} else {
-			item.Capability = "video"
-			item.Protocol = "autodl-comfyui"
-			if encoded, err := json.Marshal(DefaultAutoDLVideoCapability(item.ModelKey)); err == nil {
-				item.CapabilityConfigJSON = string(encoded)
+			if item.Capability != "video" || item.Protocol != "autodl-comfyui" {
+				item.Capability = "video"
+				item.Protocol = "autodl-comfyui"
+				changed = true
 			}
 		}
-		changed = true
+		if strings.TrimSpace(item.CapabilityConfigJSON) == "" {
+			if encoded, err := json.Marshal(DefaultAutoDLVideoCapability(item.ModelKey)); err == nil {
+				item.CapabilityConfigJSON = string(encoded)
+				changed = true
+			}
+		}
 	case "flow2api":
 		if strings.EqualFold(item.ModelKey, "Omni Flash") || strings.HasPrefix(item.ModelKey, "Veo 3.1") {
-			item.Capability = "video"
-			item.Protocol = "flow2api-video"
+			if item.Capability != "video" || item.Protocol != "flow2api-video" {
+				item.Capability = "video"
+				item.Protocol = "flow2api-video"
+				changed = true
+			}
 		} else {
-			item.Capability = "image"
-			item.Protocol = "flow2api-image"
+			if item.Capability != "image" || item.Protocol != "flow2api-image" {
+				item.Capability = "image"
+				item.Protocol = "flow2api-image"
+				changed = true
+			}
 		}
-		if encoded, err := json.Marshal(DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey)); err == nil {
-			item.CapabilityConfigJSON = string(encoded)
+		if strings.TrimSpace(item.CapabilityConfigJSON) == "" {
+			if encoded, err := json.Marshal(DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey)); err == nil {
+				item.CapabilityConfigJSON = string(encoded)
+				changed = true
+			}
 		}
-		changed = true
 	case "grok2api":
 		if strings.Contains(strings.ToLower(item.ModelKey), "video") {
-			item.Capability = "video"
-			item.Protocol = "xai-video"
+			if item.Capability != "video" || item.Protocol != "xai-video" {
+				item.Capability = "video"
+				item.Protocol = "xai-video"
+				changed = true
+			}
 		} else {
-			item.Capability = "image"
-			item.Protocol = "grok-image"
+			if item.Capability != "image" || item.Protocol != "grok-image" {
+				item.Capability = "image"
+				item.Protocol = "grok-image"
+				changed = true
+			}
 		}
-		changed = true
+		if strings.TrimSpace(item.CapabilityConfigJSON) == "" {
+			if encoded, err := json.Marshal(DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey)); err == nil {
+				item.CapabilityConfigJSON = string(encoded)
+				changed = true
+			}
+		}
 	case "zarklab":
 		switch item.ModelKey {
 		case "Happy Horse", "Kling 3.0 Lite", "MiniMax H3", "Seedance 2", "Seedance 2 Lite", "Seedance 2 Mini", "Seedance 2.5":
-			item.Capability = "video"
-			item.Protocol = "zarklab-video"
+			if item.Capability != "video" || item.Protocol != "zarklab-video" {
+				item.Capability = "video"
+				item.Protocol = "zarklab-video"
+				changed = true
+			}
 		default:
-			item.Capability = "image"
-			item.Protocol = "zarklab-image"
+			if item.Capability != "image" || item.Protocol != "zarklab-image" {
+				item.Capability = "image"
+				item.Protocol = "zarklab-image"
+				changed = true
+			}
 		}
-		changed = true
+		if strings.TrimSpace(item.CapabilityConfigJSON) == "" {
+			if encoded, err := json.Marshal(DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey)); err == nil {
+				item.CapabilityConfigJSON = string(encoded)
+				changed = true
+			}
+		}
 	}
 	return changed
 }
