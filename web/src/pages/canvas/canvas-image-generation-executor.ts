@@ -6,6 +6,7 @@ import { nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
 import { canvasImageReferenceLimitError, buildImageGenerationMetadata, getGenerationCount, isGenerationCanceled, runCanvasGenerationTaskToConsumer } from "@/lib/canvas/canvas-project-generation";
 import { CONTENT_MODERATION_ERROR_CODE, generationFailureMetadata, type GenerationFailureMetadata } from "@/lib/generation-error";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
+import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 
 import type { CanvasGenerationExecution } from "./canvas-generation-executor-types";
 
@@ -47,7 +48,8 @@ export async function executeImageGeneration({
     const count = getGenerationCount(generationConfig.count);
     const isConfigNode = sourceNode?.type === CanvasNodeType.Config;
     const isImageNode = sourceNode?.type === CanvasNodeType.Image;
-    const reuseSourceNode = canGenerateImageInPlace(sourceNode);
+    const isCopiedVariant = count === 1 && isImageNode && Boolean(sourceNode?.metadata?.copiedFromNodeId || sourceNode?.metadata?.versionOfNodeId || sourceNode?.title.endsWith(" Copy") || sourceNode?.title.includes(" · "));
+    const reuseSourceNode = canGenerateImageInPlace(sourceNode) || isCopiedVariant;
     const directCopiedBatch = count > 1 && isImageNode && Boolean(sourceNode?.metadata?.content) && (Boolean(sourceNode?.metadata?.copiedFromNodeId) || sourceNode?.title.endsWith(" Copy"));
     // 已有图片生成新结果并保留旧版本；参考图只来自入边，避免把旧结果误当成自身输入。
     const referenceImages = generationContext.referenceImages;
@@ -85,6 +87,7 @@ export async function executeImageGeneration({
         width: rootWidth,
         height: rootHeight,
         metadata: {
+            ...(reuseSourceNode ? sourceNode?.metadata || {} : {}),
             prompt: effectivePrompt,
             status: NODE_STATUS_LOADING,
             size: generationConfig.size,
@@ -93,6 +96,7 @@ export async function executeImageGeneration({
             batchFailedCount: count > 1 ? 0 : undefined,
             batchUsesReferenceImages: referenceImages.length > 0,
             primaryImageId: undefined,
+            content: reuseSourceNode ? "" : undefined,
             ...generationMetadata,
             ...styleMetadata,
             imageBatchExpanded: count > 1 ? true : undefined,
@@ -124,27 +128,33 @@ export async function executeImageGeneration({
         ? childIds.map((childId) => ({ id: nanoid(), fromNodeId: nodeId, toNodeId: childId }))
         : [...(reuseSourceNode ? [] : [{ id: nanoid(), fromNodeId: nodeId, toNodeId: rootId }]), ...childIds.map((childId) => ({ id: nanoid(), fromNodeId: rootId, toNodeId: childId }))];
 
-    setNodes((current) => {
-        return [
-            ...current.map((node) => {
-                if (node.id !== nodeId) return node;
-                if (isConfigNode) return { ...node, metadata: { ...node.metadata, prompt: effectivePrompt, status: NODE_STATUS_LOADING, errorDetails: undefined } };
-                if (reuseSourceNode) return { ...node, position: rootNode.position, width: rootNode.width, height: rootNode.height, title: rootNode.title, metadata: { ...node.metadata, ...rootNode.metadata, errorDetails: undefined } };
-                if (isImageNode) return node;
-                return {
-                    ...node,
-                    type: CanvasNodeType.Text,
-                    title: prompt.slice(0, 32) || "Prompt",
-                    width: parentConfig.width,
-                    height: parentConfig.height,
-                    metadata: { ...node.metadata, content: prompt, richText: undefined, prompt, status: NODE_STATUS_SUCCESS, fontSize: 14, errorDetails: undefined },
-                };
-            }),
-            ...(reuseSourceNode || directCopiedBatch ? [] : [rootNode]),
-            ...childNodes,
-        ];
+    const nextNodes: CanvasNodeData[] = [
+        ...canvasNodes.map((node) => {
+            if (node.id !== nodeId) return node;
+            if (isConfigNode) return { ...node, metadata: { ...node.metadata, prompt: effectivePrompt, status: NODE_STATUS_LOADING, errorDetails: undefined } };
+            if (reuseSourceNode) return { ...node, position: rootNode.position, width: rootNode.width, height: rootNode.height, title: rootNode.title, metadata: { ...node.metadata, ...rootNode.metadata, errorDetails: undefined } };
+            if (isImageNode) return node;
+            return {
+                ...node,
+                type: CanvasNodeType.Text,
+                title: prompt.slice(0, 32) || "Prompt",
+                width: parentConfig.width,
+                height: parentConfig.height,
+                metadata: { ...node.metadata, content: prompt, richText: undefined, prompt, status: NODE_STATUS_SUCCESS, fontSize: 14, errorDetails: undefined },
+            };
+        }),
+        ...(reuseSourceNode || directCopiedBatch ? [] : [rootNode]),
+        ...childNodes,
+    ];
+
+    setNodes(nextNodes);
+    setConnections((current) => {
+        const nextConnections = [...current, ...batchConnections];
+        if (projectId) {
+            useCanvasStore.getState().updateProject(projectId, { nodes: nextNodes, connections: nextConnections });
+        }
+        return nextConnections;
     });
-    setConnections((current) => [...current, ...batchConnections]);
     setSelectedNodeIds(new Set([nodeId]));
     setSelectedConnectionId(null);
     setDialogNodeId(nodeId);
@@ -195,7 +205,7 @@ export async function executeImageGeneration({
                                   height: child.height,
                                   position: { x: center.x - child.width / 2, y: center.y - child.height / 2 },
                               };
-                        return current.map((node) =>
+                        const updated = current.map((node) =>
                             node.id === rootId
                                 ? {
                                       ...node,
@@ -215,6 +225,8 @@ export async function executeImageGeneration({
                                   }
                                 : node,
                         );
+                        if (projectId) useCanvasStore.getState().updateProject(projectId, { nodes: updated });
+                        return updated;
                     });
                 }
                 hasSuccess = true;
@@ -226,7 +238,11 @@ export async function executeImageGeneration({
                 if (!representativeFailure || failure.generationErrorCode === CONTENT_MODERATION_ERROR_CODE) representativeFailure = failure;
                 hasFailure = true;
                 failureCount += 1;
-                setNodes((current) => current.map((node) => (node.id === targetId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_ERROR, ...failure } } : node)));
+                setNodes((current) => {
+                    const next = current.map((node) => (node.id === targetId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_ERROR, ...failure } } : node));
+                    if (projectId) useCanvasStore.getState().updateProject(projectId, { nodes: next });
+                    return next;
+                });
                 return false;
             } finally {
                 finishGenerationRequest(targetId, controller);
@@ -239,8 +255,8 @@ export async function executeImageGeneration({
         return;
     }
     if (hasFailure) showError(hasSuccess ? "部分图片生成失败" : "全部图片生成失败");
-    setNodes((current) =>
-        current.map((node) => {
+    setNodes((current) => {
+        const next = current.map((node) => {
             if (node.id === nodeId && isConfigNode) {
                 return {
                     ...node,
@@ -263,6 +279,9 @@ export async function executeImageGeneration({
                 };
             }
             return node;
-        }),
-    );
+        });
+        if (projectId) useCanvasStore.getState().updateProject(projectId, { nodes: next });
+        return next;
+    });
 }
+

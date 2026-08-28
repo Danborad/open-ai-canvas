@@ -58,14 +58,22 @@ export function ensureMediaNodeMinimumSize(node: CanvasNodeData) {
     let width = node.width;
     let height = node.height;
     const emptyStage = isBuiltinCanvasNodeType(node.type) ? NODE_DEFAULT_SIZE[node.type] : undefined;
-    const shouldPromoteEmptyStage = !node.metadata?.content
-        && !node.metadata?.freeResize
-        && !node.metadata?.locked
-        && emptyStage !== undefined
-        && width * height < emptyStage.width * emptyStage.height;
-    if (shouldPromoteEmptyStage) {
-        width = emptyStage.width;
-        height = emptyStage.height;
+
+    // 如果未完成节点（生成中/失败/空节点）指定了目标比例（如 3:4, 9:16），按目标比例保持占位框尺寸，不能强制变成 16:9 横屏。
+    const targetSize = node.metadata?.size ? nodeSizeFromRatio(node.metadata.size, emptyStage?.width || 720, emptyStage?.height || 405) : null;
+    if (targetSize && !node.metadata?.content && !node.metadata?.freeResize && !node.metadata?.locked) {
+        width = targetSize.width;
+        height = targetSize.height;
+    } else {
+        const shouldPromoteEmptyStage = !node.metadata?.content
+            && !node.metadata?.freeResize
+            && !node.metadata?.locked
+            && emptyStage !== undefined
+            && (width <= 0 || height <= 0);
+        if (shouldPromoteEmptyStage) {
+            width = emptyStage.width;
+            height = emptyStage.height;
+        }
     }
     const naturalWidth = node.metadata?.naturalWidth || 0;
     const naturalHeight = node.metadata?.naturalHeight || 0;
