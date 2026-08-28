@@ -231,7 +231,7 @@ export function defaultImageParamsForModel(config: AiConfig, model: string): Pic
     const sizeDefault = image.size.default !== "*" && image.size.default ? image.size.default : sizeValues[0] || "1:1";
     return {
         size: sizeDefault,
-        quality: image.quality.default || "auto",
+        quality: image.quality.supported ? image.quality.default || "auto" : "",
         transparentBackground: String(image.transparentBackground.default ?? false),
     };
 }

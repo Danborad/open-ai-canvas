@@ -16,6 +16,20 @@ import (
 )
 
 func RegisterUserDataRoutes(r *gin.RouterGroup, svc *service.Service) {
+	r.GET("/canvas-project-stats", func(c *gin.Context) {
+		user, err := currentUser(c, svc)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ids := strings.Split(c.Query("ids"), ",")
+		stats, err := svc.UserCanvasProjectStats(user.ID, ids)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, stats)
+	})
 	r.GET("/settings/prompt-templates", func(c *gin.Context) {
 		user, err := currentUser(c, svc)
 		if err != nil {

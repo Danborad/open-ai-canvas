@@ -1,0 +1,139 @@
+{
+  "apiVersion": "yingce.plugin/v1",
+  "id": "zarklab-provider",
+  "name": "ZarkLab 渠道",
+  "version": "1.0.0",
+  "enabled": true,
+  "author": "影策社区",
+  "description": "接入 ZarkLab.ai 格式模型与工具协议，支持 Kling、Seedance、Happy Horse 等模型。",
+  "documentation": "# ZarkLab.ai 渠道插件\n\n## 接口协议\n\n- 任务提交：`POST /mcp` (JSON-RPC `tools/call` `zark_ai`)\n- 结果查询：`GET /media/files/{id}`\n- 鉴权请求头：`X-API-Key: <key>`\n",
+  "permissions": [
+    "generation.run",
+    "media.read"
+  ],
+  "configuration": {
+    "fields": [
+      {
+        "name": "apiKey",
+        "type": "secret",
+        "label": "ZarkLab API Key",
+        "required": true,
+        "description": "填写 ZarkLab API Key。"
+      }
+    ]
+  },
+  "contributes": {
+    "providers": [
+      {
+        "id": "zarklab-image",
+        "label": "ZarkLab 图片",
+        "capabilities": [
+          "image"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation"
+        ],
+        "baseUrl": "https://api.zarklab.ai",
+        "auth": {
+          "type": "header",
+          "field": "apiKey",
+          "header": "X-API-Key"
+        },
+        "parameters": [
+          { "name": "model", "type": "string", "required": true, "mapping": "model" },
+          { "name": "prompt", "type": "string", "required": true, "mapping": "prompt" },
+          { "name": "aspectRatio", "type": "string", "mapping": "aspectRatio" }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/mcp",
+          "contentType": "application/json",
+          "fields": {
+            "jsonrpc": "2.0",
+            "id": "1",
+            "method": "tools/call",
+            "params.name": "zark_ai",
+            "params.arguments.prompt": "request.prompt",
+            "params.arguments.aspect_ratio": "request.aspectRatio"
+          }
+        },
+        "response": {
+          "taskIdPaths": [
+            "result.structuredContent.run_id"
+          ],
+          "statusPaths": [
+            "result.status",
+            "status"
+          ],
+          "resultPaths": [
+            "result.structuredContent.generated_file_ids",
+            "result.content"
+          ],
+          "resultKind": "image",
+          "resultEphemeral": true
+        }
+      },
+      {
+        "id": "zarklab-video",
+        "label": "ZarkLab 视频",
+        "capabilities": [
+          "video"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation"
+        ],
+        "baseUrl": "https://api.zarklab.ai",
+        "auth": {
+          "type": "header",
+          "field": "apiKey",
+          "header": "X-API-Key"
+        },
+        "parameters": [
+          { "name": "model", "type": "string", "required": true, "mapping": "model" },
+          { "name": "prompt", "type": "string", "required": true, "mapping": "prompt" },
+          { "name": "duration", "type": "integer", "mapping": "duration" },
+          { "name": "aspectRatio", "type": "string", "mapping": "aspectRatio" }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/mcp",
+          "contentType": "application/json",
+          "fields": {
+            "jsonrpc": "2.0",
+            "id": "1",
+            "method": "tools/call",
+            "params.name": "zark_ai",
+            "params.arguments.prompt": "request.prompt",
+            "params.arguments.duration": "request.duration",
+            "params.arguments.aspect_ratio": "request.aspectRatio"
+          }
+        },
+        "response": {
+          "taskIdPaths": [
+            "result.structuredContent.run_id"
+          ],
+          "statusPaths": [
+            "result.status",
+            "status"
+          ],
+          "resultPaths": [
+            "result.structuredContent.generated_file_ids"
+          ],
+          "resultKind": "video",
+          "resultEphemeral": true
+        }
+      }
+    ],
+    "workflows": [
+      { "id": "GPT Image 2", "label": "GPT Image 2", "providerId": "zarklab-image", "capability": "image" },
+      { "id": "Happy Horse", "label": "Happy Horse 视频", "providerId": "zarklab-video", "capability": "video" },
+      { "id": "Seedance 2.5", "label": "Seedance 2.5 视频", "providerId": "zarklab-video", "capability": "video" }
+    ]
+  }
+}

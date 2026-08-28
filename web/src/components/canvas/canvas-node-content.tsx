@@ -414,8 +414,9 @@ function EmptyImageContent({ node, theme, isBatchRoot, batchCount, batchExpanded
 function VideoNodeContent({ node, theme, reduceMediaEffects }: CanvasNodeContentProps) {
     const playWhenReadyRef = useRef(false);
     const playerBoxRef = useRef<HTMLDivElement>(null);
+    const nearViewport = useNearViewport(playerBoxRef);
     const { updateMetadata } = useCanvasNodeActions();
-    const { url, loading, load } = useNodeResourceUrl(node, false);
+    const { url, loading, load } = useNodeResourceUrl(node, nearViewport);
     const subtitleEntries = node.metadata?.subtitleEntries || [];
     const subtitleStyle = node.metadata?.subtitleStyle || createDefaultSubtitleStyle();
     const [currentTimeMs, setCurrentTimeMs] = useState(0);
@@ -443,8 +444,8 @@ function VideoNodeContent({ node, theme, reduceMediaEffects }: CanvasNodeContent
         };
     }, [node.id, node.metadata?.naturalHeight, node.metadata?.naturalWidth, subtitleEntries.length, updateMetadata, url]);
 
-    if (!node.metadata?.content) return <EmptyMediaContent icon={<Video className="size-7 opacity-35" />} label="空视频节点" color={theme.node.placeholder} />;
-    if (!url) return <DeferredMediaLoad icon={loading ? <LoaderCircle className="size-5 animate-spin" /> : <Play className="size-5 fill-current" />} label={loading ? "正在缓存视频" : "加载并缓存视频"} disabled={loading} onClick={() => { playWhenReadyRef.current = true; void load(); }} />;
+    if (!node.metadata?.content) return <EmptyMediaContent icon={<Video className="size-7 opacity-35" />} label="空视频节点" color={theme.node.placeholder} background={theme.node.fill} />;
+    if (!url) return <div ref={playerBoxRef} className="size-full"><DeferredMediaLoad icon={loading ? <LoaderCircle className="size-5 animate-spin" /> : <Play className="size-5 fill-current" />} label={loading ? "正在缓存视频" : "加载并缓存视频"} disabled={loading} onClick={() => { playWhenReadyRef.current = true; void load(); }} /></div>;
 
     const sourceRatio = (videoSize?.width || node.metadata?.naturalWidth || node.width) / Math.max(1, videoSize?.height || node.metadata?.naturalHeight || node.height);
     const fitHeight = Math.min(node.height, node.width / Math.max(0.01, sourceRatio));
@@ -464,15 +465,17 @@ function VideoNodeContent({ node, theme, reduceMediaEffects }: CanvasNodeContent
 
 function AudioNodeContent({ node, theme }: CanvasNodeContentProps) {
     const audioRef = useRef<HTMLAudioElement>(null);
+    const audioBoxRef = useRef<HTMLDivElement>(null);
+    const nearViewport = useNearViewport(audioBoxRef);
     const playWhenReadyRef = useRef(false);
-    const { url, loading, load } = useNodeResourceUrl(node, false);
+    const { url, loading, load } = useNodeResourceUrl(node, nearViewport);
     useEffect(() => {
         if (!url || !playWhenReadyRef.current) return;
         playWhenReadyRef.current = false;
         void audioRef.current?.play().catch(() => undefined);
     }, [url]);
-    if (!node.metadata?.content) return <EmptyMediaContent icon={<Music2 className="size-7 opacity-35" />} label="空音频节点" color={theme.node.placeholder} />;
-    if (!url) return <DeferredMediaLoad icon={loading ? <LoaderCircle className="size-5 animate-spin" /> : <Play className="size-5 fill-current" />} label={loading ? "正在缓存音频" : "加载并缓存音频"} disabled={loading} onClick={() => { playWhenReadyRef.current = true; void load(); }} />;
+    if (!node.metadata?.content) return <EmptyMediaContent icon={<Music2 className="size-7 opacity-35" />} label="空音频节点" color={theme.node.placeholder} background={theme.node.fill} />;
+    if (!url) return <div ref={audioBoxRef} className="size-full"><DeferredMediaLoad icon={loading ? <LoaderCircle className="size-5 animate-spin" /> : <Play className="size-5 fill-current" />} label={loading ? "正在缓存音频" : "加载并缓存音频"} disabled={loading} onClick={() => { playWhenReadyRef.current = true; void load(); }} /></div>;
     return (
         <div className="flex h-full w-full flex-col justify-center gap-3 px-4" style={{ background: theme.node.fill, color: theme.node.text }}>
             <div className="flex min-w-0 items-center gap-2 text-sm opacity-70"><Music2 className="size-4 shrink-0" /><span className="min-w-0 truncate" title={node.title || "音频"}>{node.title || "音频"}</span></div>
@@ -481,8 +484,8 @@ function AudioNodeContent({ node, theme }: CanvasNodeContentProps) {
     );
 }
 
-function EmptyMediaContent({ icon, label, color }: { icon: ReactNode; label: string; color: string }) {
-    return <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color }}>{icon}<span className="text-sm">{label}</span></div>;
+function EmptyMediaContent({ icon, label, color, background }: { icon: ReactNode; label: string; color: string; background?: string }) {
+    return <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color, background }}>{icon}<span className="text-sm">{label}</span></div>;
 }
 
 function ImageContent({ node, theme, isBatchRoot, batchCount, batchExpanded, batchOpening, batchRecovering, onToggleBatch }: Pick<CanvasNodeContentProps, "node" | "theme" | "isBatchRoot" | "batchCount" | "batchExpanded" | "batchOpening" | "batchRecovering" | "onToggleBatch">) {

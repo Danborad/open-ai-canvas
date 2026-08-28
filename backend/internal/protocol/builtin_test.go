@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -150,6 +152,86 @@ func TestImageAndVideoAdaptersMapProviderShapes(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestFlow2APIAdaptersMapDocumentedGenerationConfig(t *testing.T) {
+	manifestRaw, err := os.ReadFile(filepath.Join("..", "..", "..", "plugin-packages", "flow2api", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	adapters, err := LoadInstalledProviders(manifestRaw, nil)
+	if err != nil || len(adapters) != 2 {
+		t.Fatalf("LoadInstalledProviders() err = %v, adapters = %d", err, len(adapters))
+	}
+	var imageAdapter, videoAdapter Adapter
+	for _, a := range adapters {
+		if a.Metadata().ID == "flow2api-image" {
+			imageAdapter = a
+		}
+		if a.Metadata().ID == "flow2api-video" {
+			videoAdapter = a
+		}
+	}
+	if imageAdapter == nil || videoAdapter == nil {
+		t.Fatal("flow2api adapters missing from manifest")
+	}
+
+	imageSpec, err := imageAdapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "Nano Banana Pro", Prompt: "a still", AspectRatio: "9:16", Quality: "4k", Images: []MediaReference{{URL: "https://example.com/ref.png"}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	imageBody := imageSpec.Body.(map[string]any)
+	if stream, ok := imageBody["stream"].(bool); !ok || stream {
+		t.Fatalf("stream must be boolean false, got %#v", imageBody["stream"])
+	}
+	messages, ok := imageBody["messages"].([]any)
+	if !ok || len(messages) != 1 {
+		t.Fatalf("messages must be slice, got %#v", imageBody["messages"])
+	}
+	firstMsg := messages[0].(map[string]any)
+	if firstMsg["role"] != "user" {
+		t.Fatalf("role = %#v", firstMsg["role"])
+	}
+	userContents, ok := firstMsg["content"].([]any)
+	if !ok || len(userContents) != 2 {
+		t.Fatalf("multimodal content = %#v", firstMsg["content"])
+	}
+	imageConfig := imageBody["generationConfig"].(map[string]any)["imageConfig"].(map[string]any)
+	if imageConfig["aspectRatio"] != "9:16" || imageConfig["imageSize"] != "4k" {
+		t.Fatalf("image generation config = %#v", imageConfig)
+	}
+
+	omniSpec, err := videoAdapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "Omni Flash", Prompt: "a clip", AspectRatio: "16:9", Duration: 6, Resolution: "768p", Images: []MediaReference{{URL: "https://example.com/start.png"}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	omniBody := omniSpec.Body.(map[string]any)
+	if stream, ok := omniBody["stream"].(bool); !ok || stream {
+		t.Fatalf("stream must be boolean false, got %#v", omniBody["stream"])
+	}
+	videoMessages, ok := omniBody["messages"].([]any)
+	if !ok || len(videoMessages) != 1 {
+		t.Fatalf("video messages must be slice, got %#v", omniBody["messages"])
+	}
+	omniConfig := omniBody["generationConfig"].(map[string]any)
+	if omniConfig["aspectRatio"] != "16:9" || omniConfig["durationSeconds"] != 6 {
+		t.Fatalf("omni generation config = %#v", omniConfig)
+	}
+	if _, exists := omniConfig["imageSize"]; exists {
+		t.Fatalf("Omni Flash must not receive imageSize: %#v", omniConfig)
+	}
+
+	qualitySpec, err := videoAdapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "Veo 3.1 - Quality", Prompt: "a clip", AspectRatio: "9:16", Duration: 10, Resolution: "1080p"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	qualityConfig := qualitySpec.Body.(map[string]any)["generationConfig"].(map[string]any)
+	if qualityConfig["aspectRatio"] != "9:16" || qualityConfig["imageSize"] != "1080p" {
+		t.Fatalf("quality generation config = %#v", qualityConfig)
+	}
+	if _, exists := qualityConfig["durationSeconds"]; exists {
+		t.Fatalf("Veo Quality must not receive durationSeconds: %#v", qualityConfig)
 	}
 }
 

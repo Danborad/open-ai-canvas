@@ -22,11 +22,13 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClass
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
-    const resolutionSupported = Boolean(modelCapabilityConfigFor(config, config.model).video?.resolutions.length);
+    const targetModel = config.model || config.videoModel;
+    const profile = modelCapabilityConfigFor(config, targetModel).video;
+    const resolutionSupported = Boolean(profile?.resolutions.length);
     const summary = [
         ...(resolutionSupported ? [videoResolutionLabel(config.vquality)] : []),
         videoSizeLabel(config.size),
-        videoSecondsLabel(config.videoSeconds),
+        ...(profile?.durationSupported === false ? [] : [videoSecondsLabel(config.videoSeconds)]),
     ].join(" · ");
 
     useEffect(() => {

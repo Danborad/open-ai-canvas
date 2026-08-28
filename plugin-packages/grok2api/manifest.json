@@ -1,0 +1,154 @@
+{
+  "apiVersion": "yingce.plugin/v1",
+  "id": "grok2api-provider",
+  "name": "Grok2API 渠道",
+  "version": "1.0.0",
+  "enabled": true,
+  "author": "影策社区",
+  "description": "接入 Grok2API 与 xAI 格式图片与视频生成服务，支持多图参考和可变时长视频生成。",
+  "documentation": "# Grok2API 渠道插件\n\n## 接口协议\n\n- 图片生成/编辑：`POST /v1/images/generations`、`POST /v1/images/edits`\n- 视频生成：`POST /v1/videos/generations`\n- 视频轮询：`GET /v1/videos/{task_id}`\n\n## 支持模型\n\n- `Web/grok-imagine-image-2.0` / `Web/grok-imagine-image-quality-2.0`\n- `Web/grok-imagine-video` / `Console/grok-imagine-video`\n",
+  "permissions": [
+    "generation.run",
+    "media.read"
+  ],
+  "configuration": {
+    "fields": [
+      {
+        "name": "apiKey",
+        "type": "secret",
+        "label": "Grok2API Key",
+        "required": true,
+        "description": "填写 Grok2API 的 API Key。"
+      }
+    ]
+  },
+  "contributes": {
+    "providers": [
+      {
+        "id": "grok2api-image",
+        "label": "Grok2API 图片",
+        "capabilities": [
+          "image"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation"
+        ],
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey",
+          "header": "Authorization"
+        },
+        "parameters": [
+          { "name": "model", "type": "string", "required": true, "mapping": "model" },
+          { "name": "prompt", "type": "string", "required": true, "mapping": "prompt" },
+          { "name": "aspectRatio", "type": "string", "mapping": "aspectRatio" },
+          { "name": "quality", "type": "string", "mapping": "quality" }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/v1/images/generations",
+          "contentType": "application/json",
+          "fields": {
+            "model": "request.model",
+            "prompt": "request.prompt",
+            "aspect_ratio": "request.aspectRatio",
+            "resolution": "request.quality|lower",
+            "image": "request.images.0.url"
+          }
+        },
+        "response": {
+          "resultPaths": [
+            "data"
+          ],
+          "resultKind": "image"
+        }
+      },
+      {
+        "id": "grok2api-video",
+        "label": "Grok2API 视频",
+        "capabilities": [
+          "video"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation"
+        ],
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey",
+          "header": "Authorization"
+        },
+        "parameters": [
+          { "name": "model", "type": "string", "required": true, "mapping": "model" },
+          { "name": "prompt", "type": "string", "required": true, "mapping": "prompt" },
+          { "name": "duration", "type": "integer", "mapping": "duration" },
+          { "name": "aspectRatio", "type": "string", "mapping": "aspectRatio" },
+          { "name": "resolution", "type": "string", "mapping": "resolution" }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/v1/videos/generations",
+          "contentType": "application/json",
+          "fields": {
+            "model": "request.model",
+            "prompt": "request.prompt",
+            "duration": "request.duration",
+            "aspect_ratio": "request.aspectRatio",
+            "resolution": "request.resolution|lower",
+            "image.url": "request.images.0.url"
+          }
+        },
+        "poll": {
+          "method": "GET",
+          "path": "/v1/videos/{{taskId}}"
+        },
+        "response": {
+          "taskIdPaths": [
+            "id",
+            "request_id",
+            "data.task_id"
+          ],
+          "statusPaths": [
+            "status",
+            "state",
+            "data.status"
+          ],
+          "errorPaths": [
+            "code",
+            "error"
+          ],
+          "messagePaths": [
+            "message",
+            "error.message"
+          ],
+          "resultPaths": [
+            "video_url",
+            "url",
+            "data.url",
+            "videos"
+          ],
+          "resultKind": "video"
+        }
+      }
+    ],
+    "workflows": [
+      {
+        "id": "Web/grok-imagine-image-2.0",
+        "label": "Grok Imagine 图片",
+        "providerId": "grok2api-image",
+        "capability": "image"
+      },
+      {
+        "id": "Web/grok-imagine-video",
+        "label": "Grok Imagine 视频",
+        "providerId": "grok2api-video",
+        "capability": "video"
+      }
+    ]
+  }
+}

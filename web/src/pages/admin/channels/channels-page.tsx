@@ -18,7 +18,27 @@ import { AdminPageFrame } from "../components/admin-shell";
 import { AdminDataTable, AdminFilterChip, AdminRowActions, AdminStatusBadge, AdminTableEmpty, configuredSecretText } from "../components/admin-ui";
 import { ChannelModelManager } from "../components/channel-model-manager";
 
-type ChannelFormValues = { name: string; baseUrl: string; allowLocalChannel?: boolean; apiKey?: string; secretKey?: string; headers?: ChannelHeader[]; useGlobalConcurrency?: boolean; concurrencyLimit?: number; enabled?: boolean };
+type ChannelKind = "standard" | "autodl" | "flow2api" | "grok2api" | "zarklab";
+type ChannelFormValues = { name: string; baseUrl: string; channelKind?: ChannelKind; allowLocalChannel?: boolean; apiKey?: string; secretKey?: string; headers?: ChannelHeader[]; useGlobalConcurrency?: boolean; concurrencyLimit?: number; enabled?: boolean };
+
+function detectChannelKind(channel?: ModelChannel | null): ChannelKind {
+    if (!channel) return "standard";
+    const url = channel.baseUrl.toLowerCase();
+    const name = channel.name.toLowerCase();
+    if (url.includes("autodl.art") || name.includes("autodl")) return "autodl";
+    if (url.includes("flow2api") || name.includes("flow2api")) return "flow2api";
+    if (url.includes("grok2api") || name.includes("grok2api")) return "grok2api";
+    if (url.includes("zarklab.ai") || name.includes("zarklab")) return "zarklab";
+    return "standard";
+}
+
+const channelKindOptions = [
+    { label: "标准兼容渠道 (OpenAI / Gemini / 火山等)", value: "standard" },
+    { label: "AutoDL.Art ComfyUI (8 个工作流)", value: "autodl" },
+    { label: "Flow2API 渠道 (Nano Banana 2/Pro, Omni Flash, Veo 3.1 等)", value: "flow2api" },
+    { label: "Grok2API 渠道 (Grok Image 2.0 / Grok Video 等)", value: "grok2api" },
+    { label: "ZarkLab.ai 渠道 (GPT Image 2, Kling, Seedance 2.5 等)", value: "zarklab" },
+];
 
 export function adminLocalChannelFormOwner(desktopLocalChannelsEnabled: boolean, hostname: string, requestedAllowLocalChannel?: boolean) {
     const state = desktopLocalChannelFormState(desktopLocalChannelsEnabled, hostname, requestedAllowLocalChannel);
@@ -75,6 +95,7 @@ export default function ChannelsPage() {
     const [managingChannel, setManagingChannel] = useState<ModelChannel | null>(null);
     const requestSequence = useRef(0);
     const [form] = Form.useForm<ChannelFormValues>();
+    const channelKind = Form.useWatch("channelKind", form) || "standard";
     const useGlobalConcurrency = Form.useWatch("useGlobalConcurrency", form) !== false;
     const requestedAllowLocalChannel = Form.useWatch("allowLocalChannel", form) === true;
     const desktopLocalChannelsEnabled = useUserStore((state) => state.features.desktopLocalChannelsEnabled);
@@ -126,7 +147,34 @@ export default function ChannelsPage() {
     const openDrawer = (channel?: ModelChannel) => {
         setEditingChannel(channel || null);
         form.resetFields();
-        form.setFieldsValue(channel ? { name: channel.name, baseUrl: channel.baseUrl, allowLocalChannel: adminLocalChannelFormOwner(desktopLocalChannelsEnabled, desktopLocalChannelHostname, channel.allowLocalChannel).checked, apiKey: "", secretKey: "", headers: channel.headers || [], useGlobalConcurrency: !channel.concurrencyLimit, concurrencyLimit: channel.concurrencyLimit || undefined, enabled: channel.enabled !== false } : { name: "", baseUrl: "", allowLocalChannel: false, apiKey: "", secretKey: "", headers: [], useGlobalConcurrency: true, concurrencyLimit: undefined, enabled: true });
+        const kind = detectChannelKind(channel);
+        form.setFieldsValue(
+            channel
+                ? {
+                      channelKind: kind,
+                      name: channel.name,
+                      baseUrl: channel.baseUrl,
+                      allowLocalChannel: adminLocalChannelFormOwner(desktopLocalChannelsEnabled, desktopLocalChannelHostname, channel.allowLocalChannel).checked,
+                      apiKey: "",
+                      secretKey: "",
+                      headers: channel.headers || [],
+                      useGlobalConcurrency: !channel.concurrencyLimit,
+                      concurrencyLimit: channel.concurrencyLimit || undefined,
+                      enabled: channel.enabled !== false,
+                  }
+                : {
+                      channelKind: "standard",
+                      name: "",
+                      baseUrl: "",
+                      allowLocalChannel: false,
+                      apiKey: "",
+                      secretKey: "",
+                      headers: [],
+                      useGlobalConcurrency: true,
+                      concurrencyLimit: undefined,
+                      enabled: true,
+                  },
+        );
         setDrawerOpen(true);
     };
 
@@ -225,9 +273,46 @@ export default function ChannelsPage() {
                 footer={<div className="flex justify-end gap-2"><Button onClick={closeDrawer}>取消</Button><Button type="primary" loading={saving} onClick={() => void save()}>保存</Button></div>}
             >
                 <Form form={form} layout="vertical" requiredMark={false}>
+                    <Form.Item name="channelKind" label="渠道类型 / 预设模板" extra="选择预设渠道模板可自动填充 Base URL，保存后将自动注册并激活该渠道的所有专属模型。">
+                        <Select
+                            options={channelKindOptions}
+                            onChange={(value: ChannelKind) => {
+                                if (value === "autodl") {
+                                    form.setFieldValue("name", "AutoDL.Art");
+                                    form.setFieldValue("baseUrl", "https://autodl.art");
+                                } else if (value === "flow2api") {
+                                    form.setFieldValue("name", "Flow2API");
+                                    form.setFieldValue("baseUrl", "https://api.flow2api.com");
+                                } else if (value === "grok2api") {
+                                    form.setFieldValue("name", "Grok2API");
+                                    form.setFieldValue("baseUrl", "https://api.grok2api.com");
+                                } else if (value === "zarklab") {
+                                    form.setFieldValue("name", "ZarkLab.ai");
+                                    form.setFieldValue("baseUrl", "https://api.zarklab.ai");
+                                }
+                            }}
+                        />
+                    </Form.Item>
                     <Form.Item name="name" label="渠道名称" rules={[{ required: true, message: "请填写渠道名称" }]}><Input placeholder="例如：OpenAI 官方渠道" /></Form.Item>
                     <AdminLocalChannelFields visible={showDesktopLocalChannelControl} checked={allowLocalChannel} form={form} />
-                    <Form.Item name="apiKey" label={editingChannel ? `API Key / Access Key（${configuredSecretText}）` : "API Key / Access Key"} rules={editingChannel ? [] : [{ required: true, message: "请填写 API Key 或 Access Key" }]} extra="OpenAI 兼容协议填写 API Key；即梦官方协议填写 IAM Access Key。"><Input.Password autoComplete="new-password" placeholder={editingChannel ? "留空保留原凭证" : "API Key 或 Access Key"} /></Form.Item>
+                    <Form.Item
+                        name="apiKey"
+                        label={editingChannel ? `API Key / Access Key（${configuredSecretText}）` : channelKind === "autodl" ? "ComfyUI Token" : channelKind === "zarklab" ? "ZarkLab API Key" : "API Key / Access Key"}
+                        rules={editingChannel ? [] : [{ required: true, message: "请填写凭证" }]}
+                        extra={
+                            channelKind === "autodl"
+                                ? "填写 AutoDL 大模型令牌管理中创建的 ComfyUI 分组 Token（Authorization: <TOKEN>，直接传 Token，不加 Bearer）。"
+                                : channelKind === "flow2api"
+                                  ? "填写 Flow2API 的 API Key。"
+                                  : channelKind === "grok2api"
+                                    ? "填写 Grok2API 的 API Key。"
+                                    : channelKind === "zarklab"
+                                      ? "填写 ZarkLab API Key (X-API-Key)。"
+                                      : "OpenAI 兼容协议填写 API Key；即梦官方协议填写 IAM Access Key。"
+                        }
+                    >
+                        <Input.Password autoComplete="new-password" placeholder={editingChannel ? "留空保留原凭证" : "输入凭证密钥"} />
+                    </Form.Item>
                     <Form.Item name="secretKey" label={editingChannel ? `Secret Key（${channelSecretText(editingChannel)}）` : "Secret Key（可选）"} extra="仅即梦官方等 AK/SK 签名协议需要；其他渠道留空。"><Input.Password autoComplete="new-password" placeholder={editingChannel ? "留空保留原 Secret Key" : "IAM Secret Key"} /></Form.Item>
                     <div className="mb-6"><Form.Item name="headers" noStyle><ChannelHeadersEditor /></Form.Item></div>
                     <Form.Item name="useGlobalConcurrency" label="跟随系统并发配置" valuePropName="checked"><Switch /></Form.Item>

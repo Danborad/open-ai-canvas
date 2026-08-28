@@ -1,12 +1,17 @@
 import { Dropdown, Input } from "antd";
-import { Download, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Download, Image as ImageIcon, MoreHorizontal, Pencil, Trash2, Video } from "lucide-react";
 import type { KeyboardEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { ProjectPreview } from "@/components/canvas/canvas-project-card";
 import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
 import { useCanvasStore, type CanvasProject } from "@/stores/canvas/use-canvas-store";
 import { useCanvasUiStore } from "@/stores/canvas/use-canvas-ui-store";
+import { getCanvasProjectStats } from "@/services/api/user-data";
+import { formatCredits } from "@/constant/credits";
 import { cn } from "@/lib/utils";
+import { CANVAS_STATS_PLUGIN_ID } from "@/lib/plugins/builtin/canvas-stats";
+import { usePluginStore } from "@/stores/use-plugin-store";
 
 type CanvasFolderCardProps = {
     project: CanvasProject;
@@ -27,6 +32,15 @@ export function CanvasFolderCard({ project, projectName, onClick }: CanvasFolder
     const setDeleteIds = useCanvasUiStore((state) => state.setDeleteProjectIds);
     const editing = editingId === project.id;
     const selected = selectedIds.includes(project.id);
+    const statsEnabled = usePluginStore((state) =>
+        Boolean(state.installations.find((item) => item.manifest.id === CANVAS_STATS_PLUGIN_ID)?.enabled)
+    );
+    const statsQuery = useQuery({
+        queryKey: ["canvas-project-stats", project.id],
+        queryFn: () => getCanvasProjectStats(project.id),
+        staleTime: 30_000,
+        enabled: statsEnabled,
+    });
 
     const saveTitle = () => {
         renameProject(project.id, editingTitle);
@@ -68,8 +82,26 @@ export function CanvasFolderCard({ project, projectName, onClick }: CanvasFolder
                     </div>
                     <div className="canvas-folder-meta">
                         <span className="canvas-folder-meta-item">{projectName ? `所属项目：${projectName}` : "自由画布"}</span>
-                        <span className="canvas-folder-meta-separator" aria-hidden="true">·</span>
+                        <span className="canvas-folder-meta-separator" aria-hidden="true">
+                            ·
+                        </span>
                         <span className="canvas-folder-meta-item">{project.nodes.length} 节点</span>
+                        {statsEnabled && statsQuery.data && (statsQuery.data.imageCount > 0 || statsQuery.data.videoCount > 0) ? (
+                            <>
+                                <span className="canvas-folder-meta-separator" aria-hidden="true">
+                                    ·
+                                </span>
+                                <span className="canvas-folder-meta-item flex items-center gap-1 font-medium text-foreground/80">
+                                    <ImageIcon className="size-3 text-foreground/45" /> {statsQuery.data.imageCount} · {formatCredits(statsQuery.data.imageCreditsMicros, 1)}分
+                                </span>
+                                <span className="canvas-folder-meta-separator" aria-hidden="true">
+                                    ·
+                                </span>
+                                <span className="canvas-folder-meta-item flex items-center gap-1 font-medium text-foreground/80">
+                                    <Video className="size-3 text-foreground/45" /> {statsQuery.data.videoCount} · {formatCredits(statsQuery.data.videoCreditsMicros, 1)}分
+                                </span>
+                            </>
+                        ) : null}
                     </div>
                     <div className="canvas-folder-dates">
                         <span><small>创建时间</small><time dateTime={project.createdAt}>{formatCanvasDate(project.createdAt)}</time></span>

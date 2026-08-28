@@ -114,6 +114,31 @@ func (s *Service) FetchChannelModelCatalog(ctx context.Context, actor *model.Use
 	if apiKey == "" {
 		return nil, BadAuthRequest("请填写 API Key")
 	}
+
+	preset := isPresetChannel(&model.ModelChannel{BaseURL: baseURL})
+	if preset != "" {
+		models := presetChannelModels(preset)
+		catalog := make([]ChannelModelCatalogItem, 0, len(models))
+		for _, name := range models {
+			displayName := name
+			if preset == "autodl" {
+				displayName = autoDLWorkflowDisplayName(name)
+			}
+			modelType := "image"
+			if strings.Contains(strings.ToLower(name), "video") || strings.EqualFold(name, "Omni Flash") || strings.HasPrefix(name, "Veo 3.1") || (preset == "autodl" && name != "indextts2-v1") || (preset == "zarklab" && (name == "Happy Horse" || name == "Kling 3.0 Lite" || name == "MiniMax H3" || strings.HasPrefix(name, "Seedance"))) {
+				modelType = "video"
+			} else if name == "indextts2-v1" {
+				modelType = "audio"
+			}
+			catalog = append(catalog, ChannelModelCatalogItem{
+				ID:          name,
+				DisplayName: displayName,
+				ModelType:   modelType,
+			})
+		}
+		return catalog, nil
+	}
+
 	apiFormat := strings.ToLower(strings.TrimSpace(input.APIFormat))
 	if apiFormat == "" {
 		apiFormat = "openai"
@@ -262,4 +287,101 @@ func channelModelsUpstreamError(err error) error {
 	default:
 		return WrapAppError(http.StatusBadGateway, httpErr.Error(), err)
 	}
+}
+
+var (
+	flow2APIPresetModels = []string{
+		"Nano Banana Pro",
+		"Nano Banana 2",
+		"Imagen 4",
+		"Omni Flash",
+		"Veo 3.1 - Lite",
+		"Veo 3.1 - Fast",
+		"Veo 3.1 - Quality",
+	}
+	grok2APIPresetModels = []string{
+		"Web/grok-imagine-image-2.0",
+		"Web/grok-imagine-image-quality-2.0",
+		"Web/grok-imagine-video",
+		"Console/grok-imagine-video",
+	}
+	zarkLabPresetModels = []string{
+		"Nano Banana Lite",
+		"Nano Banana 2 Lite",
+		"GPT Image 2",
+		"Grok Image",
+		"Kling Image O3",
+		"Kling O3 Pro",
+		"Seedream 5 Pro",
+		"Happy Horse",
+		"Kling 3.0 Lite",
+		"MiniMax H3",
+		"Seedance 2",
+		"Seedance 2 Lite",
+		"Seedance 2 Mini",
+		"Seedance 2.5",
+	}
+	autoDLPresetModels = []string{
+		"minimax_h3_image_audio_to_video_v2_15s",
+		"minimax_h3_lightx2v_v5_15s",
+		"minimax_h3_image_audio_to_video_v2",
+		"minimax_h3_image_audio_to_video",
+		"minimax_h3_lightx2v_v5",
+		"minimax_h3_lightx2v_no_pic",
+		"minimax_h3_lightx2v",
+		"indextts2-v1",
+	}
+)
+
+func isPresetChannel(channel *model.ModelChannel) string {
+	if channel == nil {
+		return ""
+	}
+	url := strings.ToLower(channel.BaseURL)
+	name := strings.ToLower(channel.Name)
+	if strings.Contains(url, "autodl.art") || strings.Contains(name, "autodl") {
+		return "autodl"
+	}
+	if strings.Contains(url, "flow2api") || strings.Contains(name, "flow2api") {
+		return "flow2api"
+	}
+	if strings.Contains(url, "grok2api") || strings.Contains(name, "grok2api") {
+		return "grok2api"
+	}
+	if strings.Contains(url, "zarklab.ai") || strings.Contains(name, "zarklab") {
+		return "zarklab"
+	}
+	return ""
+}
+
+func presetChannelModels(preset string) []string {
+	switch preset {
+	case "autodl":
+		return autoDLPresetModels
+	case "flow2api":
+		return flow2APIPresetModels
+	case "grok2api":
+		return grok2APIPresetModels
+	case "zarklab":
+		return zarkLabPresetModels
+	default:
+		return nil
+	}
+}
+
+func autoDLWorkflowDisplayName(workflow string) string {
+	names := map[string]string{
+		"minimax_h3_image_audio_to_video_v2_15s": "H3 多图多音频生视频 15 秒",
+		"minimax_h3_lightx2v_v5_15s":            "H3 多图生视频 15 秒",
+		"minimax_h3_image_audio_to_video_v2":     "H3 多图多音频生视频",
+		"minimax_h3_image_audio_to_video":        "H3 图生视频音频同步",
+		"minimax_h3_lightx2v_v5":                 "H3 多图参考生视频",
+		"minimax_h3_lightx2v_no_pic":             "H3 文生视频",
+		"minimax_h3_lightx2v":                    "H3 首尾帧生成视频",
+		"indextts2-v1":                           "IndexTTS2 语音",
+	}
+	if name := names[workflow]; name != "" {
+		return name
+	}
+	return workflow
 }

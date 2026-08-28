@@ -497,15 +497,15 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
         runningHub,
         comfyBridge,
         model,
-        quality: generationDefaults.quality || requestedConfig.quality,
-        size: generationDefaults.size || requestedConfig.size,
-        transparentBackground: generationDefaults.transparentBackground || (requestedConfig.transparentBackground === "true" ? "true" : "false"),
-        videoSeconds: generationDefaults.videoSeconds || requestedConfig.videoSeconds,
-        vquality: generationDefaults.vquality || requestedConfig.vquality,
-        videoGenerateAudio: generationDefaults.videoGenerateAudio || requestedConfig.videoGenerateAudio,
-        videoWatermark: generationDefaults.videoWatermark || requestedConfig.videoWatermark,
+        quality: generationDefaults.quality ?? requestedConfig.quality,
+        size: generationDefaults.size ?? requestedConfig.size,
+        transparentBackground: generationDefaults.transparentBackground ?? (requestedConfig.transparentBackground === "true" ? "true" : "false"),
+        videoSeconds: generationDefaults.videoSeconds ?? requestedConfig.videoSeconds,
+        vquality: generationDefaults.vquality ?? requestedConfig.vquality,
+        videoGenerateAudio: generationDefaults.videoGenerateAudio ?? requestedConfig.videoGenerateAudio,
+        videoWatermark: generationDefaults.videoWatermark ?? requestedConfig.videoWatermark,
         videoArkPrivateAssetUpload: requestedConfig.videoArkPrivateAssetUpload,
-        count: generationDefaults.count || requestedConfig.count,
+        count: generationDefaults.count ?? requestedConfig.count,
     };
 }
 

@@ -389,3 +389,114 @@ func parseClientTime(value string, fallback time.Time) time.Time {
 	}
 	return fallback
 }
+
+type CanvasProjectStats struct {
+	ProjectID          string `json:"projectId"`
+	ImageCount         int64  `json:"imageCount"`
+	VideoCount         int64  `json:"videoCount"`
+	ImageCreditsMicros int64  `json:"imageCreditsMicros"`
+	VideoCreditsMicros int64  `json:"videoCreditsMicros"`
+	TotalCreditsMicros int64  `json:"totalCreditsMicros"`
+}
+
+func (s *Service) UserCanvasProjectStats(userID string, projectIDs []string) ([]CanvasProjectStats, error) {
+	projects, err := s.repo.CanvasProjects(userID)
+	if err != nil {
+		return nil, err
+	}
+	requested := make(map[string]struct{}, len(projectIDs))
+	for _, id := range projectIDs {
+		if strings.TrimSpace(id) != "" {
+			requested[strings.TrimSpace(id)] = struct{}{}
+		}
+	}
+	stats := make(map[string]*CanvasProjectStats, len(requested))
+	validIDs := make([]string, 0, len(requested))
+	for _, project := range projects {
+		if _, ok := requested[project.ID]; !ok {
+			continue
+		}
+		stats[project.ID] = &CanvasProjectStats{ProjectID: project.ID}
+		validIDs = append(validIDs, project.ID)
+		var payload struct {
+			Nodes []struct {
+				Type     string `json:"type"`
+				Metadata struct {
+					Content string `json:"content"`
+					Status  string `json:"status"`
+					TaskID  string `json:"taskId"`
+				} `json:"metadata"`
+			} `json:"nodes"`
+		}
+		if json.Unmarshal([]byte(project.PayloadJSON), &payload) != nil {
+			continue
+		}
+		for _, node := range payload.Nodes {
+			// 只有绑定生成任务的媒体节点计入生成统计，用户手动上传的素材不计入生成数量。
+			if strings.TrimSpace(node.Metadata.Content) == "" || strings.TrimSpace(node.Metadata.TaskID) == "" || node.Metadata.Status == "error" || node.Metadata.Status == "failed" || node.Metadata.Status == "running" || node.Metadata.Status == "queued" {
+				continue
+			}
+			switch strings.ToLower(strings.TrimSpace(node.Type)) {
+			case "image":
+				stats[project.ID].ImageCount++
+			case "video":
+				stats[project.ID].VideoCount++
+			}
+		}
+	}
+	if len(validIDs) == 0 {
+		return []CanvasProjectStats{}, nil
+	}
+	tasks, err := s.repo.CanvasProjectTasks(userID, validIDs)
+	if err != nil {
+		return nil, err
+	}
+	taskIDs := make([]string, 0, len(tasks))
+	taskKinds := make(map[string]string, len(tasks))
+	for _, task := range tasks {
+		taskIDs = append(taskIDs, task.ID)
+		taskKinds[task.ID] = canvasStatsMediaKind(task.Type, task.Operation)
+	}
+	orders, err := s.repo.SettledBillingOrdersByTaskIDs(userID, taskIDs)
+	if err != nil {
+		return nil, err
+	}
+	for taskID, order := range orders {
+		if item := stats[orderTaskProjectID(tasks, taskID)]; item != nil {
+			switch taskKinds[taskID] {
+			case "image":
+				item.ImageCreditsMicros += order.ActualAmountMicrocredits
+			case "video":
+				item.VideoCreditsMicros += order.ActualAmountMicrocredits
+			}
+			item.TotalCreditsMicros += order.ActualAmountMicrocredits
+		}
+	}
+	result := make([]CanvasProjectStats, 0, len(validIDs))
+	for _, id := range projectIDs {
+		if item := stats[strings.TrimSpace(id)]; item != nil {
+			result = append(result, *item)
+		}
+	}
+	return result, nil
+}
+
+func canvasStatsMediaKind(taskType string, operation string) string {
+	value := strings.ToLower(taskType + " " + operation)
+	if strings.Contains(value, "video") {
+		return "video"
+	}
+	if strings.Contains(value, "image") || strings.Contains(value, "img") {
+		return "image"
+	}
+	return ""
+}
+
+func orderTaskProjectID(tasks []model.Task, taskID string) string {
+	for _, task := range tasks {
+		if task.ID == taskID {
+			return task.ProjectID
+		}
+	}
+	return ""
+}

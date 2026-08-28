@@ -68,6 +68,7 @@ type ParameterSupport struct {
 type VideoCapabilityConfig struct {
 	References        VideoReferenceConfig `json:"references"`
 	Duration          VideoDurationConfig  `json:"duration"`
+	DurationSupported *bool                `json:"durationSupported,omitempty"`
 	Ratios            []string             `json:"ratios"`
 	DefaultRatio      string               `json:"defaultRatio"`
 	Resolutions       []string             `json:"resolutions"`
@@ -109,6 +110,62 @@ func DefaultModelCapabilityConfig(protocol string) *ModelCapabilityConfig {
 	return DefaultModelCapabilityConfigForModel(protocol, "")
 }
 
+func boolPointer(value bool) *bool {
+	return &value
+}
+
+func videoDurationSupported(value *VideoCapabilityConfig) bool {
+	return value == nil || value.DurationSupported == nil || *value.DurationSupported
+}
+
+func DefaultAutoDLVideoCapability(workflow string) *ModelCapabilityConfig {
+	profile := DefaultModelCapabilityConfigForModel(string(model.ChannelInterfaceNewAPIChannel2), workflow)
+	profile.Video.Duration = VideoDurationConfig{Selection: "range", Min: 1, Max: 15, Step: 1, Default: 5}
+	if strings.Contains(workflow, "_v2") && !strings.Contains(workflow, "15s") {
+		profile.Video.Duration.Max = 10
+	}
+	if workflow == "minimax_h3_image_audio_to_video_v2" || workflow == "minimax_h3_image_audio_to_video" || workflow == "minimax_h3_lightx2v_v5" {
+		profile.Video.Resolutions = []string{"480p竖", "768p竖", "1080p竖", "480p横", "768p横", "1080p横", "480p(1:1)", "768p(1:1)", "1080p(1:1)"}
+	} else {
+		profile.Video.Resolutions = []string{"480p竖", "768p竖", "480p横", "768p横", "480p(1:1)", "768p(1:1)"}
+	}
+	profile.Video.DefaultResolution = "768p竖"
+	profile.Video.Ratios = []string{"9:16", "16:9", "1:1"}
+	profile.Video.DefaultRatio = "9:16"
+
+	switch workflow {
+	case "minimax_h3_lightx2v_no_pic":
+		profile.Video.References.MaxImages = 0
+		profile.Video.References.MaxAudios = 0
+		profile.Video.Operations = []string{"text_to_video"}
+		profile.Video.DefaultOperation = "text_to_video"
+	case "minimax_h3_lightx2v":
+		profile.Video.References.MaxImages = 2
+		profile.Video.References.MaxAudios = 0
+		profile.Video.Operations = []string{"image_to_video"}
+		profile.Video.DefaultOperation = "image_to_video"
+	case "minimax_h3_image_audio_to_video":
+		profile.Video.References.MaxImages = 1
+		profile.Video.References.MaxAudios = 1
+		profile.Video.Operations = []string{"image_to_video", "audio_to_video"}
+		profile.Video.DefaultOperation = "image_to_video"
+	case "minimax_h3_lightx2v_v5", "minimax_h3_lightx2v_v5_15s":
+		profile.Video.References.MaxImages = 9
+		profile.Video.References.MaxAudios = 0
+		profile.Video.Operations = []string{"image_to_video", "reference_to_video"}
+		profile.Video.DefaultOperation = "image_to_video"
+	case "minimax_h3_image_audio_to_video_v2", "minimax_h3_image_audio_to_video_v2_15s":
+		fallthrough
+	default:
+		profile.Video.References.MaxImages = 9
+		profile.Video.References.MaxAudios = 3
+		profile.Video.Operations = []string{"text_to_video", "image_to_video", "reference_to_video", "audio_to_video"}
+		profile.Video.DefaultOperation = "image_to_video"
+	}
+
+	return profile
+}
+
 func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapabilityConfig {
 	image := &ImageCapabilityConfig{
 		References:            ImageReferenceConfig{PromptMaxChars: 32000, MaxImages: 16, MaxImageBytes: 30 * 1024 * 1024, MaskSupported: true},
@@ -120,6 +177,30 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		MaxOutputs:            15,
 	}
 	switch model.ChannelInterfaceType(protocol) {
+	case "flow2api-image":
+		image.References.MaxImages = 14
+		image.References.MaskSupported = false
+		ratios := []string{"16:9", "9:16", "1:1", "4:3", "3:4"}
+		if strings.EqualFold(strings.TrimSpace(modelName), "Imagen 4") || strings.EqualFold(strings.TrimSpace(modelName), "imagen") {
+			ratios = []string{"16:9", "9:16"}
+			image.Quality = ImageQualityConfig{Supported: false, Values: []string{}, Default: ""}
+		} else {
+			image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1k", "2k", "4k"}, Default: "1k"}
+		}
+		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: ratios, Default: "16:9", AllowCustom: false}
+		image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
+		image.ResponseFormat = ParameterSupport{Supported: false}
+		image.OutputFormat = ParameterSupport{Supported: false}
+		image.MaxOutputs = 4
+	case "zarklab-image":
+		image.References.MaxImages = 14
+		image.References.MaskSupported = false
+		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9"}, Default: "16:9", AllowCustom: false}
+		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1k", "2k", "4k"}, Default: "1k"}
+		image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
+		image.ResponseFormat = ParameterSupport{Supported: false}
+		image.OutputFormat = ParameterSupport{Supported: false}
+		image.MaxOutputs = 4
 	case model.ChannelInterfaceGrokImage:
 		image.References.MaxImages = 1
 		image.References.MaskSupported = false
@@ -189,6 +270,7 @@ func DefaultModelCapabilityConfigForModel(protocol string, modelName string) *Mo
 	video := &VideoCapabilityConfig{
 		References:        VideoReferenceConfig{PromptMaxChars: 1000, MinImages: 0, MaxImages: 9, MaxImageBytes: 30 * 1024 * 1024, MaxVideos: 0, MaxVideoBytes: 0, MaxVideoDuration: 0, MaxAudios: 0, MaxAudioBytes: 0, MaxAudioDuration: 0},
 		Duration:          VideoDurationConfig{Selection: "range", Min: 1, Max: 15, Step: 1, Default: 6},
+		DurationSupported: boolPointer(true),
 		Ratios:            []string{"16:9", "9:16", "1:1", "4:3", "3:4", "21:9"},
 		DefaultRatio:      "16:9",
 		Resolutions:       []string{"480p", "720p", "1080p", "1440p", "2160p"},
@@ -199,6 +281,42 @@ func DefaultModelCapabilityConfigForModel(protocol string, modelName string) *Mo
 		DefaultOperation:  "text_to_video",
 	}
 	switch model.ChannelInterfaceType(protocol) {
+	case "flow2api-video":
+		cleanModel := strings.ToLower(strings.TrimSpace(modelName))
+		video.References.MaxImages = 9
+		video.References.PromptMaxChars = 2000
+		video.Operations = []string{"text_to_video", "image_to_video", "reference_to_video"}
+		video.DefaultOperation = "text_to_video"
+		video.Ratios = []string{"16:9", "9:16"}
+		video.DefaultRatio = "16:9"
+		video.GenerateAudio = VideoBooleanConfig{Supported: false, Default: false}
+		video.Watermark = VideoBooleanConfig{Supported: false, Default: false}
+		if strings.Contains(cleanModel, "omni flash") || strings.Contains(cleanModel, "omni-flash") || cleanModel == "omni" {
+			video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{4, 6, 8, 10}, Default: 6}
+			video.Resolutions = []string{}
+			video.DefaultResolution = ""
+		} else if strings.Contains(cleanModel, "quality") {
+			// The upstream ignores duration for Quality; keep a valid internal
+			// capability value while the UI and adapter omit the request field.
+			video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{6}, Default: 6}
+			video.DurationSupported = boolPointer(false)
+			video.Resolutions = []string{"1080p", "4k"}
+			video.DefaultResolution = ""
+		} else {
+			// Lite/Fast ignore duration as well; 6 is only a schema-safe
+			// placeholder and is never sent upstream.
+			video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{6}, Default: 6}
+			video.DurationSupported = boolPointer(false)
+			video.Resolutions = []string{}
+			video.DefaultResolution = ""
+		}
+	case "zarklab-video":
+		video.References.MaxImages = 4
+		video.Duration = VideoDurationConfig{Selection: "range", Min: 1, Max: 15, Step: 1, Default: 5}
+		video.Ratios = []string{"16:9", "21:9", "4:3", "1:1", "3:4", "4:5", "5:4", "9:16", "9:21"}
+		video.DefaultRatio = "16:9"
+		video.Resolutions = []string{}
+		video.DefaultResolution = ""
 	case model.ChannelInterfaceVolcengineJiMengVideo:
 		video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{5, 10}, Default: 5}
 		video.Resolutions = []string{"720p"}
@@ -351,13 +469,13 @@ func CapabilitySpecFromModelCapabilityConfig(config *ModelCapabilityConfig, capa
 		addInputConstraint(spec.Inputs, "image", video.References.MinImages, video.References.MaxImages)
 		addInputConstraint(spec.Inputs, "video", 0, video.References.MaxVideos)
 		addInputConstraint(spec.Inputs, "audio", 0, video.References.MaxAudios)
-		if video.Duration.Selection == "enum" {
+		if videoDurationSupported(video) && video.Duration.Selection == "enum" {
 			values := make([]any, 0, len(video.Duration.Values))
 			for _, value := range video.Duration.Values {
 				values = append(values, value)
 			}
 			spec.Options["videoSeconds"] = OptionConstraint{Values: values}
-		} else {
+		} else if videoDurationSupported(video) {
 			spec.Options["videoSeconds"] = numericRange(float64(video.Duration.Min), float64(video.Duration.Max), float64(video.Duration.Step))
 		}
 		spec.Options["size"] = anyValues(video.Ratios)
@@ -636,9 +754,11 @@ func validateVideoTask(profile *VideoCapabilityConfig, input canvasGenerationInp
 			return BadAuthRequest("参考音频时长超过当前模型限制")
 		}
 	}
-	seconds, err := strconv.Atoi(strings.TrimSpace(input.Config.VideoSeconds))
-	if err != nil || !videoDurationAllowed(profile.Duration, seconds) {
-		return BadAuthRequest("视频时长不在当前模型支持范围内")
+	if videoDurationSupported(profile) {
+		seconds, err := strconv.Atoi(strings.TrimSpace(input.Config.VideoSeconds))
+		if err != nil || !videoDurationAllowed(profile.Duration, seconds) {
+			return BadAuthRequest("视频时长不在当前模型支持范围内")
+		}
 	}
 	if input.Config.Size != "" && !videoRatioAllowed(profile.Ratios, input.Config.Size) {
 		return BadAuthRequest("画面比例不在当前模型支持范围内")

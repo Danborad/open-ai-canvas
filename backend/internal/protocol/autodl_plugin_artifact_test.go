@@ -21,10 +21,19 @@ func TestAutoDLPluginArtifact(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(adapters) != 1 {
+	if len(adapters) == 0 {
 		t.Fatalf("loaded adapters = %d", len(adapters))
 	}
-	adapter := adapters[0]
+	var adapter Adapter
+	for _, a := range adapters {
+		if a.Metadata().ID == "autodl-comfyui" {
+			adapter = a
+			break
+		}
+	}
+	if adapter == nil {
+		t.Fatal("autodl-comfyui provider adapter not found")
+	}
 	if adapter.Metadata().ID != "autodl-comfyui" || adapter.Metadata().Execution != "declarative" {
 		t.Fatalf("metadata = %#v", adapter.Metadata())
 	}

@@ -1,0 +1,87 @@
+services:
+  postgres-test:
+    image: postgres:17-alpine
+    container_name: open-ai-canvas-postgres-test
+    environment:
+      POSTGRES_DB: open_ai_canvas_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password_123456
+    volumes:
+      - postgres-fresh-test-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d open_ai_canvas_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis-test:
+    image: redis:7.4-alpine
+    container_name: open-ai-canvas-redis-test
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - redis-fresh-test-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  backend-test:
+    image: open-ai-canvas-backend:test-v1.2.0
+    container_name: open-ai-canvas-backend-test
+    environment:
+      CANVAS_BACKEND_ADDR: ":8080"
+      CANVAS_BACKEND_DATA_DIR: /data
+      CANVAS_DATABASE_DRIVER: postgres
+      DATABASE_URL: "postgresql://test_user:test_password_123456@postgres-test:5432/open_ai_canvas_test?sslmode=disable"
+      REDIS_URL: "redis://redis-test:6379/0"
+      CANVAS_WORKER_CONCURRENCY: 999
+      CANVAS_CHANNEL_CONCURRENCY: 999
+      CANVAS_REGISTRATION_ENABLED: "true"
+      CANVAS_ALLOW_PRIVATE_UPSTREAMS: "true"
+      CANVAS_CORS_ORIGINS: "*"
+      CANVAS_COOKIE_SECURE: "false"
+      GIN_MODE: release
+    volumes:
+      - backend-fresh-test-data:/data
+      - ./plugin-packages:/plugin-packages:ro
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    ports:
+      - "18085:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  web-test:
+    image: open-ai-canvas-web:test-v1.2.0
+    container_name: open-ai-canvas-web-test
+    ports:
+      - "3005:3000"
+    volumes:
+      - ./web/dist:/usr/share/nginx/html:ro
+      - ./nginx.test.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      backend-test:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  postgres-fresh-test-data:
+  redis-fresh-test-data:
+  backend-fresh-test-data:

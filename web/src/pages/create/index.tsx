@@ -94,6 +94,7 @@ const qualityOptions = [
     // grok2api / xAI Imagine：quality 映射 resolution
     { value: "1k", label: "1K", description: "标准清晰度" },
     { value: "2k", label: "2K", description: "更高清晰度" },
+    { value: "4k", label: "4K", description: "最高支持清晰度" },
 ];
 const resolutionOptions = VIDEO_RESOLUTION_OPTIONS.map((value) => ({ value: String(value), label: videoResolutionLabel(value) }));
 const countOptions = ["1", "2", "3", "4"];
@@ -155,7 +156,7 @@ export default function CreatePage() {
     const [ratio, setRatio] = useState("16:9");
     const [seconds, setSeconds] = useState("6");
     const [quality, setQuality] = useState("auto");
-    const [videoQuality, setVideoQuality] = useState(config.vquality || "720");
+    const [videoQuality, setVideoQuality] = useState(config.vquality || "");
     const [count, setCount] = useState(String(Math.max(1, Math.min(4, Number(config.count) || 1))));
     const [busy, setBusy] = useState(false);
     const [viewMode, setViewMode] = useState<CreationViewMode>("chat");
@@ -221,7 +222,7 @@ export default function CreatePage() {
         // 前台逻辑模型的默认参数优先于旧的全局创作参数；否则旧的合法值会一直覆盖后台刚配置的默认值。
         const normalized = normalizeImageValue(imageProfile, {
             size: imageProfile.size.default,
-            quality: imageProfile.quality.default,
+            quality: imageProfile.quality.supported ? imageProfile.quality.default : "",
             count,
         });
         setRatio(normalized.size);
@@ -844,7 +845,22 @@ export default function CreatePage() {
         imageProfile,
         videoProfile,
         config,
-        onModelChange: (value: string) => updateConfig(mode === "text" ? "textModel" : mode === "image" ? "imageModel" : "videoModel", value),
+        onModelChange: (value: string) => {
+            updateConfig(mode === "text" ? "textModel" : mode === "image" ? "imageModel" : "videoModel", value);
+            const nextProfile = modelCapabilityConfigFor(config, value);
+            if (mode === "image" && nextProfile.image) {
+                const normalized = normalizeImageValue(nextProfile.image, { size: nextProfile.image.size.default, quality: nextProfile.image.quality.default, count });
+                setRatio(normalized.size);
+                setQuality(normalized.quality);
+                setCount(normalized.count);
+            }
+            if (mode === "video" && nextProfile.video) {
+                const normalized = normalizeVideoValue(nextProfile.video, { seconds: String(nextProfile.video.duration.default), ratio: nextProfile.video.defaultRatio, resolution: nextProfile.video.defaultResolution });
+                setRatio(normalized.ratio);
+                setSeconds(normalized.seconds);
+                setVideoQuality(normalized.resolution.replace(/p$/i, ""));
+            }
+        },
         ratio,
         setRatio,
         seconds,
@@ -1294,7 +1310,7 @@ function CreationComposer(props: ComposerProps) {
                 <Tooltip title={!referencesSupported ? "当前模型不支持参考媒体" : "从素材库选择参考内容"}><button type="button" className="creation-chat-control" onClick={props.onOpenLibrary} disabled={props.busy || !referencesSupported} aria-label="打开素材库选择参考内容"><FolderOpen /><span>素材库</span></button></Tooltip>
 				<ModelPicker config={props.config} value={props.model} onChange={props.onModelChange} capability={props.mode} requirements={props.modelRequirements} className="creation-model-picker" placeholder={`选择${modeLabels[props.mode]}模型`} showSelectedPrice variant="creation" />
                 {props.mode === "video" || (props.mode === "image" && imageSettingsSupported) ? <GenerationSettingsMenu {...props} /> : null}
-                {props.mode === "video" ? <DurationMenu profile={props.videoProfile} seconds={props.seconds} onChange={props.setSeconds} /> : null}
+                {props.mode === "video" && props.videoProfile.durationSupported !== false ? <DurationMenu profile={props.videoProfile} seconds={props.seconds} onChange={props.setSeconds} /> : null}
             </div>
             <Button
                 type="text"
@@ -1417,7 +1433,7 @@ function SettingSection({ title, value, children }: { title: string; value?: str
 
 function DurationMenu({ profile, seconds, onChange }: { profile: VideoCapabilityConfig; seconds: string; onChange: (value: string) => void }) {
     const [open, setOpen] = useState(false);
-    const value = Number(normalizeVideoValue(profile, { seconds }).seconds);
+    const value = Number(normalizeVideoValue(profile, { seconds }).seconds || profile.duration.default);
     const presets = profile.duration.selection === "enum" ? videoDurationOptions(profile) : [];
     const fallbackPreset = presets.length ? presets : [profile.duration.default];
     const min = profile.duration.selection === "range" ? profile.duration.min || 1 : Math.min(...fallbackPreset);

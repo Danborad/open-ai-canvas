@@ -72,10 +72,11 @@ func (s *Service) EnsureSystemChannelModels() error {
 		if err != nil {
 			return err
 		}
-		if len(items) == 0 {
-			if err := s.syncInitialChannelModels(&channels[index], channelModelNames(channels[index])); err != nil {
-				return err
-			}
+		if len(items) > 0 && isPresetChannel(&channels[index]) == "" {
+			continue
+		}
+		if err := s.syncInitialChannelModels(&channels[index], channelModelNames(channels[index])); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -292,6 +293,9 @@ func validateChannelModelTierCapabilities(tiers []model.ChannelModelPriceTier, r
 			return BadAuthRequest("价格档分辨率不在该视频模型支持范围内：" + tier.Resolution)
 		}
 		if tier.VideoSeconds == 0 {
+			continue
+		}
+		if !videoDurationSupported(config.Video) {
 			continue
 		}
 		if config.Video.Duration.Selection == "enum" && !durationSupported[tier.VideoSeconds] {
@@ -722,7 +726,74 @@ func (s *Service) DeleteAdminChannelModel(actor *model.User, channelID string, i
 	return err
 }
 
+func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, item *model.ChannelModel) bool {
+	preset := isPresetChannel(channel)
+	if preset == "" {
+		return false
+	}
+	changed := false
+	switch preset {
+	case "autodl":
+		if item.DisplayName != autoDLWorkflowDisplayName(item.ModelKey) {
+			item.DisplayName = autoDLWorkflowDisplayName(item.ModelKey)
+			changed = true
+		}
+		if item.ModelKey == "indextts2-v1" {
+			item.Capability = "audio"
+			item.Protocol = "autodl-comfyui-audio"
+		} else {
+			item.Capability = "video"
+			item.Protocol = "autodl-comfyui"
+			if encoded, err := json.Marshal(DefaultAutoDLVideoCapability(item.ModelKey)); err == nil {
+				item.CapabilityConfigJSON = string(encoded)
+			}
+		}
+		changed = true
+	case "flow2api":
+		if strings.EqualFold(item.ModelKey, "Omni Flash") || strings.HasPrefix(item.ModelKey, "Veo 3.1") {
+			item.Capability = "video"
+			item.Protocol = "flow2api-video"
+		} else {
+			item.Capability = "image"
+			item.Protocol = "flow2api-image"
+		}
+		if encoded, err := json.Marshal(DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey)); err == nil {
+			item.CapabilityConfigJSON = string(encoded)
+		}
+		changed = true
+	case "grok2api":
+		if strings.Contains(strings.ToLower(item.ModelKey), "video") {
+			item.Capability = "video"
+			item.Protocol = "xai-video"
+		} else {
+			item.Capability = "image"
+			item.Protocol = "grok-image"
+		}
+		changed = true
+	case "zarklab":
+		switch item.ModelKey {
+		case "Happy Horse", "Kling 3.0 Lite", "MiniMax H3", "Seedance 2", "Seedance 2 Lite", "Seedance 2 Mini", "Seedance 2.5":
+			item.Capability = "video"
+			item.Protocol = "zarklab-video"
+		default:
+			item.Capability = "image"
+			item.Protocol = "zarklab-image"
+		}
+		changed = true
+	}
+	return changed
+}
+
 func (s *Service) syncInitialChannelModels(channel *model.ModelChannel, names []string) error {
+	preset := isPresetChannel(channel)
+	if len(names) == 0 && preset != "" {
+		names = presetChannelModels(preset)
+	}
+	if preset != "" {
+		// 预设渠道的模型目录由应用维护，不能继续沿用旧 ModelsJSON，
+		// 否则升级后不会创建新增模型，也不会刷新旧模型的协议能力。
+		names = presetChannelModels(preset)
+	}
 	existing, err := s.repo.ChannelModels(channel.ID, true)
 	if err != nil {
 		return err
@@ -740,9 +811,12 @@ func (s *Service) syncInitialChannelModels(channel *model.ModelChannel, names []
 		}
 		desired[name] = true
 		if item := byKey[name]; item != nil {
-			if !item.Enabled {
-				item.Enabled = true
-				item.PriceVersion++
+			changed := false
+			if preset != "" && s.populatePresetChannelModelInfo(channel, item) {
+				changed = true
+			}
+			if changed {
+				item.CapabilityVersion++
 				if err := s.repo.SaveChannelModel(item); err != nil {
 					return err
 				}
@@ -753,18 +827,30 @@ func (s *Service) syncInitialChannelModels(channel *model.ModelChannel, names []
 		if idErr != nil {
 			return idErr
 		}
-		item := model.ChannelModel{ID: modelID, ChannelID: channel.ID, ModelKey: name, DisplayName: name, BillingMode: "fixed_request", Enabled: false, PriceVersion: 1}
+		// 预设模型默认不启用（Enabled=false，PriceConfigured=false），待管理员配置价格后再行开启使用
+		item := model.ChannelModel{ID: modelID, ChannelID: channel.ID, ModelKey: name, DisplayName: name, BillingMode: "fixed_request", Enabled: false, PriceConfigured: false, UnitPriceMicrocredits: 0, PriceVersion: 1}
+		if preset != "" {
+			s.populatePresetChannelModelInfo(channel, &item)
+		}
 		if err := s.repo.SaveChannelModel(&item); err != nil {
 			return err
 		}
 	}
 	for index := range existing {
-		if existing[index].Enabled && !desired[existing[index].ModelKey] {
+		if !desired[existing[index].ModelKey] {
+			changed := existing[index].Enabled
 			existing[index].Enabled = false
-			existing[index].PriceVersion++
-			if err := s.repo.SaveChannelModel(&existing[index]); err != nil {
-				return err
+			if changed {
+				existing[index].PriceVersion++
+				if err := s.repo.SaveChannelModel(&existing[index]); err != nil {
+					return err
+				}
 			}
+		}
+	}
+	if preset != "" {
+		if err := s.syncChannelModelNames(channel); err != nil {
+			return err
 		}
 	}
 	return nil

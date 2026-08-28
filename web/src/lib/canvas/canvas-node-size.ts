@@ -17,11 +17,34 @@ export function fitNodeSize(width: number, height: number, maxWidth = 720, maxHe
 export function nodeSizeFromRatio(size: string, baseWidth: number, baseHeight: number) {
     const raw = String(size || "").trim();
     if (!raw || raw.toLowerCase() === "auto") return null;
-    // 支持 16:9 / 1024x576 / 16:9-2k
+    let width = 0;
+    let height = 0;
     const match = raw.match(/^(\d+(?:\.\d+)?)(?:x|:)(\d+(?:\.\d+)?)/i);
-    if (!match) return null;
-    const width = Number(match[1]);
-    const height = Number(match[2]);
+    if (match) {
+        width = Number(match[1]);
+        height = Number(match[2]);
+    } else if (raw.includes("竖") || raw.includes("portrait") || raw.includes("9:16")) {
+        width = 9;
+        height = 16;
+    } else if (raw.includes("横") || raw.includes("landscape") || raw.includes("16:9")) {
+        width = 16;
+        height = 9;
+    } else if (raw.includes("(1:1)") || raw.includes("1:1") || raw.includes("square")) {
+        width = 1;
+        height = 1;
+    } else if (raw.includes("3:4")) {
+        width = 3;
+        height = 4;
+    } else if (raw.includes("4:3")) {
+        width = 4;
+        height = 3;
+    } else if (raw.includes("2:3")) {
+        width = 2;
+        height = 3;
+    } else if (raw.includes("3:2")) {
+        width = 3;
+        height = 2;
+    }
     if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
     const ratio = width / Math.max(1, height);
     if (ratio < 0.25 || ratio > 4) return { width: baseWidth, height: baseHeight };
