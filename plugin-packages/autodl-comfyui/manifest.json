@@ -2,7 +2,7 @@
   "apiVersion": "yingce.plugin/v1",
   "id": "autodl-comfyui",
   "name": "AutoDL ComfyUI 视频与音频",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "author": "影策社区",
   "description": "通过 AutoDL.Art ComfyUI 工作流 API 接入异步视频与音频生成，支持 H3 视频系列及 IndexTTS 语音工作流。",
   "documentation": "# AutoDL ComfyUI 工作流\n\n## 接口\n\n- 创建任务：`POST /api/v1/comfyui/comfyui_workflow/{workflow_id}`\n- 查询结果：`GET /api/v1/comfyui/comfyui_workflow/result/{task_id}`\n\n## 鉴权\n\n在渠道密钥中配置 AutoDL ComfyUI 令牌（Authorization: <TOKEN>）。\n\n## 工作流清单（8 个工作流）\n\n1. `minimax_h3_image_audio_to_video_v2_15s` - H3 多图多音频生视频 15 秒\n2. `minimax_h3_lightx2v_v5_15s` - H3 多图生视频 15 秒\n3. `minimax_h3_image_audio_to_video_v2` - H3 多图多音频生视频\n4. `minimax_h3_image_audio_to_video` - H3 图生视频音频同步\n5. `minimax_h3_lightx2v_v5` - H3 多图参考生视频\n6. `minimax_h3_lightx2v_no_pic` - H3 文生视频\n7. `minimax_h3_lightx2v` - H3 首尾帧生成视频\n8. `indextts2-v1` - IndexTTS2 语音\n",

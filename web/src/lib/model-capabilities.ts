@@ -353,6 +353,7 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.watermark = { supported: true, default: false };
         video.operations.push("reference_to_video");
     }
+<<<<<<< HEAD
     const cleanModel = model.toLowerCase();
     if (protocol === "autodl-comfyui" || protocol === "autodl-comfyui-video" || cleanModel.startsWith("minimax_h3")) {
         video.duration = { selection: "range", min: 1, max: cleanModel.includes("_v2") && !cleanModel.includes("15s") ? 10 : 15, step: 1, default: 5 };
@@ -441,6 +442,19 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.defaultRatio = "16:9";
         video.resolutions = [];
         video.defaultResolution = "";
+=======
+    if (protocol === "agnes-video" && ["agnes-video-2.5", "agnes-video-2.5-flash"].includes(model.trim().toLowerCase())) {
+        const flash = model.trim().toLowerCase() === "agnes-video-2.5-flash";
+        video.references.maxImages = flash ? 5 : 9;
+        video.references.maxVideos = flash ? 0 : 3;
+        video.references.maxAudios = 3;
+        video.duration = { selection: "range", min: 4, max: 12, step: 1, default: 5 };
+        video.ratios = ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"];
+        video.defaultRatio = "16:9";
+        video.resolutions = flash ? ["720P"] : ["720P", "960P", "2K"];
+        video.defaultResolution = "720P";
+        video.operations.push("reference_to_video", "audio_to_video");
+>>>>>>> upstream/main
     }
     return { version: 1, text, image: defaultImageCapabilityConfig(protocol, model), video };
 }
@@ -1016,8 +1030,12 @@ export function normalizeVideoValue(profile: VideoCapabilityConfig, value: { sec
             : String(normalizeRangeDuration(profile, Number(value.seconds)));
     const ratio = profile.ratios.includes(value.ratio || "") ? value.ratio! : profile.defaultRatio;
     // 前端状态历史上保存过 `720`，而能力配置和供应商通常使用 `720p`；统一按能力中的原始值返回，避免被误判为不支持。
-    const resolution = videoResolutionRequest(profile, value.resolution) || profile.defaultResolution || (profile.defaultResolution === "" ? "" : profile.resolutions[0] || "");
+    const resolution = resolveVideoResolutionValue(profile, value.resolution) || (profile.defaultResolution === "" ? "" : profile.resolutions[0] || "");
     return { seconds: duration, ratio, resolution };
+}
+
+export function resolveVideoResolutionValue(profile: VideoCapabilityConfig, value: string | undefined) {
+    return videoResolutionRequest(profile, value) || profile.defaultResolution || profile.resolutions[0] || "";
 }
 
 export function videoResolutionRequest(profile: VideoCapabilityConfig, value: string | undefined) {

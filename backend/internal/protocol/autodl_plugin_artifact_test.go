@@ -42,7 +42,7 @@ func TestAutoDLPluginArtifact(t *testing.T) {
 	}
 
 	create, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://autodl.art", Request: GenerationRequest{
-		Model: "minimax_h3_lightx2v_no_pic", Prompt: "a cinematic test", Duration: 3, Resolution: "768P", Images: []MediaReference{{URL: "https://cdn.example/reference.png"}},
+		Model: "minimax_h3_lightx2v_no_pic", Prompt: "a cinematic test", Duration: 3, Resolution: "768P竖", Images: []MediaReference{{URL: "https://cdn.example/reference.png"}},
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -51,7 +51,7 @@ func TestAutoDLPluginArtifact(t *testing.T) {
 		t.Fatalf("create spec = %#v", create)
 	}
 	body, ok := create.Body.(map[string]any)
-	if !ok || body["prompt"] != "a cinematic test" || body["duration"] != 3 || body["resolution"] != "768p" || body["ref_image_0"] != "https://cdn.example/reference.png" {
+	if !ok || body["prompt"] != "a cinematic test" || body["duration"] != 3 || body["resolution"] != "768p竖" || body["ref_image_0"] != "https://cdn.example/reference.png" {
 		t.Fatalf("create body = %#v", create.Body)
 	}
 	if _, exists := body["ref_image_1"]; exists {

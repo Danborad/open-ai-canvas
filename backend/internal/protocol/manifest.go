@@ -721,9 +721,26 @@ func applyManifestTransform(value any, transform string, request GenerationReque
 			return strings.TrimSpace(text) + "p"
 		}
 		return text
+	case "video-resolution", "video_resolution", "videoresolution":
+		// Compatibility for already-installed 1.0.1 manifests. New plugins
+		// should declare exact enum values and use generic string transforms.
+		return normalizeLegacyManifestVideoResolution(text)
 	default:
 		return value
 	}
+}
+
+func normalizeLegacyManifestVideoResolution(value string) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if normalized == "" {
+		return ""
+	}
+	for _, char := range normalized {
+		if char < '0' || char > '9' {
+			return normalized
+		}
+	}
+	return normalized + "p"
 }
 
 func pathValue(payload map[string]any, path string) any {
