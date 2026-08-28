@@ -33,7 +33,7 @@ export function CanvasFolderCard({ project, projectName, onClick }: CanvasFolder
     const editing = editingId === project.id;
     const selected = selectedIds.includes(project.id);
     const statsEnabled = usePluginStore((state) =>
-        Boolean(state.installations.find((item) => item.manifest.id === CANVAS_STATS_PLUGIN_ID)?.enabled)
+        state.pluginStates[CANVAS_STATS_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_STATS_PLUGIN_ID)?.enabled)
     );
     const statsQuery = useQuery({
         queryKey: ["canvas-project-stats", project.id],

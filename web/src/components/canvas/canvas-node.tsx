@@ -634,7 +634,7 @@ function NodeExternalHeader({ node, scale, dimensionLabel, active, editable, edi
     const maxHeaderWidth = Math.min(240, node.width * scale);
     const externalHeaderWidth = node.width * scale;
     const modelBadgeEnabled = usePluginStore((state) =>
-        Boolean(state.installations.find((item) => item.manifest.id === CANVAS_NODE_MODEL_BADGE_PLUGIN_ID)?.enabled)
+        state.pluginStates[CANVAS_NODE_MODEL_BADGE_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_NODE_MODEL_BADGE_PLUGIN_ID)?.enabled)
     );
     const nodeModel = node.metadata?.model || (node.metadata as any)?.generationConfig?.model;
     const modelLabel = nodeModel ? formatModelBadgeLabel(nodeModel) : "";
