@@ -51,11 +51,42 @@ func TestAutoDLPluginArtifact(t *testing.T) {
 		t.Fatalf("create spec = %#v", create)
 	}
 	body, ok := create.Body.(map[string]any)
-	if !ok || body["prompt"] != "a cinematic test" || body["duration"] != 3 || body["resolution"] != "768p竖" || body["ref_image_0"] != "https://cdn.example/reference.png" {
+	if !ok || body["prompt"] != "a cinematic test" || body["duration"] != 3 || body["resolution"] != "768p竖" {
 		t.Fatalf("create body = %#v", create.Body)
 	}
-	if _, exists := body["ref_image_1"]; exists {
-		t.Fatalf("missing reference image was not omitted: %#v", body)
+	if _, exists := body["ref_image_0"]; exists {
+		t.Fatalf("no_pic workflow must not send ref_image_0: %#v", body)
+	}
+	if _, exists := body["first_frame"]; exists {
+		t.Fatalf("no_pic workflow must not send first_frame: %#v", body)
+	}
+
+	createV5, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://autodl.art", Request: GenerationRequest{
+		Model: "minimax_h3_lightx2v_v5_15s", Prompt: "a cinematic test", Duration: 15, Resolution: "768p竖", Images: []MediaReference{{URL: "https://cdn.example/ref0.png"}, {URL: "https://cdn.example/ref1.png"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bodyV5 := createV5.Body.(map[string]any)
+	if bodyV5["ref_image_0"] != "https://cdn.example/ref0.png" || bodyV5["ref_image_1"] != "https://cdn.example/ref1.png" {
+		t.Fatalf("v5 create body missing ref images = %#v", bodyV5)
+	}
+	if _, exists := bodyV5["first_frame"]; exists {
+		t.Fatalf("v5 workflow must not send first_frame: %#v", bodyV5)
+	}
+
+	createLightX2V, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://autodl.art", Request: GenerationRequest{
+		Model: "minimax_h3_lightx2v", Prompt: "a cinematic test", Duration: 5, Resolution: "768p竖", Images: []MediaReference{{URL: "https://cdn.example/first.png"}, {URL: "https://cdn.example/last.png"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bodyLightX2V := createLightX2V.Body.(map[string]any)
+	if bodyLightX2V["first_frame"] != "https://cdn.example/first.png" || bodyLightX2V["last_frame"] != "https://cdn.example/last.png" {
+		t.Fatalf("lightx2v body = %#v", bodyLightX2V)
+	}
+	if _, exists := bodyLightX2V["ref_image_0"]; exists {
+		t.Fatalf("lightx2v must not send ref_image_0: %#v", bodyLightX2V)
 	}
 
 	failed, err := adapter.ParseCreate(context.Background(), []byte(`{"code":"RequestParameterIsWrong","data":null,"msg":"参数: resolution 的值: 768P 不在 options 列表中"}`))

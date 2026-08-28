@@ -693,18 +693,37 @@ func applyManifestTransform(value any, transform string, request GenerationReque
 			}
 		}
 	}
+	cleanModel := strings.ToLower(strings.TrimSpace(request.Model))
+	if strings.HasPrefix(transform, "omit_unless_model_contains:") {
+		needle := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(transform, "omit_unless_model_contains:")))
+		if needle == "" || !strings.Contains(cleanModel, needle) {
+			return nil
+		}
+	}
+	if strings.HasPrefix(transform, "omit_if_model_contains:") {
+		needle := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(transform, "omit_if_model_contains:")))
+		if needle != "" && strings.Contains(cleanModel, needle) {
+			return nil
+		}
+	}
+	if strings.HasPrefix(transform, "omit_unless_model_equals:") {
+		target := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(transform, "omit_unless_model_equals:")))
+		if target == "" || cleanModel != target {
+			return nil
+		}
+	}
+	if strings.HasPrefix(transform, "omit_if_model_equals:") {
+		target := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(transform, "omit_if_model_equals:")))
+		if target != "" && cleanModel == target {
+			return nil
+		}
+	}
 	text, ok := value.(string)
 	if transform == "omit_empty" && (!ok || strings.TrimSpace(text) == "") {
 		return nil
 	}
 	if transform == "omit_auto" && (!ok || strings.TrimSpace(text) == "" || strings.EqualFold(strings.TrimSpace(text), "auto") || strings.EqualFold(strings.TrimSpace(text), "default")) {
 		return nil
-	}
-	if strings.HasPrefix(transform, "omit_unless_model_contains:") {
-		needle := strings.TrimSpace(strings.TrimPrefix(transform, "omit_unless_model_contains:"))
-		if needle == "" || !strings.Contains(strings.ToLower(request.Model), needle) {
-			return nil
-		}
 	}
 	if !ok {
 		return value
