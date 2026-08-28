@@ -73,15 +73,16 @@ export function buildNodeGenerationContext(nodeId: string, nodes: CanvasNodeData
     const storyboardInputs = getConnectedStoryboardRows(nodeId, nodes, connections);
     const hasExplicitResourceMention = hasResolvableGenerationMention(prompt, inputs);
     const isWorkflowSource = sourceNode?.type === CanvasNodeType.Config && isCanvasWorkflowProvider(sourceNode.metadata);
-    if ((Boolean(sourceNode?.metadata?.composerContent?.trim()) && (sourceNode?.type === CanvasNodeType.Config || isWorkflowSource)) || hasExplicitResourceMention) {
+    const hasConnectedMedia = connectedInputs.some((input) => input.type === "image" || input.type === "video" || input.type === "audio" || input.type === "character");
+    if ((promptOnly && hasConnectedMedia) || (Boolean(sourceNode?.metadata?.composerContent?.trim()) && (sourceNode?.type === CanvasNodeType.Config || isWorkflowSource)) || hasExplicitResourceMention) {
         const autoIncludeWorkflowMedia = isWorkflowSource;
         return buildComposerGenerationContext(
             inputs,
             prompt,
             // 工作流节点由字段映射接收全部连线媒体；视频节点的历史首尾帧字段不能再额外追加参考图。
-            autoIncludeWorkflowMedia ? [] : [sourceNode?.metadata?.videoStartFrameNodeId, sourceNode?.metadata?.videoEndFrameNodeId].filter((id): id is string => Boolean(id)),
+            autoIncludeWorkflowMedia || (promptOnly && hasConnectedMedia) ? [] : [sourceNode?.metadata?.videoStartFrameNodeId, sourceNode?.metadata?.videoEndFrameNodeId].filter((id): id is string => Boolean(id)),
             promptOnly,
-            autoIncludeWorkflowMedia,
+            autoIncludeWorkflowMedia || (promptOnly && hasConnectedMedia),
             connectedInputs,
         );
     }

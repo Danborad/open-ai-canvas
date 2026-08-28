@@ -628,6 +628,14 @@ func manifestRequestValues(request GenerationRequest) map[string]any {
 	}
 }
 
+func manifestModelID(request GenerationRequest) string {
+	modelID := strings.TrimSpace(request.Model)
+	if separator := strings.LastIndex(modelID, "::"); separator >= 0 {
+		modelID = modelID[separator+2:]
+	}
+	return strings.ToLower(modelID)
+}
+
 func manifestMediaValues(values []MediaReference) []any {
 	result := make([]any, 0, len(values))
 	for _, value := range values {
@@ -693,7 +701,7 @@ func applyManifestTransform(value any, transform string, request GenerationReque
 			}
 		}
 	}
-	cleanModel := strings.ToLower(strings.TrimSpace(request.Model))
+	cleanModel := manifestModelID(request)
 	if strings.HasPrefix(transform, "omit_unless_model_contains:") {
 		needle := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(transform, "omit_unless_model_contains:")))
 		if needle == "" || !strings.Contains(cleanModel, needle) {

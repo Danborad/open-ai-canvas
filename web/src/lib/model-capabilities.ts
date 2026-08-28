@@ -52,6 +52,7 @@ export type VideoCapabilityConfig = {
         maxVideos: number;
         maxVideoBytes: number;
         maxVideoDurationSeconds: number;
+        minAudios: number;
         maxAudios: number;
         maxAudioBytes: number;
         maxAudioDurationSeconds: number;
@@ -292,6 +293,7 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
             maxVideos: 0,
             maxVideoBytes: 0,
             maxVideoDurationSeconds: 0,
+            minAudios: 0,
             maxAudios: 0,
             maxAudioBytes: 0,
             maxAudioDurationSeconds: 0,
@@ -373,19 +375,23 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
                 break;
             case "minimax_h3_lightx2v":
                 video.references.maxImages = 2;
+                video.references.minImages = 2;
                 video.references.maxAudios = 0;
                 video.operations = ["image_to_video"];
                 video.defaultOperation = "image_to_video";
                 break;
             case "minimax_h3_image_audio_to_video":
                 video.references.maxImages = 1;
+                video.references.minImages = 1;
+                video.references.minAudios = 1;
                 video.references.maxAudios = 1;
-                video.operations = ["image_to_video", "audio_to_video"];
+                video.operations = ["image_to_video", "audio_to_video", "reference_to_video"];
                 video.defaultOperation = "image_to_video";
                 break;
             case "minimax_h3_lightx2v_v5":
             case "minimax_h3_lightx2v_v5_15s":
                 video.references.maxImages = 9;
+                video.references.minImages = 1;
                 video.references.maxAudios = 0;
                 video.operations = ["image_to_video", "reference_to_video"];
                 video.defaultOperation = "image_to_video";

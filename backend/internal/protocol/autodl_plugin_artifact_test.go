@@ -89,6 +89,49 @@ func TestAutoDLPluginArtifact(t *testing.T) {
 		t.Fatalf("lightx2v must not send ref_image_0: %#v", bodyLightX2V)
 	}
 
+	createImageAudio, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://autodl.art", Request: GenerationRequest{
+		Model: "minimax_h3_image_audio_to_video", Prompt: "should be omitted", Duration: 5, Resolution: "768p横",
+		Images: []MediaReference{{URL: "https://cdn.example/face.png"}},
+		Audios: []MediaReference{{URL: "https://cdn.example/voice.mp3"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bodyImageAudio := createImageAudio.Body.(map[string]any)
+	if bodyImageAudio["ref_image_0"] != "https://cdn.example/face.png" || bodyImageAudio["ref_audio_0"] != "https://cdn.example/voice.mp3" || bodyImageAudio["audio_duration"] != 5 || bodyImageAudio["resolution"] != "768p横" {
+		t.Fatalf("image_audio body = %#v", bodyImageAudio)
+	}
+	if _, exists := bodyImageAudio["prompt"]; exists {
+		t.Fatalf("image_audio workflow must not send prompt: %#v", bodyImageAudio)
+	}
+	if _, exists := bodyImageAudio["duration"]; exists {
+		t.Fatalf("image_audio workflow must not send duration: %#v", bodyImageAudio)
+	}
+	if _, exists := bodyImageAudio["ref_image_1"]; exists {
+		t.Fatalf("image_audio workflow must not send ref_image_1: %#v", bodyImageAudio)
+	}
+	if _, exists := bodyImageAudio["ref_audio_1"]; exists {
+		t.Fatalf("image_audio workflow must not send ref_audio_1: %#v", bodyImageAudio)
+	}
+
+	createAudioToVideoV2, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://autodl.art", Request: GenerationRequest{
+		Model: "minimax_h3_image_audio_to_video_v2", Prompt: "cinematic sync", Duration: 8, Resolution: "1080p横",
+		Images: []MediaReference{{URL: "https://cdn.example/img0.png"}, {URL: "https://cdn.example/img1.png"}},
+		Audios: []MediaReference{{URL: "https://cdn.example/aud0.mp3"}, {URL: "https://cdn.example/aud1.mp3"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bodyV2 := createAudioToVideoV2.Body.(map[string]any)
+	if bodyV2["prompt"] != "cinematic sync" || bodyV2["duration"] != 8 || bodyV2["resolution"] != "1080p横" ||
+		bodyV2["ref_image_0"] != "https://cdn.example/img0.png" || bodyV2["ref_image_1"] != "https://cdn.example/img1.png" ||
+		bodyV2["ref_audio_0"] != "https://cdn.example/aud0.mp3" || bodyV2["ref_audio_1"] != "https://cdn.example/aud1.mp3" {
+		t.Fatalf("v2 body = %#v", bodyV2)
+	}
+	if _, exists := bodyV2["audio_duration"]; exists {
+		t.Fatalf("v2 must not send audio_duration: %#v", bodyV2)
+	}
+
 	failed, err := adapter.ParseCreate(context.Background(), []byte(`{"code":"RequestParameterIsWrong","data":null,"msg":"参数: resolution 的值: 768P 不在 options 列表中"}`))
 	if err != nil || failed.Status != StatusFailed || failed.Message == "" {
 		t.Fatalf("failed = %#v, err = %v", failed, err)

@@ -82,6 +82,7 @@ type VideoCapabilityConfig struct {
 type VideoReferenceConfig struct {
 	PromptMaxChars   int   `json:"promptMaxChars"`
 	MinImages        int   `json:"minImages"`
+	MinAudios        int   `json:"minAudios"`
 	MaxImages        int   `json:"maxImages"`
 	MaxImageBytes    int64 `json:"maxImageBytes"`
 	MaxVideos        int   `json:"maxVideos"`
@@ -141,16 +142,20 @@ func DefaultAutoDLVideoCapability(workflow string) *ModelCapabilityConfig {
 		profile.Video.DefaultOperation = "text_to_video"
 	case "minimax_h3_lightx2v":
 		profile.Video.References.MaxImages = 2
+		profile.Video.References.MinImages = 2
 		profile.Video.References.MaxAudios = 0
 		profile.Video.Operations = []string{"image_to_video"}
 		profile.Video.DefaultOperation = "image_to_video"
 	case "minimax_h3_image_audio_to_video":
 		profile.Video.References.MaxImages = 1
+		profile.Video.References.MinImages = 1
+		profile.Video.References.MinAudios = 1
 		profile.Video.References.MaxAudios = 1
-		profile.Video.Operations = []string{"image_to_video", "audio_to_video"}
+		profile.Video.Operations = []string{"image_to_video", "audio_to_video", "reference_to_video"}
 		profile.Video.DefaultOperation = "image_to_video"
 	case "minimax_h3_lightx2v_v5", "minimax_h3_lightx2v_v5_15s":
 		profile.Video.References.MaxImages = 9
+		profile.Video.References.MinImages = 1
 		profile.Video.References.MaxAudios = 0
 		profile.Video.Operations = []string{"image_to_video", "reference_to_video"}
 		profile.Video.DefaultOperation = "image_to_video"
@@ -789,6 +794,9 @@ func validateVideoTask(profile *VideoCapabilityConfig, input canvasGenerationInp
 	}
 	if len(input.ReferenceImages) < profile.References.MinImages {
 		return BadAuthRequest(fmt.Sprintf("当前视频模型至少需要 %d 张参考图", profile.References.MinImages))
+	}
+	if len(input.ReferenceAudios) < profile.References.MinAudios {
+		return BadAuthRequest(fmt.Sprintf("当前视频模型至少需要 %d 个参考音频", profile.References.MinAudios))
 	}
 	for _, media := range input.ReferenceImages {
 		if profile.References.MaxImageBytes > 0 && media.Bytes > profile.References.MaxImageBytes {
