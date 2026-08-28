@@ -9,7 +9,6 @@ export function normalizeVideoDuration(value: string | number | undefined) {
 }
 
 export function normalizeVideoResolution(value: string | number | undefined) {
-export function normalizeVideoResolution(value: string | number | undefined) {
     const raw = String(value || "").trim();
     const token = raw.toLowerCase();
     if (!token) return "";
@@ -23,6 +22,10 @@ export function normalizeVideoResolution(value: string | number | undefined) {
     // Preserve them verbatim so values such as `768p竖` remain selectable and
     // can be sent back to the provider without being collapsed to 720p.
     return raw;
+}
+
+export function normalizeVideoResolutionValue(value: string | number | undefined): string {
+    return normalizeVideoResolution(value) || "720";
 }
 
 export function isVideoResolutionMatch(selected: string | undefined, target: string | undefined) {
@@ -53,6 +56,5 @@ export function formatVideoResolutionLabel(value: string | number | undefined) {
     if (normalized.toLowerCase() === "2k" || normalized === "1440") return "2K";
     if (normalized.toLowerCase() === "4k" || normalized === "2160") return "4K";
     if (/^\d+$/.test(normalized)) return `${normalized}P`;
-    return normalized.replace(/^(\d+)p/i, "$1P");
-}
+    return normalized.replace(/^(\\d+)p/i, "$1P");
 }

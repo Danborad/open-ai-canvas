@@ -170,7 +170,6 @@ func (c *pluginRuntime) bootstrapBundledPlugins() error {
 		record.ID, record.Raw, record.Source, record.PackagePath = metadata.ID, data, "bundled", ""
 		byID[metadata.ID] = record
 	}
-<<<<<<< HEAD
 
 	// 自动从根目录/工作区扫描并注册随包发布的 .yingce-plugin 插件包
 	candidateDirs := []string{
@@ -284,7 +283,6 @@ func (c *pluginRuntime) bootstrapBundledPlugins() error {
 		}
 		record.ID, record.Raw, record.Source, record.PackagePath = workflow.Metadata.ID, data, "bundled", ""
 		byID[workflow.Metadata.ID] = record
-	}
 	}
 	result := make([]pluginRegistryRecord, 0, len(byID))
 	for _, record := range byID {

@@ -353,7 +353,6 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.watermark = { supported: true, default: false };
         video.operations.push("reference_to_video");
     }
-<<<<<<< HEAD
     const cleanModel = model.toLowerCase();
     if (protocol === "autodl-comfyui" || protocol === "autodl-comfyui-video" || cleanModel.startsWith("minimax_h3")) {
         video.duration = { selection: "range", min: 1, max: cleanModel.includes("_v2") && !cleanModel.includes("15s") ? 10 : 15, step: 1, default: 5 };
@@ -442,7 +441,7 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.defaultRatio = "16:9";
         video.resolutions = [];
         video.defaultResolution = "";
-=======
+    }
     if (protocol === "agnes-video" && ["agnes-video-2.5", "agnes-video-2.5-flash"].includes(model.trim().toLowerCase())) {
         const flash = model.trim().toLowerCase() === "agnes-video-2.5-flash";
         video.references.maxImages = flash ? 5 : 9;
@@ -454,7 +453,6 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.resolutions = flash ? ["720P"] : ["720P", "960P", "2K"];
         video.defaultResolution = "720P";
         video.operations.push("reference_to_video", "audio_to_video");
->>>>>>> upstream/main
     }
     return { version: 1, text, image: defaultImageCapabilityConfig(protocol, model), video };
 }

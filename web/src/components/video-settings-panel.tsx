@@ -4,13 +4,8 @@ import { Switch } from "antd";
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
 import { boolConfig, isSeedanceFastModel, isSeedanceVideoConfig, normalizeSeedanceDuration, normalizeSeedanceRatio, normalizeSeedanceResolution, seedanceRatioOptions } from "@/lib/seedance-video";
 import { type CanvasTheme } from "@/lib/canvas-theme";
-<<<<<<< HEAD
-import { isVideoResolutionMatch, normalizeVideoDuration, normalizeVideoResolution, VIDEO_DURATION_MIN } from "@/lib/video-generation-options";
-import { modelCapabilityConfigFor, videoDurationOptions, type VideoCapabilityConfig } from "@/lib/model-capabilities";
-=======
-import { formatVideoResolutionLabel, normalizeVideoDuration, videoResolutionComparisonKey, VIDEO_DURATION_MIN } from "@/lib/video-generation-options";
+import { formatVideoResolutionLabel, isVideoResolutionMatch, normalizeVideoDuration, normalizeVideoResolutionValue, videoResolutionComparisonKey, VIDEO_DURATION_MIN } from "@/lib/video-generation-options";
 import { modelCapabilityConfigFor, resolveVideoResolutionValue, videoDurationOptions, type VideoCapabilityConfig } from "@/lib/model-capabilities";
->>>>>>> upstream/main
 import { modelOptionName, resolveModelChannel, resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
 
 const sizeOptions = [
@@ -197,20 +192,7 @@ function SeedanceVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
 }
 
 export function videoResolutionLabel(value: string) {
-<<<<<<< HEAD
-    const raw = String(value || "").trim();
-    if (!raw) return "默认";
-    if (raw.toLowerCase() === "2k" || raw === "1440") return "2K";
-    if (raw.toLowerCase() === "4k" || raw === "2160") return "4K";
-    if (raw.toLowerCase() === "768p" || raw === "768") return "768P";
-    if (raw.toLowerCase() === "1080p" || raw === "1080") return "1080P";
-    if (raw.toLowerCase() === "720p" || raw === "720") return "720P";
-    if (raw.toLowerCase() === "480p" || raw === "480") return "480P";
-    if (/^\d+$/i.test(raw)) return `${raw}P`;
-    return raw.toUpperCase();
-=======
     return formatVideoResolutionLabel(value);
->>>>>>> upstream/main
 }
 
 export function videoSizeLabel(value: string) {
@@ -326,16 +308,7 @@ function hasPriceTierForVideoSelection(tiers: ReturnType<typeof modelPriceTiers>
 }
 
 function normalizeTierResolution(value: string) {
-<<<<<<< HEAD
-    const raw = String(value || "").trim().toLowerCase();
-    if (!raw || raw === "*") return "*";
-    if (raw === "2k" || raw === "1440" || raw === "1440p") return "2k";
-    if (raw === "4k" || raw === "2160" || raw === "2160p") return "4k";
-    if (raw.endsWith("p")) return raw;
-    return `${raw}p`;
-=======
 	return videoResolutionComparisonKey(value);
->>>>>>> upstream/main
 }
 
 function DurationRangeControl({ value, min, max, step, theme, onChange }: { value: number; min: number; max: number; step: number; theme: CanvasTheme; onChange: (value: number) => void }) {
