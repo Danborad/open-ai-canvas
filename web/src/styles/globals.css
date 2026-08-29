@@ -3854,6 +3854,28 @@
     .canvas-folder-card:hover .canvas-folder-preview .canvas-project-media img { filter: saturate(1) contrast(1.04); transform: scale(1.025); }
     .canvas-folder-preview .canvas-project-preview-canvas { background: var(--canvas-cover-surface); }
 
+    /* 画布封面隐私模糊插件 */
+    .canvas-cover-privacy-blur { overflow: hidden; }
+    .canvas-cover-privacy-blur img,
+    .canvas-cover-privacy-blur .cached-resource-image-shell > img,
+    .canvas-cover-privacy-blur .canvas-project-video,
+    .canvas-cover-privacy-blur.canvas-project-preview-canvas {
+        filter: blur(20px) saturate(0.85);
+        transform: scale(1.12);
+        transition: filter 320ms var(--motion-ease-out), transform 320ms var(--motion-ease-out);
+    }
+    .canvas-folder-card:hover .canvas-cover-privacy-blur img,
+    .canvas-folder-card:hover .canvas-cover-privacy-blur .cached-resource-image-shell > img,
+    .canvas-folder-card:hover .canvas-cover-privacy-blur .canvas-project-video,
+    .canvas-folder-card:hover .canvas-cover-privacy-blur.canvas-project-preview-canvas,
+    .app-canvas-project-card:hover .canvas-cover-privacy-blur img,
+    .app-canvas-project-card:hover .canvas-cover-privacy-blur .cached-resource-image-shell > img,
+    .app-canvas-project-card:hover .canvas-cover-privacy-blur .canvas-project-video,
+    .app-canvas-project-card:hover .canvas-cover-privacy-blur.canvas-project-preview-canvas {
+        filter: blur(0px) saturate(1) contrast(1.04);
+        transform: scale(1.025);
+    }
+
     .canvas-folder-body {
         display: flex;
         min-width: 0;

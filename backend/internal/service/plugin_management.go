@@ -14,6 +14,7 @@ const (
 	PluginPortraitClearance    = "portrait-clearance"
 	PluginCanvasProjectStats   = "canvas-project-stats"
 	PluginCanvasNodeModelBadge = "canvas-node-model-badge"
+	PluginCanvasCoverBlur      = "canvas-cover-blur"
 
 	PluginOriginOfficial = "official"
 	PluginOriginUploaded = "uploaded"
@@ -80,6 +81,10 @@ var officialApplicationPolicies = map[string]PluginManagementView{
 		ActivationScope: PluginScopeUser, ConfigurationScope: PluginConfigurationNone,
 	},
 	PluginCanvasNodeModelBadge: {
+		Origin: PluginOriginOfficial, Kind: PluginKindApplication,
+		ActivationScope: PluginScopeUser, ConfigurationScope: PluginConfigurationNone,
+	},
+	PluginCanvasCoverBlur: {
 		Origin: PluginOriginOfficial, Kind: PluginKindApplication,
 		ActivationScope: PluginScopeUser, ConfigurationScope: PluginConfigurationNone,
 	},

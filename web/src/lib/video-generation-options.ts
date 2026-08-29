@@ -14,8 +14,8 @@ export function normalizeVideoResolution(value: string | number | undefined) {
     if (!token) return "";
     if (token === "low") return "480";
     if (token === "auto" || token === "medium" || token === "high") return "720";
-    if (token === "2k" || token === "1440" || token === "1440p") return "2k";
-    if (token === "4k" || token === "2160" || token === "2160p") return "4k";
+    if (token === "2k") return "1440";
+    if (token === "4k") return "2160";
     const resolution = Number(token.replace(/p$/i, ""));
     if (Number.isFinite(resolution) && resolution > 0) return String(Math.floor(resolution));
     // Channel-declared values are opaque enums, not necessarily numeric tiers.
@@ -53,8 +53,8 @@ export function formatVideoResolutionLabel(value: string | number | undefined) {
     const raw = String(value || "").trim();
     if (!raw) return "";
     const normalized = normalizeVideoResolution(raw);
-    if (normalized.toLowerCase() === "2k" || normalized === "1440") return "2K";
-    if (normalized.toLowerCase() === "4k" || normalized === "2160") return "4K";
+    if (normalized === "1440" || normalized.toLowerCase() === "2k") return "2K";
+    if (normalized === "2160" || normalized.toLowerCase() === "4k") return "4K";
     if (/^\d+$/.test(normalized)) return `${normalized}P`;
-    return normalized.replace(/^(\\d+)p/i, "$1P");
+    return normalized.replace(/^(\d+)p/i, "$1P");
 }

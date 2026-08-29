@@ -611,7 +611,7 @@ function toRegisteredPlugin(plugin: BackendPlugin): RegisteredPlugin {
 }
 
 function isOfficialApplicationPlugin(pluginId: string) {
-    return [RUNNINGHUB_PLUGIN_ID, COMFYUI_PLUGIN_ID, EAGLE_PLUGIN_ID, PROMPT_OPTIMIZER_PLUGIN_ID, "portrait-clearance", "canvas-project-stats", "canvas-node-model-badge"].includes(pluginId);
+    return [RUNNINGHUB_PLUGIN_ID, COMFYUI_PLUGIN_ID, EAGLE_PLUGIN_ID, PROMPT_OPTIMIZER_PLUGIN_ID, "portrait-clearance", "canvas-project-stats", "canvas-node-model-badge", "canvas-cover-blur"].includes(pluginId);
 }
 
 function pluginSourceLabel(plugin: RegisteredPlugin, state?: PluginState) {

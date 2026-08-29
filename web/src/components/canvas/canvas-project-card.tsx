@@ -11,6 +11,8 @@ import { resourceFileUrl, resourceIdFromStorageKey } from "@/services/api/resour
 import { resolveBackendApiUrl } from "@/stores/use-config-store";
 import { CachedResourceImage } from "@/components/cached-resource-image";
 import { cn } from "@/lib/utils";
+import { usePluginStore } from "@/stores/use-plugin-store";
+import { CANVAS_COVER_BLUR_PLUGIN_ID } from "@/lib/plugins/builtin/canvas-cover-blur";
 
 export function CanvasCreateCard({ disabled, onClick }: { disabled?: boolean; onClick: () => void }) {
     return <button type="button" className="app-canvas-create-card" disabled={disabled} onClick={onClick}>
@@ -106,6 +108,9 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
 }
 
 export function ProjectPreview({ project, preferLatestImage = false }: { project: CanvasProject; preferLatestImage?: boolean }) {
+    const coverBlurEnabled = usePluginStore((state) =>
+        state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled)
+    );
     const mediaNodes = project.nodes
         .flatMap((node) => {
             if (node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video) return [];
@@ -119,7 +124,7 @@ export function ProjectPreview({ project, preferLatestImage = false }: { project
     if (media) {
         const { node, url, storageKey } = media;
         return (
-            <div className="canvas-project-media size-full">
+            <div className={cn("canvas-project-media size-full", coverBlurEnabled && "canvas-cover-privacy-blur")}>
                 {node.type === CanvasNodeType.Video
                     ? <div className="canvas-project-video size-full"><Video className="size-8" aria-label={node.title || "项目视频"} /></div>
                     : <CachedResourceImage storageKey={storageKey} src={url} alt={node.title || "项目图片"} loading="lazy" decoding="async" className="size-full min-h-0 object-cover" />}
@@ -131,7 +136,7 @@ export function ProjectPreview({ project, preferLatestImage = false }: { project
     const previewNodes = buildNodePreviewLayout(nodes);
 
     return (
-        <div className="canvas-project-preview-canvas relative size-full overflow-hidden">
+        <div className={cn("canvas-project-preview-canvas relative size-full overflow-hidden", coverBlurEnabled && "canvas-cover-privacy-blur")}>
             {previewNodes.map(({ node, style }) => {
                 const presentation = getNodePresentation(node);
                 return (
