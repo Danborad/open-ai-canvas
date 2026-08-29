@@ -1,5 +1,5 @@
 import { Dropdown, Input } from "antd";
-import { Download, Image as ImageIcon, MoreHorizontal, Pencil, Trash2, Video } from "lucide-react";
+import { Download, Eye, EyeOff, Image as ImageIcon, MoreHorizontal, Pencil, Trash2, Video } from "lucide-react";
 import type { KeyboardEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -12,6 +12,8 @@ import { formatCredits } from "@/constant/credits";
 import { cn } from "@/lib/utils";
 import { CANVAS_STATS_PLUGIN_ID } from "@/lib/plugins/builtin/canvas-stats";
 import { usePluginStore } from "@/stores/use-plugin-store";
+import { CANVAS_COVER_BLUR_PLUGIN_ID } from "@/lib/plugins/builtin/canvas-cover-blur";
+import { useCanvasPrivacyStore } from "@/stores/use-canvas-privacy-store";
 
 type CanvasFolderCardProps = {
     project: CanvasProject;
@@ -30,6 +32,11 @@ export function CanvasFolderCard({ project, projectName, onClick }: CanvasFolder
     const stopEditing = useCanvasUiStore((state) => state.stopEditingProject);
     const toggleSelected = useCanvasUiStore((state) => state.toggleSelectedProjectId);
     const setDeleteIds = useCanvasUiStore((state) => state.setDeleteProjectIds);
+    const coverBlurPluginEnabled = usePluginStore((state) =>
+        state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled)
+    );
+    const isBlurred = useCanvasPrivacyStore((state) => state.isProjectBlurred(project.id));
+    const toggleProjectBlur = useCanvasPrivacyStore((state) => state.toggleProjectBlur);
     const editing = editingId === project.id;
     const selected = selectedIds.includes(project.id);
     const statsEnabled = usePluginStore((state) =>
@@ -59,7 +66,7 @@ export function CanvasFolderCard({ project, projectName, onClick }: CanvasFolder
         <article className={cn("canvas-folder-card", selected && "is-selected", editing && "is-editing")}>
             <div className="canvas-folder-open" role="button" tabIndex={0} aria-label={`打开画布 ${project.title}`} onClick={() => !editing && onClick()} onKeyDown={handleOpenKeyDown}>
                 <div className="canvas-folder-preview" aria-hidden="true">
-                    <ProjectPreview project={project} preferLatestImage />
+                    <ProjectPreview project={project} preferLatestImage isBlurred={coverBlurPluginEnabled && isBlurred} />
                 </div>
                 <div className="canvas-folder-body">
                     <div className="canvas-folder-heading-row">
@@ -118,6 +125,21 @@ export function CanvasFolderCard({ project, projectName, onClick }: CanvasFolder
                     aria-label={`选择 ${project.title}`}
                 />
             </span>
+
+            {coverBlurPluginEnabled ? (
+                <button
+                    type="button"
+                    className={cn("canvas-folder-blur-toggle", isBlurred && "is-active")}
+                    aria-label={isBlurred ? `取消 ${project.title} 封面隐私模糊` : `开启 ${project.title} 封面隐私模糊`}
+                    title={isBlurred ? "隐私模式已开启（点击取消模糊）" : "开启封面隐私模糊"}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        toggleProjectBlur(project.id);
+                    }}
+                >
+                    {isBlurred ? <EyeOff /> : <Eye />}
+                </button>
+            ) : null}
 
             <div className="canvas-folder-actions" onClick={(event) => event.stopPropagation()}>
                 {!editing ? (

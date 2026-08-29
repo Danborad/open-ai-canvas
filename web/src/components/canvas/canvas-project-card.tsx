@@ -1,4 +1,4 @@
-import { Check, Clapperboard, Download, FileText, Frame, Image as ImageIcon, MoreHorizontal, Music2, Pencil, Plus, Settings2, Sparkles, Trash2, Video, X } from "lucide-react";
+import { Check, Clapperboard, Download, Eye, EyeOff, FileText, Frame, Image as ImageIcon, MoreHorizontal, Music2, Pencil, Plus, Settings2, Sparkles, Trash2, Video, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Dropdown, Input } from "antd";
@@ -13,6 +13,7 @@ import { CachedResourceImage } from "@/components/cached-resource-image";
 import { cn } from "@/lib/utils";
 import { usePluginStore } from "@/stores/use-plugin-store";
 import { CANVAS_COVER_BLUR_PLUGIN_ID } from "@/lib/plugins/builtin/canvas-cover-blur";
+import { useCanvasPrivacyStore } from "@/stores/use-canvas-privacy-store";
 
 export function CanvasCreateCard({ disabled, onClick }: { disabled?: boolean; onClick: () => void }) {
     return <button type="button" className="app-canvas-create-card" disabled={disabled} onClick={onClick}>
@@ -34,6 +35,11 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
     const stopEditing = useCanvasUiStore((state) => state.stopEditingProject);
     const toggleSelected = useCanvasUiStore((state) => state.toggleSelectedProjectId);
     const setDeleteIds = useCanvasUiStore((state) => state.setDeleteProjectIds);
+    const coverBlurPluginEnabled = usePluginStore((state) =>
+        state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled)
+    );
+    const isBlurred = useCanvasPrivacyStore((state) => state.isProjectBlurred(project.id));
+    const toggleProjectBlur = useCanvasPrivacyStore((state) => state.toggleProjectBlur);
     const editing = editingId === project.id;
     const selected = selectedIds.includes(project.id);
     const open = () => navigate(`/canvas/${project.id}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`);
@@ -54,9 +60,23 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
                         open();
                     }}
                 >
-                    <ProjectPreview project={project} />
+                    <ProjectPreview project={project} isBlurred={coverBlurPluginEnabled && isBlurred} />
                 </button>
                 {!compact && !readOnly ? <span className={`canvas-project-select ${selected ? "is-visible" : ""}`} onClick={(event) => event.stopPropagation()}><input type="checkbox" checked={selected} onChange={(event) => toggleSelected(project.id, event.target.checked)} className="app-canvas-project-checkbox" aria-label={`选择 ${project.title}`} /></span> : null}
+                {coverBlurPluginEnabled ? (
+                    <button
+                        type="button"
+                        className={cn("canvas-folder-blur-toggle", isBlurred && "is-active")}
+                        aria-label={isBlurred ? "取消封面隐私模糊" : "开启封面隐私模糊"}
+                        title={isBlurred ? "隐私模式已开启（点击取消模糊）" : "开启封面隐私模糊"}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            toggleProjectBlur(project.id);
+                        }}
+                    >
+                        {isBlurred ? <EyeOff /> : <Eye />}
+                    </button>
+                ) : null}
                 <div className="canvas-project-cover-meta" aria-hidden="true"><span className="canvas-project-node-count">{project.nodes.length} 节点</span></div>
             </div>
 
@@ -107,10 +127,12 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
     );
 }
 
-export function ProjectPreview({ project, preferLatestImage = false }: { project: CanvasProject; preferLatestImage?: boolean }) {
-    const coverBlurEnabled = usePluginStore((state) =>
+export function ProjectPreview({ project, preferLatestImage = false, isBlurred = false }: { project: CanvasProject; preferLatestImage?: boolean; isBlurred?: boolean }) {
+    const coverBlurPluginEnabled = usePluginStore((state) =>
         state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled)
     );
+    const isProjectBlurred = useCanvasPrivacyStore((state) => state.isProjectBlurred(project.id));
+    const shouldBlur = coverBlurPluginEnabled && (isBlurred || isProjectBlurred);
     const mediaNodes = project.nodes
         .flatMap((node) => {
             if (node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video) return [];
@@ -124,7 +146,7 @@ export function ProjectPreview({ project, preferLatestImage = false }: { project
     if (media) {
         const { node, url, storageKey } = media;
         return (
-            <div className={cn("canvas-project-media size-full", coverBlurEnabled && "canvas-cover-privacy-blur")}>
+            <div className={cn("canvas-project-media size-full", shouldBlur && "canvas-cover-privacy-blur is-blurred")}>
                 {node.type === CanvasNodeType.Video
                     ? <div className="canvas-project-video size-full"><Video className="size-8" aria-label={node.title || "项目视频"} /></div>
                     : <CachedResourceImage storageKey={storageKey} src={url} alt={node.title || "项目图片"} loading="lazy" decoding="async" className="size-full min-h-0 object-cover" />}
@@ -136,7 +158,7 @@ export function ProjectPreview({ project, preferLatestImage = false }: { project
     const previewNodes = buildNodePreviewLayout(nodes);
 
     return (
-        <div className={cn("canvas-project-preview-canvas relative size-full overflow-hidden", coverBlurEnabled && "canvas-cover-privacy-blur")}>
+        <div className={cn("canvas-project-preview-canvas relative size-full overflow-hidden", shouldBlur && "canvas-cover-privacy-blur is-blurred")}>
             {previewNodes.map(({ node, style }) => {
                 const presentation = getNodePresentation(node);
                 return (

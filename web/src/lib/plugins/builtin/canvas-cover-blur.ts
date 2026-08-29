@@ -11,7 +11,7 @@ export const canvasCoverBlurPlugin: RegisteredPlugin = {
         publishedAt: "2026-08-29",
         updatedAt: "2026-08-29",
         apiVersion: PLUGIN_API_VERSION,
-        description: "开启画布封面隐私模式，对工程列表中的封面图片进行高斯模糊遮罩（鼠标悬浮时可恢复清晰预览），适合录屏或公开演示场合。",
+        description: "在画布项目封面右下角提供【眼睛】隐私开关，点击即可锁定该画布封面为高斯模糊状态并持久记住，再次点击取消。",
         author: "影策社区",
         surfaces: ["hybrid"],
         permissions: ["canvas.read"],

@@ -3856,24 +3856,59 @@
 
     /* 画布封面隐私模糊插件 */
     .canvas-cover-privacy-blur { overflow: hidden; }
-    .canvas-cover-privacy-blur img,
-    .canvas-cover-privacy-blur .cached-resource-image-shell > img,
-    .canvas-cover-privacy-blur .canvas-project-video,
-    .canvas-cover-privacy-blur.canvas-project-preview-canvas {
-        filter: blur(20px) saturate(0.85);
-        transform: scale(1.12);
-        transition: filter 320ms var(--motion-ease-out), transform 320ms var(--motion-ease-out);
+    .canvas-cover-privacy-blur.is-blurred img,
+    .canvas-cover-privacy-blur.is-blurred .cached-resource-image-shell > img,
+    .canvas-cover-privacy-blur.is-blurred .canvas-project-video,
+    .canvas-cover-privacy-blur.is-blurred.canvas-project-preview-canvas,
+    .canvas-folder-card .canvas-folder-preview .canvas-project-media.canvas-cover-privacy-blur.is-blurred img,
+    .canvas-folder-card:hover .canvas-folder-preview .canvas-project-media.canvas-cover-privacy-blur.is-blurred img,
+    .app-canvas-project-card .canvas-project-preview .canvas-project-media.canvas-cover-privacy-blur.is-blurred img,
+    .app-canvas-project-card:hover .canvas-project-preview .canvas-project-media.canvas-cover-privacy-blur.is-blurred img {
+        filter: blur(28px) saturate(0.8) contrast(1.05) !important;
+        transform: scale(1.18) !important;
+        transition: filter 280ms var(--motion-ease-out), transform 280ms var(--motion-ease-out);
     }
-    .canvas-folder-card:hover .canvas-cover-privacy-blur img,
-    .canvas-folder-card:hover .canvas-cover-privacy-blur .cached-resource-image-shell > img,
-    .canvas-folder-card:hover .canvas-cover-privacy-blur .canvas-project-video,
-    .canvas-folder-card:hover .canvas-cover-privacy-blur.canvas-project-preview-canvas,
-    .app-canvas-project-card:hover .canvas-cover-privacy-blur img,
-    .app-canvas-project-card:hover .canvas-cover-privacy-blur .cached-resource-image-shell > img,
-    .app-canvas-project-card:hover .canvas-cover-privacy-blur .canvas-project-video,
-    .app-canvas-project-card:hover .canvas-cover-privacy-blur.canvas-project-preview-canvas {
-        filter: blur(0px) saturate(1) contrast(1.04);
-        transform: scale(1.025);
+
+    .canvas-folder-blur-toggle {
+        position: absolute;
+        z-index: 4;
+        bottom: 12px;
+        right: 12px;
+        display: grid;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+        border-radius: var(--r-full);
+        background: color-mix(in srgb, var(--background) 72%, transparent);
+        color: color-mix(in srgb, var(--foreground) 60%, transparent);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        cursor: pointer;
+        opacity: 0;
+        transform: translateY(2px);
+        transition: opacity var(--motion-instant) ease-out, transform var(--motion-instant) ease-out, background-color var(--motion-instant) ease-out, color var(--motion-instant) ease-out;
+    }
+    .canvas-folder-blur-toggle.is-active,
+    .canvas-folder-card:hover .canvas-folder-blur-toggle,
+    .canvas-folder-card:focus-within .canvas-folder-blur-toggle,
+    .app-canvas-project-card:hover .canvas-folder-blur-toggle,
+    .app-canvas-project-card:focus-within .canvas-folder-blur-toggle {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .canvas-folder-blur-toggle.is-active {
+        color: var(--foreground);
+        background: color-mix(in srgb, var(--background) 88%, transparent);
+        border-color: color-mix(in srgb, var(--foreground) 24%, transparent);
+    }
+    .canvas-folder-blur-toggle:hover {
+        background: color-mix(in srgb, var(--foreground) 12%, var(--background));
+        color: var(--foreground);
+    }
+    .canvas-folder-blur-toggle svg {
+        width: 15px;
+        height: 15px;
     }
 
     .canvas-folder-body {
