@@ -5,7 +5,7 @@ import { Button } from "antd";
 
 import { VideoSettingsPanel, videoResolutionLabel, videoSecondsLabel, videoSizeLabel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
-import { modelCapabilityConfigFor, resolveVideoResolutionValue } from "@/lib/model-capabilities";
+import { modelCapabilityConfigFor, resolveVideoRatioValue, resolveVideoResolutionValue } from "@/lib/model-capabilities";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { AiConfig } from "@/stores/use-config-store";
 
@@ -25,10 +25,12 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, buttonClass
     const targetModel = config.model || config.videoModel;
     const profile = modelCapabilityConfigFor(config, targetModel).video;
     const resolutionSupported = Boolean(profile?.resolutions.length);
+    const sizeSupported = Boolean(profile?.ratios.length);
     const resolution = profile ? resolveVideoResolutionValue(profile, config.vquality) : "";
+    const size = profile ? resolveVideoRatioValue(profile, config.size) : "";
     const summary = [
         ...(resolutionSupported ? [videoResolutionLabel(resolution)] : []),
-        videoSizeLabel(config.size),
+        ...(sizeSupported ? [videoSizeLabel(size)] : []),
         ...(profile?.durationSupported === false ? [] : [videoSecondsLabel(config.videoSeconds)]),
     ].join(" · ");
 

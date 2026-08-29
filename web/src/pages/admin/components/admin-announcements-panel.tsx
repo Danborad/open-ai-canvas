@@ -1,25 +1,33 @@
-import { App, Button, Form, Input, Modal, Select } from "antd";
+import { App, Button, Form, Input, Modal, Select, Segmented, Switch, Tag } from "antd";
+import type { FormInstance } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { Plus, Search } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { Eye, Pencil, Pin, Plus, Search, Upload, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 
 import { PaginationBar } from "@/components/layout/workspace-page";
+import { AnnouncementContent } from "@/components/ui/announcement-content";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
+    announcementImageUrl,
     closeAdminAnnouncement,
     createAdminAnnouncement,
+    discardAdminAnnouncementImage,
     listAdminAnnouncements,
+    uploadAdminAnnouncementImage,
     updateAdminAnnouncement,
     type AnnouncementLevel,
     type AnnouncementStatus,
     type SystemAnnouncement,
 } from "@/services/api/announcements";
+import { resourceFileUrl } from "@/services/api/resources";
 import { AdminDataTable, AdminFilterChip, AdminRowActions, AdminStatusBadge, AdminTableEmpty } from "./admin-ui";
 
 type AnnouncementFormValues = {
     title: string;
     content: string;
+    imageResourceId?: string;
     level: AnnouncementLevel;
+    pinned: boolean;
 };
 
 const levelOptions: Array<{ value: AnnouncementLevel; label: string }> = [
@@ -51,6 +59,11 @@ export default function AdminAnnouncementsPanel() {
     const [editingAnnouncement, setEditingAnnouncement] = useState<SystemAnnouncement | null>(null);
     const [publishing, setPublishing] = useState(false);
     const [closingId, setClosingId] = useState("");
+    const [imagePreviewUrl, setImagePreviewUrl] = useState("");
+    const [draftImageResourceId, setDraftImageResourceId] = useState("");
+    const [imageUploading, setImageUploading] = useState(false);
+    const [editorMode, setEditorMode] = useState<"edit" | "preview">("edit");
+    const imageInputRef = useRef<HTMLInputElement | null>(null);
 
     const reload = useCallback(async () => {
         setLoading(true);
@@ -71,23 +84,91 @@ export default function AdminAnnouncementsPanel() {
 
     const openPublishModal = () => {
         setEditingAnnouncement(null);
-        form.setFieldsValue({ title: "", content: "", level: "info" });
+        form.setFieldsValue({ title: "", content: "", imageResourceId: "", level: "info", pinned: false });
+        setImagePreviewUrl("");
+        setDraftImageResourceId("");
+        setEditorMode("edit");
         setModalOpen(true);
     };
 
     const openEditModal = (announcement: SystemAnnouncement) => {
         setEditingAnnouncement(announcement);
-        form.setFieldsValue({ title: announcement.title, content: announcement.content, level: announcement.level });
+        form.setFieldsValue({ title: announcement.title, content: announcement.content, imageResourceId: announcement.imageResourceId || "", level: announcement.level, pinned: announcement.pinned });
+        setImagePreviewUrl(announcementImageUrl(announcement));
+        setDraftImageResourceId("");
+        setEditorMode("edit");
         setModalOpen(true);
+    };
+
+    const discardDraftImage = async () => {
+        if (!draftImageResourceId) return;
+        await discardAdminAnnouncementImage(draftImageResourceId);
+        setDraftImageResourceId("");
+    };
+
+    const uploadAnnouncementImage = async (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+            message.warning("公告配图必须是图片文件");
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            message.warning("公告配图不能超过 10MB");
+            return;
+        }
+        setImageUploading(true);
+        try {
+            if (draftImageResourceId) await discardDraftImage();
+            const { resource } = await uploadAdminAnnouncementImage(file);
+            form.setFieldValue("imageResourceId", resource.id);
+            setDraftImageResourceId(resource.id);
+            setImagePreviewUrl(resourceFileUrl(resource.id));
+            message.success("公告配图已上传");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "公告配图上传失败");
+        } finally {
+            setImageUploading(false);
+        }
+    };
+
+    const clearAnnouncementImage = async () => {
+        setImageUploading(true);
+        try {
+            await discardDraftImage();
+            form.setFieldValue("imageResourceId", "");
+            setImagePreviewUrl("");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "公告配图清理失败");
+        } finally {
+            setImageUploading(false);
+        }
+    };
+
+    const closeEditor = async () => {
+        setImageUploading(true);
+        try {
+            await discardDraftImage();
+            setModalOpen(false);
+            setEditingAnnouncement(null);
+            setImagePreviewUrl("");
+            form.resetFields();
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "公告配图草稿清理失败，请重试");
+        } finally {
+            setImageUploading(false);
+        }
     };
 
     const publish = async () => {
         const values = await form.validateFields();
         setPublishing(true);
         try {
-            const input = { title: values.title.trim(), content: values.content.trim(), level: values.level };
+            const input = { title: values.title.trim(), content: values.content.trim(), imageResourceId: values.imageResourceId?.trim() || "", level: values.level, pinned: Boolean(values.pinned) };
             if (editingAnnouncement) await updateAdminAnnouncement(editingAnnouncement.id, input);
             else await createAdminAnnouncement(input);
+            setDraftImageResourceId("");
             setModalOpen(false);
             setEditingAnnouncement(null);
             setPage(1);
@@ -119,11 +200,20 @@ export default function AdminAnnouncementsPanel() {
             dataIndex: "title",
             minWidth: 360,
             render: (_, announcement) => (
-                <div className="min-w-0 py-0.5">
-                    <div className="truncate text-sm font-medium text-foreground" title={announcement.title}>{announcement.title}</div>
-                    <div className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs leading-5 text-foreground/50">{announcement.content}</div>
+                <div className="flex min-w-0 items-center gap-3 py-0.5">
+                    {announcement.imageUrl ? <img src={announcementImageUrl(announcement)} alt="" loading="lazy" decoding="async" className="size-14 shrink-0 rounded-md border border-border/70 bg-muted/20 object-contain p-0.5" /> : null}
+                    <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-foreground" title={announcement.title}>{announcement.title}</div>
+                        <div className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs leading-5 text-foreground/50">{announcement.content}</div>
+                    </div>
                 </div>
             ),
+        },
+        {
+            title: "置顶",
+            dataIndex: "pinned",
+            width: 90,
+            render: (pinned: boolean) => pinned ? <Tag color="gold" icon={<Pin className="size-3" />}>置顶</Tag> : <span className="text-foreground/35">--</span>,
         },
         {
             title: "级别",
@@ -174,20 +264,81 @@ export default function AdminAnnouncementsPanel() {
                 footer={<PaginationBar alwaysShow current={page} pageSize={pageSize} total={total} onChange={(nextPage, nextPageSize) => { setPage(nextPageSize !== pageSize ? 1 : nextPage); setPageSize(nextPageSize); }} />}
             />
 
-            <Modal title={editingAnnouncement ? "编辑并重新发布公告" : "发布系统公告"} open={modalOpen} width={760} centered okText={editingAnnouncement ? "保存并重新发布" : "立即发布"} cancelText="取消" confirmLoading={publishing} onOk={() => void publish()} onCancel={() => { setModalOpen(false); setEditingAnnouncement(null); }} destroyOnHidden>
-                <Form form={form} layout="vertical" className="pt-3" requiredMark={false}>
+            <Modal title={editingAnnouncement ? "编辑并重新发布公告" : "发布系统公告"} open={modalOpen} width={760} centered okText={editorMode === "preview" ? (editingAnnouncement ? "确认并重新发布" : "确认并发布") : "请先预览"} cancelText="取消" confirmLoading={publishing} okButtonProps={{ disabled: imageUploading || editorMode !== "preview" }} cancelButtonProps={{ disabled: imageUploading }} onOk={() => void publish()} onCancel={() => void closeEditor()} destroyOnHidden>
+                <div className="flex justify-end border-b border-border/70 pb-3 pt-3">
+                    <Segmented
+                        value={editorMode}
+                        onChange={(value) => setEditorMode(value as "edit" | "preview")}
+                        options={[
+                            { value: "edit", label: <span className="inline-flex items-center gap-1.5"><Pencil className="size-3.5" />编辑</span> },
+                            { value: "preview", label: <span className="inline-flex items-center gap-1.5"><Eye className="size-3.5" />预览</span> },
+                        ]}
+                    />
+                </div>
+                {editorMode === "preview" ? <AnnouncementDraftPreview form={form} imagePreviewUrl={imagePreviewUrl} /> : null}
+                <Form form={form} layout="vertical" className={editorMode === "preview" ? "hidden" : "pt-4"} requiredMark={false}>
                     <Form.Item name="title" label="公告标题" rules={[{ required: true, whitespace: true, message: "请填写公告标题" }, { max: 120, message: "标题不能超过 120 个字符" }]}>
                         <Input maxLength={120} showCount placeholder="例如：视频模型已恢复正常使用" />
                     </Form.Item>
                     <Form.Item name="level" label="公告级别" rules={[{ required: true, message: "请选择公告级别" }]}>
                         <Select options={levelOptions} />
                     </Form.Item>
-                    <Form.Item name="content" label="公告正文" rules={[{ required: true, whitespace: true, message: "请填写公告正文" }, { max: 4000, message: "正文不能超过 4000 个字符" }]}>
-                        <Input.TextArea maxLength={4000} showCount autoSize={{ minRows: 6, maxRows: 12 }} placeholder="填写服务状态、影响范围和用户需要采取的操作" />
+                    <Form.Item name="pinned" label="展示方式" valuePropName="checked" extra="置顶公告会优先展示。">
+                        <Switch checkedChildren="置顶" unCheckedChildren="普通" />
+                    </Form.Item>
+                    <Form.Item name="imageResourceId" hidden><Input /></Form.Item>
+                    <Form.Item label="公告配图" extra="可选，真实图片文件不超过 10MB；取消、替换或移除时会回收未发布草稿。">
+                        <div className="space-y-2">
+                            {imagePreviewUrl ? (
+                                <div className="relative flex min-h-28 items-center justify-center overflow-hidden rounded-md border border-border/70 bg-muted/20 p-2">
+                                    <img src={imagePreviewUrl} alt="公告配图预览" className="max-h-44 w-full object-contain" />
+                                    <Button type="text" size="small" danger disabled={imageUploading} icon={<X className="size-3.5" />} className="!absolute right-1 top-1 !size-7 !min-w-7 !p-0" onClick={() => void clearAnnouncementImage()} aria-label="移除公告配图" title="移除公告配图" />
+                                </div>
+                            ) : <div className="flex min-h-24 items-center justify-center rounded-md border border-dashed border-border/80 bg-muted/10 text-xs text-foreground/45">暂未添加配图</div>}
+                            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => void uploadAnnouncementImage(event)} />
+                            <Button icon={<Upload className="size-3.5" />} loading={imageUploading} onClick={() => imageInputRef.current?.click()}>
+                                {imagePreviewUrl ? "更换配图" : "上传配图"}
+                            </Button>
+                        </div>
+                    </Form.Item>
+                    <Form.Item
+                        name="content"
+                        label="公告正文（支持 Markdown）"
+                        extra="支持标题、加粗、列表、链接、引用和表格；不支持原始 HTML。"
+                        rules={[{ required: true, whitespace: true, message: "请填写公告正文" }, { max: 4000, message: "正文不能超过 4000 个字符" }]}
+                    >
+                        <Input.TextArea maxLength={4000} showCount autoSize={{ minRows: 6, maxRows: 12 }} placeholder="填写服务状态、影响范围和用户需要采取的操作，可使用 Markdown 语法" />
                     </Form.Item>
                 </Form>
             </Modal>
         </>
+    );
+}
+
+function AnnouncementDraftPreview({ form, imagePreviewUrl }: { form: FormInstance<AnnouncementFormValues>; imagePreviewUrl: string }) {
+    const title = Form.useWatch("title", form) || "未填写标题";
+    const content = Form.useWatch("content", form) || "暂未填写公告正文";
+    const level = Form.useWatch("level", form) || "info";
+    const pinned = Form.useWatch("pinned", form);
+    const meta = levelMeta[level as AnnouncementLevel] || levelMeta.info;
+
+    return (
+        <div className="min-h-80 py-5">
+            <div className="mx-auto max-w-2xl overflow-hidden rounded-xl border border-border/70 bg-background shadow-sm">
+                <div className="flex items-center justify-between border-b border-border/60 px-5 py-3">
+                    <div className="flex items-center gap-2">
+                        <AdminStatusBadge label={meta.label} tone={meta.tone} />
+                        {pinned ? <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-500"><Pin className="size-3" />置顶</span> : null}
+                    </div>
+                    <span className="text-xs text-foreground/40">预览效果</span>
+                </div>
+                <div className="p-5">
+                    <h2 className="text-lg font-semibold leading-7 text-foreground">{title}</h2>
+                    {imagePreviewUrl ? <img src={imagePreviewUrl} alt="公告配图预览" className="mt-4 max-h-56 w-full rounded-lg border border-border/70 bg-muted/20 object-contain p-1" /> : null}
+                    <AnnouncementContent content={content} className="mt-3 text-sm leading-6 text-foreground/75" />
+                </div>
+            </div>
+        </div>
     );
 }
 
