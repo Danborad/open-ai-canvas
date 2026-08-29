@@ -132,6 +132,56 @@ func TestAutoDLPluginArtifact(t *testing.T) {
 		t.Fatalf("v2 must not send audio_duration: %#v", bodyV2)
 	}
 
+	createB99001, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://autodl.art", Request: GenerationRequest{
+		Model: "minimax_h3_b99_001", Prompt: "a prompt test", Duration: 5, Resolution: "736p竖",
+		Images: []MediaReference{{URL: "https://cdn.example/should-be-omitted.png"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bodyB99001 := createB99001.Body.(map[string]any)
+	if bodyB99001["prompt"] != "a prompt test" || bodyB99001["duration"] != 5 || bodyB99001["resolution"] != "736p竖" {
+		t.Fatalf("b99_001 body = %#v", bodyB99001)
+	}
+	if _, exists := bodyB99001["ref_image_0"]; exists {
+		t.Fatalf("b99_001 must not send ref_image_0: %#v", bodyB99001)
+	}
+	if _, exists := bodyB99001["first_frame"]; exists {
+		t.Fatalf("b99_001 must not send first_frame: %#v", bodyB99001)
+	}
+
+	createB99002, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://autodl.art", Request: GenerationRequest{
+		Model: "minimax_h3_b99_002", Prompt: "first to last", Duration: 6, Resolution: "736p横",
+		Images: []MediaReference{{URL: "https://cdn.example/f0.png"}, {URL: "https://cdn.example/f1.png"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bodyB99002 := createB99002.Body.(map[string]any)
+	if bodyB99002["prompt"] != "first to last" || bodyB99002["duration"] != 6 || bodyB99002["resolution"] != "736p横" ||
+		bodyB99002["first_frame"] != "https://cdn.example/f0.png" || bodyB99002["last_frame"] != "https://cdn.example/f1.png" {
+		t.Fatalf("b99_002 body = %#v", bodyB99002)
+	}
+	if _, exists := bodyB99002["ref_image_0"]; exists {
+		t.Fatalf("b99_002 must not send ref_image_0: %#v", bodyB99002)
+	}
+
+	createB99003, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://autodl.art", Request: GenerationRequest{
+		Model: "minimax_h3_b99_003_12s", Prompt: "multi image 12s", Duration: 12, Resolution: "736p(1:1)",
+		Images: []MediaReference{{URL: "https://cdn.example/img0.png"}, {URL: "https://cdn.example/img1.png"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bodyB99003 := createB99003.Body.(map[string]any)
+	if bodyB99003["prompt"] != "multi image 12s" || bodyB99003["duration"] != 12 || bodyB99003["resolution"] != "736p(1:1)" ||
+		bodyB99003["ref_image_0"] != "https://cdn.example/img0.png" || bodyB99003["ref_image_1"] != "https://cdn.example/img1.png" {
+		t.Fatalf("b99_003 body = %#v", bodyB99003)
+	}
+	if _, exists := bodyB99003["first_frame"]; exists {
+		t.Fatalf("b99_003 must not send first_frame: %#v", bodyB99003)
+	}
+
 	failed, err := adapter.ParseCreate(context.Background(), []byte(`{"code":"RequestParameterIsWrong","data":null,"msg":"参数: resolution 的值: 768P 不在 options 列表中"}`))
 	if err != nil || failed.Status != StatusFailed || failed.Message == "" {
 		t.Fatalf("failed = %#v, err = %v", failed, err)

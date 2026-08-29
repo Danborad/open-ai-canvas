@@ -72,17 +72,17 @@
             "duration": "request.duration|omit_if_model_equals:minimax_h3_image_audio_to_video",
             "audio_duration": "request.duration|omit_unless_model_equals:minimax_h3_image_audio_to_video",
             "resolution": "request.resolution|lower",
-            "ref_image_0": "request.images.0.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_contains:no_pic",
-            "ref_image_1": "request.images.1.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic",
-            "ref_image_2": "request.images.2.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic",
-            "ref_image_3": "request.images.3.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic",
-            "ref_image_4": "request.images.4.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic",
-            "ref_image_5": "request.images.5.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic",
-            "ref_image_6": "request.images.6.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic",
-            "ref_image_7": "request.images.7.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic",
-            "ref_image_8": "request.images.8.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic",
-            "first_frame": "request.images.0.url|omit_unless_model_equals:minimax_h3_lightx2v",
-            "last_frame": "request.images.1.url|omit_unless_model_equals:minimax_h3_lightx2v",
+            "ref_image_0": "request.images.0.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_b99_002|omit_if_model_contains:no_pic|omit_if_model_contains:b99_001",
+            "ref_image_1": "request.images.1.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_b99_002|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic|omit_if_model_contains:b99_001",
+            "ref_image_2": "request.images.2.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_b99_002|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic|omit_if_model_contains:b99_001",
+            "ref_image_3": "request.images.3.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_b99_002|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic|omit_if_model_contains:b99_001",
+            "ref_image_4": "request.images.4.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_b99_002|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic|omit_if_model_contains:b99_001",
+            "ref_image_5": "request.images.5.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_b99_002|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic|omit_if_model_contains:b99_001",
+            "ref_image_6": "request.images.6.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_b99_002|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic|omit_if_model_contains:b99_001",
+            "ref_image_7": "request.images.7.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_b99_002|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic|omit_if_model_contains:b99_001",
+            "ref_image_8": "request.images.8.url|omit_if_model_equals:minimax_h3_lightx2v|omit_if_model_equals:minimax_h3_b99_002|omit_if_model_equals:minimax_h3_image_audio_to_video|omit_if_model_contains:no_pic|omit_if_model_contains:b99_001",
+            "first_frame": "request.images.0.url|omit_if_model_contains:v5|omit_if_model_contains:no_pic|omit_if_model_contains:image_audio_to_video|omit_if_model_contains:b99_001|omit_if_model_contains:b99_003",
+            "last_frame": "request.images.1.url|omit_if_model_contains:v5|omit_if_model_contains:no_pic|omit_if_model_contains:image_audio_to_video|omit_if_model_contains:b99_001|omit_if_model_contains:b99_003",
             "ref_audio_0": "request.audios.0.url|omit_unless_model_contains:image_audio_to_video",
             "ref_audio_1": "request.audios.1.url|omit_unless_model_contains:image_audio_to_video_v2",
             "ref_audio_2": "request.audios.2.url|omit_unless_model_contains:image_audio_to_video_v2"
@@ -178,6 +178,42 @@
       }
     ],
     "workflows": [
+      {
+        "id": "minimax_h3_b99_002",
+        "label": "H3 首尾帧生成视频",
+        "providerId": "autodl-comfyui",
+        "capability": "video",
+        "parameters": [
+          { "name": "prompt", "type": "string", "required": true, "mapping": "prompt" },
+          { "name": "duration", "type": "integer", "mapping": "duration", "description": "视频时长 1~15 秒" },
+          { "name": "resolution", "type": "string", "mapping": "resolution", "values": ["736p竖", "736p横", "736p(1:1)"] }
+        ],
+        "defaults": { "duration": 5, "resolution": "736p竖" }
+      },
+      {
+        "id": "minimax_h3_b99_001",
+        "label": "H3 文生视频",
+        "providerId": "autodl-comfyui",
+        "capability": "video",
+        "parameters": [
+          { "name": "prompt", "type": "string", "required": true, "mapping": "prompt" },
+          { "name": "duration", "type": "integer", "mapping": "duration", "description": "视频时长 1~15 秒" },
+          { "name": "resolution", "type": "string", "mapping": "resolution", "values": ["736p竖", "736p横", "736p(1:1)"] }
+        ],
+        "defaults": { "duration": 5, "resolution": "736p竖" }
+      },
+      {
+        "id": "minimax_h3_b99_003_12s",
+        "label": "H3 多图生视频 12 秒",
+        "providerId": "autodl-comfyui",
+        "capability": "video",
+        "parameters": [
+          { "name": "prompt", "type": "string", "required": true, "mapping": "prompt" },
+          { "name": "duration", "type": "integer", "mapping": "duration", "description": "视频时长 1~12 秒" },
+          { "name": "resolution", "type": "string", "mapping": "resolution", "values": ["736p竖", "736p横", "736p(1:1)"] }
+        ],
+        "defaults": { "duration": 5, "resolution": "736p竖" }
+      },
       {
         "id": "minimax_h3_image_audio_to_video_v2_15s",
         "label": "H3 多图多音频生视频 15 秒",

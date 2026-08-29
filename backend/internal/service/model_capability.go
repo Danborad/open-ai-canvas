@@ -125,22 +125,29 @@ func DefaultAutoDLVideoCapability(workflow string) *ModelCapabilityConfig {
 	if strings.Contains(workflow, "_v2") && !strings.Contains(workflow, "15s") {
 		profile.Video.Duration.Max = 10
 	}
-	if workflow == "minimax_h3_image_audio_to_video_v2" || workflow == "minimax_h3_image_audio_to_video" || workflow == "minimax_h3_lightx2v_v5" {
+	if strings.Contains(workflow, "_12s") {
+		profile.Video.Duration.Max = 12
+	}
+	if strings.HasPrefix(workflow, "minimax_h3_b99_") {
+		profile.Video.Resolutions = []string{"736p竖", "736p横", "736p(1:1)"}
+		profile.Video.DefaultResolution = "736p竖"
+	} else if workflow == "minimax_h3_image_audio_to_video_v2" || workflow == "minimax_h3_image_audio_to_video" || workflow == "minimax_h3_lightx2v_v5" {
 		profile.Video.Resolutions = []string{"480p竖", "768p竖", "1080p竖", "480p横", "768p横", "1080p横", "480p(1:1)", "768p(1:1)", "1080p(1:1)"}
+		profile.Video.DefaultResolution = "768p竖"
 	} else {
 		profile.Video.Resolutions = []string{"480p竖", "768p竖", "480p横", "768p横", "480p(1:1)", "768p(1:1)"}
+		profile.Video.DefaultResolution = "768p竖"
 	}
-	profile.Video.DefaultResolution = "768p竖"
 	profile.Video.Ratios = []string{"9:16", "16:9", "1:1"}
 	profile.Video.DefaultRatio = "9:16"
 
 	switch workflow {
-	case "minimax_h3_lightx2v_no_pic":
+	case "minimax_h3_lightx2v_no_pic", "minimax_h3_b99_001":
 		profile.Video.References.MaxImages = 0
 		profile.Video.References.MaxAudios = 0
 		profile.Video.Operations = []string{"text_to_video"}
 		profile.Video.DefaultOperation = "text_to_video"
-	case "minimax_h3_lightx2v":
+	case "minimax_h3_lightx2v", "minimax_h3_b99_002":
 		profile.Video.References.MaxImages = 2
 		profile.Video.References.MinImages = 2
 		profile.Video.References.MaxAudios = 0
@@ -153,7 +160,7 @@ func DefaultAutoDLVideoCapability(workflow string) *ModelCapabilityConfig {
 		profile.Video.References.MaxAudios = 1
 		profile.Video.Operations = []string{"image_to_video", "audio_to_video", "reference_to_video"}
 		profile.Video.DefaultOperation = "image_to_video"
-	case "minimax_h3_lightx2v_v5", "minimax_h3_lightx2v_v5_15s":
+	case "minimax_h3_lightx2v_v5", "minimax_h3_lightx2v_v5_15s", "minimax_h3_b99_003_12s":
 		profile.Video.References.MaxImages = 9
 		profile.Video.References.MinImages = 1
 		profile.Video.References.MaxAudios = 0

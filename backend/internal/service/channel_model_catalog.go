@@ -322,6 +322,9 @@ var (
 		"Seedance 2.5",
 	}
 	autoDLPresetModels = []string{
+		"minimax_h3_b99_002",
+		"minimax_h3_b99_001",
+		"minimax_h3_b99_003_12s",
 		"minimax_h3_image_audio_to_video_v2_15s",
 		"minimax_h3_lightx2v_v5_15s",
 		"minimax_h3_image_audio_to_video_v2",
@@ -371,8 +374,11 @@ func presetChannelModels(preset string) []string {
 
 func autoDLWorkflowDisplayName(workflow string) string {
 	names := map[string]string{
+		"minimax_h3_b99_002":                     "H3 首尾帧生成视频 (b99_002)",
+		"minimax_h3_b99_001":                     "H3 文生视频 (b99_001)",
+		"minimax_h3_b99_003_12s":                 "H3 多图生视频 12 秒",
 		"minimax_h3_image_audio_to_video_v2_15s": "H3 多图多音频生视频 15 秒",
-		"minimax_h3_lightx2v_v5_15s":            "H3 多图生视频 15 秒",
+		"minimax_h3_lightx2v_v5_15s":             "H3 多图生视频 15 秒",
 		"minimax_h3_image_audio_to_video_v2":     "H3 多图多音频生视频",
 		"minimax_h3_image_audio_to_video":        "H3 图生视频音频同步",
 		"minimax_h3_lightx2v_v5":                 "H3 多图参考生视频",
