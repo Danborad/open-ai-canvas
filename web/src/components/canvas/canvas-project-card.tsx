@@ -38,8 +38,12 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
     const coverBlurPluginEnabled = usePluginStore((state) =>
         state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled)
     );
-    const isBlurred = useCanvasPrivacyStore((state) => state.isProjectBlurred(project.id));
-    const toggleProjectBlur = useCanvasPrivacyStore((state) => state.toggleProjectBlur);
+    const isBlurred = Boolean(project.coverBlurred ?? useCanvasPrivacyStore.getState().isProjectBlurred(project.id));
+    const toggleProjectBlur = (projectId: string) => {
+        const nextBlurred = !isBlurred;
+        useCanvasStore.getState().updateProject(projectId, { coverBlurred: nextBlurred });
+        useCanvasPrivacyStore.getState().setProjectBlur(projectId, nextBlurred);
+    };
     const editing = editingId === project.id;
     const selected = selectedIds.includes(project.id);
     const open = () => navigate(`/canvas/${project.id}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`);
@@ -127,12 +131,11 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
     );
 }
 
-export function ProjectPreview({ project, preferLatestImage = false, isBlurred = false }: { project: CanvasProject; preferLatestImage?: boolean; isBlurred?: boolean }) {
+export function ProjectPreview({ project, preferLatestImage = false, isBlurred }: { project: CanvasProject; preferLatestImage?: boolean; isBlurred?: boolean }) {
     const coverBlurPluginEnabled = usePluginStore((state) =>
         state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled)
     );
-    const isProjectBlurred = useCanvasPrivacyStore((state) => state.isProjectBlurred(project.id));
-    const shouldBlur = coverBlurPluginEnabled && (isBlurred || isProjectBlurred);
+    const shouldBlur = coverBlurPluginEnabled && (isBlurred !== undefined ? isBlurred : Boolean(project.coverBlurred ?? useCanvasPrivacyStore.getState().isProjectBlurred(project.id)));
     const mediaNodes = project.nodes
         .flatMap((node) => {
             if (node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video) return [];

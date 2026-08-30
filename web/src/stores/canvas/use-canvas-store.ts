@@ -25,6 +25,7 @@ export type CanvasProject = {
     viewport: ViewportTransform;
     directorScenes: DirectorScene[];
     timeline?: TimelineProject;
+    coverBlurred?: boolean;
 };
 
 type CanvasStore = {
@@ -36,7 +37,7 @@ type CanvasStore = {
     renameProject: (id: string, title: string) => void;
     deleteProjects: (ids: string[]) => void;
     replaceProjects: (projects: CanvasProject[]) => void;
-    updateProject: (id: string, patch: Partial<Pick<CanvasProject, "projectId" | "nodes" | "connections" | "chatSessions" | "activeChatId" | "backgroundMode" | "showImageInfo" | "viewport" | "directorScenes" | "timeline">>) => void;
+    updateProject: (id: string, patch: Partial<Pick<CanvasProject, "projectId" | "nodes" | "connections" | "chatSessions" | "activeChatId" | "backgroundMode" | "showImageInfo" | "viewport" | "directorScenes" | "timeline" | "coverBlurred">>) => void;
 };
 
 const initialViewport: ViewportTransform = { x: 0, y: 0, k: 1 };
@@ -452,6 +453,7 @@ export const useCanvasStore = create<CanvasStore>()(
                     showImageInfo: source.showImageInfo || false,
                     viewport: source.viewport || initialViewport,
                     directorScenes: source.directorScenes || [],
+                    coverBlurred: source.coverBlurred,
                 };
                 set((state) => ({ projects: [project, ...state.projects] }));
                 return project.id;

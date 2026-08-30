@@ -35,8 +35,12 @@ export function CanvasFolderCard({ project, projectName, onClick }: CanvasFolder
     const coverBlurPluginEnabled = usePluginStore((state) =>
         state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled)
     );
-    const isBlurred = useCanvasPrivacyStore((state) => state.isProjectBlurred(project.id));
-    const toggleProjectBlur = useCanvasPrivacyStore((state) => state.toggleProjectBlur);
+    const isBlurred = Boolean(project.coverBlurred ?? useCanvasPrivacyStore.getState().isProjectBlurred(project.id));
+    const toggleProjectBlur = (projectId: string) => {
+        const nextBlurred = !isBlurred;
+        useCanvasStore.getState().updateProject(projectId, { coverBlurred: nextBlurred });
+        useCanvasPrivacyStore.getState().setProjectBlur(projectId, nextBlurred);
+    };
     const editing = editingId === project.id;
     const selected = selectedIds.includes(project.id);
     const statsEnabled = usePluginStore((state) =>
