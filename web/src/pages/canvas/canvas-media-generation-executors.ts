@@ -28,6 +28,7 @@ export async function executeVideoGeneration({
     applyGenerationTaskResult,
     registerPendingNodeIds,
     styleMetadata,
+    skillMetadata,
     taskContext,
     retryContext,
 }: CanvasGenerationExecution) {
@@ -67,6 +68,7 @@ export async function executeVideoGeneration({
             references: generationReferenceUrls(generationContext),
             ...videoGenerationMetadata,
             ...styleMetadata,
+            ...skillMetadata,
         },
     };
     registerPendingNodeIds([videoId]);
@@ -116,6 +118,7 @@ export async function executeVideoGeneration({
                     promptTemplateVariables: sourceNode?.metadata?.promptTemplateVariables,
                     ...videoGenerationMetadata,
                     ...styleMetadata,
+                    ...skillMetadata,
                 },
             },
             {
@@ -144,6 +147,7 @@ export async function executeAudioGeneration({
     applyGenerationTaskResult,
     registerPendingNodeIds,
     taskContext,
+    skillMetadata,
     retryContext,
 }: CanvasGenerationExecution) {
     const spec = NODE_DEFAULT_SIZE[CanvasNodeType.Audio];
@@ -157,7 +161,7 @@ export async function executeAudioGeneration({
         position: isEmptyAudioNode ? sourceNode.position : { x: parent.x + (sourceNode?.width || spec.width) + 96, y: parent.y + ((sourceNode?.height || spec.height) - spec.height) / 2 },
         width: isEmptyAudioNode ? sourceNode.width : spec.width,
         height: isEmptyAudioNode ? sourceNode.height : spec.height,
-        metadata: { prompt: effectivePrompt, status: NODE_STATUS_LOADING, ...buildAudioGenerationMetadata(generationConfig) },
+        metadata: { prompt: effectivePrompt, status: NODE_STATUS_LOADING, ...buildAudioGenerationMetadata(generationConfig), ...skillMetadata },
     };
     registerPendingNodeIds([audioId]);
     setNodes((current) =>
@@ -176,7 +180,7 @@ export async function executeAudioGeneration({
                 prompt: effectivePrompt,
                 config: generationConfig,
                 signal: controller.signal,
-                metadata: { sourceNodeId: nodeId, ...taskContext, resolvedCharacterVersions: generationContext.resolvedCharacterVersions, resolvedCharacterVoiceKey: generationContext.resolvedCharacterVoices[0]?.voiceKey },
+                metadata: { sourceNodeId: nodeId, ...taskContext, resolvedCharacterVersions: generationContext.resolvedCharacterVersions, resolvedCharacterVoiceKey: generationContext.resolvedCharacterVoices[0]?.voiceKey, ...skillMetadata },
             },
             {
                 bindTask: (task) => bindGenerationTask(audioId, task),
