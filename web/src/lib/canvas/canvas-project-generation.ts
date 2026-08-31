@@ -243,6 +243,7 @@ export function buildImageGenerationMetadata(type: CanvasImageGenerationType, co
         size: config.size,
         quality: config.quality,
         transparentBackground: config.transparentBackground,
+        watermark: config.videoWatermark,
         count,
         references: references.map(referenceUrl).filter((url): url is string => Boolean(url)),
     };

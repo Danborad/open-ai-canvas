@@ -38,6 +38,7 @@ export type ImageCapabilityConfig = {
         default: string;
     };
     transparentBackground: { supported: boolean; default: boolean };
+    watermark: { supported: boolean; default: boolean };
     responseFormat: { supported: boolean };
     outputFormat: { supported: boolean };
     maxOutputs: number;
@@ -106,6 +107,7 @@ export function normalizeModelCapabilityConfig(config: ModelCapabilityConfig): M
         image: config.image
             ? {
                   ...config.image,
+                  watermark: config.image.watermark,
                   size: {
                       ...config.image.size,
                       values: normalizeCapabilityStrings(config.image.size.values),
@@ -182,6 +184,7 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         size: { parameter: "size", values: [...defaultImageSizes], default: "1:1", allowCustom: true },
         quality: { supported: true, values: ["auto", "low", "medium", "high"], default: "auto" },
         transparentBackground: { supported: true, default: false },
+        watermark: { supported: false, default: false },
         responseFormat: { supported: true },
         outputFormat: { supported: true },
         maxOutputs: 15,
@@ -217,7 +220,8 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         image.responseFormat = { supported: false };
         image.outputFormat = { supported: false };
         image.maxOutputs = 4;
-    } else if (protocol === "sensenova-image") {
+    } else if (protocol === "sensenova-image" || model.trim().toLowerCase().startsWith("sensenova-")) {
+        image.watermark = { supported: true, default: false };
         const clean = model.trim().toLowerCase();
         if (clean.includes("fast")) {
             image.references.maxImages = 0;
@@ -542,14 +546,15 @@ export function modelCapabilityConfigFor(config: { channels: Array<{ id: string;
               const configuredValues = configuredSize?.values?.map(normalizeCapabilityString);
               const allowCustom = Boolean(configuredSize?.allowCustom || configuredValues?.includes("*"));
               const concreteValues = configuredValues?.filter((value) => value !== "*") || [];
-              const values = !configuredValues ? fallback.image!.size.values : concreteValues.length || !allowCustom ? concreteValues : [...STANDARD_IMAGE_SIZE_VALUES];
+              const values = !configuredValues ? fallback.image?.size.values || [] : concreteValues.length || !allowCustom ? concreteValues : [...STANDARD_IMAGE_SIZE_VALUES];
               const configuredDefault = configuredSize?.default ? normalizeCapabilityString(configuredSize.default) : undefined;
-              const defaultValue = configuredDefault && configuredDefault !== "*" && values.includes(configuredDefault) ? configuredDefault : values.find((value) => value !== "*") || fallback.image!.size.default;
+              const defaultValue = configuredDefault && configuredDefault !== "*" && values.includes(configuredDefault) ? configuredDefault : values.find((value) => value !== "*") || fallback.image?.size.default || "auto";
               return {
-                  ...fallback.image!,
+                  ...(fallback.image || defaultImageCapabilityConfig()),
                   ...configuredImage,
+                  watermark: configuredImage.watermark?.supported !== undefined ? configuredImage.watermark : fallback.image?.watermark || { supported: false, default: false },
                   size: {
-                      ...fallback.image!.size,
+                      ...(fallback.image?.size || { parameter: "size", values: [], default: "auto", allowCustom: false }),
                       ...configuredSize,
                       values,
                       default: defaultValue,

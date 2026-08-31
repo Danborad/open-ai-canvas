@@ -34,9 +34,10 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
         ...(profile.quality.supported ? [imageQualityLabel(normalized.quality)] : []),
         ...(showCount && profile.maxOutputs > 1 ? [`${normalized.count} 张`] : []),
         ...(profile.transparentBackground.supported && normalized.transparentBackground === "true" ? ["透明"] : []),
+        ...(profile.watermark?.supported && (config.videoWatermark === "true" || (config as Record<string, unknown>).watermark === "true") ? ["带水印"] : []),
     ];
     const summary = summaryParts.join(" · ");
-    const hasSettings = profile.size.parameter !== "none" || profile.quality.supported || profile.transparentBackground.supported || (showCount && profile.maxOutputs > 1);
+    const hasSettings = profile.size.parameter !== "none" || profile.quality.supported || profile.transparentBackground.supported || profile.watermark?.supported || (showCount && profile.maxOutputs > 1);
     const updateOpen = (nextOpen: boolean) => {
         setOpen(nextOpen);
         onOpenChange?.(nextOpen);
@@ -129,7 +130,7 @@ function ImageSettingsPortal({
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
         >
-            <ImageSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showCount={showCount} quickCount={3} className="space-y-3" />
+            <ImageSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange((key === "watermark" ? "videoWatermark" : key) as keyof AiConfig, value)} theme={theme} showCount={showCount} quickCount={3} className="space-y-3" />
         </div>,
         document.body,
     );

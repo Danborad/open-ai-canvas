@@ -36,6 +36,7 @@ type ImageCapabilityConfig struct {
 	Size                  ImageSizeConfig      `json:"size"`
 	Quality               ImageQualityConfig   `json:"quality"`
 	TransparentBackground VideoBooleanConfig   `json:"transparentBackground"`
+	Watermark             VideoBooleanConfig   `json:"watermark"`
 	ResponseFormat        ParameterSupport     `json:"responseFormat"`
 	OutputFormat          ParameterSupport     `json:"outputFormat"`
 	MaxOutputs            int                  `json:"maxOutputs"`
@@ -184,6 +185,7 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		Size:                  ImageSizeConfig{Parameter: "size", Values: defaultImageSizeValues(), Default: "1:1", AllowCustom: true},
 		Quality:               ImageQualityConfig{Supported: true, Values: []string{"auto", "low", "medium", "high"}, Default: "auto"},
 		TransparentBackground: VideoBooleanConfig{Supported: true, Default: false},
+		Watermark:             VideoBooleanConfig{Supported: false, Default: false},
 		ResponseFormat:        ParameterSupport{Supported: true},
 		OutputFormat:          ParameterSupport{Supported: true},
 		MaxOutputs:            15,
@@ -214,6 +216,7 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		image.OutputFormat = ParameterSupport{Supported: false}
 		image.MaxOutputs = 4
 	case "sensenova-image":
+		image.Watermark = VideoBooleanConfig{Supported: true, Default: false}
 		clean := strings.ToLower(strings.TrimSpace(modelName))
 		if strings.Contains(clean, "fast") {
 			image.References.MaxImages = 0

@@ -260,7 +260,11 @@ export function resolveModelGenerationDefaults(
             count: source("count"),
             transparentBackground: source("transparentBackground"),
         });
-        return normalized;
+        const watermarkDefault = profile.image.watermark?.supported ? String(profile.image.watermark.default ?? false) : "false";
+        return {
+            ...normalized,
+            videoWatermark: source("videoWatermark") ?? watermarkDefault,
+        };
     }
 
     if (capability === "video" && profile.video) {

@@ -82,7 +82,8 @@
         "parameters": [
           { "name": "model", "type": "string", "required": true, "mapping": "model" },
           { "name": "prompt", "type": "string", "required": true, "mapping": "prompt" },
-          { "name": "size", "type": "string", "mapping": "aspectRatio" }
+          { "name": "size", "type": "string", "mapping": "aspectRatio" },
+          { "name": "watermark", "type": "boolean", "mapping": "watermark" }
         ],
         "create": {
           "method": "POST",
@@ -93,7 +94,7 @@
             "prompt": "request.prompt",
             "size": "request.aspectRatio",
             "n": "1|int",
-            "watermark": "true|bool"
+            "watermark": "request.watermark"
           }
         },
         "response": {

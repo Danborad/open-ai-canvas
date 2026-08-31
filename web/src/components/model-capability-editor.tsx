@@ -512,6 +512,7 @@ function ImageCapabilityEditor({ value, onChange, protocol, model, disabled, sec
                             </div>
                         ) : null}
                         <BooleanField label="透明背景" value={profile.transparentBackground} disabled={disabled} onChange={(transparentBackground) => update({ transparentBackground })} />
+                        <BooleanField label="图片水印" value={profile.watermark || { supported: false, default: false }} disabled={disabled} onChange={(watermark) => update({ watermark })} />
                         <ParameterField label="response_format" description="发送 b64_json 响应格式" supported={profile.responseFormat.supported} disabled={disabled} onChange={(supported) => update({ responseFormat: { supported } })} />
                         <ParameterField label="output_format" description="发送 PNG 输出格式" supported={profile.outputFormat.supported} disabled={disabled} onChange={(supported) => update({ outputFormat: { supported } })} />
                     </ProtocolParameterCard>

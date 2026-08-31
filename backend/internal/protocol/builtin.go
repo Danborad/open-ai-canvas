@@ -705,9 +705,10 @@ func senseNovaImagesAdapter() Adapter {
 	return builtinAdapter{info: info,
 		create: func(r GenerationRequest) (RequestSpec, error) {
 			body := map[string]any{
-				"model":  r.Model,
-				"prompt": r.Prompt,
-				"n":      1,
+				"model":     r.Model,
+				"prompt":    r.Prompt,
+				"n":         1,
+				"watermark": r.Watermark,
 			}
 			if size := strings.TrimSpace(r.AspectRatio); size != "" {
 				body["size"] = size

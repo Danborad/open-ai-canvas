@@ -838,7 +838,7 @@ func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, it
 				changed = true
 			}
 		}
-		if strings.TrimSpace(item.CapabilityConfigJSON) == "" {
+		if strings.TrimSpace(item.CapabilityConfigJSON) == "" || !strings.Contains(item.CapabilityConfigJSON, `"watermark"`) || (item.Capability == "image" && strings.Contains(item.CapabilityConfigJSON, `"watermark":{"supported":false`)) {
 			if encoded, err := json.Marshal(DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey)); err == nil {
 				item.CapabilityConfigJSON = string(encoded)
 				changed = true

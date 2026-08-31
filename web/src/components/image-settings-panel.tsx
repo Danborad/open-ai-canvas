@@ -41,7 +41,7 @@ const aspectOptions: AspectOption[] = [
 
 type ImageSettingsPanelProps = {
     config: AiConfig;
-    onConfigChange: (key: "quality" | "size" | "transparentBackground" | "count", value: string) => void;
+    onConfigChange: (key: "quality" | "size" | "transparentBackground" | "count" | "watermark", value: string) => void;
     theme: CanvasTheme;
     showTitle?: boolean;
     showCount?: boolean;
@@ -56,6 +56,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
     const normalized = normalizeImageValue(profile, config);
     const quality = normalized.quality;
     const transparentBackground = normalized.transparentBackground === "true";
+    const watermark = (config.videoWatermark || (config as Record<string, unknown>).watermark || "false") === "true";
     const effectiveMaxCount = Math.min(maxCount, profile.maxOutputs);
     const count = Math.max(1, Math.min(effectiveMaxCount, Number(normalized.count)));
     const activeSize = normalized.size;
@@ -131,6 +132,21 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                             size="small"
                             checked={transparentBackground}
                             onChange={(checked) => onConfigChange("transparentBackground", checked ? "true" : "false")}
+                        />
+                    </span>
+                </div> : null}
+                {profile.watermark?.supported ? <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                        <SettingTitle color={theme.node.muted}>图片水印</SettingTitle>
+                        <div className="mt-1 text-[var(--fs-label)]" style={{ color: theme.node.muted }}>
+                            在输出图片右下角添加官方水印
+                        </div>
+                    </div>
+                    <span title="是否添加官方水印（默认关闭）" onMouseDown={(event) => event.stopPropagation()}>
+                        <Switch
+                            size="small"
+                            checked={watermark}
+                            onChange={(checked) => onConfigChange("watermark", checked ? "true" : "false")}
                         />
                     </span>
                 </div> : null}
