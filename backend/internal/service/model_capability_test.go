@@ -255,6 +255,18 @@ func TestFlow2APIPresetCapabilitiesFollowModelAliases(t *testing.T) {
 	}
 }
 
+func TestSenseNovaPresetCapabilitiesFollowDocument(t *testing.T) {
+	u15 := DefaultModelCapabilityConfigForModel("sensenova-image", "sensenova-u1.5-lite")
+	if u15.Image == nil || u15.Image.Size.Default != "2048x2048" || !u15.Image.Size.AllowCustom || u15.Image.References.MaxImages != 1 {
+		t.Fatalf("sensenova-u1.5-lite image profile = %#v", u15.Image)
+	}
+
+	fast := DefaultModelCapabilityConfigForModel("sensenova-image", "sensenova-u1-fast")
+	if fast.Image == nil || fast.Image.Size.Default != "2752x1536" || fast.Image.Size.AllowCustom || fast.Image.References.MaxImages != 0 || len(fast.Image.Size.Values) != 11 {
+		t.Fatalf("sensenova-u1-fast image profile = %#v", fast.Image)
+	}
+}
+
 func TestValidateVideoTaskIgnoresGlobalResolutionWhenCatalogDeclaresNone(t *testing.T) {
 	profile := DefaultModelCapabilityConfigForModel("newapi", "omni").Video
 	profile.Duration = VideoDurationConfig{Selection: "enum", Values: []int{8, 10}, Default: 10}

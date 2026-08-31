@@ -213,6 +213,45 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		image.ResponseFormat = ParameterSupport{Supported: false}
 		image.OutputFormat = ParameterSupport{Supported: false}
 		image.MaxOutputs = 4
+	case "sensenova-image":
+		clean := strings.ToLower(strings.TrimSpace(modelName))
+		if strings.Contains(clean, "fast") {
+			image.References.MaxImages = 0
+			image.References.MaskSupported = false
+			image.Size = ImageSizeConfig{
+				Parameter: "size",
+				Values: []string{
+					"2752x1536", "1536x2752", "2048x2048",
+					"2368x1760", "1760x2368", "2496x1664", "1664x2496",
+					"2272x1824", "1824x2272", "3072x1376", "1344x3136",
+				},
+				Default:     "2752x1536",
+				AllowCustom: false,
+			}
+			image.Quality = ImageQualityConfig{Supported: false, Values: []string{}, Default: ""}
+			image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
+			image.ResponseFormat = ParameterSupport{Supported: false}
+			image.OutputFormat = ParameterSupport{Supported: false}
+			image.MaxOutputs = 1
+		} else {
+			// sensenova-u1.5-lite 或通用 SenseNova 生图/编辑
+			image.References.MaxImages = 1
+			image.References.MaskSupported = false
+			image.Size = ImageSizeConfig{
+				Parameter: "size",
+				Values: []string{
+					"2048x2048", "2720x1536", "1536x2720",
+					"1664x2496", "2496x1664", "4096x4096",
+				},
+				Default:     "2048x2048",
+				AllowCustom: true,
+			}
+			image.Quality = ImageQualityConfig{Supported: false, Values: []string{}, Default: ""}
+			image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
+			image.ResponseFormat = ParameterSupport{Supported: true}
+			image.OutputFormat = ParameterSupport{Supported: true}
+			image.MaxOutputs = 1
+		}
 	case model.ChannelInterfaceGrokImage:
 		image.References.MaxImages = 1
 		image.References.MaskSupported = false

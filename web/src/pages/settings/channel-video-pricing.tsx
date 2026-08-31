@@ -255,7 +255,10 @@ function inferCapabilityFromModel(model: string): ModelCapabilityChoice {
         lower.includes("banana") ||
         lower.includes("midjourney") ||
         lower.includes("sdxl") ||
-        lower.includes("stable-diffusion")
+        lower.includes("stable-diffusion") ||
+        lower.includes("sensenova-u1") ||
+        lower.includes("u1.5") ||
+        lower.includes("u1-fast")
     ) {
         return "image";
     }

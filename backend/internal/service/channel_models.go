@@ -820,6 +820,30 @@ func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, it
 				changed = true
 			}
 		}
+	case "sensenova":
+		if item.DisplayName != senseNovaDisplayName(item.ModelKey) {
+			item.DisplayName = senseNovaDisplayName(item.ModelKey)
+			changed = true
+		}
+		if item.ModelKey == "sensenova-6.8-flash-lite" {
+			if item.Capability != "text" || item.Protocol != "chat-completion" {
+				item.Capability = "text"
+				item.Protocol = "chat-completion"
+				changed = true
+			}
+		} else {
+			if item.Capability != "image" || item.Protocol != "sensenova-image" {
+				item.Capability = "image"
+				item.Protocol = "sensenova-image"
+				changed = true
+			}
+		}
+		if strings.TrimSpace(item.CapabilityConfigJSON) == "" {
+			if encoded, err := json.Marshal(DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey)); err == nil {
+				item.CapabilityConfigJSON = string(encoded)
+				changed = true
+			}
+		}
 	}
 	return changed
 }

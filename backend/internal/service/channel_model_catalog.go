@@ -123,12 +123,16 @@ func (s *Service) FetchChannelModelCatalog(ctx context.Context, actor *model.Use
 			displayName := name
 			if preset == "autodl" {
 				displayName = autoDLWorkflowDisplayName(name)
+			} else if preset == "sensenova" {
+				displayName = senseNovaDisplayName(name)
 			}
 			modelType := "image"
 			if strings.Contains(strings.ToLower(name), "video") || strings.Contains(strings.ToLower(name), "omni") || strings.HasPrefix(name, "Veo 3.1") || (preset == "autodl" && name != "indextts2-v1") || (preset == "zarklab" && (name == "Happy Horse" || name == "Kling 3.0 Lite" || name == "MiniMax H3" || strings.HasPrefix(name, "Seedance"))) {
 				modelType = "video"
 			} else if name == "indextts2-v1" {
 				modelType = "audio"
+			} else if name == "sensenova-6.8-flash-lite" {
+				modelType = "text"
 			}
 			catalog = append(catalog, ChannelModelCatalogItem{
 				ID:          name,
@@ -335,6 +339,11 @@ var (
 		"minimax_h3_lightx2v",
 		"indextts2-v1",
 	}
+	senseNovaPresetModels = []string{
+		"sensenova-6.8-flash-lite",
+		"sensenova-u1.5-lite",
+		"sensenova-u1-fast",
+	}
 )
 
 func isPresetChannel(channel *model.ModelChannel) string {
@@ -355,6 +364,9 @@ func isPresetChannel(channel *model.ModelChannel) string {
 	if strings.Contains(url, "zarklab.ai") || strings.Contains(name, "zarklab") {
 		return "zarklab"
 	}
+	if strings.Contains(url, "sensenova") || strings.Contains(name, "sensenova") || strings.Contains(name, "商汤") || strings.Contains(name, "日日新") {
+		return "sensenova"
+	}
 	return ""
 }
 
@@ -368,9 +380,23 @@ func presetChannelModels(preset string) []string {
 		return grok2APIPresetModels
 	case "zarklab":
 		return zarkLabPresetModels
+	case "sensenova":
+		return senseNovaPresetModels
 	default:
 		return nil
 	}
+}
+
+func senseNovaDisplayName(model string) string {
+	names := map[string]string{
+		"sensenova-6.8-flash-lite": "SenseNova 6.8 Flash Lite (多模态对话)",
+		"sensenova-u1.5-lite":      "SenseNova U1.5 Lite (生图/编辑)",
+		"sensenova-u1-fast":        "SenseNova U1 Fast (信息图)",
+	}
+	if name := names[model]; name != "" {
+		return name
+	}
+	return model
 }
 
 func autoDLWorkflowDisplayName(workflow string) string {

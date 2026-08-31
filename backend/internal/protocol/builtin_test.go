@@ -243,6 +243,48 @@ func TestFlow2APIAdaptersMapDocumentedGenerationConfig(t *testing.T) {
 	}
 }
 
+func TestSenseNovaImagesAdapterMapsGenerationsAndEdits(t *testing.T) {
+	adapter := senseNovaImagesAdapter()
+
+	// 1. 文生图 (POST /images/generations)
+	genSpec, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{
+		Model: "sensenova-u1.5-lite", Prompt: "一只海獭宝宝", AspectRatio: "2048x2048",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if genSpec.Method != "POST" || genSpec.Path != "/images/generations" {
+		t.Fatalf("genSpec = %#v", genSpec)
+	}
+	genBody := genSpec.Body.(map[string]any)
+	if genBody["model"] != "sensenova-u1.5-lite" || genBody["prompt"] != "一只海獭宝宝" || genBody["size"] != "2048x2048" || genBody["n"] != 1 {
+		t.Fatalf("genBody = %#v", genBody)
+	}
+	if _, exists := genBody["images"]; exists {
+		t.Fatalf("generation request must not contain images: %#v", genBody)
+	}
+
+	// 2. 图像编辑 (POST /images/edits)
+	editSpec, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{
+		Model: "sensenova-u1.5-lite", Prompt: "把背景改成雪山", AspectRatio: "auto",
+		Images: []MediaReference{{URL: "https://example.com/source.png"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if editSpec.Method != "POST" || editSpec.Path != "/images/edits" {
+		t.Fatalf("editSpec = %#v", editSpec)
+	}
+	editBody := editSpec.Body.(map[string]any)
+	if editBody["model"] != "sensenova-u1.5-lite" || editBody["prompt"] != "把背景改成雪山" || editBody["size"] != "auto" || editBody["n"] != 1 {
+		t.Fatalf("editBody = %#v", editBody)
+	}
+	images, ok := editBody["images"].([]map[string]any)
+	if !ok || len(images) != 1 || images[0]["image_url"] != "https://example.com/source.png" {
+		t.Fatalf("edit images = %#v", editBody["images"])
+	}
+}
+
 func TestArkVideoAdapterMapsFullModalReferences(t *testing.T) {
 	adapter, ok := Builtins().Get("volcengine-ark-video")
 	if !ok {

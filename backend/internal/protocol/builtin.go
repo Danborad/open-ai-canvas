@@ -699,6 +699,42 @@ func zarkLabVideosAdapter() Adapter {
 	}
 }
 
+func senseNovaImagesAdapter() Adapter {
+	info := metadata("sensenova-image", "SenseNova 图片", "SenseNova", CapabilityImage, "POST /images/generations", "", "application/json")
+	info.Parameters = mediaParams()
+	return builtinAdapter{info: info,
+		create: func(r GenerationRequest) (RequestSpec, error) {
+			body := map[string]any{
+				"model":  r.Model,
+				"prompt": r.Prompt,
+				"n":      1,
+			}
+			if size := strings.TrimSpace(r.AspectRatio); size != "" {
+				body["size"] = size
+			}
+			// If reference images are present, route to /images/edits endpoint
+			if len(r.Images) > 0 {
+				imgList := make([]map[string]any, 0, len(r.Images))
+				for _, img := range r.Images {
+					val := mediaValue(img)
+					if val != "" {
+						imgList = append(imgList, map[string]any{"image_url": val})
+					}
+				}
+				if len(imgList) > 0 {
+					body["images"] = imgList
+				}
+				mergeExtra(body, r.Extra, "size", "watermark", "prompt_extend", "response_format")
+				return jsonSpec(http.MethodPost, "/images/edits", body), nil
+			}
+			copyIf(body, "output_format", "png")
+			mergeExtra(body, r.Extra, "size", "watermark", "prompt_extend", "output_format", "response_format")
+			return jsonSpec(http.MethodPost, "/images/generations", body), nil
+		},
+		parseCreate: parseImageResponse,
+	}
+}
+
 func parseFlow2APIMediaResponse(payload map[string]any, capability Capability) (CreateResult, error) {
 	text := ""
 	if choices, ok := payload["choices"].([]any); ok && len(choices) > 0 {

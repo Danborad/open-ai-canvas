@@ -217,6 +217,44 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         image.responseFormat = { supported: false };
         image.outputFormat = { supported: false };
         image.maxOutputs = 4;
+    } else if (protocol === "sensenova-image") {
+        const clean = model.trim().toLowerCase();
+        if (clean.includes("fast")) {
+            image.references.maxImages = 0;
+            image.references.maskSupported = false;
+            image.size = {
+                parameter: "size",
+                values: [
+                    "2752x1536", "1536x2752", "2048x2048",
+                    "2368x1760", "1760x2368", "2496x1664", "1664x2496",
+                    "2272x1824", "1824x2272", "3072x1376", "1344x3136",
+                ],
+                default: "2752x1536",
+                allowCustom: false,
+            };
+            image.quality = { supported: false, values: [], default: "" };
+            image.transparentBackground = { supported: false, default: false };
+            image.responseFormat = { supported: false };
+            image.outputFormat = { supported: false };
+            image.maxOutputs = 1;
+        } else {
+            image.references.maxImages = 1;
+            image.references.maskSupported = false;
+            image.size = {
+                parameter: "size",
+                values: [
+                    "2048x2048", "2720x1536", "1536x2720",
+                    "1664x2496", "2496x1664", "4096x4096",
+                ],
+                default: "2048x2048",
+                allowCustom: true,
+            };
+            image.quality = { supported: false, values: [], default: "" };
+            image.transparentBackground = { supported: false, default: false };
+            image.responseFormat = { supported: true };
+            image.outputFormat = { supported: true };
+            image.maxOutputs = 1;
+        }
     } else if (protocol === "grok-image") {
         image.references.maxImages = 1;
         image.references.maskSupported = false;

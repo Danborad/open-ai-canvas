@@ -495,6 +495,8 @@ function ModelPrice({ price, quote, compact = false }: { price: ModelMenuPrice |
 function modelMenuMeta(model: string, capability?: ModelCapability): { description: string; time?: string } {
     const name = modelOptionName(model).toLowerCase();
     if (capability === "image") {
+        if (name.includes("sensenova-u1.5") || name.includes("u1.5")) return { description: "商汤通用图像生成与单图编辑，支持 2K/4K" };
+        if (name.includes("sensenova-u1-fast") || name.includes("u1-fast")) return { description: "商汤信息图与排版海报专用生成模型" };
         if (name.includes("nano banana") || name.includes("nanobanana") || name.includes("imagen")) return { description: "Gemini 高质量图片生成，适合角色和商业成片" };
         if (name.includes("nano") || name.includes("pro")) return { description: "高质量图片生成，适合角色和商业成片" };
         if (name.includes("seedream")) return { description: "快速出图，适合批量探索风格" };
@@ -507,6 +509,7 @@ function modelMenuMeta(model: string, capability?: ModelCapability): { descripti
         return { description: "视频生成模型", time: "3m" };
     }
     if (capability === "audio") return { description: "语音、音效或音乐生成", time: "20s" };
+    if (name.includes("sensenova")) return { description: "商汤日日新轻量多模态智能体，支持文本与视觉理解", time: "10s" };
     if (name.includes("claude")) return { description: "长文本、推理与创意写作", time: "10s" };
     if (name.includes("gemini")) return { description: "多模态理解与快速文本生成", time: "10s" };
     if (name.includes("deepseek")) return { description: "推理、代码和结构化文本", time: "10s" };

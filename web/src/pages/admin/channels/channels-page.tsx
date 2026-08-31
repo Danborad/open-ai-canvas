@@ -18,7 +18,7 @@ import { AdminPageFrame } from "../components/admin-shell";
 import { AdminDataTable, AdminRowActions, AdminStatusBadge, AdminTableEmpty, configuredSecretText } from "../components/admin-ui";
 import { ChannelModelManager } from "../components/channel-model-manager";
 
-type ChannelKind = "standard" | "autodl" | "flow2api" | "grok2api" | "zarklab";
+type ChannelKind = "standard" | "autodl" | "flow2api" | "grok2api" | "zarklab" | "sensenova";
 type ChannelFormValues = { name: string; baseUrl: string; channelKind?: ChannelKind; allowLocalChannel?: boolean; apiKey?: string; secretKey?: string; headers?: ChannelHeader[]; useGlobalConcurrency?: boolean; concurrencyLimit?: number; enabled?: boolean };
 
 function detectChannelKind(channel?: ModelChannel | null): ChannelKind {
@@ -29,11 +29,13 @@ function detectChannelKind(channel?: ModelChannel | null): ChannelKind {
     if (url.includes("flow2api") || name.includes("flow2api")) return "flow2api";
     if (url.includes("grok2api") || name.includes("grok2api")) return "grok2api";
     if (url.includes("zarklab.ai") || name.includes("zarklab")) return "zarklab";
+    if (url.includes("sensenova") || name.includes("sensenova") || name.includes("商汤") || name.includes("日日新")) return "sensenova";
     return "standard";
 }
 
 const channelKindOptions = [
     { label: "标准兼容渠道 (OpenAI / Gemini / 火山等)", value: "standard" },
+    { label: "SenseNova 商汤日日新 (6.8 Flash Lite, U1.5 Lite, U1 Fast)", value: "sensenova" },
     { label: "AutoDL.Art ComfyUI (11 个工作流)", value: "autodl" },
     { label: "Flow2API 渠道 (Nano Banana 2/Pro, Omni 1.1 Flash, Veo 3.1 等)", value: "flow2api" },
     { label: "Grok2API 渠道 (Grok Image 2.0 / Grok Video 等)", value: "grok2api" },
@@ -276,7 +278,10 @@ export default function ChannelsPage() {
                         <Select
                             options={channelKindOptions}
                             onChange={(value: ChannelKind) => {
-                                if (value === "autodl") {
+                                if (value === "sensenova") {
+                                    form.setFieldValue("name", "SenseNova 商汤日日新");
+                                    form.setFieldValue("baseUrl", "https://token.sensenova.cn/v1");
+                                } else if (value === "autodl") {
                                     form.setFieldValue("name", "AutoDL.Art");
                                     form.setFieldValue("baseUrl", "https://autodl.art");
                                 } else if (value === "flow2api") {
@@ -296,18 +301,20 @@ export default function ChannelsPage() {
                     <AdminLocalChannelFields visible={showDesktopLocalChannelControl} checked={allowLocalChannel} form={form} />
                     <Form.Item
                         name="apiKey"
-                        label={editingChannel ? `API Key / Access Key（${configuredSecretText}）` : channelKind === "autodl" ? "ComfyUI Token" : channelKind === "zarklab" ? "ZarkLab API Key" : "API Key / Access Key"}
+                        label={editingChannel ? `API Key / Access Key（${configuredSecretText}）` : channelKind === "autodl" ? "ComfyUI Token" : channelKind === "zarklab" ? "ZarkLab API Key" : channelKind === "sensenova" ? "SenseNova API Key" : "API Key / Access Key"}
                         rules={editingChannel ? [] : [{ required: true, message: "请填写凭证" }]}
                         extra={
-                            channelKind === "autodl"
-                                ? "填写 AutoDL 大模型令牌管理中创建的 ComfyUI 分组 Token（Authorization: <TOKEN>，直接传 Token，不加 Bearer）。"
-                                : channelKind === "flow2api"
-                                  ? "填写 Flow2API 的 API Key。"
-                                  : channelKind === "grok2api"
-                                    ? "填写 Grok2API 的 API Key。"
-                                    : channelKind === "zarklab"
-                                      ? "填写 ZarkLab API Key (X-API-Key)。"
-                                      : "OpenAI 兼容协议填写 API Key；即梦官方协议填写 IAM Access Key。"
+                            channelKind === "sensenova"
+                                ? "填写商汤日日新 (SenseNova) 控制台生成的 API Key。"
+                                : channelKind === "autodl"
+                                  ? "填写 AutoDL 大模型令牌管理中创建的 ComfyUI 分组 Token（Authorization: <TOKEN>，直接传 Token，不加 Bearer）。"
+                                  : channelKind === "flow2api"
+                                    ? "填写 Flow2API 的 API Key。"
+                                    : channelKind === "grok2api"
+                                      ? "填写 Grok2API 的 API Key。"
+                                      : channelKind === "zarklab"
+                                        ? "填写 ZarkLab API Key (X-API-Key)。"
+                                        : "OpenAI 兼容协议填写 API Key；即梦官方协议填写 IAM Access Key。"
                         }
                     >
                         <Input.Password autoComplete="new-password" placeholder={editingChannel ? "留空保留原凭证" : "输入凭证密钥"} />
