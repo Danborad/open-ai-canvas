@@ -559,6 +559,7 @@ function buildModelNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mode
                   size: node.metadata?.size,
                   quality: node.metadata?.quality,
                   transparentBackground: node.metadata?.transparentBackground,
+                  videoWatermark: node.metadata?.watermark,
                   count: String(node.metadata?.count || globalConfig.canvasImageCount || globalConfig.count || defaultConfig.count),
               }
             : {
@@ -579,6 +580,7 @@ function buildModelNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mode
             videoWatermark: globalConfig.videoWatermark || defaultConfig.videoWatermark,
         },
     );
+    const imageProfile = mode === "image" ? modelCapabilityConfigFor(globalConfig, model).image! : undefined;
     const videoProfile = mode === "video" ? modelCapabilityConfigFor(globalConfig, model).video! : undefined;
     return {
         ...globalConfig,
@@ -590,7 +592,7 @@ function buildModelNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mode
         videoSeconds: generationDefaults.videoSeconds ?? normalizeVideoDuration(globalConfig.videoSeconds || defaultConfig.videoSeconds),
         vquality: generationDefaults.vquality ?? normalizeVideoResolution(globalConfig.vquality || defaultConfig.vquality),
         videoGenerateAudio: videoProfile?.generateAudio.supported ? generationDefaults.videoGenerateAudio ?? String(videoProfile.generateAudio.default) : "false",
-        videoWatermark: videoProfile?.watermark.supported ? generationDefaults.videoWatermark ?? String(videoProfile.watermark.default) : "false",
+        videoWatermark: imageProfile?.watermark?.supported ? generationDefaults.videoWatermark ?? String(imageProfile.watermark.default) : videoProfile?.watermark.supported ? generationDefaults.videoWatermark ?? String(videoProfile.watermark.default) : "false",
         audioVoice: node.metadata?.audioVoice || globalConfig.audioVoice || defaultConfig.audioVoice,
         audioFormat: node.metadata?.audioFormat || globalConfig.audioFormat || defaultConfig.audioFormat,
         audioSpeed: node.metadata?.audioSpeed || globalConfig.audioSpeed || defaultConfig.audioSpeed,

@@ -370,7 +370,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                             config={config}
                             placement={expanded ? "topRight" : "topLeft"}
                             buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
-                            onConfigChange={(key, value) => onConfigChange(node.id, key === "count" ? { count: Number(value) || 1 } : { [key]: value })}
+                            onConfigChange={(key, value) => onConfigChange(node.id, key === "count" ? { count: Number(value) || 1 } : key === "videoWatermark" ? { watermark: value } : { [key]: value })}
                             onMissingConfig={() => navigateToSettings({ continueCreation: true })}
                             onOpenChange={expanded ? undefined : onImageSettingsOpenChange}
                         />
@@ -714,6 +714,7 @@ function buildNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mode: Can
                   size: node.metadata?.size,
                   quality: node.metadata?.quality,
                   transparentBackground: node.metadata?.transparentBackground,
+                  videoWatermark: node.metadata?.watermark,
                   count: String(node.metadata?.count || globalConfig.canvasImageCount || globalConfig.count || defaultConfig.count),
               }
             : {
