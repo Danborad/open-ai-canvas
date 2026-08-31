@@ -2,7 +2,7 @@ import { type ReactNode, useState } from "react";
 import { ConfigProvider, Switch } from "antd";
 
 import { type CanvasTheme } from "@/lib/canvas-theme";
-import { buildImageResolutionOptions, formatImageResolutionSize, imageRatioForSize, imageResolutionChoices, imageResolutionOption, imageSizeForResolution, supportsImageResolutionPresets, type ImageResolutionChoice } from "@/lib/image-resolution-tiers";
+import { buildImageResolutionOptions, formatImageResolutionSize, imageRatioForSize, imageResolutionChoices, imageResolutionOption, imageSizeForResolution, parseImageResolutionOption, supportsImageResolutionPresets, type ImageResolutionChoice } from "@/lib/image-resolution-tiers";
 import { modelCapabilityConfigFor, normalizeImageValue, type ImageCapabilityConfig } from "@/lib/model-capabilities";
 import { mergedImageCapabilityConfig } from "@/lib/model-selection";
 import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
@@ -169,13 +169,14 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                             <button
                                 key={item.value}
                                 type="button"
-                                className="flex h-[52px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg bg-transparent text-[var(--fs-label)] transition-colors hover:brightness-110 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                title={item.size && item.size !== item.label ? `${item.label} (${item.size})` : item.label}
+                                className="flex h-[52px] min-w-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg bg-transparent px-1 text-[var(--fs-label)] transition-colors hover:brightness-110 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
                                 style={{ background: selectedAspect?.value === item.value ? theme.toolbar.activeBg : "transparent", color: theme.node.text, outlineColor: theme.node.muted }}
                                 onMouseDown={(event) => event.stopPropagation()}
                                 onClick={() => selectAspect(item.value)}
                             >
                                 <AspectIcon type={item.icon} width={item.width} height={item.height} color={theme.node.text} />
-                                <span className="whitespace-nowrap">{item.label}</span>
+                                <span className="w-full truncate text-center text-[11px] leading-tight">{item.label}</span>
                             </button>
                         ))}
                     </div>
@@ -209,11 +210,40 @@ function imageAspectOptions(profile: ImageCapabilityConfig): AspectOption[] {
     if (profile.size.parameter === "none") return [];
     const values = profile.size.values.filter((value) => value.trim().toLowerCase() !== "auto");
     if (!values.length) return profile.size.allowCustom ? aspectOptions.filter((item) => item.value !== "auto") : [];
-    return values.map((value) => {
+    const items: (AspectOption & { tier?: string })[] = values.map((value) => {
         const known = aspectOptions.find((item) => (item.size || item.value) === value || item.value === value);
-        if (known) return known;
+        if (known) return { ...known, size: known.size || value };
+        const parsed = parseImageResolutionOption(value);
+        if (parsed) {
+            const isSquare = parsed.width === parsed.height;
+            const isLandscape = parsed.width > parsed.height;
+            const icon = isSquare ? "square" : isLandscape ? "landscape" : "portrait";
+            return {
+                value,
+                label: parsed.ratio,
+                size: value,
+                tier: parsed.tier,
+                width: parsed.width,
+                height: parsed.height,
+                icon,
+            };
+        }
         const parts = ratioParts(value);
-        return { value, label: value, size: value, width: parts?.width || 0, height: parts?.height || 0, icon: "custom" };
+        const isSquare = parts ? parts.width === parts.height : false;
+        const isLandscape = parts ? parts.width > parts.height : false;
+        const icon = parts ? (isSquare ? "square" : isLandscape ? "landscape" : "portrait") : "custom";
+        return { value, label: value, size: value, width: parts?.width || 0, height: parts?.height || 0, icon };
+    });
+
+    const labelCounts = new Map<string, number>();
+    for (const item of items) {
+        labelCounts.set(item.label, (labelCounts.get(item.label) || 0) + 1);
+    }
+    return items.map((item) => {
+        if ((labelCounts.get(item.label) || 0) > 1 && item.tier) {
+            return { ...item, label: `${item.label}(${item.tier})` };
+        }
+        return item;
     });
 }
 

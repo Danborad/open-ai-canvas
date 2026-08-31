@@ -258,9 +258,24 @@ async function normalizePersistedAsset(asset: Asset): Promise<Asset> {
     return { ...asset, coverUrl: asset.coverUrl.startsWith("data:image/") ? image.url : asset.coverUrl, data: { ...asset.data, dataUrl: image.url, storageKey: image.storageKey, bytes: image.bytes, mimeType: image.mimeType } };
 }
 
+function fallbackHexHash(input: string): string {
+    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (let i = 0; i < input.length; i++) {
+        const ch = input.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
+}
+
 async function generationAssetId(effectKey: string) {
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(effectKey));
-    return `generation_${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+    if (typeof crypto !== "undefined" && crypto.subtle?.digest) {
+        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(effectKey));
+        return `generation_${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+    }
+    return `generation_${fallbackHexHash(effectKey)}`;
 }
 
 export const useAssetStore = create<AssetStore>()(

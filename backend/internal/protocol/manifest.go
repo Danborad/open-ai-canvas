@@ -410,8 +410,15 @@ func (a manifestAdapter) parse(payload map[string]any, c PollContext) CreateResu
 		status = StatusPending
 	}
 	message := firstPathValue(payload, a.manifest.Response.MessagePaths...)
-	if manifestError(payload, a.manifest.Response.ErrorPaths...) {
-		status = StatusFailed
+	if message == "" {
+		message = firstPathValue(payload, "error.message", "error.msg", "error", "message", "msg", "detail")
+	}
+	if manifestError(payload, a.manifest.Response.ErrorPaths...) || (status == StatusPending && message != "" && id == "") {
+		if errObj, ok := payload["error"]; ok && errObj != nil {
+			status = StatusFailed
+		} else if manifestError(payload, a.manifest.Response.ErrorPaths...) {
+			status = StatusFailed
+		}
 	}
 	result := &Result{
 		Text:      firstPathValue(payload, a.manifest.Response.TextPaths...),
@@ -422,6 +429,9 @@ func (a manifestAdapter) parse(payload map[string]any, c PollContext) CreateResu
 	for _, path := range paths {
 		for _, value := range mediaPathValues(payload, path) {
 			item := MediaReference{URL: value, Kind: a.manifest.Response.ResultKind, Ephemeral: a.manifest.Response.ResultEphemeral}
+			if strings.HasPrefix(value, "data:") {
+				item.DataURL = value
+			}
 			switch a.manifest.Response.ResultKind {
 			case "image":
 				result.Images = append(result.Images, item)
@@ -488,6 +498,11 @@ func mediaPathValues(payload map[string]any, path string) []string {
 		case map[string]any:
 			if url := firstString(typed, "url", "file_url", "fileUrl", "video_url", "videoUrl", "image_url", "imageUrl"); url != "" {
 				values = append(values, url)
+			} else if b64 := firstString(typed, "b64_json", "b64Json", "base64", "data"); b64 != "" {
+				if !strings.HasPrefix(b64, "data:") {
+					b64 = "data:image/png;base64," + b64
+				}
+				values = append(values, b64)
 			}
 		}
 	}

@@ -141,10 +141,26 @@ export async function deletePortraitTask(taskId: string, signal?: AbortSignal) {
     await requestJson(`/${"portrait-clearance"}/tasks/${encodeURIComponent(taskId)}/delete`, { method: "POST", body: "{}", headers: { "content-type": "application/json" }, signal });
 }
 
+function fallbackHexHash(input: string): string {
+    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (let i = 0; i < input.length; i++) {
+        const ch = input.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
+}
+
 export async function portraitOwnerScopeHash() {
-    const bytes = new TextEncoder().encode(getActiveUserScope());
-    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-    return Array.from(digest, (value) => value.toString(16).padStart(2, "0")).join("");
+    const raw = getActiveUserScope();
+    if (typeof crypto !== "undefined" && crypto.subtle?.digest) {
+        const bytes = new TextEncoder().encode(raw);
+        const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+        return Array.from(digest, (value) => value.toString(16).padStart(2, "0")).join("");
+    }
+    return fallbackHexHash(raw);
 }
 
 export async function imageNodeDataUrl(node: CanvasNodeData, signal?: AbortSignal): Promise<{ dataUrl: string; mimeType: "image/jpeg" | "image/png" | "image/webp"; fileName: string }> {

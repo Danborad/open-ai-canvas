@@ -54,20 +54,20 @@ export function formatImageResolutionSize(size: string, options: ImageResolution
     return option ? `${option.ratio} · ${option.tier.toUpperCase()}` : size;
 }
 
-function parseImageResolutionOption(value: string): ImageResolutionOption | null {
+export function parseImageResolutionOption(value: string): ImageResolutionOption | null {
     const match = value.trim().toLowerCase().match(/^(\d+)x(\d+)$/);
     if (!match) return null;
     const width = Number(match[1]);
     const height = Number(match[2]);
     const pixels = width * height;
-    const tier: ImageResolutionTier | null = pixels <= 2_000_000 ? "1k" : pixels <= 4_300_000 ? "2k" : pixels <= 8_294_400 ? "4k" : null;
+    const tier: ImageResolutionTier | null = pixels <= 2_000_000 ? "1k" : pixels <= 4_300_000 ? "2k" : pixels <= 17_000_000 ? "4k" : null;
     if (!tier) return null;
     const ratio = closestRatio(width / height);
     if (!ratio) return null;
     return { size: `${width}x${height}`, tier, ratio, width, height };
 }
 
-function closestRatio(value: number) {
+export function closestRatio(value: number) {
     let result = "";
     let bestDifference = Number.POSITIVE_INFINITY;
     for (const label of ratioOrder) {
