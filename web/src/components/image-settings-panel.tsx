@@ -72,7 +72,24 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
     const availableAspects: AspectOption[] = usesResolutionPicker && activeSize === "auto"
         ? []
         : usesResolutionPicker && activeResolution
-        ? resolutionOptions.filter((item) => item.tier === activeResolution.tier).map((item) => ({ value: item.ratio, label: item.ratio, size: item.size, width: item.width, height: item.height, icon: item.width === item.height ? "square" : item.width > item.height ? "landscape" : "portrait" }))
+        ? (() => {
+            const seen = new Set<string>();
+            const list: AspectOption[] = [];
+            for (const item of resolutionOptions) {
+                if (item.tier === activeResolution.tier && !seen.has(item.ratio)) {
+                    seen.add(item.ratio);
+                    list.push({
+                        value: item.ratio,
+                        label: item.ratio,
+                        size: item.size,
+                        width: item.width,
+                        height: item.height,
+                        icon: item.width === item.height ? "square" : item.width > item.height ? "landscape" : "portrait",
+                    });
+                }
+            }
+            return list;
+        })()
         : imageAspectOptions(profile);
     const selectedAspect = availableAspects.find((item) => imageOptionValue(profile, item) === activeSize || item.value === activeSize) || availableAspects.find((item) => item.label === activeRatio);
     const dimensions = readSizeDimensions(activeSize, selectedAspect || aspectOptions[0]);
