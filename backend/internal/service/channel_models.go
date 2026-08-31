@@ -867,7 +867,6 @@ func (s *Service) syncInitialChannelModels(channel *model.ModelChannel, names []
 		if idErr != nil {
 			return idErr
 		}
-		// 预设模型默认不启用（Enabled=false，PriceConfigured=false），待管理员配置价格后再行开启使用
 		item := model.ChannelModel{ID: modelID, ChannelID: channel.ID, ModelKey: name, DisplayName: name, BillingMode: "fixed_request", Enabled: false, PriceConfigured: false, UnitPriceMicrocredits: 0, PriceVersion: 1}
 		if preset != "" {
 			s.populatePresetChannelModelInfo(channel, &item)
