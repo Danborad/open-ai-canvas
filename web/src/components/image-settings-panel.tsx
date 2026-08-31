@@ -14,6 +14,7 @@ const qualityOptions = [
     { value: "low", label: "低" },
     { value: "1k", label: "1K" },
     { value: "2k", label: "2K" },
+    { value: "4k", label: "4K" },
 ];
 const DIMENSION_STEP = 16;
 
@@ -250,12 +251,12 @@ export function ImageSettingsTheme({ theme, children }: { theme: CanvasTheme; ch
 }
 
 export function imageQualityLabel(value: string) {
-    return ({ auto: "自动", high: "高", medium: "中", low: "低", "1k": "1K", "2k": "2K" } as Record<string, string>)[value] || value || "默认";
+    return ({ auto: "自动", high: "高", medium: "中", low: "低", "1k": "1K", "2k": "2K", "4k": "4K" } as Record<string, string>)[value] || value || "不指定";
 }
 
 function isGrokResolutionQuality(profile: ImageCapabilityConfig) {
     const values = profile.quality.values.map((item) => item.toLowerCase());
-    return values.includes("1k") || values.includes("2k");
+    return values.includes("1k") || values.includes("2k") || values.includes("4k");
 }
 
 export function imageSizeLabel(size: string) {

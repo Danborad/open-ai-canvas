@@ -1,7 +1,8 @@
-# syntax=docker/dockerfile:1.7
-
 # Bridge 使用 Go 标准库交叉编译为原生 Windows/Linux 程序，避免把 Bun/Node 运行时打进下载文件。
 FROM golang:1.24-alpine AS comfy-bridge-build
+
+ARG GOPROXY=https://goproxy.cn,direct
+ENV GOPROXY=$GOPROXY
 
 WORKDIR /src
 COPY canvas-agent/native/comfy-bridge ./

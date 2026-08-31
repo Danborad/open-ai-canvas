@@ -73,10 +73,11 @@ func (s *Service) EnsureSystemChannelModels() error {
 		if err != nil {
 			return err
 		}
-		if len(items) == 0 {
-			if err := s.syncInitialChannelModels(&channels[index], channelModelNames(channels[index])); err != nil {
-				return err
-			}
+		if len(items) > 0 && isPresetChannel(&channels[index]) == "" {
+			continue
+		}
+		if err := s.syncInitialChannelModels(&channels[index], channelModelNames(channels[index])); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -727,7 +728,112 @@ func (s *Service) DeleteAdminChannelModel(actor *model.User, channelID string, i
 	return err
 }
 
+func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, item *model.ChannelModel) bool {
+	preset := isPresetChannel(channel)
+	if preset == "" {
+		return false
+	}
+	changed := false
+	switch preset {
+	case "autodl":
+		if item.DisplayName != autoDLWorkflowDisplayName(item.ModelKey) {
+			item.DisplayName = autoDLWorkflowDisplayName(item.ModelKey)
+			changed = true
+		}
+		if item.ModelKey == "indextts2-v1" {
+			if item.Capability != "audio" || item.Protocol != "autodl-comfyui-audio" {
+				item.Capability = "audio"
+				item.Protocol = "autodl-comfyui-audio"
+				changed = true
+			}
+		} else {
+			if item.Capability != "video" || item.Protocol != "autodl-comfyui" {
+				item.Capability = "video"
+				item.Protocol = "autodl-comfyui"
+				changed = true
+			}
+		}
+		if strings.TrimSpace(item.CapabilityConfigJSON) == "" {
+			if encoded, err := json.Marshal(DefaultAutoDLVideoCapability(item.ModelKey)); err == nil {
+				item.CapabilityConfigJSON = string(encoded)
+				changed = true
+			}
+		}
+	case "flow2api":
+		if strings.EqualFold(item.ModelKey, "Omni Flash") || strings.HasPrefix(item.ModelKey, "Veo 3.1") {
+			if item.Capability != "video" || item.Protocol != "flow2api-video" {
+				item.Capability = "video"
+				item.Protocol = "flow2api-video"
+				changed = true
+			}
+		} else {
+			if item.Capability != "image" || item.Protocol != "flow2api-image" {
+				item.Capability = "image"
+				item.Protocol = "flow2api-image"
+				changed = true
+			}
+		}
+		if strings.TrimSpace(item.CapabilityConfigJSON) == "" {
+			if encoded, err := json.Marshal(DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey)); err == nil {
+				item.CapabilityConfigJSON = string(encoded)
+				changed = true
+			}
+		}
+	case "grok2api":
+		if strings.Contains(strings.ToLower(item.ModelKey), "video") {
+			if item.Capability != "video" || item.Protocol != "xai-video" {
+				item.Capability = "video"
+				item.Protocol = "xai-video"
+				changed = true
+			}
+		} else {
+			if item.Capability != "image" || item.Protocol != "grok-image" {
+				item.Capability = "image"
+				item.Protocol = "grok-image"
+				changed = true
+			}
+		}
+		if strings.TrimSpace(item.CapabilityConfigJSON) == "" {
+			if encoded, err := json.Marshal(DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey)); err == nil {
+				item.CapabilityConfigJSON = string(encoded)
+				changed = true
+			}
+		}
+	case "zarklab":
+		switch item.ModelKey {
+		case "Happy Horse", "Kling 3.0 Lite", "MiniMax H3", "Seedance 2", "Seedance 2 Lite", "Seedance 2 Mini", "Seedance 2.5":
+			if item.Capability != "video" || item.Protocol != "zarklab-video" {
+				item.Capability = "video"
+				item.Protocol = "zarklab-video"
+				changed = true
+			}
+		default:
+			if item.Capability != "image" || item.Protocol != "zarklab-image" {
+				item.Capability = "image"
+				item.Protocol = "zarklab-image"
+				changed = true
+			}
+		}
+		if strings.TrimSpace(item.CapabilityConfigJSON) == "" {
+			if encoded, err := json.Marshal(DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey)); err == nil {
+				item.CapabilityConfigJSON = string(encoded)
+				changed = true
+			}
+		}
+	}
+	return changed
+}
+
 func (s *Service) syncInitialChannelModels(channel *model.ModelChannel, names []string) error {
+	preset := isPresetChannel(channel)
+	if len(names) == 0 && preset != "" {
+		names = presetChannelModels(preset)
+	}
+	if preset != "" {
+		// 预设渠道的模型目录由应用维护，不能继续沿用旧 ModelsJSON，
+		// 否则升级后不会创建新增模型，也不会刷新旧模型的协议能力。
+		names = presetChannelModels(preset)
+	}
 	existing, err := s.repo.ChannelModels(channel.ID, true)
 	if err != nil {
 		return err
@@ -745,6 +851,16 @@ func (s *Service) syncInitialChannelModels(channel *model.ModelChannel, names []
 		}
 		desired[name] = true
 		if item := byKey[name]; item != nil {
+			changed := false
+			if preset != "" && s.populatePresetChannelModelInfo(channel, item) {
+				changed = true
+			}
+			if changed {
+				item.CapabilityVersion++
+				if err := s.repo.SaveChannelModel(item); err != nil {
+					return err
+				}
+			}
 			continue
 		}
 		modelID, idErr := s.repo.NextPrefixedID("MODEL")
@@ -752,6 +868,9 @@ func (s *Service) syncInitialChannelModels(channel *model.ModelChannel, names []
 			return idErr
 		}
 		item := model.ChannelModel{ID: modelID, ChannelID: channel.ID, ModelKey: name, DisplayName: name, BillingMode: "fixed_request", Enabled: false, PriceConfigured: false, UnitPriceMicrocredits: 0, PriceVersion: 1}
+		if preset != "" {
+			s.populatePresetChannelModelInfo(channel, &item)
+		}
 		if err := s.repo.SaveChannelModel(&item); err != nil {
 			return err
 		}
@@ -766,6 +885,11 @@ func (s *Service) syncInitialChannelModels(channel *model.ModelChannel, names []
 					return err
 				}
 			}
+		}
+	}
+	if preset != "" {
+		if err := s.syncChannelModelNames(channel); err != nil {
+			return err
 		}
 	}
 	return nil

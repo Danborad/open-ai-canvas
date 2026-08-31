@@ -95,7 +95,7 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
             throw new Error(readAxiosError(error, "Grok 图片生成失败"));
         }
     }
-    const quality = imageProfile.quality.supported && normalizedImage.quality !== "auto" ? normalizeQuality(normalizedImage.quality) || normalizedImage.quality : undefined;
+    const quality = imageProfile.quality.supported && normalizedImage.quality && normalizedImage.quality !== "auto" ? normalizeQuality(normalizedImage.quality) || normalizedImage.quality : undefined;
     const requestSize = resolveImageRequestSize(imageProfile, quality, normalizedImage.size);
     const isVolcengineArk = requestConfig.interfaceType === "volcengine-ark-image";
     const normalizedRequestSize = requestSize?.parameter === "size" && isVolcengineArk ? { ...requestSize, value: normalizeVolcengineArkImageSize(requestSize.value)! } : requestSize;
@@ -179,7 +179,7 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
     }
     if (requestConfig.interfaceType === "volcengine-ark-image") {
         if (mask) throw new Error("火山方舟图片协议不支持蒙版编辑，请移除蒙版后重试");
-        const quality = imageProfile.quality.supported && normalizedImage.quality !== "auto" ? normalizeQuality(normalizedImage.quality) || normalizedImage.quality : undefined;
+        const quality = imageProfile.quality.supported && normalizedImage.quality && normalizedImage.quality !== "auto" ? normalizeQuality(normalizedImage.quality) || normalizedImage.quality : undefined;
         const sizeRequest = resolveImageRequestSize(imageProfile, quality, normalizedImage.size);
         const requestSize = sizeRequest?.parameter === "size" ? { ...sizeRequest, value: normalizeVolcengineArkImageSize(sizeRequest.value)! } : sizeRequest;
         try {
@@ -202,7 +202,7 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
             throw new Error(readAxiosError(error, "火山方舟图片生成失败"));
         }
     }
-    const quality = imageProfile.quality.supported && normalizedImage.quality !== "auto" ? normalizeQuality(normalizedImage.quality) || normalizedImage.quality : undefined;
+    const quality = imageProfile.quality.supported && normalizedImage.quality && normalizedImage.quality !== "auto" ? normalizeQuality(normalizedImage.quality) || normalizedImage.quality : undefined;
     const requestSize = resolveImageRequestSize(imageProfile, quality, normalizedImage.size);
     const formData = new FormData();
     formData.set("model", requestConfig.model);

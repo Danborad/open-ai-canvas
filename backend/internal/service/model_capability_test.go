@@ -204,6 +204,56 @@ func TestNormalizeResolutionSupportsCommonAliases(t *testing.T) {
 	}
 }
 
+func TestFlow2APIPresetCapabilitiesFollowModelAliases(t *testing.T) {
+	tests := []struct {
+		name           string
+		image          bool
+		qualities      []string
+		videoDurations []int
+		resolutions    []string
+	}{
+		{name: "Nano Banana Pro", image: true, qualities: []string{"1k", "2k", "4k"}},
+		{name: "Nano Banana 2", image: true, qualities: []string{"1k", "2k", "4k"}},
+		{name: "Imagen 4", image: true},
+		{name: "Omni Flash", videoDurations: []int{4, 6, 8, 10}},
+		{name: "Veo 3.1 - Lite"},
+		{name: "Veo 3.1 - Fast"},
+		{name: "Veo 3.1 - Quality", resolutions: []string{"1080p", "4k"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			profile := DefaultModelCapabilityConfigForModel("flow2api-image", test.name)
+			if !test.image {
+				profile = DefaultModelCapabilityConfigForModel("flow2api-video", test.name)
+			}
+			if profile.Image == nil || profile.Video == nil {
+				t.Fatal("expected complete capability profile")
+			}
+			if test.image {
+				if got := profile.Image.Size.Values; len(got) != 5 && test.name != "Imagen 4" {
+					t.Fatalf("image ratios = %v", got)
+				}
+				if len(test.qualities) > 0 && !containsCapabilityString(profile.Image.Quality.Values, "4k") {
+					t.Fatalf("image qualities = %v", profile.Image.Quality.Values)
+				}
+				if test.name == "Imagen 4" && profile.Image.Quality.Supported {
+					t.Fatal("Imagen 4 must omit imageSize")
+				}
+				return
+			}
+			if len(profile.Video.Ratios) != 2 || profile.Video.Ratios[0] != "16:9" || profile.Video.Ratios[1] != "9:16" {
+				t.Fatalf("video ratios = %v", profile.Video.Ratios)
+			}
+			if len(test.videoDurations) > 0 && len(profile.Video.Duration.Values) != 4 {
+				t.Fatalf("video durations = %v", profile.Video.Duration.Values)
+			}
+			if len(test.resolutions) > 0 && len(profile.Video.Resolutions) != 2 {
+				t.Fatalf("video resolutions = %v", profile.Video.Resolutions)
+			}
+		})
+	}
+}
+
 func TestValidateVideoTaskIgnoresGlobalResolutionWhenCatalogDeclaresNone(t *testing.T) {
 	profile := DefaultModelCapabilityConfigForModel("newapi", "omni").Video
 	profile.Duration = VideoDurationConfig{Selection: "enum", Values: []int{8, 10}, Default: 10}

@@ -1,8 +1,6 @@
-# syntax=docker/dockerfile:1.7
-
 FROM golang:1.25-alpine AS backend-build
 
-ARG GOPROXY=https://proxy.golang.org,direct
+ARG GOPROXY=https://goproxy.cn,direct
 ARG BUILD_VERSION
 ARG BUILD_COMMIT=unknown
 ARG BUILD_TIME=unknown
@@ -37,6 +35,7 @@ RUN mkdir -p /data && chown -R app:app /data
 COPY --from=backend-build /out/infinite-canvas-backend /usr/local/bin/infinite-canvas-backend
 COPY --from=backend-build /out/migrate-schema /usr/local/bin/migrate-schema
 COPY --from=backend-build /out/migrate-sqlite-postgres /usr/local/bin/migrate-sqlite-postgres
+COPY plugin-packages /app/plugin-packages
 
 USER app
 EXPOSE 8080

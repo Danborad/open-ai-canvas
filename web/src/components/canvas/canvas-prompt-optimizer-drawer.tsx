@@ -677,8 +677,8 @@ export function CanvasPromptOptimizerDrawer({ open, children, prompt, generation
                 <Sender
                     className="canvas-prompt-optimizer-sender"
                     value={draftPrompt}
-                    onChange={(value) => setDraftPrompt(value)}
-                    onSubmit={(value) => void runOptimization(value)}
+                    onChange={(value: string) => setDraftPrompt(value)}
+                    onSubmit={(value: string) => void runOptimization(value)}
                     placeholder="继续描述你的画面想法，Enter 发送"
                     autoSize={{ minRows: 2, maxRows: 6 }}
                     disabled={working}

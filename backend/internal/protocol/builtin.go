@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -201,6 +202,7 @@ func openAIImagesAdapter() Adapter {
 
 func grokImagesAdapter() Adapter {
 	info := metadata("grok-image", "Grok Images", "xAI", CapabilityImage, "POST /v1/images/generations", "", "application/json")
+	info.LegacyAliases = []string{"grok2api-image", "grok2api-new-image"}
 	info.Parameters = mediaParams()
 	return builtinAdapter{info: info,
 		create: func(r GenerationRequest) (RequestSpec, error) {
@@ -362,6 +364,7 @@ func newAPIChannel1Adapter() Adapter {
 
 func xAIVideosAdapter() Adapter {
 	info := metadata("xai-video", "xAI 官方视频", "xAI", CapabilityVideo, "POST /v1/videos/generations", "GET /v1/videos/{request_id}", "application/json")
+	info.LegacyAliases = []string{"grok2api-video", "grok2api-new-video"}
 	info.Parameters = videoParams()
 	return videoAdapter(info, func(r GenerationRequest) (RequestSpec, error) {
 		body := map[string]any{"model": r.Model, "prompt": r.Prompt, "duration": defaultInt(r.Duration, 6), "aspect_ratio": defaultValue(r.AspectRatio, "16:9"), "resolution": defaultValue(r.Resolution, "720p")}
@@ -511,6 +514,313 @@ func asyncAudioAdapter() Adapter {
 	return asyncMediaAdapter(info, CapabilityAudio, func(r GenerationRequest) (RequestSpec, error) {
 		return jsonSpec(http.MethodPost, "/v1/audio/tasks", map[string]any{"model": r.Model, "prompt": r.Prompt}), nil
 	})
+}
+
+func autodlComfyUIVideoAdapter() Adapter {
+	info := metadata("autodl-comfyui", "AutoDL ComfyUI 视频", "AutoDL.Art", CapabilityVideo, "POST /api/v1/comfyui/comfyui_workflow/{model}", "GET /api/v1/comfyui/comfyui_workflow/result/{task_id}", "application/json")
+	info.LegacyAliases = []string{"autodl-comfyui-video"}
+	info.RequiresPublicMediaURLs = true
+	info.Parameters = videoParams()
+	return videoAdapterWithPoll(info, func(r GenerationRequest) (RequestSpec, error) {
+		body := map[string]any{
+			"prompt":     r.Prompt,
+			"duration":   defaultInt(r.Duration, 5),
+			"resolution": strings.ToLower(defaultValue(r.Resolution, "768p竖")),
+		}
+		for i, img := range r.Images {
+			if i < 9 && mediaValue(img) != "" {
+				body[fmt.Sprintf("ref_image_%d", i)] = mediaValue(img)
+			}
+		}
+		for i, aud := range r.Audios {
+			if i < 3 && mediaValue(aud) != "" {
+				body[fmt.Sprintf("ref_audio_%d", i)] = mediaValue(aud)
+			}
+		}
+		return jsonSpec(http.MethodPost, "/api/v1/comfyui/comfyui_workflow/"+url.PathEscape(r.Model), body), nil
+	}, func(c PollContext) (RequestSpec, error) {
+		return jsonSpec(http.MethodGet, "/api/v1/comfyui/comfyui_workflow/result/"+url.PathEscape(c.TaskID), nil), nil
+	})
+}
+
+func autodlComfyUIAudioAdapter() Adapter {
+	info := metadata("autodl-comfyui-audio", "AutoDL ComfyUI 语音", "AutoDL.Art", CapabilityAudio, "POST /api/v1/comfyui/comfyui_workflow/{model}", "GET /api/v1/comfyui/comfyui_workflow/result/{task_id}", "application/json")
+	info.RequiresPublicMediaURLs = true
+	info.Parameters = []Parameter{
+		{Name: "model", Type: "string", Required: true, Mapping: "model"},
+		{Name: "prompt", Type: "string", Required: true, Mapping: "prompt_text"},
+	}
+	return asyncMediaAdapterWithPoll(info, CapabilityAudio, func(r GenerationRequest) (RequestSpec, error) {
+		body := map[string]any{
+			"prompt_text":        r.Prompt,
+			"emo_control_method": "与音色参考音频相同",
+		}
+		if len(r.Audios) > 0 && mediaValue(r.Audios[0]) != "" {
+			body["prompt_simple"] = mediaValue(r.Audios[0])
+		}
+		return jsonSpec(http.MethodPost, "/api/v1/comfyui/comfyui_workflow/"+url.PathEscape(r.Model), body), nil
+	}, func(c PollContext) (RequestSpec, error) {
+		return jsonSpec(http.MethodGet, "/api/v1/comfyui/comfyui_workflow/result/"+url.PathEscape(c.TaskID), nil), nil
+	})
+}
+
+func flow2APIImagesAdapter() Adapter {
+	info := metadata("flow2api-image", "Flow2API 图片", "Flow2API", CapabilityImage, "POST /v1/chat/completions", "", "application/json")
+	info.Parameters = mediaParams()
+	return builtinAdapter{info: info,
+		create: func(r GenerationRequest) (RequestSpec, error) {
+			content := []any{map[string]any{"type": "text", "text": r.Prompt}}
+			for _, img := range r.Images {
+				content = append(content, map[string]any{"type": "image_url", "image_url": map[string]any{"url": mediaValue(img)}})
+			}
+			imageConfig := map[string]any{}
+			copyIf(imageConfig, "aspectRatio", r.AspectRatio)
+			if r.Quality != "" && !strings.EqualFold(strings.TrimSpace(r.Quality), "auto") {
+				imageConfig["imageSize"] = strings.ToLower(r.Quality)
+			}
+			body := map[string]any{
+				"model":    r.Model,
+				"messages": []any{map[string]any{"role": "user", "content": content}},
+				"stream":   false,
+			}
+			if len(imageConfig) > 0 {
+				body["generationConfig"] = map[string]any{"imageConfig": imageConfig}
+			}
+			mergeExtra(body, r.Extra, "generationConfig")
+			return jsonSpec(http.MethodPost, "/v1/chat/completions", body), nil
+		},
+		parseCreate: func(payload map[string]any) (CreateResult, error) {
+			return parseFlow2APIMediaResponse(payload, CapabilityImage)
+		},
+	}
+}
+
+func flow2APIVideosAdapter() Adapter {
+	info := metadata("flow2api-video", "Flow2API 视频", "Flow2API", CapabilityVideo, "POST /v1/chat/completions", "", "application/json")
+	info.Parameters = videoParams()
+	return builtinAdapter{info: info,
+		create: func(r GenerationRequest) (RequestSpec, error) {
+			content := []any{map[string]any{"type": "text", "text": r.Prompt}}
+			for _, img := range r.Images {
+				content = append(content, map[string]any{"type": "image_url", "image_url": map[string]any{"url": mediaValue(img)}})
+			}
+			generationConfig := map[string]any{}
+			copyIf(generationConfig, "aspectRatio", r.AspectRatio)
+			flowModel := strings.ToLower(r.Model)
+			if r.Duration > 0 && (strings.Contains(flowModel, "omni flash") || strings.Contains(flowModel, "omni-flash") || flowModel == "omni") {
+				generationConfig["durationSeconds"] = r.Duration
+			}
+			if (strings.Contains(flowModel, "quality") || strings.Contains(flowModel, "veo 3.1 - quality")) && r.Resolution != "" {
+				res := strings.ToLower(r.Resolution)
+				if res == "1080" {
+					res = "1080p"
+				}
+				if res == "1080p" || res == "4k" {
+					generationConfig["imageSize"] = res
+				}
+			}
+			body := map[string]any{
+				"model":    r.Model,
+				"messages": []any{map[string]any{"role": "user", "content": content}},
+				"stream":   false,
+			}
+			if len(generationConfig) > 0 {
+				body["generationConfig"] = generationConfig
+			}
+			mergeExtra(body, r.Extra, "generationConfig")
+			return jsonSpec(http.MethodPost, "/v1/chat/completions", body), nil
+		},
+		parseCreate: func(payload map[string]any) (CreateResult, error) {
+			return parseFlow2APIMediaResponse(payload, CapabilityVideo)
+		},
+	}
+}
+
+func zarkLabImagesAdapter() Adapter {
+	info := metadata("zarklab-image", "ZarkLab 图片", "ZarkLab", CapabilityImage, "POST /mcp", "GET /media/files/{id}", "application/json")
+	info.RequiresPublicMediaURLs = true
+	info.Parameters = mediaParams()
+	return builtinAdapter{info: info,
+		create: func(r GenerationRequest) (RequestSpec, error) {
+			prompt := r.Prompt
+			if !strings.HasPrefix(strings.ToLower(prompt), "use ") && r.Model != "" {
+				prompt = "use " + r.Model + ": " + prompt
+			}
+			args := map[string]any{"prompt": prompt}
+			copyIf(args, "aspect_ratio", r.AspectRatio)
+			body := map[string]any{
+				"jsonrpc": "2.0",
+				"id":      "1",
+				"method":  "tools/call",
+				"params":  map[string]any{"name": "zark_ai", "arguments": args},
+			}
+			return jsonSpec(http.MethodPost, "/mcp", body), nil
+		},
+		parseCreate: parseZarkLabCreate,
+		poll: func(c PollContext) (RequestSpec, error) {
+			return jsonSpec(http.MethodGet, "/media/files/"+url.PathEscape(c.TaskID), nil), nil
+		},
+		parsePoll: func(c PollContext, payload map[string]any) (PollResult, error) {
+			return parseZarkLabPoll(c, payload, CapabilityImage)
+		},
+	}
+}
+
+func zarkLabVideosAdapter() Adapter {
+	info := metadata("zarklab-video", "ZarkLab 视频", "ZarkLab", CapabilityVideo, "POST /mcp", "GET /media/files/{id}", "application/json")
+	info.RequiresPublicMediaURLs = true
+	info.Parameters = videoParams()
+	return builtinAdapter{info: info,
+		create: func(r GenerationRequest) (RequestSpec, error) {
+			prompt := r.Prompt
+			if !strings.HasPrefix(strings.ToLower(prompt), "use ") && r.Model != "" {
+				prompt = "use " + r.Model + ": " + prompt
+			}
+			args := map[string]any{"prompt": prompt}
+			copyIf(args, "aspect_ratio", r.AspectRatio)
+			if r.Duration > 0 {
+				args["duration"] = r.Duration
+			}
+			body := map[string]any{
+				"jsonrpc": "2.0",
+				"id":      "1",
+				"method":  "tools/call",
+				"params":  map[string]any{"name": "zark_ai", "arguments": args},
+			}
+			return jsonSpec(http.MethodPost, "/mcp", body), nil
+		},
+		parseCreate: parseZarkLabCreate,
+		poll: func(c PollContext) (RequestSpec, error) {
+			return jsonSpec(http.MethodGet, "/media/files/"+url.PathEscape(c.TaskID), nil), nil
+		},
+		parsePoll: func(c PollContext, payload map[string]any) (PollResult, error) {
+			return parseZarkLabPoll(c, payload, CapabilityVideo)
+		},
+	}
+}
+
+func parseFlow2APIMediaResponse(payload map[string]any, capability Capability) (CreateResult, error) {
+	text := ""
+	if choices, ok := payload["choices"].([]any); ok && len(choices) > 0 {
+		if choice, ok := choices[0].(map[string]any); ok {
+			if msg, ok := choice["message"].(map[string]any); ok {
+				text = firstString(msg, "content")
+			}
+		}
+	}
+	if text == "" {
+		text = firstString(payload, "url", "image_url", "video_url")
+	}
+	if text == "" {
+		return CreateResult{}, fmt.Errorf("Flow2API 没有返回生成内容")
+	}
+	urls := extractBuiltinMediaURLs(text)
+	if len(urls) == 0 {
+		return CreateResult{}, fmt.Errorf("Flow2API 未解析到媒体地址：%s", truncateString(text, 120))
+	}
+	refs := make([]MediaReference, 0, len(urls))
+	for _, u := range urls {
+		refs = append(refs, MediaReference{URL: u, Kind: string(capability), Ephemeral: true})
+	}
+	result := &Result{}
+	if capability == CapabilityImage {
+		result.Images = refs
+	} else {
+		result.Videos = refs
+	}
+	return CreateResult{Status: StatusSucceeded, Result: result}, nil
+}
+
+func parseZarkLabCreate(payload map[string]any) (CreateResult, error) {
+	resultObj := object(payload["result"])
+	if resultObj == nil {
+		resultObj = payload
+	}
+	structContent := object(resultObj["structuredContent"])
+	runID := firstString(structContent, "run_id", "id")
+	if fileIDs, ok := structContent["generated_file_ids"].([]any); ok && len(fileIDs) > 0 {
+		if fileID, ok := fileIDs[0].(string); ok && strings.TrimSpace(fileID) != "" {
+			return CreateResult{TaskID: strings.TrimSpace(fileID), Status: StatusProcessing}, nil
+		}
+	}
+	if runID != "" {
+		return CreateResult{TaskID: runID, Status: StatusProcessing}, nil
+	}
+	// Fallback to text matching
+	text := ""
+	if contents, ok := resultObj["content"].([]any); ok && len(contents) > 0 {
+		if c, ok := contents[0].(map[string]any); ok {
+			text = firstString(c, "text")
+		}
+	}
+	if text != "" {
+		urls := extractBuiltinMediaURLs(text)
+		if len(urls) > 0 {
+			return CreateResult{Status: StatusSucceeded, Result: &Result{Videos: []MediaReference{{URL: urls[0], Kind: "video", Ephemeral: true}}}}, nil
+		}
+	}
+	return CreateResult{}, fmt.Errorf("ZarkLab 未解析到任务 ID 或结果文件")
+}
+
+func parseZarkLabPoll(_ PollContext, payload map[string]any, capability Capability) (PollResult, error) {
+	status := strings.ToLower(firstString(payload, "status", "state"))
+	url := firstString(payload, "download_url", "url", "preview_url", "file_url")
+	if url != "" {
+		ref := MediaReference{URL: url, Kind: string(capability), Ephemeral: true}
+		res := &Result{}
+		if capability == CapabilityImage {
+			res.Images = []MediaReference{ref}
+		} else {
+			res.Videos = []MediaReference{ref}
+		}
+		return PollResult{Status: StatusSucceeded, Result: res}, nil
+	}
+	if status == "failed" || status == "error" {
+		return PollResult{Status: StatusFailed, Message: firstString(payload, "message", "error")}, nil
+	}
+	return PollResult{Status: StatusProcessing}, nil
+}
+
+var (
+	builtinMDImageRegex   = regexp.MustCompile(`!\[[^\]]*\]\(([^)\s]+)\)`)
+	builtinHTMLVideoRegex = regexp.MustCompile(`(?i)<video[^>]+src=['"]([^'"]+)['"]`)
+	builtinAnyURLRegex    = regexp.MustCompile(`https?://[^\s"'<>\]]+|data:image/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+`)
+)
+
+func extractBuiltinMediaURLs(text string) []string {
+	if matches := builtinMDImageRegex.FindAllStringSubmatch(text, -1); len(matches) > 0 {
+		var res []string
+		for _, m := range matches {
+			if len(m) > 1 && m[1] != "" {
+				res = append(res, m[1])
+			}
+		}
+		if len(res) > 0 {
+			return res
+		}
+	}
+	if matches := builtinHTMLVideoRegex.FindAllStringSubmatch(text, -1); len(matches) > 0 {
+		var res []string
+		for _, m := range matches {
+			if len(m) > 1 && m[1] != "" {
+				res = append(res, m[1])
+			}
+		}
+		if len(res) > 0 {
+			return res
+		}
+	}
+	if matches := builtinAnyURLRegex.FindAllString(text, -1); len(matches) > 0 {
+		return matches
+	}
+	return nil
+}
+
+func truncateString(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
 }
 
 func agnesAdapter() Adapter {

@@ -238,9 +238,14 @@ func (s *Service) readEmailSetting() (*model.SystemSetting, emailSettingValue, e
 	if err := json.Unmarshal([]byte(setting.ValueJSON), &value); err != nil {
 		return nil, emailSettingValue{}, errors.New("邮件配置格式无效")
 	}
-	value.Password, err = s.decryptSettingSecret(value.Password)
-	if err != nil {
-		return nil, emailSettingValue{}, err
+	if value.Password != "" {
+		decrypted, err := s.decryptSettingSecret(value.Password)
+		if err == nil {
+			value.Password = decrypted
+		} else {
+			// 密钥发生变更或迁移时，保留原始加密密文以防覆盖，但不阻断读取其它非敏感设置。
+			value.Password = ""
+		}
 	}
 	return setting, normalizeEmailSetting(value), nil
 }

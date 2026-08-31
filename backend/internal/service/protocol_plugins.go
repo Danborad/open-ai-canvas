@@ -170,6 +170,92 @@ func (c *pluginRuntime) bootstrapBundledPlugins() error {
 		record.ID, record.Raw, record.Source, record.PackagePath = metadata.ID, data, "bundled", ""
 		byID[metadata.ID] = record
 	}
+
+	// 自动从根目录/工作区扫描并注册随包发布的 .yingce-plugin 插件包
+	candidateDirs := []string{
+		"plugin-packages",
+		filepath.Join("..", "plugin-packages"),
+		filepath.Join("..", "..", "plugin-packages"),
+		"/app/plugin-packages",
+		"/plugin-packages",
+	}
+	for _, dir := range candidateDirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				// 支持未打包的目录形式：plugin-packages/{id}/manifest.json
+				manifestPath := filepath.Join(dir, entry.Name(), "manifest.json")
+				if raw, err := os.ReadFile(manifestPath); err == nil {
+					var manifest protocol.Manifest
+					if err := json.Unmarshal(raw, &manifest); err == nil && manifest.Metadata.ID != "" {
+						id := manifest.Metadata.ID
+						bundledIDs[id] = struct{}{}
+						if existing, exists := byID[id]; exists {
+							if !bytes.Equal(existing.Raw, raw) {
+								existing.Raw = raw
+								existing.PackageSHA256 = pluginHash(raw)
+								existing.UpdatedAt = time.Now().UTC()
+								byID[id] = existing
+							}
+						} else {
+							now := time.Now().UTC()
+							byID[id] = pluginRegistryRecord{
+								ID:            id,
+								Raw:           raw,
+								Source:        "bundled",
+								FileName:      entry.Name(),
+								PackageSHA256: pluginHash(raw),
+								InstalledAt:   now,
+								UpdatedAt:     now,
+							}
+						}
+					}
+				}
+				continue
+			}
+			if strings.HasSuffix(entry.Name(), ".yingce-plugin") {
+				pkgPath := filepath.Join(dir, entry.Name())
+				data, err := os.ReadFile(pkgPath)
+				if err != nil {
+					continue
+				}
+				pkg, err := protocol.ParsePluginPackage(data)
+				if err != nil {
+					continue
+				}
+				id := pkg.Manifest.Metadata.ID
+				bundledIDs[id] = struct{}{}
+				if existing, exists := byID[id]; exists {
+					if !bytes.Equal(existing.Raw, pkg.ManifestRaw) {
+						destPath := filepath.Join(c.packageDir, entry.Name())
+						_ = os.WriteFile(destPath, data, 0o600)
+						existing.Raw = pkg.ManifestRaw
+						existing.PackagePath = destPath
+						existing.PackageSHA256 = pluginHash(data)
+						existing.UpdatedAt = time.Now().UTC()
+						byID[id] = existing
+					}
+				} else {
+					destPath := filepath.Join(c.packageDir, entry.Name())
+					_ = os.WriteFile(destPath, data, 0o600)
+					now := time.Now().UTC()
+					byID[id] = pluginRegistryRecord{
+						ID:            id,
+						Raw:           pkg.ManifestRaw,
+						Source:        "bundled",
+						FileName:      entry.Name(),
+						PackagePath:   destPath,
+						PackageSHA256: pluginHash(data),
+						InstalledAt:   now,
+						UpdatedAt:     now,
+					}
+				}
+			}
+		}
+	}
 	for _, workflow := range bundledWorkflowPluginManifests() {
 		bundledIDs[workflow.Metadata.ID] = struct{}{}
 		data, err := json.Marshal(workflow)

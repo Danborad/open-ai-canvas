@@ -52,6 +52,7 @@ export type VideoCapabilityConfig = {
         maxVideos: number;
         maxVideoBytes: number;
         maxVideoDurationSeconds: number;
+        minAudios: number;
         maxAudios: number;
         maxAudioBytes: number;
         maxAudioDurationSeconds: number;
@@ -185,7 +186,38 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         outputFormat: { supported: true },
         maxOutputs: 15,
     };
-    if (protocol === "grok-image") {
+    if (protocol === "flow2api-image") {
+        const isImagen4 = model.trim().toLowerCase() === "imagen 4" || model.trim().toLowerCase() === "imagen";
+        image.references.maxImages = 14;
+        image.references.maskSupported = false;
+        image.size = {
+            parameter: "aspect_ratio",
+            values: isImagen4 ? ["16:9", "9:16"] : ["16:9", "9:16", "1:1", "4:3", "3:4"],
+            default: "16:9",
+            allowCustom: false,
+        };
+        image.quality = isImagen4
+            ? { supported: false, values: [], default: "" }
+            : { supported: true, values: ["1k", "2k", "4k"], default: "1k" };
+        image.transparentBackground = { supported: false, default: false };
+        image.responseFormat = { supported: false };
+        image.outputFormat = { supported: false };
+        image.maxOutputs = 4;
+    } else if (protocol === "zarklab-image") {
+        image.references.maxImages = 14;
+        image.references.maskSupported = false;
+        image.size = {
+            parameter: "aspect_ratio",
+            values: ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9"],
+            default: "16:9",
+            allowCustom: false,
+        };
+        image.quality = { supported: true, values: ["1k", "2k", "4k"], default: "1k" };
+        image.transparentBackground = { supported: false, default: false };
+        image.responseFormat = { supported: false };
+        image.outputFormat = { supported: false };
+        image.maxOutputs = 4;
+    } else if (protocol === "grok-image") {
         image.references.maxImages = 1;
         image.references.maskSupported = false;
         // grok2api / xAI Imagine：size→aspect_ratio，quality→resolution(1k/2k)。
@@ -261,11 +293,13 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
             maxVideos: 0,
             maxVideoBytes: 0,
             maxVideoDurationSeconds: 0,
+            minAudios: 0,
             maxAudios: 0,
             maxAudioBytes: 0,
             maxAudioDurationSeconds: 0,
         },
         duration: { selection: "range", min: 1, max: 15, step: 1, default: 6 },
+        durationSupported: true,
         ratios: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"],
         defaultRatio: "16:9",
         resolutions: ["480p", "720p", "1080p", "1440p", "2160p"],
@@ -320,6 +354,106 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.defaultResolution = "768P";
         video.watermark = { supported: true, default: false };
         video.operations.push("reference_to_video");
+    }
+    const cleanModel = model.toLowerCase();
+    if (protocol === "autodl-comfyui" || protocol === "autodl-comfyui-video" || cleanModel.startsWith("minimax_h3")) {
+        video.duration = { selection: "range", min: 1, max: cleanModel.includes("_12s") ? 12 : cleanModel.includes("_v2") && !cleanModel.includes("15s") ? 10 : 15, step: 1, default: 5 };
+        video.ratios = ["9:16", "16:9", "1:1"];
+        video.defaultRatio = "9:16";
+        if (cleanModel.startsWith("minimax_h3_b99_")) {
+            video.resolutions = ["736p竖", "736p横", "736p(1:1)"];
+            video.defaultResolution = "736p竖";
+        } else if (cleanModel === "minimax_h3_image_audio_to_video_v2" || cleanModel === "minimax_h3_image_audio_to_video" || cleanModel === "minimax_h3_lightx2v_v5") {
+            video.resolutions = ["480p竖", "768p竖", "1080p竖", "480p横", "768p横", "1080p横", "480p(1:1)", "768p(1:1)", "1080p(1:1)"];
+            video.defaultResolution = "768p竖";
+        } else {
+            video.resolutions = ["480p竖", "768p竖", "480p横", "768p横", "480p(1:1)", "768p(1:1)"];
+            video.defaultResolution = "768p竖";
+        }
+        switch (cleanModel) {
+            case "minimax_h3_lightx2v_no_pic":
+            case "minimax_h3_b99_001":
+                video.references.maxImages = 0;
+                video.references.maxAudios = 0;
+                video.operations = ["text_to_video"];
+                video.defaultOperation = "text_to_video";
+                break;
+            case "minimax_h3_lightx2v":
+            case "minimax_h3_b99_002":
+                video.references.maxImages = 2;
+                video.references.minImages = 2;
+                video.references.maxAudios = 0;
+                video.operations = ["image_to_video"];
+                video.defaultOperation = "image_to_video";
+                break;
+            case "minimax_h3_image_audio_to_video":
+                video.references.maxImages = 1;
+                video.references.minImages = 1;
+                video.references.minAudios = 1;
+                video.references.maxAudios = 1;
+                video.operations = ["image_to_video", "audio_to_video", "reference_to_video"];
+                video.defaultOperation = "image_to_video";
+                break;
+            case "minimax_h3_lightx2v_v5":
+            case "minimax_h3_lightx2v_v5_15s":
+            case "minimax_h3_b99_003_12s":
+                video.references.maxImages = 9;
+                video.references.minImages = 1;
+                video.references.maxAudios = 0;
+                video.operations = ["image_to_video", "reference_to_video"];
+                video.defaultOperation = "image_to_video";
+                break;
+            case "minimax_h3_image_audio_to_video_v2":
+            case "minimax_h3_image_audio_to_video_v2_15s":
+            default:
+                video.references.maxImages = 9;
+                video.references.maxAudios = 3;
+                video.operations = ["text_to_video", "image_to_video", "reference_to_video", "audio_to_video"];
+                video.defaultOperation = "image_to_video";
+                break;
+        }
+    }
+    if (protocol === "flow2api-video") {
+        video.references.maxImages = 9;
+        video.references.promptMaxChars = 2000;
+        video.operations = ["text_to_video", "image_to_video", "reference_to_video"];
+        video.defaultOperation = "text_to_video";
+        video.ratios = ["16:9", "9:16"];
+        video.defaultRatio = "16:9";
+        video.generateAudio = { supported: false, default: false };
+        video.watermark = { supported: false, default: false };
+        if (cleanModel.includes("omni flash") || cleanModel.includes("omni-flash") || cleanModel === "omni") {
+            video.duration = { selection: "enum", values: [4, 6, 8, 10], default: 6 };
+            video.durationSupported = true;
+            video.resolutions = [];
+            video.defaultResolution = "";
+        } else if (cleanModel.includes("quality")) {
+            video.duration = { selection: "enum", values: [], default: 0 };
+            video.durationSupported = false;
+            video.resolutions = ["1080p", "4k"];
+            video.defaultResolution = "";
+        } else {
+            video.duration = { selection: "enum", values: [], default: 0 };
+            video.durationSupported = false;
+            video.resolutions = [];
+            video.defaultResolution = "";
+        }
+    }
+    if (protocol === "xai-video" || protocol === "grok2api-video" || protocol === "grok2api-new-video") {
+        video.references.maxImages = 1;
+        video.duration = { selection: "range", min: 1, max: 15, step: 1, default: 6 };
+        video.ratios = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "2:1", "1:2"];
+        video.defaultRatio = "1:1";
+        video.resolutions = ["480p", "720p", "1080p"];
+        video.defaultResolution = "720p";
+    }
+    if (protocol === "zarklab-video") {
+        video.references.maxImages = 4;
+        video.duration = { selection: "range", min: 1, max: 15, step: 1, default: 5 };
+        video.ratios = ["16:9", "21:9", "4:3", "1:1", "3:4", "4:5", "5:4", "9:16", "9:21"];
+        video.defaultRatio = "16:9";
+        video.resolutions = [];
+        video.defaultResolution = "";
     }
     if (protocol === "agnes-video" && ["agnes-video-2.5", "agnes-video-2.5-flash"].includes(model.trim().toLowerCase())) {
         const flash = model.trim().toLowerCase() === "agnes-video-2.5-flash";
@@ -894,7 +1028,7 @@ function matchWorkflowValue(value: string, options: string[]) {
 
 export function normalizeImageValue(profile: ImageCapabilityConfig, value: { size?: string; quality?: string; count?: string; transparentBackground?: string }) {
     const size = normalizeImageSizeSetting(profile, value.size);
-    const quality = profile.quality.supported ? (value.quality && profile.quality.values.includes(value.quality) ? value.quality : profile.quality.default || "auto") : profile.quality.default || "auto";
+    const quality = profile.quality.supported ? (value.quality && profile.quality.values.includes(value.quality) ? value.quality : profile.quality.default || "auto") : "";
     const count = String(Math.max(1, Math.min(profile.maxOutputs, Math.floor(Math.abs(Number(value.count)) || 1))));
     const transparentBackground = profile.transparentBackground.supported && value.transparentBackground === "true" ? "true" : "false";
     return { size, quality, count, transparentBackground };
@@ -916,11 +1050,15 @@ export function imageSizeRequest(profile: ImageCapabilityConfig, value?: string)
 }
 
 export function normalizeVideoValue(profile: VideoCapabilityConfig, value: { seconds?: string; ratio?: string; resolution?: string }) {
-    const duration = profile.duration.selection === "enum" ? ((profile.duration.values || []).includes(Number(value.seconds)) ? Number(value.seconds) : profile.duration.default) : normalizeRangeDuration(profile, Number(value.seconds));
+    const duration = profile.durationSupported === false
+        ? ""
+        : profile.duration.selection === "enum"
+            ? String((profile.duration.values || []).includes(Number(value.seconds)) ? Number(value.seconds) : profile.duration.default)
+            : String(normalizeRangeDuration(profile, Number(value.seconds)));
     const ratio = resolveVideoRatioValue(profile, value.ratio);
     // 前端状态历史上保存过 `720`，而能力配置和供应商通常使用 `720p`；统一按能力中的原始值返回，避免被误判为不支持。
-    const resolution = resolveVideoResolutionValue(profile, value.resolution);
-    return { seconds: String(duration), ratio, resolution };
+    const resolution = resolveVideoResolutionValue(profile, value.resolution) || (profile.defaultResolution === "" ? "" : profile.resolutions[0] || "");
+    return { seconds: duration, ratio, resolution };
 }
 
 export function resolveVideoRatioValue(profile: VideoCapabilityConfig, value: string | undefined) {
@@ -962,6 +1100,7 @@ function normalizeRangeDuration(profile: VideoCapabilityConfig, value: number) {
 }
 
 export function videoDurationOptions(profile: VideoCapabilityConfig) {
+    if (profile.durationSupported === false) return [];
     if (profile.duration.selection === "enum") return profile.duration.values || [];
     const min = profile.duration.min || 1;
     const max = profile.duration.max || min;
@@ -970,6 +1109,7 @@ export function videoDurationOptions(profile: VideoCapabilityConfig) {
 }
 
 export function videoDurationAllowed(profile: VideoCapabilityConfig, value: number) {
+    if (profile.durationSupported === false) return true;
     if (profile.duration.selection === "enum") return (profile.duration.values || []).includes(value);
     const min = profile.duration.min || 1;
     const max = profile.duration.max || min;

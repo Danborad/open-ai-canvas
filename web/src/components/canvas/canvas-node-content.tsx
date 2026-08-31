@@ -480,7 +480,7 @@ function inferVideoHasAudio(metadata: CanvasNodeData["metadata"]): boolean | und
 }
 
 function AudioNodeContent({ node, theme }: CanvasNodeContentProps) {
-    if (!node.metadata?.content && !node.metadata?.storageKey) return <EmptyMediaContent icon={<Music2 className="size-7 opacity-35" />} label="空音频节点" color={theme.node.placeholder} />;
+    if (!node.metadata?.content && !node.metadata?.storageKey) return <EmptyMediaContent icon={<Music2 className="size-7 opacity-35" />} label="空音频节点" color={theme.node.placeholder} background={theme.node.fill} />;
     return <CanvasAudioPlayer node={node} theme={theme} />;
 }
 
@@ -526,8 +526,8 @@ function MediaLoadingState({ icon, label }: { icon: ReactNode; label: string }) 
     return <div role="status" className="flex size-full flex-col items-center justify-center gap-2 rounded-[var(--node-radius)] bg-black text-white/75"><span className="grid size-10 place-items-center rounded-full bg-white/10">{icon}</span><span className="text-xs font-medium">{label}</span></div>;
 }
 
-function EmptyMediaContent({ icon, label, color }: { icon: ReactNode; label: string; color: string }) {
-    return <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color }}>{icon}<span className="text-sm">{label}</span></div>;
+function EmptyMediaContent({ icon, label, color, background }: { icon: ReactNode; label: string; color: string; background?: string }) {
+    return <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color, background }}>{icon}<span className="text-sm">{label}</span></div>;
 }
 
 function ImageContent({ node, theme, isBatchRoot, batchCount, batchExpanded, batchOpening, batchRecovering, onToggleBatch }: Pick<CanvasNodeContentProps, "node" | "theme" | "isBatchRoot" | "batchCount" | "batchExpanded" | "batchOpening" | "batchRecovering" | "onToggleBatch">) {

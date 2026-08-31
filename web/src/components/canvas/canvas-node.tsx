@@ -14,6 +14,9 @@ import { PortraitClearanceIcon } from "@/components/canvas/portrait-clearance/po
 import { PORTRAIT_CLEARANCE_NODE_TYPE } from "@/lib/portrait-clearance/contracts";
 import { getNodeDefinition, getNodeMinSize, shouldKeepAspectRatio } from "@/lib/canvas/node-registry";
 import { CanvasNodeContent, CanvasNodeImageInfo } from "./canvas-node-content";
+import { usePluginStore } from "@/stores/use-plugin-store";
+import { CANVAS_NODE_MODEL_BADGE_PLUGIN_ID } from "@/lib/plugins/builtin/canvas-node-model-badge";
+import { modelOptionName } from "@/stores/use-config-store";
 
 type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 type CanvasTheme = (typeof canvasThemes)[keyof typeof canvasThemes];
@@ -636,13 +639,19 @@ function NodeExternalHeader({ node, scale, dimensionLabel, active, editable, edi
     const inverseScale = 1 / Math.max(scale, 0.05);
     const Icon = nodeTypeIcon(node.type);
     const maxHeaderWidth = Math.min(240, node.width * scale);
+    const modelBadgeEnabled = usePluginStore((state) =>
+        state.pluginStates[CANVAS_NODE_MODEL_BADGE_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_NODE_MODEL_BADGE_PLUGIN_ID)?.enabled)
+    );
+    const nodeModel = node.metadata?.model || (node.metadata as any)?.generationConfig?.model;
+    const modelLabel = nodeModel ? formatModelBadgeLabel(nodeModel) : "";
+    const hasHeaderTag = Boolean(dimensionLabel || (modelBadgeEnabled && modelLabel));
 
     return (
         <div
             className="canvas-node-external-header absolute bottom-full left-0 z-[var(--node-z-overlay)] flex h-6 items-center gap-1 overflow-hidden"
             style={{
-                width: dimensionLabel ? "calc(var(--canvas-node-width) * var(--canvas-live-scale, 1))" : undefined,
-                maxWidth: dimensionLabel ? undefined : maxHeaderWidth,
+                width: hasHeaderTag ? "calc(var(--canvas-node-width) * var(--canvas-live-scale, 1))" : undefined,
+                maxWidth: hasHeaderTag ? undefined : maxHeaderWidth,
                 "--canvas-node-width": `${node.width}px`,
                 borderRadius: "var(--r-sm)",
                 background: "transparent",
@@ -680,9 +689,25 @@ function NodeExternalHeader({ node, scale, dimensionLabel, active, editable, edi
                     <span className="min-w-0 flex-1 truncate text-xs font-medium" title={node.title} style={{ opacity: active ? 1 : 0.78 }}>{node.title}</span>
                 )}
             </div>
+            {modelBadgeEnabled && modelLabel ? (
+                <span
+                    className="mx-auto inline-flex max-w-[140px] shrink-0 truncate items-center rounded bg-foreground/[.06] px-1.5 py-0.5 text-[10px] font-mono leading-none tracking-tight transition-opacity hover:opacity-100 hover:bg-foreground/[.1]"
+                    style={{ color: theme.node.muted }}
+                    title={`生成模型：${nodeModel}`}
+                >
+                    {modelLabel}
+                </span>
+            ) : null}
             {dimensionLabel ? <span className="ml-auto shrink-0 whitespace-nowrap text-[var(--fs-micro)] font-medium leading-none tabular-nums" style={{ color: theme.node.muted }}>{dimensionLabel}</span> : null}
         </div>
     );
+}
+
+function formatModelBadgeLabel(rawModel: string): string {
+    const trimmed = rawModel.trim();
+    if (!trimmed) return "";
+    const name = modelOptionName(trimmed);
+    return name.replace(/^minimax_h3_/i, "h3_");
 }
 
 function nodeTypeIcon(type: CanvasNodeTypeId) {

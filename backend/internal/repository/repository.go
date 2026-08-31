@@ -1104,6 +1104,15 @@ func (r *Repository) CanvasProjectForUser(userID string, id string) (*model.Canv
 	return &project, nil
 }
 
+func (r *Repository) CanvasProjectTasks(userID string, projectIDs []string) ([]model.Task, error) {
+	var tasks []model.Task
+	if len(projectIDs) == 0 {
+		return tasks, nil
+	}
+	err := r.db.Where("user_id = ? AND project_id IN ?", userID, projectIDs).Find(&tasks).Error
+	return tasks, err
+}
+
 func (r *Repository) UpsertCanvasProject(project *model.CanvasProject) error {
 	result := r.db.Model(&model.CanvasProject{}).
 		Where("id = ? AND user_id = ?", project.ID, project.UserID).

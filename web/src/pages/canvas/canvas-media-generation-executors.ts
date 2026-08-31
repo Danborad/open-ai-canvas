@@ -32,7 +32,7 @@ export async function executeVideoGeneration({
     taskContext,
     retryContext,
 }: CanvasGenerationExecution) {
-    const spec = nodeSizeFromRatio(generationConfig.size, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
+    const spec = nodeSizeFromRatio(generationConfig.size || generationConfig.vquality, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
     const isEmptyVideoNode = sourceNode?.type === CanvasNodeType.Video && !sourceNode.metadata?.content;
     const isExistingVideoNode = sourceNode?.type === CanvasNodeType.Video && Boolean(sourceNode.metadata?.content);
     const videoId = isEmptyVideoNode ? nodeId : nanoid();
@@ -43,9 +43,14 @@ export async function executeVideoGeneration({
         id: videoId,
         type: CanvasNodeType.Video,
         title: effectivePrompt.slice(0, 32) || "Generated Video",
-        position: isEmptyVideoNode ? sourceNode.position : { x: parent.x + (sourceNode?.width || spec.width) + 96, y: parent.y },
-        width: isEmptyVideoNode ? sourceNode.width : spec.width,
-        height: isEmptyVideoNode ? sourceNode.height : spec.height,
+        position: isEmptyVideoNode
+            ? {
+                  x: sourceNode.position.x + sourceNode.width / 2 - spec.width / 2,
+                  y: sourceNode.position.y + sourceNode.height / 2 - spec.height / 2,
+              }
+            : { x: parent.x + (sourceNode?.width || spec.width) + 96, y: parent.y },
+        width: spec.width,
+        height: spec.height,
         metadata: {
             ...(isEmptyVideoNode ? sourceNode.metadata || {} : {}),
             prompt: effectivePrompt,

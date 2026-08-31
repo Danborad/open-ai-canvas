@@ -52,3 +52,17 @@ export function upsertRemoteCanvasProject(project: CanvasProject) {
 export function deleteRemoteCanvasProject(id: string) {
     return request<{ id: string }>(api.delete(`/canvas-projects/${encodeURIComponent(id)}`));
 }
+
+export type CanvasProjectStats = {
+    projectId: string;
+    imageCount: number;
+    videoCount: number;
+    imageCreditsMicros: number;
+    videoCreditsMicros: number;
+    totalCreditsMicros: number;
+};
+
+export async function getCanvasProjectStats(projectId: string) {
+    const list = await request<CanvasProjectStats[]>(api.get("/canvas-project-stats", { params: { ids: projectId } }));
+    return list?.[0] || { projectId, imageCount: 0, videoCount: 0, imageCreditsMicros: 0, videoCreditsMicros: 0, totalCreditsMicros: 0 };
+}

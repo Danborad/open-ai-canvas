@@ -1,0 +1,163 @@
+{
+  "apiVersion": "yingce.plugin/v1",
+  "id": "flow2api-provider",
+  "name": "Flow2API 渠道",
+  "version": "1.0.0",
+  "enabled": true,
+  "author": "影策社区",
+  "description": "接入 Flow2API 生态模型服务，支持 Nano Banana 系列文生图/图生图以及 Omni Flash、Veo 视频生成。",
+  "documentation": "# Flow2API 渠道插件\n\n## 接口协议\n\n- 对话与多模态生成：`POST /v1/chat/completions`\n- 图片比例：`generationConfig.imageConfig.aspectRatio`，支持 `16:9`、`9:16`、`1:1`、`4:3`、`3:4`。\n- 图片分辨率：`generationConfig.imageConfig.imageSize`，Nano Banana Pro/2 支持 `1k`、`2k`、`4k`；Imagen 4 不发送该字段。\n- 视频比例：`generationConfig.aspectRatio`，支持 `16:9`、`9:16`。\n- Omni Flash 额外读取 `generationConfig.durationSeconds`，支持 4/6/8/10 秒。\n- 只有 Veo 3.1 - Quality 读取 `generationConfig.imageSize`，支持 `1080p`、`4k`；Lite/Fast 忽略时长和输出分辨率。\n\n## 官方支持模型\n\n- 图片：`Nano Banana Pro` / `Nano Banana 2` / `Imagen 4`\n- 视频：`Omni Flash` / `Veo 3.1 - Lite` / `Veo 3.1 - Fast` / `Veo 3.1 - Quality`\n\n## 画布路由\n\n- 0 张图走 T2V，1 张图走 I2V，2 张图优先双帧 I2V，3 张及以上按模型能力走 R2V。\n",
+  "permissions": [
+    "generation.run",
+    "media.read"
+  ],
+  "configuration": {
+    "fields": [
+      {
+        "name": "apiKey",
+        "type": "secret",
+        "label": "Flow2API Key",
+        "required": true,
+        "description": "填写 Flow2API 的 API Key。"
+      }
+    ]
+  },
+  "contributes": {
+    "providers": [
+      {
+        "id": "flow2api-image",
+        "label": "Flow2API 图片",
+        "capabilities": [
+          "image"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation"
+        ],
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey",
+          "header": "Authorization"
+        },
+        "parameters": [
+          { "name": "model", "type": "string", "required": true, "mapping": "model" },
+          { "name": "prompt", "type": "string", "required": true, "mapping": "prompt" },
+          { "name": "aspectRatio", "type": "string", "mapping": "aspectRatio" },
+          { "name": "quality", "type": "string", "mapping": "quality" }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/v1/chat/completions",
+          "contentType": "application/json",
+          "fields": {
+            "model": "request.model",
+            "messages": "request.messages",
+            "generationConfig.imageConfig.aspectRatio": "request.aspectRatio|omit_empty",
+            "generationConfig.imageConfig.imageSize": "request.quality|lower|omit_auto|omit_empty|omit_unless_model_contains:banana",
+            "stream": "false|bool"
+          }
+        },
+        "response": {
+          "resultPaths": [
+            "choices.0.message.content",
+            "data"
+          ],
+          "resultKind": "image",
+          "resultEphemeral": true
+        }
+      },
+      {
+        "id": "flow2api-video",
+        "label": "Flow2API 视频",
+        "capabilities": [
+          "video"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation"
+        ],
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey",
+          "header": "Authorization"
+        },
+        "parameters": [
+          { "name": "model", "type": "string", "required": true, "mapping": "model" },
+          { "name": "prompt", "type": "string", "required": true, "mapping": "prompt" },
+          { "name": "aspectRatio", "type": "string", "mapping": "aspectRatio" },
+          { "name": "duration", "type": "integer", "mapping": "duration" },
+          { "name": "resolution", "type": "string", "mapping": "resolution" }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/v1/chat/completions",
+          "contentType": "application/json",
+          "fields": {
+            "model": "request.model",
+            "messages": "request.messages",
+            "generationConfig.aspectRatio": "request.aspectRatio|omit_empty",
+            "generationConfig.durationSeconds": "request.duration|int|omit_zero|omit_unless_model_contains:omni",
+            "generationConfig.imageSize": "request.resolution|lower|resolution_p|omit_empty|omit_unless_model_contains:quality",
+            "stream": "false|bool"
+          }
+        },
+        "response": {
+          "resultPaths": [
+            "choices.0.message.content",
+            "data"
+          ],
+          "resultKind": "video",
+          "resultEphemeral": true
+        }
+      }
+    ],
+    "workflows": [
+      {
+        "id": "Nano Banana 2",
+        "label": "Nano Banana 2",
+        "providerId": "flow2api-image",
+        "capability": "image"
+      },
+      {
+        "id": "Nano Banana Pro",
+        "label": "Nano Banana Pro",
+        "providerId": "flow2api-image",
+        "capability": "image"
+      },
+      {
+        "id": "Imagen 4",
+        "label": "Imagen 4",
+        "providerId": "flow2api-image",
+        "capability": "image"
+      },
+      {
+        "id": "Omni Flash",
+        "label": "Omni Flash 视频",
+        "providerId": "flow2api-video",
+        "capability": "video"
+      },
+      {
+        "id": "Veo 3.1 - Lite",
+        "label": "Veo 3.1 - Lite 视频",
+        "providerId": "flow2api-video",
+        "capability": "video"
+      },
+      {
+        "id": "Veo 3.1 - Fast",
+        "label": "Veo 3.1 - Fast 视频",
+        "providerId": "flow2api-video",
+        "capability": "video"
+      },
+      {
+        "id": "Veo 3.1 - Quality",
+        "label": "Veo 3.1 - Quality 视频",
+        "providerId": "flow2api-video",
+        "capability": "video"
+      }
+    ]
+  }
+}

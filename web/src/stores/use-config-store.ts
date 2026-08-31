@@ -616,7 +616,16 @@ export const useConfigStore = create<ConfigStore>()(
                         }),
                     );
                     const userChannels = state.config.channels.filter((channel) => channel.scope !== "system");
-                    return normalizeConfigSnapshot({ config: { ...state.config, channels: [...systemChannels, ...userChannels] } });
+                    const allChannels = [...systemChannels, ...userChannels];
+                    const nextConfig = normalizeConfigSnapshot({ config: { ...state.config, channels: allChannels } }).config;
+                    const systemModels = modelOptionsFromChannels(systemChannels);
+                    const firstModel = (capability: ModelCapability) => filterModelsByCapability(systemModels, capability, systemChannels)[0] || "";
+                    const currentVideo = normalizeModelOptionValue(state.config.videoModel || state.config.model, allChannels);
+                    const currentImage = normalizeModelOptionValue(state.config.imageModel || state.config.model, allChannels);
+                    if (!nextConfig.videoModel || !nextConfig.videoModels.includes(currentVideo)) nextConfig.videoModel = firstModel("video");
+                    if (!nextConfig.imageModel || !nextConfig.imageModels.includes(currentImage)) nextConfig.imageModel = firstModel("image");
+                    if (!nextConfig.model || !nextConfig.models.includes(nextConfig.model)) nextConfig.model = nextConfig.imageModel || nextConfig.videoModel || nextConfig.textModel;
+                    return { config: nextConfig };
                 }),
             isAiConfigReady: (config, model) => isAiConfigReady(config, model),
         }),
