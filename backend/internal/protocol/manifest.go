@@ -95,7 +95,24 @@ func LoadInstalledProviders(data []byte, resolve AdapterResolver) ([]Adapter, er
 		return []Adapter{adapter}, nil
 	}
 	result := make([]Adapter, 0, len(manifest.Contributes.Providers))
-	for index := range manifest.Contributes.Providers {
+	for index, provider := range manifest.Contributes.Providers {
+		if resolve != nil {
+			if hostAdapter, ok := resolve(provider.ID); ok && hostAdapter.Metadata().Execution != "declarative" {
+				providerMetadata := manifest.Metadata
+				providerMetadata.ID = provider.ID
+				providerMetadata.Categories = provider.Capabilities
+				providerMetadata.Scopes = provider.Scopes
+				providerMetadata.Parameters = provider.Parameters
+				providerMetadata.Create = operationSummary(provider.Create)
+				providerMetadata.Poll = operationSummaryPtr(provider.Poll)
+				providerMetadata.Cancel = operationSummaryPtr(provider.Cancel)
+				providerMetadata.ContentType = provider.Create.ContentType
+				providerMetadata.RequiresPublicMediaURLs = provider.RequiresPublicMediaURLs
+				providerMetadata.Execution = hostAdapter.Metadata().Execution
+				result = append(result, metadataAdapter{metadata: providerMetadata, delegate: hostAdapter})
+				continue
+			}
+		}
 		adapter, err := loadDeclarativeManifestProvider(manifest, index)
 		if err != nil {
 			return nil, err

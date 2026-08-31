@@ -1493,6 +1493,11 @@ func runImageTask(ctx context.Context, input canvasGenerationInput) (map[string]
 	if _, ok := declarativeProtocolAdapterForContext(ctx, input.Config.InterfaceType); ok {
 		return runDeclarativeProtocolTask(ctx, input)
 	}
+	if input.Config.InterfaceType == "sensenova-image" {
+		if adapter, ok := protocolAdapterForContext(ctx, input.Config.InterfaceType); ok {
+			return runProtocolAdapterTask(ctx, input, adapter)
+		}
+	}
 	if input.Config.InterfaceType == string(model.ChannelInterfaceGrokImage) {
 		return runGrokImageTask(ctx, input)
 	}

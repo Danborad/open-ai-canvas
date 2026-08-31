@@ -243,8 +243,8 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 			image.Size = ImageSizeConfig{
 				Parameter: "size",
 				Values: []string{
-					"2048x2048", "2720x1536", "1536x2720",
-					"1664x2496", "2496x1664", "4096x4096",
+					"2048x2048", "2720x1536", "1536x2720", "2496x1664", "1664x2496",
+					"4096x4096", "3840x2160", "2160x3840", "3840x2176", "2176x3840", "3456x2304", "2304x3456",
 				},
 				Default:     "2048x2048",
 				AllowCustom: true,

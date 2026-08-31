@@ -82,6 +82,7 @@
         "parameters": [
           { "name": "model", "type": "string", "required": true, "mapping": "model" },
           { "name": "prompt", "type": "string", "required": true, "mapping": "prompt" },
+          { "name": "images", "type": "array", "mapping": "images" },
           { "name": "size", "type": "string", "mapping": "aspectRatio" },
           { "name": "watermark", "type": "boolean", "mapping": "watermark" }
         ],
