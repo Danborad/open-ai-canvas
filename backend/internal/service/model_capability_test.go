@@ -215,6 +215,7 @@ func TestFlow2APIPresetCapabilitiesFollowModelAliases(t *testing.T) {
 		{name: "Nano Banana Pro", image: true, qualities: []string{"1k", "2k", "4k"}},
 		{name: "Nano Banana 2", image: true, qualities: []string{"1k", "2k", "4k"}},
 		{name: "Imagen 4", image: true},
+		{name: "Omni 1.1 Flash", videoDurations: []int{4, 6, 8, 10}},
 		{name: "Omni Flash", videoDurations: []int{4, 6, 8, 10}},
 		{name: "Veo 3.1 - Lite"},
 		{name: "Veo 3.1 - Fast"},

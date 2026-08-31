@@ -41,7 +41,7 @@ type CanvasStore = {
     renameProject: (id: string, title: string) => void;
     deleteProjects: (ids: string[]) => void;
     replaceProjects: (projects: CanvasProject[]) => void;
-    updateProject: (id: string, patch: Partial<Pick<CanvasProject, "projectId" | "nodes" | "connections" | "chatSessions" | "activeChatId" | "starterMode" | "appearance" | "backgroundMode" | "showImageInfo" | "viewport" | "directorScenes" | "timeline" | "coverBlurred">>) => void;
+    updateProject: (id: string, patch: Partial<Pick<CanvasProject, "projectId" | "nodes" | "connections" | "chatSessions" | "activeChatId" | "starterMode" | "appearance" | "backgroundMode" | "showImageInfo" | "viewport" | "directorScenes" | "timeline" | "coverBlurred">>, touchUpdatedAt?: boolean) => void;
 };
 
 const initialViewport: ViewportTransform = { x: 0, y: 0, k: 1 };
@@ -479,9 +479,9 @@ export const useCanvasStore = create<CanvasStore>()(
                     return { projects };
                 }),
             replaceProjects: (projects) => set({ projects }),
-            updateProject: (id, patch) =>
+            updateProject: (id, patch, touchUpdatedAt = true) =>
                 set((state) => ({
-                    projects: state.projects.map((project) => (project.id === id ? { ...project, ...patch, updatedAt: new Date().toISOString() } : project)),
+                    projects: state.projects.map((project) => (project.id === id ? { ...project, ...patch, updatedAt: touchUpdatedAt ? new Date().toISOString() : project.updatedAt } : project)),
                 })),
         }),
         {

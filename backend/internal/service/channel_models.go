@@ -760,7 +760,7 @@ func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, it
 			}
 		}
 	case "flow2api":
-		if strings.EqualFold(item.ModelKey, "Omni Flash") || strings.HasPrefix(item.ModelKey, "Veo 3.1") {
+		if strings.Contains(strings.ToLower(item.ModelKey), "omni") || strings.HasPrefix(item.ModelKey, "Veo 3.1") {
 			if item.Capability != "video" || item.Protocol != "flow2api-video" {
 				item.Capability = "video"
 				item.Protocol = "flow2api-video"

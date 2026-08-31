@@ -422,7 +422,7 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.defaultRatio = "16:9";
         video.generateAudio = { supported: false, default: false };
         video.watermark = { supported: false, default: false };
-        if (cleanModel.includes("omni flash") || cleanModel.includes("omni-flash") || cleanModel === "omni") {
+        if (cleanModel.includes("omni")) {
             video.duration = { selection: "enum", values: [4, 6, 8, 10], default: 6 };
             video.durationSupported = true;
             video.resolutions = [];

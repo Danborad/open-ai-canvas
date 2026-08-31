@@ -502,7 +502,7 @@ function modelMenuMeta(model: string, capability?: ModelCapability): { descripti
         return { description: "图片生成模型" };
     }
     if (capability === "video") {
-        if (name.includes("veo") || name.includes("omni flash") || name.includes("omni-flash")) return { description: "Gemini 镜头生成与图生视频，适合成片流程", time: "3m" };
+        if (name.includes("veo") || name.includes("omni")) return { description: "Gemini 镜头生成与图生视频，适合成片流程", time: "3m" };
         if (name.includes("seedance") || name.includes("sora")) return { description: "镜头生成与图生视频，适合成片流程", time: "3m" };
         return { description: "视频生成模型", time: "3m" };
     }

@@ -607,7 +607,7 @@ func flow2APIVideosAdapter() Adapter {
 			generationConfig := map[string]any{}
 			copyIf(generationConfig, "aspectRatio", r.AspectRatio)
 			flowModel := strings.ToLower(r.Model)
-			if r.Duration > 0 && (strings.Contains(flowModel, "omni flash") || strings.Contains(flowModel, "omni-flash") || flowModel == "omni") {
+			if r.Duration > 0 && strings.Contains(flowModel, "omni") {
 				generationConfig["durationSeconds"] = r.Duration
 			}
 			if (strings.Contains(flowModel, "quality") || strings.Contains(flowModel, "veo 3.1 - quality")) && r.Resolution != "" {

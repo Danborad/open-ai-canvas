@@ -452,7 +452,7 @@ function autoDLResolutionRatio(value: string) {
 function Flow2APIVideoSettingsPanel({ config, profile, priceTiers, onConfigChange, theme, showTitle, className }: VideoSettingsPanelProps & { profile: VideoCapabilityConfig; priceTiers?: ReturnType<typeof modelPriceTiers> }) {
     const targetModel = config.model || config.videoModel;
     const model = modelOptionName(targetModel).toLowerCase();
-    const isOmni = model.includes("omni flash") || model.includes("omni-flash") || model === "omni";
+    const isOmni = model.includes("omni");
     const isQuality = model.includes("quality");
     const ratio = normalizeRatioValue(config.size || profile.defaultRatio || "16:9");
     const duration = profile.duration.selection === "enum" && profile.duration.values?.length

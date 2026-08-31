@@ -41,7 +41,7 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
     const isBlurred = Boolean(project.coverBlurred ?? useCanvasPrivacyStore.getState().isProjectBlurred(project.id));
     const toggleProjectBlur = (projectId: string) => {
         const nextBlurred = !isBlurred;
-        useCanvasStore.getState().updateProject(projectId, { coverBlurred: nextBlurred });
+        useCanvasStore.getState().updateProject(projectId, { coverBlurred: nextBlurred }, false);
         useCanvasPrivacyStore.getState().setProjectBlur(projectId, nextBlurred);
     };
     const editing = editingId === project.id;

@@ -125,7 +125,7 @@ func (s *Service) FetchChannelModelCatalog(ctx context.Context, actor *model.Use
 				displayName = autoDLWorkflowDisplayName(name)
 			}
 			modelType := "image"
-			if strings.Contains(strings.ToLower(name), "video") || strings.EqualFold(name, "Omni Flash") || strings.HasPrefix(name, "Veo 3.1") || (preset == "autodl" && name != "indextts2-v1") || (preset == "zarklab" && (name == "Happy Horse" || name == "Kling 3.0 Lite" || name == "MiniMax H3" || strings.HasPrefix(name, "Seedance"))) {
+			if strings.Contains(strings.ToLower(name), "video") || strings.Contains(strings.ToLower(name), "omni") || strings.HasPrefix(name, "Veo 3.1") || (preset == "autodl" && name != "indextts2-v1") || (preset == "zarklab" && (name == "Happy Horse" || name == "Kling 3.0 Lite" || name == "MiniMax H3" || strings.HasPrefix(name, "Seedance"))) {
 				modelType = "video"
 			} else if name == "indextts2-v1" {
 				modelType = "audio"
@@ -294,6 +294,7 @@ var (
 		"Nano Banana Pro",
 		"Nano Banana 2",
 		"Imagen 4",
+		"Omni 1.1 Flash",
 		"Omni Flash",
 		"Veo 3.1 - Lite",
 		"Veo 3.1 - Fast",

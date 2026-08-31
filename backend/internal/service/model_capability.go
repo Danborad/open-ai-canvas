@@ -303,8 +303,9 @@ func DefaultModelCapabilityConfigForModel(protocol string, modelName string) *Mo
 		video.DefaultRatio = "16:9"
 		video.GenerateAudio = VideoBooleanConfig{Supported: false, Default: false}
 		video.Watermark = VideoBooleanConfig{Supported: false, Default: false}
-		if strings.Contains(cleanModel, "omni flash") || strings.Contains(cleanModel, "omni-flash") || cleanModel == "omni" {
+		if strings.Contains(cleanModel, "omni") {
 			video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{4, 6, 8, 10}, Default: 6}
+			video.DurationSupported = boolPointer(true)
 			video.Resolutions = []string{}
 			video.DefaultResolution = ""
 		} else if strings.Contains(cleanModel, "quality") {

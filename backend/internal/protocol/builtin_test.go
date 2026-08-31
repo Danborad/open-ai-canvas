@@ -210,7 +210,7 @@ func TestFlow2APIAdaptersMapDocumentedGenerationConfig(t *testing.T) {
 		t.Fatalf("image generation config = %#v", imageConfig)
 	}
 
-	omniSpec, err := videoAdapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "Omni Flash", Prompt: "a clip", AspectRatio: "16:9", Duration: 6, Resolution: "768p", Images: []MediaReference{{URL: "https://example.com/start.png"}}}})
+	omniSpec, err := videoAdapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "Omni 1.1 Flash", Prompt: "a clip", AspectRatio: "16:9", Duration: 6, Resolution: "768p", Images: []MediaReference{{URL: "https://example.com/start.png"}}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +227,7 @@ func TestFlow2APIAdaptersMapDocumentedGenerationConfig(t *testing.T) {
 		t.Fatalf("omni generation config = %#v", omniConfig)
 	}
 	if _, exists := omniConfig["imageSize"]; exists {
-		t.Fatalf("Omni Flash must not receive imageSize: %#v", omniConfig)
+		t.Fatalf("Omni 1.1 Flash must not receive imageSize: %#v", omniConfig)
 	}
 
 	qualitySpec, err := videoAdapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "Veo 3.1 - Quality", Prompt: "a clip", AspectRatio: "9:16", Duration: 10, Resolution: "1080p"}})
