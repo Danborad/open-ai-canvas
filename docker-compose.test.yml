@@ -43,10 +43,13 @@ services:
       CANVAS_ALLOW_PRIVATE_UPSTREAMS: "true"
       CANVAS_CORS_ORIGINS: "*"
       CANVAS_COOKIE_SECURE: "false"
+      CANVAS_UPDATER_SOCKET: /run/open-ai-canvas-updater/updater.sock
+      CANVAS_UPDATER_TOKEN: "b3f57035560e5f5d1816c1bae4153aaed8cb68d5de621404e58b3e86166baf14"
       GIN_MODE: release
     volumes:
       - backend-fresh-test-data:/data
       - ./plugin-packages:/plugin-packages:ro
+      - /run/open-ai-canvas-updater:/run/open-ai-canvas-updater:ro
     depends_on:
       postgres-test:
         condition: service_healthy
