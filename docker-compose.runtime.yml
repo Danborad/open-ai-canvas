@@ -28,6 +28,9 @@ services:
 
   backend:
     image: open-ai-canvas-backend:deploy
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     environment:
       CANVAS_BACKEND_ADDR: ":8080"
       CANVAS_BACKEND_DATA_DIR: /data
@@ -41,9 +44,12 @@ services:
       CANVAS_CORS_ORIGINS: ${CANVAS_CORS_ORIGINS:-*}
       CANVAS_COOKIE_SECURE: ${CANVAS_COOKIE_SECURE:-false}
       CANVAS_PUBLIC_BASE_URL: ${CANVAS_PUBLIC_BASE_URL:-}
+      CANVAS_UPDATER_SOCKET: /run/open-ai-canvas-updater/updater.sock
+      CANVAS_UPDATER_TOKEN: ${CANVAS_UPDATER_TOKEN:-b3f57035560e5f5d1816c1bae4153aaed8cb68d5de621404e58b3e86166baf14}
       GIN_MODE: release
     volumes:
       - backend-data:/data
+      - /run/open-ai-canvas-updater:/run/open-ai-canvas-updater
     depends_on:
       postgres:
         condition: service_healthy
