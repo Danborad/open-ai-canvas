@@ -1,8 +1,6 @@
-# syntax=docker/dockerfile:1.7
-
 FROM golang:1.25-alpine AS backend-build
 
-ARG GOPROXY=https://proxy.golang.org,direct
+ARG GOPROXY=https://goproxy.cn,direct
 ARG BUILD_VERSION
 ARG BUILD_COMMIT=unknown
 ARG BUILD_TIME=unknown
