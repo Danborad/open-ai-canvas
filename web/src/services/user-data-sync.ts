@@ -218,14 +218,31 @@ async function ensureRemoteResourceReferences<T>(value: T, uploaded = new Map<st
     if (!isLocalStorageKey(storageKey)) {
         const inline = inlineMediaDataUrl(next);
         if (!inline) return next as T;
-        const resourceStorage = await uploadInlineDataUrl(inline);
-        return applyResourceReference(next, resourceStorage) as T;
+        try {
+            const resourceStorage = await uploadInlineDataUrl(inline);
+            if (resourceStorage) return applyResourceReference(next, resourceStorage) as T;
+        } catch (error) {
+            console.warn("内嵌媒体上传失败，保留原内容", error);
+        }
+        return next as T;
     }
 
     const cached = uploaded.get(storageKey);
-    const resourceStorage = cached || (await uploadLocalStorageKey(storageKey, next));
-    uploaded.set(storageKey, resourceStorage);
-    return applyResourceReference(next, resourceStorage) as T;
+    let resourceStorage = cached;
+    if (!resourceStorage) {
+        try {
+            resourceStorage = await uploadLocalStorageKey(storageKey, next);
+            if (resourceStorage) {
+                uploaded.set(storageKey, resourceStorage);
+            }
+        } catch (error) {
+            console.warn(`[Sync] 本地媒体转换失败，保留节点原引用: ${storageKey}`, error);
+        }
+    }
+    if (resourceStorage) {
+        return applyResourceReference(next, resourceStorage) as T;
+    }
+    return next as T;
 }
 
 function applyResourceReference(payload: Record<string, unknown>, storageKey: string) {
@@ -246,24 +263,36 @@ function inlineMediaDataUrl(payload: Record<string, unknown>) {
 }
 
 async function uploadInlineDataUrl(dataUrl: string) {
-    const response = await fetch(dataUrl);
-    if (!response.ok) throw new Error("内嵌媒体读取失败");
-    const blob = await response.blob();
-    const kind: "image" | "video" | "audio" | "file" = blob.type.startsWith("image/") ? "image" : blob.type.startsWith("video/") ? "video" : blob.type.startsWith("audio/") ? "audio" : "file";
-    const resource = await uploadResourceFile(blob, kind);
-    return resourceStorageKey(resource.id);
+    try {
+        const response = await fetch(dataUrl);
+        if (!response.ok) return "";
+        const blob = await response.blob();
+        const kind: "image" | "video" | "audio" | "file" = blob.type.startsWith("image/") ? "image" : blob.type.startsWith("video/") ? "video" : blob.type.startsWith("audio/") ? "audio" : "file";
+        const resource = await uploadResourceFile(blob, kind);
+        return resourceStorageKey(resource.id);
+    } catch {
+        return "";
+    }
 }
 
 async function uploadLocalStorageKey(storageKey: string, payload: Record<string, unknown>) {
-    const blob = storageKey.startsWith("image:") ? await getImageBlob(storageKey) : await getMediaBlob(storageKey);
-    if (!blob) throw new Error(`本地媒体不存在：${storageKey}`);
-    const kind = blob.type.startsWith("image/") ? "image" : blob.type.startsWith("video/") ? "video" : blob.type.startsWith("audio/") ? "audio" : "file";
-    const resource = await uploadResourceFile(blob, kind, {
-        width: numberValue(payload.naturalWidth) || numberValue(payload.width),
-        height: numberValue(payload.naturalHeight) || numberValue(payload.height),
-        durationMs: numberValue(payload.durationMs),
-    });
-    return resourceStorageKey(resource.id);
+    try {
+        const blob = storageKey.startsWith("image:") ? await getImageBlob(storageKey) : await getMediaBlob(storageKey);
+        if (!blob) {
+            console.warn(`[Sync] 本地媒体未找到 (可能已清理或不存在于本地缓存): ${storageKey}`);
+            return "";
+        }
+        const kind = blob.type.startsWith("image/") ? "image" : blob.type.startsWith("video/") ? "video" : blob.type.startsWith("audio/") ? "audio" : "file";
+        const resource = await uploadResourceFile(blob, kind, {
+            width: numberValue(payload.naturalWidth) || numberValue(payload.width),
+            height: numberValue(payload.naturalHeight) || numberValue(payload.height),
+            durationMs: numberValue(payload.durationMs),
+        });
+        return resourceStorageKey(resource.id);
+    } catch (error) {
+        console.warn(`[Sync] 上传媒体到对象存储失败 (${storageKey}):`, error);
+        return "";
+    }
 }
 
 function requireRemoteUserDataBaseline() {

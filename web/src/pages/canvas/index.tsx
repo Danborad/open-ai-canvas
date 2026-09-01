@@ -13,7 +13,7 @@ import { setImageBlob } from "@/services/image-storage";
 import { CanvasCreateCard } from "@/components/canvas/canvas-project-card";
 import { CanvasFolderCard } from "@/components/canvas/canvas-folder-card";
 import type { CanvasExportFile } from "@/types/canvas-export";
-import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
+import { flushCanvasStorePersistence, useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useCanvasUiStore } from "@/stores/canvas/use-canvas-ui-store";
 import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
 import { saveCanvasDrawing, type CanvasDrawingRenderDraft } from "@/lib/canvas/canvas-drawing-storage";
@@ -164,7 +164,14 @@ export default function CanvasPage() {
                     );
                 }),
             );
-            message.success(`已导入 ${data.projects.length} 个画布`);
+            await flushCanvasStorePersistence();
+            try {
+                await saveRemoteUserDataNow();
+                message.success(`已导入 ${data.projects.length} 个画布并同步至云端`);
+            } catch (syncError) {
+                console.warn("导入后自动同步云端警告:", syncError);
+                message.success(`已导入 ${data.projects.length} 个画布`);
+            }
         } catch {
             message.error("导入失败，请选择有效的画布压缩包");
         } finally {
