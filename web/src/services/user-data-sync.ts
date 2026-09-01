@@ -137,6 +137,34 @@ export async function deleteCanvasProjectsWithRemoteSync(ids: string[]) {
             // 批量删除允许部分成功；每个已成功远端删除的实体都立即落实到本地 durable cache。
             await flushCanvasStorePersistence();
         }
+        // 清理仅属于被删除画布的自动生成素材
+        const currentAssets = useAssetStore.getState().assets;
+        const remainingProjects = useCanvasStore.getState().projects;
+        const activeAssetIds = new Set<string>();
+        for (const proj of remainingProjects) {
+            for (const node of proj.nodes) {
+                if (node.metadata?.assetId) activeAssetIds.add(node.metadata.assetId);
+            }
+        }
+        const assetsToRemove = currentAssets.filter((asset) => {
+            const canvasId = asset.metadata?.canvasId as string | undefined;
+            const source = asset.metadata?.source as string | undefined;
+            return canvasId && projectIds.includes(canvasId) && source === "canvas-generation" && !activeAssetIds.has(asset.id);
+        });
+        for (const asset of assetsToRemove) {
+            if (activeRemoteUserId) {
+                try {
+                    await deleteRemoteAsset(asset.id);
+                    acknowledgedAssets.delete(asset.id);
+                } catch {
+                    // 忽略远端删除失败，继续本地清理
+                }
+            }
+            await useAssetStore.getState().removeAsset(asset.id);
+        }
+        if (assetsToRemove.length > 0) {
+            await flushAssetStorePersistence();
+        }
     });
 }
 
