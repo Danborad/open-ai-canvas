@@ -50,8 +50,7 @@ export async function executeImageGeneration({
     const count = getGenerationCount(generationConfig.count);
     const isConfigNode = sourceNode?.type === CanvasNodeType.Config;
     const isImageNode = sourceNode?.type === CanvasNodeType.Image;
-    const isCopiedVariant = isImageNode && Boolean(sourceNode?.metadata?.copiedFromNodeId || sourceNode?.metadata?.versionOfNodeId || sourceNode?.title.endsWith(" Copy") || sourceNode?.title.includes(" · "));
-    const reuseSourceNode = canGenerateImageInPlace(sourceNode) || isCopiedVariant;
+    const reuseSourceNode = canGenerateImageInPlace(sourceNode);
     // 已有图片生成新结果并保留旧版本；参考图只来自入边，避免把旧结果误当成自身输入。
     const referenceImages = generationContext.referenceImages;
     const generationType = referenceImages.length ? ("edit" as const) : ("generation" as const);

@@ -44,17 +44,19 @@ function resolveCollisions(nodes: CanvasNodeData[], preferred: Position, groupSi
     for (let attempt = 0; attempt <= nodes.length; attempt += 1) {
         const collisions = nodes.filter((node) => rectanglesOverlap(candidate, groupSize, node.position, node));
         if (!collisions.length) return candidate;
-        if (direction === "down") candidate.y = Math.max(...collisions.map((node) => node.position.y + node.height + NODE_CLEARANCE));
-        else candidate.x = Math.max(...collisions.map((node) => node.position.x + node.width + NODE_CLEARANCE));
+        if (direction === "down") candidate.y = Math.max(...collisions.map((node) => node.position.y + (Number(node.height) || 400) + NODE_CLEARANCE));
+        else candidate.x = Math.max(...collisions.map((node) => node.position.x + (Number(node.width) || 720) + NODE_CLEARANCE));
     }
     return candidate;
 }
 
-function rectanglesOverlap(firstPosition: Position, firstSize: Size, secondPosition: Position, secondSize: Size) {
+function rectanglesOverlap(firstPosition: Position, firstSize: Size, secondPosition: Position, secondSize: { width?: number; height?: number }) {
+    const secondWidth = Number(secondSize.width) || 720;
+    const secondHeight = Number(secondSize.height) || 400;
     return !(
         firstPosition.x + firstSize.width + NODE_CLEARANCE <= secondPosition.x ||
-        firstPosition.x >= secondPosition.x + secondSize.width + NODE_CLEARANCE ||
+        firstPosition.x >= secondPosition.x + secondWidth + NODE_CLEARANCE ||
         firstPosition.y + firstSize.height + NODE_CLEARANCE <= secondPosition.y ||
-        firstPosition.y >= secondPosition.y + secondSize.height + NODE_CLEARANCE
+        firstPosition.y >= secondPosition.y + secondHeight + NODE_CLEARANCE
     );
 }
