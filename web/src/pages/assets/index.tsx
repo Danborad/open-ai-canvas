@@ -107,8 +107,8 @@ export default function AssetsPage() {
     const trashAssets = useMemo(() => allLibraryAssets.filter((asset) => asset.status === "archived"), [allLibraryAssets]);
     const validAssets = viewMode === "trash" ? trashAssets : activeAssets;
     const selectedAssets = useMemo(() => validAssets.filter((asset) => selectedIds.includes(asset.id)), [selectedIds, validAssets]);
-    const kindCounts = useMemo(() => new Map(kindOptions.map((option) => [option.value, option.value === "all" ? validAssets.length : validAssets.filter((asset) => asset.kind === option.value).length])), [validAssets]);
-    const categoryCounts = useMemo(() => new Map(categoryOptions.map((option) => [option.value, option.value === "all" ? validAssets.length : validAssets.filter((asset) => (asset.category || "other") === option.value).length])), [validAssets]);
+    const kindCounts = useMemo(() => new Map(kindOptions.map((option) => [option.value, option.value === "all" ? activeAssets.length : activeAssets.filter((asset) => asset.kind === option.value).length])), [activeAssets]);
+    const categoryCounts = useMemo(() => new Map(categoryOptions.map((option) => [option.value, option.value === "all" ? activeAssets.length : activeAssets.filter((asset) => (asset.category || "other") === option.value).length])), [activeAssets]);
     const canCreateAsset = viewMode === "library" && !keyword.trim() && kindFilter === "all" && categoryFilter === "all";
 
     const filteredAssets = useMemo(() => {
@@ -427,8 +427,29 @@ export default function AssetsPage() {
             <div className="canvas-library-frame assets-library-frame">
                 <div className="grid min-h-0 gap-4 lg:grid-cols-[176px_minmax(0,1fr)]">
                     <aside className="thin-scrollbar flex gap-2 overflow-x-auto py-3 lg:sticky lg:top-0 lg:block lg:max-h-[calc(100vh-150px)] lg:overflow-y-auto lg:pr-3">
-                        <AssetFilterGroup title="素材类型" options={kindOptions} value={kindFilter} counts={kindCounts} onChange={(value) => { if (viewMode === "trash") setViewMode("library"); setKindFilter(value as AssetKind | "all"); setPage(1); }} />
-                        <AssetFilterGroup title="业务分类" options={categoryOptions} value={categoryFilter} counts={categoryCounts} onChange={(value) => { if (viewMode === "trash") setViewMode("library"); setCategoryFilter(value as AssetCategory | "all"); setPage(1); }} className="lg:mt-5" />
+                        <AssetFilterGroup
+                            title="素材类型"
+                            options={kindOptions}
+                            value={viewMode === "library" ? kindFilter : ""}
+                            counts={kindCounts}
+                            onChange={(value) => {
+                                setViewMode("library");
+                                setKindFilter(value as AssetKind | "all");
+                                setPage(1);
+                            }}
+                        />
+                        <AssetFilterGroup
+                            title="业务分类"
+                            options={categoryOptions}
+                            value={viewMode === "library" ? categoryFilter : ""}
+                            counts={categoryCounts}
+                            onChange={(value) => {
+                                setViewMode("library");
+                                setCategoryFilter(value as AssetCategory | "all");
+                                setPage(1);
+                            }}
+                            className="lg:mt-5"
+                        />
                         <div className="mt-6 border-t border-border/40 pt-3">
                             <div className="mb-1.5 px-1 text-[var(--fs-tiny)] font-semibold uppercase tracking-[0.08em] text-foreground/38">垃圾箱与归档</div>
                             <button
@@ -436,7 +457,7 @@ export default function AssetsPage() {
                                 aria-pressed={viewMode === "trash"}
                                 className={cn(
                                     "assets-filter-item w-full transition-colors",
-                                    viewMode === "trash" ? "is-active !bg-amber-500/10 !text-amber-600 dark:!text-amber-400 font-medium" : "text-foreground/65 hover:text-foreground"
+                                    viewMode === "trash" ? "is-active !bg-amber-500/15 !text-amber-600 dark:!text-amber-400 font-semibold shadow-sm" : "text-foreground/65 hover:text-foreground"
                                 )}
                                 onClick={() => {
                                     if (viewMode === "trash") {
