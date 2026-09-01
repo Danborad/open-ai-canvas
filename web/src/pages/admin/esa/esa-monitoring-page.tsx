@@ -83,9 +83,13 @@ export default function ESAMonitoringPage() {
     // 手动刷新
     const handleRefresh = async () => {
         try {
-            await getESAOverview(timeRange, selectedSite, true);
+            const res = await getESAOverview(timeRange, selectedSite, true);
             await queryClient.invalidateQueries({ queryKey: ["admin", "esa", "overview", timeRange, selectedSite] });
-            message.success("数据已刷新");
+            if (res.error) {
+                message.warning("数据更新异常，已显示最后缓存或默认数据");
+            } else {
+                message.success("数据已刷新");
+            }
         } catch (err) {
             message.error(err instanceof Error ? err.message : "刷新失败");
         }
@@ -229,8 +233,8 @@ export default function ESAMonitoringPage() {
                         {/* 状态信息行 */}
                         <div className="flex items-center justify-between text-xs text-foreground/50 px-1">
                             <div className="flex items-center gap-2">
-                                <span className="inline-block size-2 rounded-full bg-emerald-500 animate-pulse" />
-                                <span>监控运行中（每 5 分钟自动更新）</span>
+                                <span className={cn("inline-block size-2 rounded-full", overview?.error ? "bg-amber-500" : "bg-emerald-500 animate-pulse")} />
+                                <span>{overview?.error ? "数据拉取异常（已展示当前缓存）" : "监控运行中（每 5 分钟自动更新）"}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <Clock3 className="size-3.5" />
