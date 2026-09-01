@@ -144,7 +144,7 @@ export async function deleteCanvasProjectsWithRemoteSync(ids: string[]) {
             // 批量删除允许部分成功；每个已成功远端删除的实体都立即落实到本地 durable cache。
             await flushCanvasStorePersistence();
         }
-        // 将属于被删除画布的自动生成素材标记为已归档/回收站 (status = "archived")
+        // 将属于被删除画布的所有媒体节点安全归档至素材库回收站 (status = "archived")
         const currentAssets = useAssetStore.getState().assets;
         const remainingProjects = useCanvasStore.getState().projects;
         const activeAssetIds = new Set<string>();
@@ -153,14 +153,110 @@ export async function deleteCanvasProjectsWithRemoteSync(ids: string[]) {
                 if (node.metadata?.assetId) activeAssetIds.add(node.metadata.assetId);
             }
         }
+        let assetChanged = false;
+        // 1. 已存在的关联素材标记为 archived
         const assetsToArchive = currentAssets.filter((asset) => {
             const canvasId = asset.metadata?.canvasId as string | undefined;
             return canvasId && projectIds.includes(canvasId) && !activeAssetIds.has(asset.id) && asset.status !== "archived";
         });
         for (const asset of assetsToArchive) {
             useAssetStore.getState().updateAsset(asset.id, { status: "archived" });
+            assetChanged = true;
         }
-        if (assetsToArchive.length > 0) {
+
+        // 2. 对于画布中尚未入库的媒体节点，直接归档为回收站素材
+        for (const project of deletedProjectObjects) {
+            for (const node of project.nodes || []) {
+                const isMedia = node.type === "image" || node.type === "video" || node.type === "audio";
+                const content = typeof node.metadata?.content === "string" ? node.metadata.content : "";
+                const storageKey = typeof node.metadata?.storageKey === "string" ? node.metadata.storageKey : undefined;
+                if (!isMedia || (!content && !storageKey)) continue;
+
+                const existingAsset = node.metadata?.assetId ? currentAssets.find((a) => a.id === node.metadata?.assetId) : undefined;
+                if (existingAsset) {
+                    if (existingAsset.status !== "archived") {
+                        useAssetStore.getState().updateAsset(existingAsset.id, { status: "archived" });
+                        assetChanged = true;
+                    }
+                    continue;
+                }
+
+                const title = node.title || `${project.title} - ${node.type === "image" ? "图片" : node.type === "video" ? "视频" : "音频"}`;
+                const prompt = typeof node.metadata?.prompt === "string" ? node.metadata.prompt : "";
+                if (node.type === "image") {
+                    useAssetStore.getState().addAsset({
+                        kind: "image",
+                        title,
+                        coverUrl: content || "",
+                        tags: prompt ? [prompt.slice(0, 16)] : ["画布生成"],
+                        category: "other",
+                        status: "archived",
+                        source: `已删除画布：${project.title}`,
+                        data: {
+                            dataUrl: content || "",
+                            storageKey,
+                            width: Number(node.width) || 1024,
+                            height: Number(node.height) || 1024,
+                            bytes: Number(node.metadata?.bytes) || 0,
+                            mimeType: (node.metadata?.mimeType as string) || "image/png",
+                        },
+                        metadata: {
+                            canvasId: project.id,
+                            sourceNodeId: node.id,
+                        },
+                    });
+                    assetChanged = true;
+                } else if (node.type === "video") {
+                    useAssetStore.getState().addAsset({
+                        kind: "video",
+                        title,
+                        coverUrl: content || "",
+                        tags: prompt ? [prompt.slice(0, 16)] : ["画布视频"],
+                        category: "other",
+                        status: "archived",
+                        source: `已删除画布：${project.title}`,
+                        data: {
+                            url: content || "",
+                            storageKey,
+                            width: Number(node.width) || 1280,
+                            height: Number(node.height) || 720,
+                            durationMs: Number(node.metadata?.durationMs) || 0,
+                            bytes: Number(node.metadata?.bytes) || 0,
+                            mimeType: (node.metadata?.mimeType as string) || "video/mp4",
+                        },
+                        metadata: {
+                            canvasId: project.id,
+                            sourceNodeId: node.id,
+                        },
+                    });
+                    assetChanged = true;
+                } else if (node.type === "audio") {
+                    useAssetStore.getState().addAsset({
+                        kind: "audio",
+                        title,
+                        coverUrl: "",
+                        tags: ["画布音频"],
+                        category: "other",
+                        status: "archived",
+                        source: `已删除画布：${project.title}`,
+                        data: {
+                            url: content || "",
+                            storageKey,
+                            durationMs: Number(node.metadata?.durationMs) || 0,
+                            bytes: Number(node.metadata?.bytes) || 0,
+                            mimeType: (node.metadata?.mimeType as string) || "audio/mpeg",
+                        },
+                        metadata: {
+                            canvasId: project.id,
+                            sourceNodeId: node.id,
+                        },
+                    });
+                    assetChanged = true;
+                }
+            }
+        }
+
+        if (assetChanged) {
             await flushAssetStorePersistence();
             await saveRemoteUserDataNow();
         }
