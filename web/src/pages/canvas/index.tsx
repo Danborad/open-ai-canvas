@@ -13,6 +13,7 @@ import { setImageBlob } from "@/services/image-storage";
 import { CanvasCreateCard } from "@/components/canvas/canvas-project-card";
 import { CanvasFolderCard } from "@/components/canvas/canvas-folder-card";
 import type { CanvasExportFile } from "@/types/canvas-export";
+import type { CanvasNodeData } from "@/types/canvas";
 import { flushCanvasStorePersistence, useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useCanvasUiStore } from "@/stores/canvas/use-canvas-ui-store";
 import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
@@ -106,24 +107,40 @@ export default function CanvasPage() {
             const projectFile = zip.get("projects.json");
             if (!projectFile) throw new Error("missing projects.json");
             const data = JSON.parse(await projectFile.text()) as CanvasExportFile;
+            const storageKeyUrlMap = new Map<string, string>();
             await Promise.all(
                 data.projects.flatMap((project) =>
                     project.files.map(async (item) => {
                         const blob = zip.get(item.path);
                         if (!blob) return;
                         const typedBlob = blob.type ? blob : blob.slice(0, blob.size, item.mimeType);
-                        await (item.storageKey.startsWith("image:") ? setImageBlob(item.storageKey, typedBlob) : setMediaBlob(item.storageKey, typedBlob));
+                        const url = await (item.storageKey.startsWith("image:") ? setImageBlob(item.storageKey, typedBlob) : setMediaBlob(item.storageKey, typedBlob));
+                        if (url) storageKeyUrlMap.set(item.storageKey, url);
                     }),
                 ),
             );
             await Promise.all(
                 data.projects.map(async (item) => {
                     const drawingEngineById = new Map((item.drawingDocuments || []).map((document) => [document.drawingId, document.engine || "tldraw"]));
+                    const remapNodeUrls = (node: CanvasNodeData): CanvasNodeData => {
+                        const storageKey = node.metadata?.storageKey;
+                        const newUrl = storageKey ? storageKeyUrlMap.get(storageKey) : undefined;
+                        const isDeadBlob = (val?: string) => typeof val === "string" && val.startsWith("blob:");
+                        const content = newUrl || (isDeadBlob(node.metadata?.content) ? "" : node.metadata?.content);
+                        const previewContent = newUrl || (isDeadBlob(node.metadata?.previewContent) ? "" : node.metadata?.previewContent);
+                        return {
+                            ...node,
+                            metadata: {
+                                ...node.metadata,
+                                ...(content !== undefined ? { content } : {}),
+                                ...(previewContent !== undefined ? { previewContent } : {}),
+                                drawingEngine: node.type === "drawing" && node.metadata?.drawingId ? drawingEngineById.get(node.metadata.drawingId) || node.metadata.drawingEngine || "tldraw" : node.metadata?.drawingEngine,
+                            },
+                        };
+                    };
                     const importedProjectId = importProject({
                         ...item.project,
-                        nodes: item.project.nodes.map((node) =>
-                            node.type === "drawing" && node.metadata?.drawingId ? { ...node, metadata: { ...node.metadata, drawingEngine: drawingEngineById.get(node.metadata.drawingId) || node.metadata.drawingEngine || "tldraw" } } : node,
-                        ),
+                        nodes: item.project.nodes.map(remapNodeUrls),
                     });
                     await Promise.all(
                         (item.drawingDocuments || []).map((document) => {

@@ -140,7 +140,8 @@ export function ProjectPreview({ project, preferLatestImage = false, isBlurred }
         .flatMap((node) => {
             if (node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video) return [];
             const url = getNodeMediaUrl(node);
-            return isPreviewUrl(url) ? [{ node, url, storageKey: node.metadata?.storageKey }] : [];
+            const storageKey = node.metadata?.storageKey;
+            return isPreviewUrl(url) || Boolean(storageKey) ? [{ node, url, storageKey }] : [];
         });
     const imageNodes = mediaNodes.filter(({ node }) => node.type === CanvasNodeType.Image);
     const media = preferLatestImage
