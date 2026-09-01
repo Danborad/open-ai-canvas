@@ -35,6 +35,7 @@ const resourceFields: PolicyField[] = [
     { group: "resource", name: "sessionCount", label: "Agent 会话数量", extra: "单账号可保存的 Agent 会话数量。", unit: "个", max: 999_999_999 },
     { group: "resource", name: "taskCount", label: "任务历史数量", extra: "单账号保留的任务历史记录数。", unit: "条", max: 999_999_999 },
     { group: "resource", name: "apiCallLogCount", label: "请求日志数量", extra: "单账号保留的上游请求日志数。", unit: "条", max: 999_999_999 },
+    { group: "resource", name: "recycleBinRetentionDays", label: "回收站自动清理时间", extra: "素材移入回收站后自动彻底删除的天数，0 表示不自动清理。", unit: "天", max: 365 },
 ];
 
 const concurrencyFields: PolicyField[] = [

@@ -137,7 +137,7 @@ export async function deleteCanvasProjectsWithRemoteSync(ids: string[]) {
             // 批量删除允许部分成功；每个已成功远端删除的实体都立即落实到本地 durable cache。
             await flushCanvasStorePersistence();
         }
-        // 清理仅属于被删除画布的自动生成素材
+        // 将属于被删除画布的自动生成素材标记为已归档/回收站 (status = "archived")
         const currentAssets = useAssetStore.getState().assets;
         const remainingProjects = useCanvasStore.getState().projects;
         const activeAssetIds = new Set<string>();
@@ -146,24 +146,17 @@ export async function deleteCanvasProjectsWithRemoteSync(ids: string[]) {
                 if (node.metadata?.assetId) activeAssetIds.add(node.metadata.assetId);
             }
         }
-        const assetsToRemove = currentAssets.filter((asset) => {
+        const assetsToArchive = currentAssets.filter((asset) => {
             const canvasId = asset.metadata?.canvasId as string | undefined;
             const source = asset.metadata?.source as string | undefined;
-            return canvasId && projectIds.includes(canvasId) && source === "canvas-generation" && !activeAssetIds.has(asset.id);
+            return canvasId && projectIds.includes(canvasId) && source === "canvas-generation" && !activeAssetIds.has(asset.id) && asset.status !== "archived";
         });
-        for (const asset of assetsToRemove) {
-            if (activeRemoteUserId) {
-                try {
-                    await deleteRemoteAsset(asset.id);
-                    acknowledgedAssets.delete(asset.id);
-                } catch {
-                    // 忽略远端删除失败，继续本地清理
-                }
-            }
-            await useAssetStore.getState().removeAsset(asset.id);
+        for (const asset of assetsToArchive) {
+            useAssetStore.getState().updateAsset(asset.id, { status: "archived" });
         }
-        if (assetsToRemove.length > 0) {
+        if (assetsToArchive.length > 0) {
             await flushAssetStorePersistence();
+            await saveRemoteUserDataNow();
         }
     });
 }

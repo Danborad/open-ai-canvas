@@ -122,7 +122,7 @@ export function useCanvasRenderModel({
         return [...frames, ...regular];
     }, [dragPreview, nodes, renderBounds, renderHiddenNodeIds, selectedNodeIds]);
 
-    const imageAssets = useMemo(() => assets.filter((asset): asset is ImageAsset => asset.kind === "image"), [assets]);
+    const imageAssets = useMemo(() => assets.filter((asset): asset is ImageAsset => asset.kind === "image" && asset.status !== "archived"), [assets]);
     const canvasImageNodes = useMemo(() => nodes.filter((node) => node.type === CanvasNodeType.Image && Boolean(node.metadata?.content) && !collapsedBatchChildIds.has(node.id) && !(node.parentId && nodeById.get(node.parentId)?.metadata?.frame?.collapsed)), [collapsedBatchChildIds, nodeById, nodes]);
     const semanticNodesRef = useRef(nodes);
     const semanticNodes = useMemo(() => {

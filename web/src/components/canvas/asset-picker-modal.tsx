@@ -22,7 +22,7 @@ type Props = {
     onClose: () => void;
 };
 
-const categoryLabels: Record<string, string> = { all: "全部素材", ...ASSET_CATEGORY_LABELS };
+const categoryLabels: Record<string, string> = { all: "全部素材", ...ASSET_CATEGORY_LABELS, archived: "回收站" };
 
 export function AssetPickerModal({ open, multiple = true, onInsert, onClose }: Props) {
     const assets = useAssetStore((state) => state.assets);
@@ -32,7 +32,7 @@ export function AssetPickerModal({ open, multiple = true, onInsert, onClose }: P
         ...insertableAssets.map((asset) => ({
             id: asset.id,
             title: asset.title,
-            category: normalizeAssetCategory(asset.category),
+            category: asset.status === "archived" ? "archived" : normalizeAssetCategory(asset.category),
             kindLabel: asset.kind === "image" ? "图片" : asset.kind === "video" ? "视频" : asset.kind === "audio" ? "音频" : "文本",
             asset,
             searchText: (asset.tags || []).join(" "),
