@@ -258,7 +258,13 @@ export async function deleteCanvasProjectsWithRemoteSync(ids: string[]) {
 
         if (assetChanged) {
             await flushAssetStorePersistence();
-            await saveRemoteUserDataNow();
+            if (activeRemoteUserId) {
+                try {
+                    await drainRemoteUserDataChanges();
+                } catch (syncErr) {
+                    console.warn("回收站素材云端同步警告:", syncErr);
+                }
+            }
         }
     });
 }
