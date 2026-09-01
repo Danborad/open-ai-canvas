@@ -6,6 +6,7 @@ import type { Asset } from "@/stores/use-asset-store";
 import { flushAssetStorePersistence, useAssetStore } from "@/stores/use-asset-store";
 import type { CanvasProject } from "@/stores/canvas/use-canvas-store";
 import { flushCanvasStorePersistence, useCanvasStore } from "@/stores/canvas/use-canvas-store";
+import { useSyncProgressStore } from "@/stores/use-sync-progress-store";
 
 let activeRemoteUserId = "";
 type RemoteUserDataPhase = "inactive" | "hydrating" | "ready" | "failed";
@@ -179,9 +180,34 @@ async function saveRemoteUserDataBatch() {
     // 转换后的 resource: 引用只属于发往服务端的 payload，不能反写整份实时 store。
     // 已确认快照记录的是本次上传所依据的本地实体；上传期间的新编辑会在下一轮继续提交。
     for (const source of dirtyProjects) {
-        const remotePayload = await ensureRemoteResourceReferences(source, uploaded);
+        const keysToUpload = collectLocalMediaKeys(source);
+        const total = keysToUpload.length;
+        if (total > 0) {
+            useSyncProgressStore.getState().setProjectProgress(source.id, {
+                projectId: source.id,
+                total,
+                completed: 0,
+                phase: "uploading",
+                message: "正在同步媒体至云端",
+            });
+        }
+        const onMediaUploaded = () => {
+            if (total > 0) {
+                useSyncProgressStore.getState().incrementProjectCompleted(source.id);
+            }
+        };
+        const remotePayload = await ensureRemoteResourceReferences(source, uploaded, onMediaUploaded);
+        if (total > 0) {
+            useSyncProgressStore.getState().setProjectProgress(source.id, {
+                phase: "saving",
+                message: "正在保存画布结构",
+            });
+        }
         await upsertRemoteCanvasProject(remotePayload);
         acknowledgedProjects.set(source.id, source);
+        if (total > 0) {
+            useSyncProgressStore.getState().setProjectProgress(source.id, null);
+        }
     }
     for (const source of dirtyAssets) {
         const remotePayload = await ensureRemoteResourceReferences(source, uploaded);
@@ -198,17 +224,41 @@ async function saveRemoteUserDataBatch() {
     }
 }
 
-async function ensureRemoteResourceReferences<T>(value: T, uploaded = new Map<string, string>()): Promise<T> {
+function collectLocalMediaKeys(value: unknown, set = new Set<string>()): string[] {
+    if (!value || typeof value !== "object") return [...set];
+    if (Array.isArray(value)) {
+        for (const item of value) collectLocalMediaKeys(item, set);
+        return [...set];
+    }
+    const record = value as Record<string, unknown>;
+    const storageKey = typeof record.storageKey === "string" ? record.storageKey : "";
+    if (isLocalStorageKey(storageKey) && !resourceIdFromStorageKey(storageKey)) {
+        set.add(storageKey);
+    } else {
+        const inline = inlineMediaDataUrl(record);
+        if (inline) set.add(inline.slice(0, 48));
+    }
+    for (const child of Object.values(record)) {
+        collectLocalMediaKeys(child, set);
+    }
+    return [...set];
+}
+
+async function ensureRemoteResourceReferences<T>(
+    value: T,
+    uploaded = new Map<string, string>(),
+    onUploaded?: () => void,
+): Promise<T> {
     if (!value || typeof value !== "object") return value;
     if (Array.isArray(value)) {
         const result: unknown[] = [];
-        for (const item of value) result.push(await ensureRemoteResourceReferences(item, uploaded));
+        for (const item of value) result.push(await ensureRemoteResourceReferences(item, uploaded, onUploaded));
         return result as T;
     }
 
     const next: Record<string, unknown> = {};
     for (const [key, child] of Object.entries(value)) {
-        next[key] = await ensureRemoteResourceReferences(child, uploaded);
+        next[key] = await ensureRemoteResourceReferences(child, uploaded, onUploaded);
     }
 
     const storageKey = typeof next.storageKey === "string" ? next.storageKey : "";
@@ -220,7 +270,10 @@ async function ensureRemoteResourceReferences<T>(value: T, uploaded = new Map<st
         if (!inline) return next as T;
         try {
             const resourceStorage = await uploadInlineDataUrl(inline);
-            if (resourceStorage) return applyResourceReference(next, resourceStorage) as T;
+            if (resourceStorage) {
+                onUploaded?.();
+                return applyResourceReference(next, resourceStorage) as T;
+            }
         } catch (error) {
             console.warn("内嵌媒体上传失败，保留原内容", error);
         }
@@ -234,6 +287,7 @@ async function ensureRemoteResourceReferences<T>(value: T, uploaded = new Map<st
             resourceStorage = await uploadLocalStorageKey(storageKey, next);
             if (resourceStorage) {
                 uploaded.set(storageKey, resourceStorage);
+                onUploaded?.();
             }
         } catch (error) {
             console.warn(`[Sync] 本地媒体转换失败，保留节点原引用: ${storageKey}`, error);

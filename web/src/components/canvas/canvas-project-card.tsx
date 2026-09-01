@@ -1,4 +1,4 @@
-import { Check, Clapperboard, Download, Eye, EyeOff, FileText, Frame, Image as ImageIcon, MoreHorizontal, Music2, Pencil, Plus, Settings2, Sparkles, Trash2, Video, X } from "lucide-react";
+import { Check, Clapperboard, CloudUpload, Download, Eye, EyeOff, FileText, Frame, Image as ImageIcon, MoreHorizontal, Music2, Pencil, Plus, Settings2, Sparkles, Trash2, Video, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Dropdown, Input } from "antd";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { usePluginStore } from "@/stores/use-plugin-store";
 import { CANVAS_COVER_BLUR_PLUGIN_ID } from "@/lib/plugins/builtin/canvas-cover-blur";
 import { useCanvasPrivacyStore } from "@/stores/use-canvas-privacy-store";
+import { useSyncProgressStore } from "@/stores/use-sync-progress-store";
 
 export function CanvasCreateCard({ disabled, onClick }: { disabled?: boolean; onClick: () => void }) {
     return <button type="button" className="app-canvas-create-card" disabled={disabled} onClick={onClick}>
@@ -124,7 +125,11 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
                         </div>
                     ) : null}
                 </div>
-                <div className="canvas-project-stats"><span>{projectName || "自由画布"}</span><span aria-hidden="true">·</span><time dateTime={project.updatedAt}>{formatProjectTime(project.updatedAt)}</time></div>
+                <div className="canvas-project-stats">
+                    <span>{projectName || "自由画布"}</span>
+                    <span aria-hidden="true">·</span>
+                    <time dateTime={project.updatedAt}>{formatProjectTime(project.updatedAt)}</time>
+                </div>
                 {footer ? <div className="canvas-project-card-footer" onClick={(event) => event.stopPropagation()}>{footer}</div> : null}
             </div>
         </article>
@@ -132,6 +137,8 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
 }
 
 export function ProjectPreview({ project, preferLatestImage = false, isBlurred }: { project: CanvasProject; preferLatestImage?: boolean; isBlurred?: boolean }) {
+    const syncProgress = useSyncProgressStore((state) => state.syncingProjects[project.id]);
+    const isSyncing = Boolean(syncProgress && (syncProgress.phase === "uploading" || syncProgress.phase === "saving"));
     const coverBlurPluginEnabled = usePluginStore((state) =>
         state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled)
     );
@@ -147,23 +154,18 @@ export function ProjectPreview({ project, preferLatestImage = false, isBlurred }
     const media = preferLatestImage
         ? imageNodes[imageNodes.length - 1] || mediaNodes[mediaNodes.length - 1]
         : imageNodes[0] || mediaNodes[0];
-    if (media) {
-        const { node, url, storageKey } = media;
-        return (
-            <div className={cn("canvas-project-media size-full", shouldBlur && "canvas-cover-privacy-blur is-blurred")}>
-                {node.type === CanvasNodeType.Video
-                    ? <div className="canvas-project-video size-full"><Video className="size-8" aria-label={node.title || "项目视频"} /></div>
-                    : <CachedResourceImage storageKey={storageKey} src={url} alt={node.title || "项目图片"} loading="lazy" decoding="async" className="size-full min-h-0 object-cover" />}
-            </div>
-        );
-    }
-    const nodes = project.nodes.slice(0, 8);
-    if (!nodes.length) return <div className="canvas-project-empty size-full"><Plus className="canvas-project-empty-icon" /><span>空白画布</span><small>等待第一幕</small></div>;
-    const previewNodes = buildNodePreviewLayout(nodes);
 
-    return (
+    const content = media ? (
+        <div className={cn("canvas-project-media size-full", shouldBlur && "canvas-cover-privacy-blur is-blurred")}>
+            {media.node.type === CanvasNodeType.Video
+                ? <div className="canvas-project-video size-full"><Video className="size-8" aria-label={media.node.title || "项目视频"} /></div>
+                : <CachedResourceImage storageKey={media.storageKey} src={media.url} alt={media.node.title || "项目图片"} loading="lazy" decoding="async" className="size-full min-h-0 object-cover" />}
+        </div>
+    ) : !project.nodes.length ? (
+        <div className="canvas-project-empty size-full"><Plus className="canvas-project-empty-icon" /><span>空白画布</span><small>等待第一幕</small></div>
+    ) : (
         <div className={cn("canvas-project-preview-canvas relative size-full overflow-hidden", shouldBlur && "canvas-cover-privacy-blur is-blurred")}>
-            {previewNodes.map(({ node, style }) => {
+            {buildNodePreviewLayout(project.nodes.slice(0, 8)).map(({ node, style }) => {
                 const presentation = getNodePresentation(node);
                 return (
                     <span key={node.id} className="canvas-project-preview-node absolute flex min-w-0 items-center gap-1.5 overflow-hidden" style={style}>
@@ -172,6 +174,46 @@ export function ProjectPreview({ project, preferLatestImage = false, isBlurred }
                     </span>
                 );
             })}
+        </div>
+    );
+
+    return (
+        <div className="relative size-full overflow-hidden">
+            {content}
+            {isSyncing && syncProgress ? (
+                <div
+                    className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-stone-950/75 p-3 text-center backdrop-blur-sm transition-all duration-300 pointer-events-none select-none"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="flex items-center gap-1.5 text-amber-400">
+                        <CloudUpload className="size-4 animate-bounce" />
+                        <span className="text-xs font-medium tracking-wide">云端同步中</span>
+                    </div>
+                    <div className="w-full max-w-[150px] space-y-1">
+                        {syncProgress.total > 0 ? (
+                            <>
+                                <div className="flex items-center justify-between text-[10px] text-white/80">
+                                    <span>媒体上传</span>
+                                    <span className="font-mono text-amber-300">
+                                        {syncProgress.completed}/{syncProgress.total}
+                                    </span>
+                                </div>
+                                <div className="h-1 w-full overflow-hidden rounded-full bg-white/20">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-amber-400 to-orange-400 transition-all duration-200"
+                                        style={{
+                                            width: `${Math.max(8, Math.round((syncProgress.completed / syncProgress.total) * 100))}%`,
+                                        }}
+                                    />
+                                </div>
+                            </>
+                        ) : (
+                            <div className="text-[10px] text-white/80">正在写入云端结构...</div>
+                        )}
+                        <div className="text-[9px] text-white/60">请勿关闭或刷新浏览器</div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }
