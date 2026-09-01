@@ -2,6 +2,7 @@ import { Check, Clapperboard, CloudUpload, Download, Eye, EyeOff, FileText, Fram
 import type { ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Dropdown, Input } from "antd";
+import { useQuery } from "@tanstack/react-query";
 
 import { useCanvasStore, type CanvasProject } from "@/stores/canvas/use-canvas-store";
 import { useCanvasUiStore } from "@/stores/canvas/use-canvas-ui-store";
@@ -13,15 +14,22 @@ import { CachedResourceImage } from "@/components/cached-resource-image";
 import { cn } from "@/lib/utils";
 import { usePluginStore } from "@/stores/use-plugin-store";
 import { CANVAS_COVER_BLUR_PLUGIN_ID } from "@/lib/plugins/builtin/canvas-cover-blur";
+import { CANVAS_STATS_PLUGIN_ID } from "@/lib/plugins/builtin/canvas-stats";
 import { useCanvasPrivacyStore } from "@/stores/use-canvas-privacy-store";
 import { useSyncProgressStore } from "@/stores/use-sync-progress-store";
+import { getCanvasProjectStats } from "@/services/api/user-data";
+import { formatCredits } from "@/constant/credits";
 
 export function CanvasCreateCard({ disabled, onClick }: { disabled?: boolean; onClick: () => void }) {
-    return <button type="button" className="app-canvas-create-card" disabled={disabled} onClick={onClick}>
-        <span className="app-canvas-create-preview"><Plus className="app-canvas-create-icon" /></span>
-        <span className="app-canvas-create-title">新建画布</span>
-        <span className="app-canvas-create-meta">从空白开始</span>
-    </button>;
+    return (
+        <button type="button" className="app-canvas-create-card" disabled={disabled} onClick={onClick}>
+            <span className="app-canvas-create-preview">
+                <Plus className="app-canvas-create-icon" />
+            </span>
+            <span className="app-canvas-create-title">新建画布</span>
+            <span className="app-canvas-create-meta">从空白开始</span>
+        </button>
+    );
 }
 
 export function CanvasProjectCard({ project, projectName, variant = "library", readOnly = false, footer }: { project: CanvasProject; projectName?: string; variant?: "library" | "recent"; readOnly?: boolean; footer?: ReactNode }) {
@@ -36,9 +44,7 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
     const stopEditing = useCanvasUiStore((state) => state.stopEditingProject);
     const toggleSelected = useCanvasUiStore((state) => state.toggleSelectedProjectId);
     const setDeleteIds = useCanvasUiStore((state) => state.setDeleteProjectIds);
-    const coverBlurPluginEnabled = usePluginStore((state) =>
-        state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled)
-    );
+    const coverBlurPluginEnabled = usePluginStore((state) => state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled));
     const isBlurred = Boolean(project.coverBlurred ?? useCanvasPrivacyStore.getState().isProjectBlurred(project.id));
     const toggleProjectBlur = (projectId: string) => {
         const nextBlurred = !isBlurred;
@@ -47,6 +53,13 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
     };
     const editing = editingId === project.id;
     const selected = selectedIds.includes(project.id);
+    const statsEnabled = usePluginStore((state) => state.pluginStates[CANVAS_STATS_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_STATS_PLUGIN_ID)?.enabled));
+    const statsQuery = useQuery({
+        queryKey: ["canvas-project-stats", project.id],
+        queryFn: () => getCanvasProjectStats(project.id),
+        staleTime: 30_000,
+        enabled: statsEnabled,
+    });
     const open = () => navigate(`/canvas/${project.id}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`);
     const saveTitle = () => {
         renameProject(project.id, editingTitle);
@@ -67,7 +80,11 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
                 >
                     <ProjectPreview project={project} isBlurred={coverBlurPluginEnabled && isBlurred} />
                 </button>
-                {!compact && !readOnly ? <span className={`canvas-project-select ${selected ? "is-visible" : ""}`} onClick={(event) => event.stopPropagation()}><input type="checkbox" checked={selected} onChange={(event) => toggleSelected(project.id, event.target.checked)} className="app-canvas-project-checkbox" aria-label={`选择 ${project.title}`} /></span> : null}
+                {!compact && !readOnly ? (
+                    <span className={`canvas-project-select ${selected ? "is-visible" : ""}`} onClick={(event) => event.stopPropagation()}>
+                        <input type="checkbox" checked={selected} onChange={(event) => toggleSelected(project.id, event.target.checked)} className="app-canvas-project-checkbox" aria-label={`选择 ${project.title}`} />
+                    </span>
+                ) : null}
                 {coverBlurPluginEnabled ? (
                     <button
                         type="button"
@@ -82,13 +99,22 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
                         {isBlurred ? <EyeOff /> : <Eye />}
                     </button>
                 ) : null}
-                <div className="canvas-project-cover-meta" aria-hidden="true"><span className="canvas-project-node-count">{project.nodes.length} 节点</span></div>
+                <div className="canvas-project-cover-meta" aria-hidden="true">
+                    <span className="canvas-project-node-count">{project.nodes.length} 节点</span>
+                </div>
             </div>
 
             <div className={cn("app-canvas-project-body", compact ? "is-compact" : "")}>
                 <div className="canvas-project-heading-row">
                     {editing && !readOnly ? (
-                        <Input className="canvas-project-title-input" value={editingTitle} onClick={(event) => event.stopPropagation()} onChange={(event) => setEditingTitle(event.target.value)} onKeyDown={(event) => event.key === "Enter" && saveTitle()} autoFocus />
+                        <Input
+                            className="canvas-project-title-input"
+                            value={editingTitle}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => setEditingTitle(event.target.value)}
+                            onKeyDown={(event) => event.key === "Enter" && saveTitle()}
+                            autoFocus
+                        />
                     ) : (
                         <button
                             type="button"
@@ -103,12 +129,18 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
                     )}
                     {editing && !readOnly ? (
                         <div className="canvas-project-actions" onClick={(event) => event.stopPropagation()}>
-                            <button type="button" onClick={saveTitle} aria-label="保存名称"><Check className="size-3.5" /></button>
-                            <button type="button" onClick={stopEditing} aria-label="取消重命名"><X className="size-3.5" /></button>
+                            <button type="button" onClick={saveTitle} aria-label="保存名称">
+                                <Check className="size-3.5" />
+                            </button>
+                            <button type="button" onClick={stopEditing} aria-label="取消重命名">
+                                <X className="size-3.5" />
+                            </button>
                         </div>
                     ) : !readOnly ? (
                         <div className="canvas-project-actions" onClick={(event) => event.stopPropagation()}>
-                            <button type="button" onClick={() => startEditing(project.id, project.title)} aria-label={`重命名 ${project.title}`} title="重命名"><Pencil className="size-3.5" /></button>
+                            <button type="button" onClick={() => startEditing(project.id, project.title)} aria-label={`重命名 ${project.title}`} title="重命名">
+                                <Pencil className="size-3.5" />
+                            </button>
                             <Dropdown
                                 trigger={["click"]}
                                 menu={{
@@ -120,7 +152,9 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
                                     ],
                                 }}
                             >
-                                <button type="button" aria-label={`${project.title} 画布操作`} title="更多操作"><MoreHorizontal className="size-4" /></button>
+                                <button type="button" aria-label={`${project.title} 画布操作`} title="更多操作">
+                                    <MoreHorizontal className="size-4" />
+                                </button>
                             </Dropdown>
                         </div>
                     ) : null}
@@ -128,9 +162,25 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
                 <div className="canvas-project-stats">
                     <span>{projectName || "自由画布"}</span>
                     <span aria-hidden="true">·</span>
-                    <time dateTime={project.updatedAt}>{formatProjectTime(project.updatedAt)}</time>
+                    <span>{project.nodes.length} 节点</span>
+                    {statsEnabled && statsQuery.data && (statsQuery.data.imageCount > 0 || statsQuery.data.videoCount > 0) ? (
+                        <>
+                            <span aria-hidden="true">·</span>
+                            <span className="flex items-center gap-1 font-medium text-foreground/80">
+                                <ImageIcon className="size-3 text-foreground/45" /> {statsQuery.data.imageCount} · {formatCredits(statsQuery.data.imageCreditsMicros, 1)}分
+                            </span>
+                            <span aria-hidden="true">·</span>
+                            <span className="flex items-center gap-1 font-medium text-foreground/80">
+                                <Video className="size-3 text-foreground/45" /> {statsQuery.data.videoCount} · {formatCredits(statsQuery.data.videoCreditsMicros, 1)}分
+                            </span>
+                        </>
+                    ) : null}
                 </div>
-                {footer ? <div className="canvas-project-card-footer" onClick={(event) => event.stopPropagation()}>{footer}</div> : null}
+                {footer ? (
+                    <div className="canvas-project-card-footer" onClick={(event) => event.stopPropagation()}>
+                        {footer}
+                    </div>
+                ) : null}
             </div>
         </article>
     );
@@ -139,30 +189,33 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
 export function ProjectPreview({ project, preferLatestImage = false, isBlurred }: { project: CanvasProject; preferLatestImage?: boolean; isBlurred?: boolean }) {
     const syncProgress = useSyncProgressStore((state) => state.syncingProjects[project.id]);
     const isSyncing = Boolean(syncProgress && (syncProgress.phase === "uploading" || syncProgress.phase === "saving"));
-    const coverBlurPluginEnabled = usePluginStore((state) =>
-        state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled)
-    );
+    const coverBlurPluginEnabled = usePluginStore((state) => state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled));
     const shouldBlur = coverBlurPluginEnabled && (isBlurred !== undefined ? isBlurred : Boolean(project.coverBlurred ?? useCanvasPrivacyStore.getState().isProjectBlurred(project.id)));
-    const mediaNodes = project.nodes
-        .flatMap((node) => {
-            if (node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video) return [];
-            const url = getNodeMediaUrl(node);
-            const storageKey = node.metadata?.storageKey;
-            return isPreviewUrl(url) || Boolean(storageKey) ? [{ node, url, storageKey }] : [];
-        });
+    const mediaNodes = project.nodes.flatMap((node) => {
+        if (node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video) return [];
+        const url = getNodeMediaUrl(node);
+        const storageKey = node.metadata?.storageKey;
+        return isPreviewUrl(url) || Boolean(storageKey) ? [{ node, url, storageKey }] : [];
+    });
     const imageNodes = mediaNodes.filter(({ node }) => node.type === CanvasNodeType.Image);
-    const media = preferLatestImage
-        ? imageNodes[imageNodes.length - 1] || mediaNodes[mediaNodes.length - 1]
-        : imageNodes[0] || mediaNodes[0];
+    const media = preferLatestImage ? imageNodes[imageNodes.length - 1] || mediaNodes[mediaNodes.length - 1] : imageNodes[0] || mediaNodes[0];
 
     const content = media ? (
         <div className={cn("canvas-project-media size-full", shouldBlur && "canvas-cover-privacy-blur is-blurred")}>
-            {media.node.type === CanvasNodeType.Video
-                ? <div className="canvas-project-video size-full"><Video className="size-8" aria-label={media.node.title || "项目视频"} /></div>
-                : <CachedResourceImage storageKey={media.storageKey} src={media.url} alt={media.node.title || "项目图片"} loading="lazy" decoding="async" className="size-full min-h-0 object-cover" />}
+            {media.node.type === CanvasNodeType.Video ? (
+                <div className="canvas-project-video size-full">
+                    <Video className="size-8" aria-label={media.node.title || "项目视频"} />
+                </div>
+            ) : (
+                <CachedResourceImage storageKey={media.storageKey} src={media.url} alt={media.node.title || "项目图片"} loading="lazy" decoding="async" className="size-full min-h-0 object-cover" />
+            )}
         </div>
     ) : !project.nodes.length ? (
-        <div className="canvas-project-empty size-full"><Plus className="canvas-project-empty-icon" /><span>空白画布</span><small>等待第一幕</small></div>
+        <div className="canvas-project-empty size-full">
+            <Plus className="canvas-project-empty-icon" />
+            <span>空白画布</span>
+            <small>等待第一幕</small>
+        </div>
     ) : (
         <div className={cn("canvas-project-preview-canvas relative size-full overflow-hidden", shouldBlur && "canvas-cover-privacy-blur is-blurred")}>
             {buildNodePreviewLayout(project.nodes.slice(0, 8)).map(({ node, style }) => {
@@ -181,10 +234,7 @@ export function ProjectPreview({ project, preferLatestImage = false, isBlurred }
         <div className="relative size-full overflow-hidden">
             {content}
             {isSyncing && syncProgress ? (
-                <div
-                    className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-stone-950/75 p-3 text-center backdrop-blur-sm transition-all duration-300 pointer-events-none select-none"
-                    onClick={(e) => e.stopPropagation()}
-                >
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-stone-950/75 p-3 text-center backdrop-blur-sm transition-all duration-300 pointer-events-none select-none" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5 text-amber-400">
                         <CloudUpload className="size-4 animate-bounce" />
                         <span className="text-xs font-medium tracking-wide">云端同步中</span>
@@ -264,7 +314,7 @@ function getNodePresentation(node: CanvasNodeData) {
 }
 
 function isPreviewUrl(value?: string) {
-    return Boolean(value && (/^(https?:|blob:|data:image\/|data:video\/|\/api\/)/.test(value)));
+    return Boolean(value && /^(https?:|blob:|data:image\/|data:video\/|\/api\/)/.test(value));
 }
 
 export function formatProjectTime(value: string) {
