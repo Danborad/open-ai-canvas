@@ -32,9 +32,7 @@ export function CanvasFolderCard({ project, projectName, onClick }: CanvasFolder
     const stopEditing = useCanvasUiStore((state) => state.stopEditingProject);
     const toggleSelected = useCanvasUiStore((state) => state.toggleSelectedProjectId);
     const setDeleteIds = useCanvasUiStore((state) => state.setDeleteProjectIds);
-    const coverBlurPluginEnabled = usePluginStore((state) =>
-        state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled)
-    );
+    const coverBlurPluginEnabled = usePluginStore((state) => state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled));
     const isBlurred = Boolean(project.coverBlurred ?? useCanvasPrivacyStore.getState().isProjectBlurred(project.id));
     const toggleProjectBlur = (projectId: string) => {
         const nextBlurred = !isBlurred;
@@ -43,9 +41,7 @@ export function CanvasFolderCard({ project, projectName, onClick }: CanvasFolder
     };
     const editing = editingId === project.id;
     const selected = selectedIds.includes(project.id);
-    const statsEnabled = usePluginStore((state) =>
-        state.pluginStates[CANVAS_STATS_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_STATS_PLUGIN_ID)?.enabled)
-    );
+    const statsEnabled = usePluginStore((state) => state.pluginStates[CANVAS_STATS_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_STATS_PLUGIN_ID)?.enabled));
     const statsQuery = useQuery({
         queryKey: ["canvas-project-stats", project.id],
         queryFn: () => getCanvasProjectStats(project.id),
@@ -115,19 +111,20 @@ export function CanvasFolderCard({ project, projectName, onClick }: CanvasFolder
                         ) : null}
                     </div>
                     <div className="canvas-folder-dates">
-                        <span><small>创建时间</small><time dateTime={project.createdAt}>{formatCanvasDate(project.createdAt)}</time></span>
-                        <span><small>最后更新</small><time dateTime={project.updatedAt}>{formatCanvasDate(project.updatedAt)}</time></span>
+                        <span>
+                            <small>创建时间</small>
+                            <time dateTime={project.createdAt}>{formatCanvasDate(project.createdAt)}</time>
+                        </span>
+                        <span>
+                            <small>最后更新</small>
+                            <time dateTime={project.updatedAt}>{formatCanvasDate(project.updatedAt)}</time>
+                        </span>
                     </div>
                 </div>
             </div>
 
             <span className={cn("canvas-folder-select", selected && "is-visible")} onClick={(event) => event.stopPropagation()}>
-                <input
-                    type="checkbox"
-                    checked={selected}
-                    onChange={(event) => toggleSelected(project.id, event.target.checked)}
-                    aria-label={`选择 ${project.title}`}
-                />
+                <input type="checkbox" checked={selected} onChange={(event) => toggleSelected(project.id, event.target.checked)} aria-label={`选择 ${project.title}`} />
             </span>
 
             {coverBlurPluginEnabled ? (
