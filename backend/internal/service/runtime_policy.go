@@ -276,7 +276,7 @@ func (s *Service) readRuntimePolicy() (*model.SystemSetting, RuntimePolicySettin
 	if err != nil {
 		return nil, RuntimePolicySetting{}, err
 	}
-	value := RuntimePolicySetting{}
+	value := defaultRuntimePolicy()
 	if strings.TrimSpace(setting.ValueJSON) == "" || json.Unmarshal([]byte(setting.ValueJSON), &value) != nil {
 		return nil, RuntimePolicySetting{}, errors.New("资源与请求策略配置格式无效")
 	}
