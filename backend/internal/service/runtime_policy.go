@@ -25,15 +25,15 @@ const (
 )
 
 type RuntimeResourcePolicy struct {
-	ResourceUploadMB int64 `json:"resourceUploadMB"`
-	SessionUploadMB  int64 `json:"sessionUploadMB"`
-	GeneratedFileMB  int64 `json:"generatedFileMB"`
-	DailyUploadMB    int64 `json:"dailyUploadMB"`
-	StoredFileGB     int64 `json:"storedFileGB"`
-	StructuredDataMB int64 `json:"structuredDataMB"`
-	TaskDataGB       int64 `json:"taskDataGB"`
-	AssetCount       int64 `json:"assetCount"`
-	CanvasCount      int64 `json:"canvasCount"`
+	ResourceUploadMB        int64 `json:"resourceUploadMB"`
+	SessionUploadMB         int64 `json:"sessionUploadMB"`
+	GeneratedFileMB         int64 `json:"generatedFileMB"`
+	DailyUploadMB           int64 `json:"dailyUploadMB"`
+	StoredFileGB            int64 `json:"storedFileGB"`
+	StructuredDataMB        int64 `json:"structuredDataMB"`
+	TaskDataGB              int64 `json:"taskDataGB"`
+	AssetCount              int64 `json:"assetCount"`
+	CanvasCount             int64 `json:"canvasCount"`
 	SessionCount            int64 `json:"sessionCount"`
 	TaskCount               int64 `json:"taskCount"`
 	APICallLogCount         int64 `json:"apiCallLogCount"`
