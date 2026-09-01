@@ -87,8 +87,10 @@ export default function AssetsPage() {
     const [isAssetOpen, setIsAssetOpen] = useState(false);
     const [previewAsset, setPreviewAsset] = useState<LibraryAsset | null>(null);
     const [deletingAsset, setDeletingAsset] = useState<LibraryAsset | null>(null);
+    const [archivingAsset, setArchivingAsset] = useState<LibraryAsset | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
+    const [batchArchiveOpen, setBatchArchiveOpen] = useState(false);
 
     const [formKind, setFormKind] = useState<AssetKind>("text");
     const [imageDraft, setImageDraft] = useState<ImageDraft>(null);
@@ -425,26 +427,36 @@ export default function AssetsPage() {
             <div className="canvas-library-frame assets-library-frame">
                 <div className="grid min-h-0 gap-4 lg:grid-cols-[176px_minmax(0,1fr)]">
                     <aside className="thin-scrollbar flex gap-2 overflow-x-auto py-3 lg:sticky lg:top-0 lg:block lg:max-h-[calc(100vh-150px)] lg:overflow-y-auto lg:pr-3">
-                        <div className="mb-4 flex rounded-lg bg-stone-100 p-1 dark:bg-stone-900">
+                        <AssetFilterGroup title="素材类型" options={kindOptions} value={kindFilter} counts={kindCounts} onChange={(value) => { if (viewMode === "trash") setViewMode("library"); setKindFilter(value as AssetKind | "all"); setPage(1); }} />
+                        <AssetFilterGroup title="业务分类" options={categoryOptions} value={categoryFilter} counts={categoryCounts} onChange={(value) => { if (viewMode === "trash") setViewMode("library"); setCategoryFilter(value as AssetCategory | "all"); setPage(1); }} className="lg:mt-5" />
+                        <div className="mt-6 border-t border-border/40 pt-3">
+                            <div className="mb-1.5 px-1 text-[var(--fs-tiny)] font-semibold uppercase tracking-[0.08em] text-foreground/38">垃圾箱与归档</div>
                             <button
                                 type="button"
-                                className={cn("flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors", viewMode === "library" ? "bg-background text-foreground shadow-sm" : "text-foreground/60 hover:text-foreground")}
-                                onClick={() => { setViewMode("library"); setPage(1); setSelectedIds([]); }}
+                                aria-pressed={viewMode === "trash"}
+                                className={cn(
+                                    "assets-filter-item w-full transition-colors",
+                                    viewMode === "trash" ? "is-active !bg-amber-500/10 !text-amber-600 dark:!text-amber-400 font-medium" : "text-foreground/65 hover:text-foreground"
+                                )}
+                                onClick={() => {
+                                    if (viewMode === "trash") {
+                                        setViewMode("library");
+                                    } else {
+                                        setViewMode("trash");
+                                        setKindFilter("all");
+                                        setCategoryFilter("all");
+                                    }
+                                    setPage(1);
+                                    setSelectedIds([]);
+                                }}
                             >
-                                <FolderOpen className="size-3.5" />
-                                <span>素材库 ({activeAssets.length})</span>
-                            </button>
-                            <button
-                                type="button"
-                                className={cn("flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors", viewMode === "trash" ? "bg-background text-amber-500 dark:text-amber-400 shadow-sm" : "text-foreground/60 hover:text-foreground")}
-                                onClick={() => { setViewMode("trash"); setPage(1); setSelectedIds([]); }}
-                            >
-                                <Trash2 className="size-3.5" />
-                                <span>回收站 ({trashAssets.length})</span>
+                                <span className="assets-filter-item-label flex items-center gap-1.5">
+                                    <Trash2 className="size-3.5" />
+                                    <span>回收站</span>
+                                </span>
+                                <span className="assets-filter-count">{trashAssets.length}</span>
                             </button>
                         </div>
-                        <AssetFilterGroup title="素材类型" options={kindOptions} value={kindFilter} counts={kindCounts} onChange={(value) => { setKindFilter(value as AssetKind | "all"); setPage(1); }} />
-                        <AssetFilterGroup title="业务分类" options={categoryOptions} value={categoryFilter} counts={categoryCounts} onChange={(value) => { setCategoryFilter(value as AssetCategory | "all"); setPage(1); }} className="lg:mt-5" />
                     </aside>
                     <section className="min-w-0">
                         {viewMode === "trash" ? (
@@ -468,7 +480,7 @@ export default function AssetsPage() {
                                 onClear={() => setSelectedIds([])}
                                 onExport={() => void exportSelectedAssets()}
                                 onRestore={() => void batchRestore()}
-                                onArchive={() => void batchArchive()}
+                                onArchive={() => setBatchArchiveOpen(true)}
                                 onDelete={() => setBatchDeleteOpen(true)}
                             />
                         ) : null}
@@ -502,7 +514,7 @@ export default function AssetsPage() {
                                                 onCopy={copyAssetText}
                                                 onDownload={downloadImage}
                                                 onRestore={() => void restoreAsset(asset)}
-                                                onArchive={() => void archiveAsset(asset)}
+                                                onArchive={() => setArchivingAsset(asset)}
                                                 onDelete={() => setDeletingAsset(asset)}
                                             />
                                         ))}
@@ -642,11 +654,17 @@ export default function AssetsPage() {
             <input ref={assetInputRef} type="file" accept="application/zip,.zip" className="hidden" onChange={(event) => void importAssetZip(event.target.files?.[0])} />
             <input ref={modelInputRef} type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" className="hidden" onChange={(event) => { void readModelFile(event.target.files?.[0]); event.currentTarget.value = ""; }} />
 
-            <Modal className="library-modal library-confirm-modal" title="删除素材" open={Boolean(deletingAsset)} onCancel={() => setDeletingAsset(null)} onOk={() => void confirmDelete()} okText="删除" okButtonProps={{ danger: true }} cancelText="取消">
-                确定删除「{deletingAsset?.title}」吗？未被其他内容引用的服务器本地或对象存储文件也会同步删除；若仍被画布、任务或其他素材占用，本次删除将被阻止。
+            <Modal className="library-modal library-confirm-modal" title="移入回收站" open={Boolean(archivingAsset)} onCancel={() => setArchivingAsset(null)} onOk={() => { if (archivingAsset) { void archiveAsset(archivingAsset); setArchivingAsset(null); } }} okText="移入回收站" cancelText="取消">
+                确定将「{archivingAsset?.title}」移入回收站吗？移入后不会出现在正常素材库中，可在回收站随时还原。
             </Modal>
-            <Modal className="library-modal library-confirm-modal" title="批量删除素材" open={batchDeleteOpen} onCancel={() => setBatchDeleteOpen(false)} onOk={() => void confirmBatchDelete()} okText="删除" okButtonProps={{ danger: true }} cancelText="取消">
-                确定删除已选择的 {selectedAssets.length} 个素材吗？未被复用的服务器文件会同步删除；仍被画布、任务或其他素材占用的素材会保留并提示具体来源。
+            <Modal className="library-modal library-confirm-modal" title="批量移入回收站" open={batchArchiveOpen} onCancel={() => setBatchArchiveOpen(false)} onOk={() => { void batchArchive(); setBatchArchiveOpen(false); }} okText="移入回收站" cancelText="取消">
+                确定将已选择的 {selectedAssets.length} 个素材移入回收站吗？移入后可随时在回收站批量还原。
+            </Modal>
+            <Modal className="library-modal library-confirm-modal" title="彻底删除素材" open={Boolean(deletingAsset)} onCancel={() => setDeletingAsset(null)} onOk={() => void confirmDelete()} okText="彻底删除" okButtonProps={{ danger: true }} cancelText="取消">
+                确定彻底删除「{deletingAsset?.title}」吗？未被其他内容引用的服务器本地或对象存储文件也会同步删除，操作不可恢复。
+            </Modal>
+            <Modal className="library-modal library-confirm-modal" title="批量彻底删除素材" open={batchDeleteOpen} onCancel={() => setBatchDeleteOpen(false)} onOk={() => void confirmBatchDelete()} okText="彻底删除" okButtonProps={{ danger: true }} cancelText="取消">
+                确定彻底删除已选择的 {selectedAssets.length} 个素材吗？未被复用的服务器文件会同步删除，操作不可恢复。
             </Modal>
         </>
     );

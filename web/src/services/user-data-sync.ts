@@ -7,6 +7,7 @@ import { flushAssetStorePersistence, useAssetStore } from "@/stores/use-asset-st
 import type { CanvasProject } from "@/stores/canvas/use-canvas-store";
 import { flushCanvasStorePersistence, useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useSyncProgressStore } from "@/stores/use-sync-progress-store";
+import { useCanvasHistoryStore } from "@/stores/canvas/use-canvas-history-store";
 
 let activeRemoteUserId = "";
 type RemoteUserDataPhase = "inactive" | "hydrating" | "ready" | "failed";
@@ -128,6 +129,12 @@ export async function deleteCanvasProjectsWithRemoteSync(ids: string[]) {
     if (!projectIds.length) return;
     await withRemoteUserDataSyncExclusive(async () => {
         if (activeRemoteUserId) requireRemoteUserDataBaseline();
+        const currentProjects = useCanvasStore.getState().projects;
+        const deletedProjectObjects = currentProjects.filter((p) => projectIds.includes(p.id));
+        if (deletedProjectObjects.length > 0) {
+            useCanvasHistoryStore.getState().recordDeletedProjects(deletedProjectObjects);
+        }
+
         for (const id of projectIds) {
             if (activeRemoteUserId) {
                 await deleteRemoteCanvasProject(id);
@@ -148,8 +155,7 @@ export async function deleteCanvasProjectsWithRemoteSync(ids: string[]) {
         }
         const assetsToArchive = currentAssets.filter((asset) => {
             const canvasId = asset.metadata?.canvasId as string | undefined;
-            const source = asset.metadata?.source as string | undefined;
-            return canvasId && projectIds.includes(canvasId) && source === "canvas-generation" && !activeAssetIds.has(asset.id) && asset.status !== "archived";
+            return canvasId && projectIds.includes(canvasId) && !activeAssetIds.has(asset.id) && asset.status !== "archived";
         });
         for (const asset of assetsToArchive) {
             useAssetStore.getState().updateAsset(asset.id, { status: "archived" });
