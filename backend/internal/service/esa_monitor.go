@@ -25,7 +25,7 @@ import (
 )
 
 const esaSettingKey = "esa_monitoring"
-const esaEndpoint = "https://esa.aliyuncs.com"
+const esaEndpoint = "https://esa.cn-hangzhou.aliyuncs.com"
 const esaApiVersion = "2024-09-10"
 
 type ESASettingRequest struct {
@@ -405,7 +405,7 @@ func fetchESASiteList(ctx context.Context, akID, akSecret string) ([]ESASiteInfo
 
 	var resp struct {
 		Sites []struct {
-			SiteID   any    `json:"SiteId"`
+			SiteID   int64  `json:"SiteId"`
 			SiteName string `json:"SiteName"`
 			Status   string `json:"Status"`
 		} `json:"Sites"`
@@ -416,7 +416,7 @@ func fetchESASiteList(ctx context.Context, akID, akSecret string) ([]ESASiteInfo
 
 	sites := make([]ESASiteInfo, 0, len(resp.Sites))
 	for _, s := range resp.Sites {
-		sid := fmt.Sprintf("%v", s.SiteID)
+		sid := fmt.Sprintf("%d", s.SiteID)
 		sites = append(sites, ESASiteInfo{
 			SiteID:   sid,
 			SiteName: s.SiteName,
@@ -427,94 +427,142 @@ func fetchESASiteList(ctx context.Context, akID, akSecret string) ([]ESASiteInfo
 }
 
 func fetchESAOverviewFromAliyun(ctx context.Context, akID, akSecret, rangeKey, siteID string) (*ESAOverviewResponse, error) {
-	startTime, endTime, interval := calculateTimeRange(rangeKey)
-
-	// 1. 获取时间序列与统计数据 DescribeSiteTimeSeriesData
-	timeSeriesParams := map[string]string{
-		"Action":    "DescribeSiteTimeSeriesData",
-		"StartTime": startTime.Format(time.RFC3339),
-		"EndTime":   endTime.Format(time.RFC3339),
-		"Fields":    "traffic,requests,defense_requests,er_requests",
-		"Interval":  interval,
-	}
-	if siteID != "" && siteID != "all" {
-		timeSeriesParams["SiteId"] = siteID
-	}
-
-	tsBytes, err := doAliyunPopRequest(ctx, "GET", timeSeriesParams, akID, akSecret)
+	allSites, err := fetchESASiteList(ctx, akID, akSecret)
 	if err != nil {
 		return nil, err
 	}
 
-	var tsResp struct {
-		Data []map[string]any `json:"Data"`
+	targetSites := make([]ESASiteInfo, 0)
+	if siteID == "" || siteID == "all" {
+		targetSites = allSites
+	} else {
+		for _, s := range allSites {
+			if s.SiteID == siteID {
+				targetSites = append(targetSites, s)
+				break
+			}
+		}
+		if len(targetSites) == 0 {
+			targetSites = append(targetSites, ESASiteInfo{SiteID: siteID, SiteName: siteID})
+		}
 	}
-	_ = json.Unmarshal(tsBytes, &tsResp)
+
+	startTime, endTime, interval := calculateTimeRange(rangeKey)
+	startStr := startTime.Format("2006-01-02T15:04:05Z")
+	endStr := endTime.Format("2006-01-02T15:04:05Z")
 
 	var totalTraffic int64
 	var totalRequests int64
-	var totalSecRequests int64
-	var totalPagesRequests int64
-	timeseries := make([]ESATimePoint, 0, len(tsResp.Data))
+	timePointsMap := make(map[string]*ESATimePoint)
+	timeKeys := make([]string, 0)
 
-	for _, item := range tsResp.Data {
-		tStr := findFirstString(item, "TimeStamp", "Timestamp", "time", "Time")
-		trafficVal := findFirstInt64(item, "Traffic", "traffic", "traffic_out", "value")
-		reqsVal := findFirstInt64(item, "Requests", "requests", "reqs", "qps")
-		secVal := findFirstInt64(item, "DefenseRequests", "defense_requests", "sec_reqs", "defense_reqs")
-		erVal := findFirstInt64(item, "ErRequests", "er_requests", "pages_requests", "functions_reqs")
+	topSitesMap := make(map[string]int64)
 
-		totalTraffic += trafficVal
-		totalRequests += reqsVal
-		totalSecRequests += secVal
-		totalPagesRequests += erVal
+	for _, s := range targetSites {
+		// 1. 获取站点时序数据
+		tsParams := map[string]string{
+			"Action":    "DescribeSiteTimeSeriesData",
+			"SiteId":    s.SiteID,
+			"StartTime": startStr,
+			"EndTime":   endStr,
+			"Interval":  interval,
+			"Fields":    `[{"FieldName":"Traffic","Dimension":["SiteId"]},{"FieldName":"Requests","Dimension":["SiteId"]}]`,
+		}
+		tsBytes, tsErr := doAliyunPopRequest(ctx, "GET", tsParams, akID, akSecret)
+		if tsErr == nil {
+			var tsResp struct {
+				SummarizedData []struct {
+					FieldName string `json:"FieldName"`
+					Value     int64  `json:"Value"`
+				} `json:"SummarizedData"`
+				Data []struct {
+					FieldName  string `json:"FieldName"`
+					DetailData []struct {
+						TimeStamp string `json:"TimeStamp"`
+						Value     int64  `json:"Value"`
+					} `json:"DetailData"`
+				} `json:"Data"`
+			}
+			if json.Unmarshal(tsBytes, &tsResp) == nil {
+				for _, sumItem := range tsResp.SummarizedData {
+					if sumItem.FieldName == "Traffic" {
+						totalTraffic += sumItem.Value
+					} else if sumItem.FieldName == "Requests" {
+						totalRequests += sumItem.Value
+					}
+				}
+				for _, dataItem := range tsResp.Data {
+					for _, point := range dataItem.DetailData {
+						if _, exists := timePointsMap[point.TimeStamp]; !exists {
+							timePointsMap[point.TimeStamp] = &ESATimePoint{Time: point.TimeStamp}
+							timeKeys = append(timeKeys, point.TimeStamp)
+						}
+						tp := timePointsMap[point.TimeStamp]
+						if dataItem.FieldName == "Traffic" {
+							tp.Traffic += point.Value
+						} else if dataItem.FieldName == "Requests" {
+							tp.Requests += point.Value
+						}
+					}
+				}
+			}
+		}
 
-		timeseries = append(timeseries, ESATimePoint{
-			Time:     tStr,
-			Traffic:  trafficVal,
-			Requests: reqsVal,
-		})
-	}
-
-	// 2. 获取 Top 5 站点 DescribeSiteTopData (当查询全部站点时获取)
-	topSites := make([]ESATopSite, 0)
-	if siteID == "all" || siteID == "" {
+		// 2. 获取 Top Host 数据
 		topParams := map[string]string{
 			"Action":    "DescribeSiteTopData",
-			"StartTime": startTime.Format(time.RFC3339),
-			"EndTime":   endTime.Format(time.RFC3339),
-			"Metric":    "traffic",
+			"SiteId":    s.SiteID,
+			"StartTime": startStr,
+			"EndTime":   endStr,
 			"Limit":     "5",
+			"Fields":    `[{"FieldName":"Traffic","Dimension":["ClientRequestHost"]}]`,
 		}
 		topBytes, topErr := doAliyunPopRequest(ctx, "GET", topParams, akID, akSecret)
 		if topErr == nil {
 			var topResp struct {
-				Data []map[string]any `json:"Data"`
+				Data []struct {
+					FieldName  string `json:"FieldName"`
+					DetailData []struct {
+						DimensionValue string `json:"DimensionValue"`
+						Value          int64  `json:"Value"`
+					} `json:"DetailData"`
+				} `json:"Data"`
 			}
 			if json.Unmarshal(topBytes, &topResp) == nil {
-				for _, item := range topResp.Data {
-					sid := findFirstString(item, "SiteId", "site_id", "siteId")
-					sname := findFirstString(item, "SiteName", "site_name", "siteName")
-					val := findFirstInt64(item, "Value", "value", "traffic", "Traffic")
-					if sname == "" {
-						sname = sid
+				for _, dataItem := range topResp.Data {
+					for _, d := range dataItem.DetailData {
+						if d.DimensionValue != "" {
+							topSitesMap[d.DimensionValue] += d.Value
+						}
 					}
-					topSites = append(topSites, ESATopSite{
-						SiteID:   sid,
-						SiteName: sname,
-						Traffic:  val,
-					})
 				}
 			}
 		}
 	}
 
-	// 按照流量降序排列
-	sort.Slice(topSites, func(i, j int) bool {
-		return topSites[i].Traffic > topSites[j].Traffic
+	// 排序时序点
+	sort.Strings(timeKeys)
+	timeseries := make([]ESATimePoint, 0, len(timeKeys))
+	for _, k := range timeKeys {
+		if pt, ok := timePointsMap[k]; ok {
+			timeseries = append(timeseries, *pt)
+		}
+	}
+
+	// 汇总并排序 Top 5 站点/Host
+	topSitesList := make([]ESATopSite, 0, len(topSitesMap))
+	for host, traf := range topSitesMap {
+		topSitesList = append(topSitesList, ESATopSite{
+			SiteID:   host,
+			SiteName: host,
+			Traffic:  traf,
+		})
+	}
+	sort.Slice(topSitesList, func(i, j int) bool {
+		return topSitesList[i].Traffic > topSitesList[j].Traffic
 	})
-	if len(topSites) > 5 {
-		topSites = topSites[:5]
+	if len(topSitesList) > 5 {
+		topSitesList = topSitesList[:5]
 	}
 
 	return &ESAOverviewResponse{
@@ -523,9 +571,9 @@ func fetchESAOverviewFromAliyun(ctx context.Context, akID, akSecret, rangeKey, s
 		Configured:       true,
 		Traffic:          totalTraffic,
 		Requests:         totalRequests,
-		SecurityRequests: totalSecRequests,
-		PagesRequests:    totalPagesRequests,
-		TopSites:         topSites,
+		SecurityRequests: 0,
+		PagesRequests:    0,
+		TopSites:         topSitesList,
 		Timeseries:       timeseries,
 		UpdatedAt:        time.Now().Format(time.RFC3339),
 	}, nil
