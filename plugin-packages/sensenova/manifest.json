@@ -1,0 +1,141 @@
+{
+  "apiVersion": "yingce.plugin/v2",
+  "id": "sensenova-provider",
+  "name": "SenseNova 商汤日日新",
+  "version": "1.0.0",
+  "enabled": true,
+  "author": "商汤科技 / 影策",
+  "description": "接入商汤日日新 (SenseNova) 生态大模型，支持 6.8 Flash Lite 文本对话以及 U1.5 Lite、U1 Fast 图像生成与单图编辑。",
+  "documentation": "# SenseNova 商汤日日新渠道插件\n\n该包提供 `sensenova-chat` 和 `sensenova-image` 两个 provider，接入商汤日日新 (SenseNova) 生态大模型服务，支持 SenseNova 6.8 Flash Lite 文本与多模态对话，以及 SenseNova U1.5 Lite、SenseNova U1 Fast 图像生成与单图编辑。\n\n字段、约束、响应和兼容注意事项见 [docs/interface.md](docs/interface.md)。\n\n安装包由仓库根目录的 `plugin-packages/build-packages.sh` 生成，后端启动时从 `plugin-packages/*.yingce-plugin` 或随包目录加载为官方插件。\n\n---\n\n# SenseNova 接口字段\n\n## 鉴权与入口\n\n- 鉴权：`Authorization: Bearer <apiKey>`。\n- 默认 Base URL：`https://token.sensenova.cn/v1`。\n- 文本与多模态对话：`POST /chat/completions`。\n- 文生图：`POST /images/generations`。\n- 图像编辑（单图编辑）：`POST /images/edits`。\n\n## 配置字段\n\n| 字段 | 类型 | 必填 | 说明 |\n| --- | --- | --- | --- |\n| `apiKey` | secret | 是 | SenseNova API Key，由宿主写入 Bearer 鉴权头。 |\n| `baseUrl` | string | 否 | 上游根地址，默认 `https://token.sensenova.cn/v1`。 |\n\n## 接口协议\n\n- 对话与多模态：`POST /chat/completions`\n- 文生图：`POST /images/generations`\n- 图像编辑：`POST /images/edits`，支持 `images: [{\"image_url\": \"...\"}]`\n- 图片比例与尺寸：`size` 字段（支持 1024x1024、2048x2048、3840x2160、2160x3840、3456x2304、2304x3456 等 32 倍数画幅）。\n- 水印开关：`watermark: false`。\n\n## 官方支持模型\n\n- 文本：`sensenova-6.8-flash-lite`\n- 图片：`sensenova-u1.5-lite` / `sensenova-u1-fast`\n\n## 响应\n\n- 对话从 `choices[0].message.content` 提取回复。\n- 图片从 `data` 或 `images` 提取媒体结果。\n- 临时媒体标记为 ephemeral，由宿主立即下载持久化。\n",
+  "permissions": [
+    "generation.run",
+    "media.read"
+  ],
+  "configuration": {
+    "fields": [
+      {
+        "name": "apiKey",
+        "type": "secret",
+        "label": "SenseNova API Key",
+        "required": true,
+        "description": "填写商汤日日新 (SenseNova) 控制台生成的 API Key。"
+      }
+    ]
+  },
+  "contributes": {
+    "providers": [
+      {
+        "id": "sensenova-chat",
+        "label": "SenseNova 文本",
+        "capabilities": [
+          "text"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation"
+        ],
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey"
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "SenseNova 模型 ID"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt",
+            "description": "提示词"
+          }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/chat/completions",
+          "contentType": "application/json",
+          "body": {
+            "model": { "$ref": "request.model" },
+            "messages": { "$ref": "request.messages" },
+            "stream": false
+          }
+        },
+        "response": {
+          "texts": { "$ref": "response.choices.0.message.content" }
+        }
+      },
+      {
+        "id": "sensenova-image",
+        "label": "SenseNova 图片",
+        "capabilities": [
+          "image"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation"
+        ],
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey"
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "SenseNova 图片模型 ID"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt",
+            "description": "提示词"
+          },
+          {
+            "name": "images",
+            "type": "media[]",
+            "mapping": "images",
+            "description": "参考图（单图编辑）"
+          },
+          {
+            "name": "aspectRatio",
+            "type": "string",
+            "mapping": "size",
+            "description": "画幅尺寸"
+          },
+          {
+            "name": "watermark",
+            "type": "boolean",
+            "mapping": "watermark",
+            "description": "水印开关"
+          }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/images/generations",
+          "contentType": "application/json",
+          "body": {
+            "model": { "$ref": "request.model" },
+            "prompt": { "$ref": "request.prompt" },
+            "size": { "$ref": "request.aspectRatio" },
+            "n": 1,
+            "watermark": { "$ref": "request.watermark" }
+          }
+        },
+        "response": {
+          "images": { "$ref": "response.data" }
+        }
+      }
+    ]
+  }
+}

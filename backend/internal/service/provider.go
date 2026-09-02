@@ -4337,7 +4337,10 @@ func validateGenerationInterfaceWithRegistry(registry *protocol.Registry, mode s
 	}
 	adapter, ok := registry.Resolve(interfaceType)
 	if !ok {
-		return fmt.Errorf("接口类型 %s 未安装", interfaceType)
+		adapter, ok = protocol.Builtins().Get(interfaceType)
+		if !ok {
+			return fmt.Errorf("接口类型 %s 未安装", interfaceType)
+		}
 	}
 	metadata := adapter.Metadata()
 	if !metadata.Enabled || metadata.UnavailableReason != "" {

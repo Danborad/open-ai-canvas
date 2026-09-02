@@ -1504,8 +1504,10 @@ func TestRunVideoTaskSendsOnlyDeclaredResolutionName(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("CANVAS_ALLOW_PRIVATE_UPSTREAMS", "true")
 			var got string
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch r.Method + " " + r.URL.Path {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("server received: %s %s", r.Method, r.URL.Path)
+		switch r.Method + " " + r.URL.Path {
 				case "POST /v1/videos":
 					if err := r.ParseMultipartForm(1 << 20); err != nil {
 						t.Fatalf("ParseMultipartForm() error = %v", err)
@@ -2751,5 +2753,62 @@ func TestRunMiniMaxVideoTaskReturnsFailureReason(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "1026：content violates policy") {
 		t.Fatalf("runVideoTask() error = %v", err)
+	}
+}
+
+func TestValidateAndRunSenseNovaImageInterface(t *testing.T) {
+	t.Setenv("CANVAS_ALLOW_PRIVATE_UPSTREAMS", "true")
+	center, err := newPluginRuntime(t.TempDir())
+	if err != nil {
+		t.Fatalf("newPluginRuntime() error = %v", err)
+	}
+	s := &Service{pluginRuntime: center}
+	if err := s.validateGenerationInterface("image", "sensenova-image"); err != nil {
+		t.Fatalf("validateGenerationInterface(image, sensenova-image) failed: %v", err)
+	}
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method + " " + r.URL.Path {
+		case "POST /v1/images/generations", "POST /images/generations":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"data":[{"url":"` + server.URL + `/sensenova.png"}]}`))
+		case "POST /v1/images/edits", "POST /images/edits":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"data":[{"url":"` + server.URL + `/sensenova-edit.png"}]}`))
+		case "GET /sensenova.png", "GET /sensenova-edit.png":
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = w.Write([]byte("image-data"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	ctx := withProtocolRegistry(context.Background(), center.registrySnapshot())
+	res, err := runImageTask(ctx, canvasGenerationInput{
+		Mode:   "image",
+		Prompt: "a photo of cat",
+		Config: providerConfig{BaseURL: server.URL, APIKey: "test-key", Model: "sensenova-u1.5-lite", InterfaceType: "sensenova-image"},
+	})
+	if err != nil {
+		t.Fatalf("runImageTask() error = %v", err)
+	}
+	if res["mode"] != "image" {
+		t.Fatalf("runImageTask() response = %#v", res)
+	}
+
+	// 测试带参考图（单图编辑）
+	editRes, err := runImageTask(ctx, canvasGenerationInput{
+		Mode:            "image",
+		Prompt:          "edit the cat",
+		Config:          providerConfig{BaseURL: server.URL, APIKey: "test-key", Model: "sensenova-u1.5-lite", InterfaceType: "sensenova-image"},
+		ReferenceImages: []providerMedia{{ID: "img-1", URL: server.URL + "/sensenova.png"}},
+	})
+	if err != nil {
+		t.Fatalf("runImageTask() edit error = %v", err)
+	}
+	if editRes["mode"] != "image" {
+		t.Fatalf("runImageTask() edit response = %#v", editRes)
 	}
 }

@@ -25,11 +25,15 @@ func withProtocolRegistry(ctx context.Context, registry *protocol.Registry) cont
 }
 
 func protocolAdapterForContext(ctx context.Context, id string) (protocol.Adapter, bool) {
+	cleanID := strings.TrimSpace(id)
 	registry, _ := ctx.Value(protocolRegistryContextKey{}).(*protocol.Registry)
 	if registry == nil {
 		registry = emptyProtocolRegistry
 	}
-	return registry.Resolve(strings.TrimSpace(id))
+	if adapter, ok := registry.Resolve(cleanID); ok {
+		return adapter, true
+	}
+	return protocol.Builtins().Get(cleanID)
 }
 
 func declarativeProtocolAdapterForContext(ctx context.Context, id string) (protocol.Adapter, bool) {
