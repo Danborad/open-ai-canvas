@@ -2393,6 +2393,14 @@ func queryProtocolAdapterVideoTask(ctx context.Context, input canvasGenerationIn
 }
 
 func protocolRequestFromInput(input canvasGenerationInput) protocol.GenerationRequest {
+	resolution := strings.TrimSpace(input.Config.VQuality)
+	if input.Mode == "video" {
+		if declared := videoResolutionNameRequest(input.VideoCapability, resolution); declared != "" {
+			resolution = declared
+		} else if input.Config.InterfaceType == string(model.ChannelInterfaceMiniMaxVideo) {
+			resolution = normalizeMiniMaxResolution(resolution)
+		}
+	}
 	request := protocol.GenerationRequest{
 		Capability:    protocol.Capability(input.Mode),
 		Model:         input.Config.Model,
@@ -2402,7 +2410,7 @@ func protocolRequestFromInput(input canvasGenerationInput) protocol.GenerationRe
 		Videos:        protocolMediaReferences(input.ReferenceVideos, "video"),
 		Audios:        protocolMediaReferences(input.ReferenceAudios, "audio"),
 		AspectRatio:   input.Config.Size,
-		Resolution:    resolveProtocolInputResolution(input),
+		Resolution:    resolution,
 		Quality:       input.Config.Quality,
 		GenerateAudio: parseBool(input.Config.VideoGenerateAudio, false),
 		Watermark:     parseBool(input.Config.VideoWatermark, false),
@@ -3552,14 +3560,6 @@ func miniMaxMediaURLValue(media providerMedia) (string, error) {
 		return "", err
 	}
 	return value, nil
-}
-
-func resolveProtocolInputResolution(input canvasGenerationInput) string {
-	res := strings.TrimSpace(input.Config.VQuality)
-	if input.Config.InterfaceType == string(model.ChannelInterfaceMiniMaxVideo) {
-		return normalizeMiniMaxResolution(res)
-	}
-	return res
 }
 
 func normalizeMiniMaxResolution(value string) string {
