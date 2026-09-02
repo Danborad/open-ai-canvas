@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, type PersistStorage } from "zustand/middleware";
+import { localForageStorageForScope } from "@/lib/localforage-storage";
 import type { CanvasProject } from "@/stores/canvas/use-canvas-store";
 
 export type DeletedCanvasHistoryItem = {
@@ -19,9 +20,20 @@ type CanvasHistoryStore = {
     clearDeletedHistory: () => void;
 };
 
+export const CANVAS_HISTORY_STORE_KEY = "infinite-canvas:deleted_history_store";
+
+const historyStorage: PersistStorage<CanvasHistoryStore> = {
+    getItem: async (name) => {
+        const value = await localForageStorageForScope().getItem(name);
+        return value ? JSON.parse(value) : null;
+    },
+    setItem: (name, value) => localForageStorageForScope().setItem(name, JSON.stringify(value)),
+    removeItem: (name) => localForageStorageForScope().removeItem(name),
+};
+
 export const useCanvasHistoryStore = create<CanvasHistoryStore>()(
     persist(
-        (set, get) => ({
+        (set) => ({
             deletedProjects: [],
             recordDeletedProjects: (projects) => {
                 const now = new Date().toISOString();
@@ -49,7 +61,8 @@ export const useCanvasHistoryStore = create<CanvasHistoryStore>()(
             clearDeletedHistory: () => set({ deletedProjects: [] }),
         }),
         {
-            name: "infinite-canvas:deleted_history_store",
+            name: CANVAS_HISTORY_STORE_KEY,
+            storage: historyStorage,
         },
     ),
 );

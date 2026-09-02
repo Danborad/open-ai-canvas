@@ -50,13 +50,19 @@ func (s *Service) cleanupExpiredArchivedAssets() {
 		log.Printf("expired archived assets query failed: %v", err)
 		return
 	}
+	deleted := 0
 	for _, asset := range expired {
-		if err := s.repo.DeleteAsset(asset.UserID, asset.ID); err != nil {
+		// 自动清理与用户手动删除走同一条强校验路径：先检查业务引用，
+		// 再以事务 + Outbox 删除资源记录和物理对象，不能从 repository 旁路。
+		if err := s.DeleteUserAsset(asset.UserID, asset.ID); err != nil {
 			log.Printf("expired archived asset delete failed for %s: %v", asset.ID, err)
+			continue
 		}
+		deleted++
 	}
-	if len(expired) > 0 {
-		log.Printf("recycle bin cleanup: deleted %d expired assets (retention: %d days)", len(expired), retentionDays)
+	if deleted > 0 {
+		log.Printf("recycle bin cleanup: deleted %d expired assets (retention: %d days)", deleted, retentionDays)
+	}
 	}
 }
 

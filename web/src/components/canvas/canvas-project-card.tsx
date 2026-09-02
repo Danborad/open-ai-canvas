@@ -1,4 +1,4 @@
-import { Check, Clapperboard, CloudUpload, Download, Eye, EyeOff, FileText, Frame, Image as ImageIcon, MoreHorizontal, Music2, Pencil, Plus, Settings2, Sparkles, Trash2, Video, X } from "lucide-react";
+import { Check, Clapperboard, CloudUpload, Download, Eye, EyeOff, FileText, Frame, Image as ImageIcon, LoaderCircle, MoreHorizontal, Music2, Pencil, Plus, Settings2, Sparkles, Trash2, Video, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Dropdown, Input } from "antd";
@@ -32,7 +32,23 @@ export function CanvasCreateCard({ disabled, onClick }: { disabled?: boolean; on
     );
 }
 
-export function CanvasProjectCard({ project, projectName, variant = "library", readOnly = false, footer }: { project: CanvasProject; projectName?: string; variant?: "library" | "recent"; readOnly?: boolean; footer?: ReactNode }) {
+export function CanvasProjectCard({
+    project,
+    projectName,
+    variant = "library",
+    readOnly = false,
+    opening = false,
+    onPrefetch,
+    footer,
+}: {
+    project: CanvasProject;
+    projectName?: string;
+    variant?: "library" | "recent";
+    readOnly?: boolean;
+    opening?: boolean;
+    onPrefetch?: () => void;
+    footer?: ReactNode;
+}) {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const renameProject = useCanvasStore((state) => state.renameProject);
@@ -68,17 +84,30 @@ export function CanvasProjectCard({ project, projectName, variant = "library", r
 
     const compact = variant === "recent";
     return (
-        <article className={cn("app-canvas-project-card group h-full cursor-pointer", compact ? "is-recent" : "is-library", selected && "is-selected")} onClick={() => (!editing || readOnly) && open()}>
+        <article
+            className={cn("app-canvas-project-card group h-full cursor-pointer", compact ? "is-recent" : "is-library", selected && "is-selected", opening && "is-opening")}
+            onPointerEnter={onPrefetch}
+            onPointerDown={onPrefetch}
+            onFocusCapture={onPrefetch}
+            onClick={() => (!editing || readOnly) && !opening && open()}
+        >
             <div className="app-canvas-project-preview relative">
                 <button
                     type="button"
                     className={cn("canvas-project-preview-button block w-full overflow-hidden text-left", compact ? "aspect-[16/10]" : "aspect-video")}
+                    aria-busy={opening}
                     onClick={(event) => {
                         event.stopPropagation();
-                        open();
+                        if (!opening) open();
                     }}
                 >
                     <ProjectPreview project={project} isBlurred={coverBlurPluginEnabled && isBlurred} />
+                    {opening ? (
+                        <div className="canvas-folder-opening">
+                            <LoaderCircle className="size-5 animate-spin" />
+                            <span>正在打开</span>
+                        </div>
+                    ) : null}
                 </button>
                 {!compact && !readOnly ? (
                     <span className={`canvas-project-select ${selected ? "is-visible" : ""}`} onClick={(event) => event.stopPropagation()}>
@@ -268,65 +297,54 @@ export function ProjectPreview({ project, preferLatestImage = false, isBlurred }
     );
 }
 
-function getNodeMediaUrl(node: CanvasNodeData) {
-    const resourceId = resourceIdFromStorageKey(node.metadata?.storageKey);
-    if (resourceId) return resourceFileUrl(resourceId);
-    return resolveBackendApiUrl(node.metadata?.previewContent || node.metadata?.content || "");
+function getNodePresentation(node: CanvasNodeData) {
+    if (node.type === CanvasNodeType.Image) return { label: "图片", icon: <ImageIcon className="size-3.5" /> };
+    if (node.type === CanvasNodeType.Video) return { label: "视频", icon: <Video className="size-3.5" /> };
+    if (node.type === CanvasNodeType.Audio) return { label: "音频", icon: <Music2 className="size-3.5" /> };
+    if (node.type === CanvasNodeType.Text) return { label: "文本", icon: <FileText className="size-3.5" /> };
+    if (node.type === "section") return { label: "分节", icon: <Frame className="size-3.5" /> };
+    if (node.type === "storyboard") return { label: "分镜", icon: <Clapperboard className="size-3.5" /> };
+    if (node.type === "config") return { label: "配置", icon: <Settings2 className="size-3.5" /> };
+    return { label: "节点", icon: <Sparkles className="size-3.5" /> };
 }
 
 function buildNodePreviewLayout(nodes: CanvasNodeData[]) {
+    if (!nodes.length) return [];
     const minX = Math.min(...nodes.map((node) => node.position.x));
+    const maxX = Math.max(...nodes.map((node) => node.position.x + (node.width || 200)));
     const minY = Math.min(...nodes.map((node) => node.position.y));
-    const maxX = Math.max(...nodes.map((node) => node.position.x + node.width));
-    const maxY = Math.max(...nodes.map((node) => node.position.y + node.height));
-    const spanX = Math.max(maxX - minX, 1);
-    const spanY = Math.max(maxY - minY, 1);
+    const maxY = Math.max(...nodes.map((node) => node.position.y + (node.height || 120)));
+    const width = maxX - minX || 1;
+    const height = maxY - minY || 1;
+
     return nodes.map((node) => {
-        const left = 6 + ((node.position.x - minX) / spanX) * 70;
-        const top = 8 + ((node.position.y - minY) / spanY) * 66;
-        const width = Math.min(92 - left, Math.max(16, Math.min(38, (node.width / spanX) * 78)));
-        const height = Math.min(94 - top, Math.max(13, Math.min(24, (node.height / spanY) * 72)));
-        return { node, style: { left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%` } };
+        const left = ((node.position.x - minX) / width) * 100;
+        const top = ((node.position.y - minY) / height) * 100;
+        const nodeWidth = Math.max(16, ((node.width || 200) / width) * 100);
+        const nodeHeight = Math.max(12, ((node.height || 120) / height) * 100);
+        return {
+            node,
+            style: {
+                left: `${left}%`,
+                top: `${top}%`,
+                width: `${nodeWidth}%`,
+                height: `${nodeHeight}%`,
+            },
+        };
     });
 }
 
-function getNodePresentation(node: CanvasNodeData) {
-    switch (node.type) {
-        case CanvasNodeType.Text:
-            return { label: "文本", icon: <FileText className="size-3.5" /> };
-        case CanvasNodeType.Script:
-            return { label: "分镜脚本", icon: <Clapperboard className="size-3.5" /> };
-        case CanvasNodeType.Image:
-            return { label: "图片", icon: <ImageIcon className="size-3.5" /> };
-        case CanvasNodeType.Video:
-            return { label: "视频", icon: <Video className="size-3.5" /> };
-        case CanvasNodeType.Audio:
-            return { label: "音频", icon: <Music2 className="size-3.5" /> };
-        case CanvasNodeType.Drawing:
-            return { label: "绘图", icon: <Pencil className="size-3.5" /> };
-        case CanvasNodeType.Frame:
-            return { label: "背板", icon: <Frame className="size-3.5" /> };
-        case CanvasNodeType.Config:
-            return { label: "生成配置", icon: <Settings2 className="size-3.5" /> };
-        default:
-            return { label: "技能", icon: <Sparkles className="size-3.5" /> };
-    }
+function getNodeMediaUrl(node: CanvasNodeData) {
+    const raw = node.metadata?.previewContent || node.metadata?.content || node.metadata?.dataUrl || node.metadata?.url;
+    if (typeof raw !== "string" || !raw.trim()) return "";
+    const trimmed = raw.trim();
+    const resourceId = resourceIdFromStorageKey(trimmed) || resourceIdFromStorageKey(node.metadata?.storageKey);
+    if (resourceId) return resourceFileUrl(resourceId);
+    if (trimmed.startsWith("api/")) return resolveBackendApiUrl(trimmed);
+    return trimmed;
 }
 
-function isPreviewUrl(value?: string) {
-    return Boolean(value && /^(https?:|blob:|data:image\/|data:video\/|\/api\/)/.test(value));
-}
-
-export function formatProjectTime(value: string) {
-    const timestamp = new Date(value).getTime();
-    if (!Number.isFinite(timestamp)) return "刚刚修改";
-    const elapsed = Math.max(0, Date.now() - timestamp);
-    const minutes = Math.floor(elapsed / 60000);
-    if (minutes < 1) return "刚刚修改";
-    if (minutes < 60) return `${minutes} 分钟前修改`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} 小时前修改`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `${days} 天前修改`;
-    return new Date(value).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" }) + " 修改";
+function isPreviewUrl(url: string) {
+    if (!url) return false;
+    return url.startsWith("blob:") || url.startsWith("data:") || url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/api/");
 }

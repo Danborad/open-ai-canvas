@@ -12,6 +12,7 @@ type SyncProgressStore = {
     syncingProjects: Record<string, SyncProjectProgress>;
     setProjectProgress: (projectId: string, patch: Partial<SyncProjectProgress> | null) => void;
     incrementProjectCompleted: (projectId: string) => void;
+    clearAll: () => void;
     isAnySyncing: () => boolean;
 };
 
@@ -51,6 +52,7 @@ export const useSyncProgressStore = create<SyncProgressStore>((set, get) => ({
                 },
             };
         }),
+    clearAll: () => set({ syncingProjects: {} }),
     isAnySyncing: () => {
         const list = Object.values(get().syncingProjects);
         return list.some((item) => item.phase === "uploading" || item.phase === "saving");

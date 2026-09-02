@@ -99,6 +99,7 @@ export function CanvasHistoryDrawer({ open, onClose }: { open: boolean; onClose:
             <div className="space-y-4">
                 {/* 搜索与筛选 */}
                 <div className="space-y-3">
+<<<<<<< HEAD
                     <Input
                         allowClear
                         prefix={<Search className="size-3.5 text-stone-400" />}
@@ -107,6 +108,9 @@ export function CanvasHistoryDrawer({ open, onClose }: { open: boolean; onClose:
                         placeholder="搜索画布名称..."
                         className="text-xs"
                     />
+=======
+                    <Input allowClear prefix={<Search className="size-3.5 text-stone-400" />} value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="搜索画布名称..." className="text-xs" />
+>>>>>>> upstream/main
                     <div className="flex items-center gap-2 text-xs">
                         <button
                             type="button"
@@ -136,9 +140,13 @@ export function CanvasHistoryDrawer({ open, onClose }: { open: boolean; onClose:
                             type="button"
                             className={cn(
                                 "cursor-pointer rounded-lg px-3 py-1.5 font-medium transition-all",
+<<<<<<< HEAD
                                 filter === "deleted"
                                     ? "!bg-rose-600 !text-white shadow-sm font-semibold"
                                     : "bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200/60 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50",
+=======
+                                filter === "deleted" ? "!bg-rose-600 !text-white shadow-sm font-semibold" : "bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200/60 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50",
+>>>>>>> upstream/main
                             )}
                             onClick={() => setFilter("deleted")}
                         >
@@ -159,12 +167,16 @@ export function CanvasHistoryDrawer({ open, onClose }: { open: boolean; onClose:
                             return (
                                 <div key={item.id + (item.deletedAt || "")} className="group relative">
                                     {/* 时间轴圆点 */}
+<<<<<<< HEAD
                                     <span
                                         className={cn(
                                             "absolute -left-[23px] top-3.5 size-3 rounded-full border-2 border-background",
                                             isDeleted ? "bg-rose-500 ring-2 ring-rose-500/20" : "bg-emerald-500 ring-2 ring-emerald-500/20",
                                         )}
                                     />
+=======
+                                    <span className={cn("absolute -left-[23px] top-3.5 size-3 rounded-full border-2 border-background", isDeleted ? "bg-rose-500 ring-2 ring-rose-500/20" : "bg-emerald-500 ring-2 ring-emerald-500/20")} />
+>>>>>>> upstream/main
 
                                     <div
                                         className={cn(
@@ -233,6 +245,7 @@ export function CanvasHistoryDrawer({ open, onClose }: { open: boolean; onClose:
                                                     />
                                                 ) : (
                                                     <Tooltip title="从历史列表中移除此条记录">
+<<<<<<< HEAD
                                                         <Button
                                                             type="text"
                                                             size="small"
@@ -240,6 +253,9 @@ export function CanvasHistoryDrawer({ open, onClose }: { open: boolean; onClose:
                                                             icon={<X className="size-4" />}
                                                             onClick={() => removeDeletedItem(item.id)}
                                                         />
+=======
+                                                        <Button type="text" size="small" danger icon={<X className="size-4" />} onClick={() => removeDeletedItem(item.id)} />
+>>>>>>> upstream/main
                                                     </Tooltip>
                                                 )}
                                             </div>
