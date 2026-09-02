@@ -550,7 +550,6 @@ func (a manifestAdapter) parse(payload map[string]any, c PollContext) CreateResu
 			status = StatusFailed
 		}
 	}
-	}
 	result := &Result{
 		Text:      manifestResponseString(response.Text, env),
 		Reasoning: manifestResponseString(response.Reasoning, env),

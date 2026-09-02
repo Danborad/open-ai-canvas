@@ -3991,7 +3991,11 @@ test("account switching keeps new generation consumers closed while old persiste
 
 test("an in-flight provider request is aborted and drained before the account changes", async () => {
     const originalWindow = (globalThis as { window?: unknown }).window;
+    const originalGetItem = localforage.getItem.bind(localforage);
+    const originalSetItem = localforage.setItem.bind(localforage);
     const localStorageValues = new Map<string, string>();
+    localforage.getItem = (async () => null) as typeof localforage.getItem;
+    localforage.setItem = (async (_key: string, value: string) => value) as typeof localforage.setItem;
     Object.defineProperty(globalThis, "window", {
         configurable: true,
         value: {
@@ -4022,6 +4026,8 @@ test("an in-flight provider request is aborted and drained before the account ch
         expect(getActiveUserScope()).toBe("account-B");
     } finally {
         request.release();
+        localforage.getItem = originalGetItem;
+        localforage.setItem = originalSetItem;
         if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
         else Object.defineProperty(globalThis, "window", { configurable: true, value: originalWindow });
     }

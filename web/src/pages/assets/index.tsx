@@ -1018,12 +1018,10 @@ function AssetsBatchBar({
                 已选择 <strong>{count}</strong> 个素材
             </span>
             <div className="assets-batch-actions">
-                <Button size="small" icon={<CheckCheck className="size-3.5" />} disabled={allSelected} onClick={onSelectAll}>
-                    全选
-                </Button>
-                <Button size="small" onClick={onClear}>
-                    取消选择
-                </Button>
+                {/* prettier-ignore */}
+                <Button size="small" icon={<CheckCheck className="size-3.5" />} disabled={allSelected} onClick={onSelectAll}>全选</Button>
+                {/* prettier-ignore */}
+                <Button size="small" onClick={onClear}>取消选择</Button>
                 {isTrash ? (
                     <>
                         <Button size="small" type="primary" icon={<RotateCcw className="size-3.5" />} onClick={onRestore}>

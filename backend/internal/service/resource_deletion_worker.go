@@ -63,7 +63,6 @@ func (s *Service) cleanupExpiredArchivedAssets() {
 	if deleted > 0 {
 		log.Printf("recycle bin cleanup: deleted %d expired assets (retention: %d days)", deleted, retentionDays)
 	}
-	}
 }
 
 func (s *Service) drainResourceDeletionJobs(limit int) {

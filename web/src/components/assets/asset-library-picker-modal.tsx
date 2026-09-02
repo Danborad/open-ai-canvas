@@ -117,21 +117,12 @@ export function AssetLibraryPickerModal({
     itemsRef.current = allItems;
     const localItems = useMemo(() => allItems.filter((item) => !item.external), [allItems]);
     const pluginItems = useMemo(() => allItems.filter((item) => Boolean(item.external)), [allItems]);
-    const hasPluginSource = useMemo(
-        () => Object.keys(categoryLabels).some((value) => value.startsWith("external:")) || pluginItems.some((item) => item.category.startsWith("external:")),
-        [categoryLabels, pluginItems],
-    );
+    const hasPluginSource = useMemo(() => Object.keys(categoryLabels).some((value) => value.startsWith("external:")) || pluginItems.some((item) => item.category.startsWith("external:")), [categoryLabels, pluginItems]);
     const sourceItems = source === "plugin" ? pluginItems : localItems;
     const sourceFolders = source === "plugin" ? folders : [];
     const showCategories = source === "local" || !sourceFolders.length;
-    const normalCategories = useMemo(
-        () => ["all", ...Array.from(new Set(sourceItems.map((item) => item.category || "other"))).filter((c) => c !== "all" && c !== "archived")],
-        [sourceItems]
-    );
-    const archivedCount = useMemo(
-        () => sourceItems.filter((item) => item.category === "archived" || item.archived).length,
-        [sourceItems]
-    );
+    const normalCategories = useMemo(() => ["all", ...Array.from(new Set(sourceItems.map((item) => item.category || "other"))).filter((c) => c !== "all" && c !== "archived")], [sourceItems]);
+    const archivedCount = useMemo(() => sourceItems.filter((item) => item.category === "archived" || item.archived).length, [sourceItems]);
     const isRecycleBin = category === "archived";
 
     const visibleItems = useMemo(() => {
@@ -149,10 +140,14 @@ export function AssetLibraryPickerModal({
             return !query || [item.title, item.searchText || "", item.description || ""].join(" ").toLowerCase().includes(query);
         });
     }, [category, folderId, keyword, sourceItems]);
-    const selectedIds = useMemo(() => Array.from(selected).filter((id) => {
-        const item = allItems.find((entry) => entry.id === id);
-        return !item?.disabledReason;
-    }), [allItems, selected]);
+    const selectedIds = useMemo(
+        () =>
+            Array.from(selected).filter((id) => {
+                const item = allItems.find((entry) => entry.id === id);
+                return !item?.disabledReason;
+            }),
+        [allItems, selected],
+    );
 
     useEffect(() => {
         if (!open) return;
@@ -308,11 +303,33 @@ export function AssetLibraryPickerModal({
         }
     };
 
-    const countFor = (value: string) => value === "all" ? sourceItems.filter((item) => !item.archived && item.category !== "archived").length : sourceItems.filter((item) => !item.archived && item.category === value).length;
+    const countFor = (value: string) => (value === "all" ? sourceItems.filter((item) => !item.archived && item.category !== "archived").length : sourceItems.filter((item) => !item.archived && item.category === value).length);
     const sourceLabel = source === "plugin" ? "插件来源" : "本地素材";
     const sourceMenuItems: MenuProps["items"] = [
-        { key: "local", icon: <HardDrive aria-hidden="true" />, label: <span className="asset-picker-source-menu-label"><span>本地素材</span><em>{localItems.filter((i) => !i.archived && i.category !== "archived").length}</em></span> },
-        ...(hasPluginSource ? [{ key: "plugin", icon: <Puzzle aria-hidden="true" />, label: <span className="asset-picker-source-menu-label"><span>插件来源</span><em>{pluginItems.length}</em></span> }] : []),
+        {
+            key: "local",
+            icon: <HardDrive aria-hidden="true" />,
+            label: (
+                <span className="asset-picker-source-menu-label">
+                    <span>本地素材</span>
+                    <em>{localItems.filter((i) => !i.archived && i.category !== "archived").length}</em>
+                </span>
+            ),
+        },
+        ...(hasPluginSource
+            ? [
+                  {
+                      key: "plugin",
+                      icon: <Puzzle aria-hidden="true" />,
+                      label: (
+                          <span className="asset-picker-source-menu-label">
+                              <span>插件来源</span>
+                              <em>{pluginItems.length}</em>
+                          </span>
+                      ),
+                  },
+              ]
+            : []),
     ];
     const activeUpload = isRecycleBin ? undefined : source === "plugin" ? upload?.external : upload;
     const uploading = uploadingCount > 0;
@@ -351,23 +368,39 @@ export function AssetLibraryPickerModal({
                                 }}
                             >
                                 <button type="button" className="asset-picker-title-trigger" aria-haspopup="menu" aria-expanded={sourceMenuOpen} aria-label={"素材库来源：" + sourceLabel}>
-                                    <strong>{isRecycleBin ? "回收站" : title}</strong><ChevronDown aria-hidden="true" />
+                                    <strong>{isRecycleBin ? "回收站" : title}</strong>
+                                    <ChevronDown aria-hidden="true" />
                                 </button>
                             </Dropdown>
                         </div>
                     </div>
-                    <label className="asset-picker-search"><Search aria-hidden /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索素材名称或标签" aria-label="搜索素材" /></label>
-                    <span className="asset-picker-count">已选 {selectedIds.length} · {pagination ? pagination.total : visibleItems.length} 个素材</span>
+                    <label className="asset-picker-search">
+                        <Search aria-hidden />
+                        <input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索素材名称或标签" aria-label="搜索素材" />
+                    </label>
+                    <span className="asset-picker-count">
+                        已选 {selectedIds.length} · {pagination ? pagination.total : visibleItems.length} 个素材
+                    </span>
                 </header>
                 <div className="asset-picker-body">
                     <nav className="asset-picker-categories" aria-label="素材分类">
-                        {sourceFolders.length ? <><span className="asset-picker-nav-label">文件夹</span><button type="button" className={cn("assets-filter-item", folderId === "all" && "is-active")} aria-pressed={folderId === "all"} onClick={() => setFolderId("all")}><span className="assets-filter-item-label">全部文件夹</span><span className="assets-filter-count">{sourceItems.length}</span></button>{renderPickerFolders(sourceFolders, sourceItems, folderId, setFolderId)}</> : null}
+                        {sourceFolders.length ? (
+                            <>
+                                <span className="asset-picker-nav-label">文件夹</span>
+                                <button type="button" className={cn("assets-filter-item", folderId === "all" && "is-active")} aria-pressed={folderId === "all"} onClick={() => setFolderId("all")}>
+                                    <span className="assets-filter-item-label">全部文件夹</span>
+                                    <span className="assets-filter-count">{sourceItems.length}</span>
+                                </button>
+                                {renderPickerFolders(sourceFolders, sourceItems, folderId, setFolderId)}
+                            </>
+                        ) : null}
                         {showCategories ? (
                             <>
                                 <span className="asset-picker-nav-label">分类</span>
                                 {normalCategories.map((value) => (
                                     <button key={value} type="button" className={cn("assets-filter-item", category === value && "is-active")} aria-pressed={category === value} onClick={() => setCategory(value)}>
-                                        <span className="assets-filter-item-label">{categoryLabels[value] || (value === "all" ? "全部素材" : "其他")}</span><span className="assets-filter-count">{countFor(value)}</span>
+                                        <span className="assets-filter-item-label">{categoryLabels[value] || (value === "all" ? "全部素材" : "其他")}</span>
+                                        <span className="assets-filter-count">{countFor(value)}</span>
                                     </button>
                                 ))}
                                 {archivedCount > 0 ? (
@@ -392,11 +425,19 @@ export function AssetLibraryPickerModal({
                     <div className="asset-picker-grid-wrap">
                         <div className="asset-picker-grid">
                             {loading ? (
-                                <div className="asset-picker-empty"><LoaderCircle className="animate-spin" /><strong>正在读取素材</strong><span>素材会按页加载，不会一次下载整个项目库。</span></div>
-                            ) : visibleItems.length ? visibleItems.map((item) => (
-                                <PickerCard key={item.id} item={item} selected={selected.has(item.id)} onToggle={() => toggle(item)} />
-                            )) : (
-                                <div className="asset-picker-empty"><FolderOpen /><strong>{isRecycleBin ? "回收站是空的" : emptyTitle}</strong><span>{isRecycleBin ? "删除画布或手动归档的素材会暂存到这里，可在需要时还原。" : activeUpload ? "换个分类，或从底部上传一份新素材。" : emptyDescription}</span></div>
+                                <div className="asset-picker-empty">
+                                    <LoaderCircle className="animate-spin" />
+                                    <strong>正在读取素材</strong>
+                                    <span>素材会按页加载，不会一次下载整个项目库。</span>
+                                </div>
+                            ) : visibleItems.length ? (
+                                visibleItems.map((item) => <PickerCard key={item.id} item={item} selected={selected.has(item.id)} onToggle={() => toggle(item)} />)
+                            ) : (
+                                <div className="asset-picker-empty">
+                                    <FolderOpen />
+                                    <strong>{isRecycleBin ? "回收站是空的" : emptyTitle}</strong>
+                                    <span>{isRecycleBin ? "删除画布或手动归档的素材会暂存到这里，可在需要时还原。" : activeUpload ? "换个分类，或从底部上传一份新素材。" : emptyDescription}</span>
+                                </div>
                             )}
                         </div>
                         {pagination ? <PaginationBar alwaysShow current={pagination.current} pageSize={pagination.pageSize} total={pagination.total} itemLabel="项" pageSizeOptions={[20, 40, 80]} onChange={pagination.onChange} /> : null}
@@ -408,29 +449,52 @@ export function AssetLibraryPickerModal({
                             <input ref={uploadInputRef} type="file" hidden accept={activeUpload.accept} multiple={multiple} onChange={(event) => void handleUpload(event.target.files)} />
                             <button type="button" className="asset-picker-upload" onClick={() => uploadInputRef.current?.click()} disabled={working} aria-busy={uploading}>
                                 {uploading ? <LoaderCircle className="animate-spin" /> : <Upload />}
-                                <span><strong>{uploading ? `正在上传 ${uploadingCount} 个素材` : "上传新素材"}</strong><small>{uploading ? "保存完成后会自动选中" : activeUpload.description}</small></span>
+                                <span>
+                                    <strong>{uploading ? `正在上传 ${uploadingCount} 个素材` : "上传新素材"}</strong>
+                                    <small>{uploading ? "保存完成后会自动选中" : activeUpload.description}</small>
+                                </span>
                             </button>
                         </>
-                    ) : footerNote ? <span className="asset-picker-footer-note">{footerNote}</span> : <span />}
-                    {error ? <span className="asset-picker-footer-error" role="alert">{error}</span> : null}
+                    ) : footerNote ? (
+                        <span className="asset-picker-footer-note">{footerNote}</span>
+                    ) : (
+                        <span />
+                    )}
+                    {error ? (
+                        <span className="asset-picker-footer-error" role="alert">
+                            {error}
+                        </span>
+                    ) : null}
                     <div className="asset-picker-actions">
                         {isRecycleBin ? (
                             <>
                                 <Popconfirm title="确认清空回收站？" description="清空后所有回收站素材及其物理文件将被彻底删除，不可恢复。" onConfirm={handleEmptyRecycleBin} okText="清空" okButtonProps={{ danger: true }} cancelText="取消">
-                                    <Button type="text" danger disabled={working || !archivedCount}>清空回收站</Button>
+                                    <Button type="text" danger disabled={working || !archivedCount}>
+                                        清空回收站
+                                    </Button>
                                 </Popconfirm>
                                 <Popconfirm title="确认彻底删除已选素材？" onConfirm={handleDeleteSelected} okText="删除" okButtonProps={{ danger: true }} cancelText="取消">
-                                    <Button type="text" danger disabled={working || !selectedIds.length}>彻底删除</Button>
+                                    <Button type="text" danger disabled={working || !selectedIds.length}>
+                                        彻底删除
+                                    </Button>
                                 </Popconfirm>
-                                <Button type="text" onClick={onClose} disabled={working}>关闭</Button>
+                                <Button type="text" onClick={onClose} disabled={working}>
+                                    关闭
+                                </Button>
                                 <Button type="primary" icon={<RotateCcw className="size-3.5" />} disabled={working || !selectedIds.length} loading={working} onClick={handleRestoreSelected}>
                                     还原已选素材{selectedIds.length ? `（${selectedIds.length}）` : ""}
                                 </Button>
                             </>
                         ) : (
                             <>
-                                {onFolderAction && folderId !== "all" && (folderActionSource !== "local" || source === "local") ? <Button type="text" icon={<FolderOpen />} disabled={working} onClick={() => void runFolderAction()}>{folderActionLabel}</Button> : null}
-                                <Button type="text" onClick={onClose} disabled={working}>取消</Button>
+                                {onFolderAction && folderId !== "all" && (folderActionSource !== "local" || source === "local") ? (
+                                    <Button type="text" icon={<FolderOpen />} disabled={working} onClick={() => void runFolderAction()}>
+                                        {folderActionLabel}
+                                    </Button>
+                                ) : null}
+                                <Button type="text" onClick={onClose} disabled={working}>
+                                    取消
+                                </Button>
                                 <Button type="primary" icon={<Check />} disabled={working || !selectedIds.length} loading={working && !uploading} onClick={() => void confirm()}>
                                     {confirmLabel(selectedIds.length)}
                                 </Button>
@@ -446,28 +510,21 @@ export function AssetLibraryPickerModal({
 function PickerCard({ item, selected, onToggle }: { item: AssetLibraryPickerItem; selected: boolean; onToggle: () => void }) {
     const disabled = Boolean(item.disabledReason);
     return (
-        <AssetLibraryCard
-            selected={selected}
-            disabled={disabled}
-            className={cn("asset-picker-card", disabled && "is-disabled")}
-            onClick={onToggle}
-        >
-            <div className="asset-picker-card-cover">
-                <PickerMedia item={item} />
-                <span className="asset-picker-card-check">
-                    <span className={cn("asset-picker-card-check-icon", selected && "is-checked")}>
-                        <Check aria-hidden="true" />
+        <AssetLibraryCard selected={selected} className={cn("asset-picker-card", disabled && "is-disabled")}>
+            <button type="button" className="asset-picker-card-action w-full text-left" onClick={onToggle} disabled={disabled} aria-pressed={selected} title={item.disabledReason || item.title}>
+                <div className="asset-picker-card-cover">
+                    <PickerMedia item={item} />
+                    <span className="asset-picker-card-check">
+                        <span className={cn("asset-picker-card-check-icon", selected && "is-checked")}>
+                            <Check aria-hidden="true" />
+                        </span>
                     </span>
-                </span>
-            </div>
-            <div className="asset-picker-card-info">
-                <span className="asset-picker-card-title">{item.title}</span>
-                {item.disabledReason ? (
-                    <span className="asset-picker-card-desc text-amber-500 dark:text-amber-400">{item.disabledReason}</span>
-                ) : item.description ? (
-                    <span className="asset-picker-card-desc">{item.description}</span>
-                ) : null}
-            </div>
+                </div>
+                <div className="asset-picker-card-info">
+                    <span className="asset-picker-card-title">{item.title}</span>
+                    {item.disabledReason ? <span className="asset-picker-card-desc text-amber-500 dark:text-amber-400">{item.disabledReason}</span> : item.description ? <span className="asset-picker-card-desc">{item.description}</span> : null}
+                </div>
+            </button>
         </AssetLibraryCard>
     );
 }
@@ -483,11 +540,35 @@ function PickerMedia({ item }: { item: AssetLibraryPickerItem }) {
 }
 
 function PickerKindFallback({ kind }: { kind?: string }) {
-    if (kind === "video" || kind === "视频") return <div className="assets-cover-fallback"><Video className="size-6" /></div>;
-    if (kind === "audio" || kind === "音频") return <div className="assets-cover-fallback"><Music2 className="size-6" /></div>;
-    if (kind === "text" || kind === "文本") return <div className="assets-cover-fallback"><FileText className="size-6" /></div>;
-    if (kind === "character" || kind === "角色卡") return <div className="assets-cover-fallback"><UserRound className="size-6" /></div>;
-    return <div className="assets-cover-fallback"><ImageIcon className="size-6" /></div>;
+    if (kind === "video" || kind === "视频")
+        return (
+            <div className="assets-cover-fallback">
+                <Video className="size-6" />
+            </div>
+        );
+    if (kind === "audio" || kind === "音频")
+        return (
+            <div className="assets-cover-fallback">
+                <Music2 className="size-6" />
+            </div>
+        );
+    if (kind === "text" || kind === "文本")
+        return (
+            <div className="assets-cover-fallback">
+                <FileText className="size-6" />
+            </div>
+        );
+    if (kind === "character" || kind === "角色卡")
+        return (
+            <div className="assets-cover-fallback">
+                <UserRound className="size-6" />
+            </div>
+        );
+    return (
+        <div className="assets-cover-fallback">
+            <ImageIcon className="size-6" />
+        </div>
+    );
 }
 
 function renderPickerFolders(folders: AssetLibraryPickerFolder[], items: AssetLibraryPickerItem[], currentFolderId: string, onSelect: (folderId: string) => void, level = 0) {
@@ -496,13 +577,7 @@ function renderPickerFolders(folders: AssetLibraryPickerFolder[], items: AssetLi
         const active = currentFolderId === folder.id;
         return (
             <div key={folder.id}>
-                <button
-                    type="button"
-                    className={cn("assets-filter-item", active && "is-active")}
-                    style={{ paddingLeft: `${Math.max(12, level * 16 + 12)}px` }}
-                    aria-pressed={active}
-                    onClick={() => onSelect(folder.id)}
-                >
+                <button type="button" className={cn("assets-filter-item", active && "is-active")} style={{ paddingLeft: `${Math.max(12, level * 16 + 12)}px` }} aria-pressed={active} onClick={() => onSelect(folder.id)}>
                     <span className="assets-filter-item-label flex items-center gap-1.5">
                         <FolderOpen className="size-3.5 shrink-0" />
                         <span className="truncate">{folder.name}</span>

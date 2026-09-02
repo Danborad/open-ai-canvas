@@ -1,9 +1,5 @@
 import { Dropdown, Input } from "antd";
-<<<<<<< HEAD
-import { Download, Eye, EyeOff, Image as ImageIcon, MoreHorizontal, Pencil, Trash2, Video } from "lucide-react";
-=======
-import { Download, LoaderCircle, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
->>>>>>> upstream/main
+import { Download, Eye, EyeOff, Image as ImageIcon, LoaderCircle, MoreHorizontal, Pencil, Trash2, Video } from "lucide-react";
 import type { KeyboardEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -73,7 +69,12 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
             <div className="canvas-folder-open" role="button" tabIndex={0} aria-label={`打开画布 ${project.title}`} aria-busy={opening} onClick={() => !editing && !opening && onClick()} onKeyDown={handleOpenKeyDown}>
                 <div className="canvas-folder-preview" aria-hidden="true">
                     <ProjectPreview project={project} preferLatestImage isBlurred={coverBlurPluginEnabled && isBlurred} />
-                    {opening ? <div className="canvas-folder-opening"><LoaderCircle className="size-5 animate-spin" /><span>正在打开</span></div> : null}
+                    {opening ? (
+                        <div className="canvas-folder-opening">
+                            <LoaderCircle className="size-5 animate-spin" />
+                            <span>正在打开</span>
+                        </div>
+                    ) : null}
                 </div>
                 <div className="canvas-folder-body">
                     <div className="canvas-folder-heading-row">

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -170,7 +171,8 @@ func (c *pluginRuntime) bootstrapOfficialPlugins() error {
 		byID[id] = record
 	}
 
-	// 自动从根目录/工作区扫描并注册随包发布的 .yingce-plugin 插件包
+	// 自动从根目录/工作区扫描并注册随包发布的 .yingce-plugin 插件包或未打包的插件目录
+	bundledIDs := make(map[string]struct{})
 	candidateDirs := []string{
 		"plugin-packages",
 		filepath.Join("..", "plugin-packages"),

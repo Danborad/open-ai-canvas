@@ -42,9 +42,7 @@ export function CanvasProjectAssetModal({
         });
         if (detail) return projectItems;
         // 自由画布未关联项目时回退到个人素材库。
-        return mediaAssets
-            .filter((asset) => asset.kind !== "model" && asset.kind !== "entity" && asset.status !== "archived")
-            .map((media): ProjectPickerItem => ({ id: media.id, category: normalizeAssetCategory(media.category), media }));
+        return mediaAssets.filter((asset) => asset.kind !== "model" && asset.kind !== "entity" && asset.status !== "archived").map((media): ProjectPickerItem => ({ id: media.id, category: normalizeAssetCategory(media.category), media }));
     }, [detail?.assets, mediaAssets]);
     const localPickerItems = useMemo<AssetLibraryPickerItem[]>(
         () =>

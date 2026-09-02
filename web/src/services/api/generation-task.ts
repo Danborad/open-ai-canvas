@@ -385,7 +385,7 @@ function assertBackendRuntimeConfigured(config: AiConfig, mode: BackendGeneratio
     if (resolveGenerationWorkflowExecution(config, mode)) return;
     if (logicalModelIDForConfig(config)) return;
     const requestConfig = resolveModelRequestConfig(config, config.model);
-    if (!requestConfig.channelId && !requestConfig.interfaceType) throw new Error("当前模型未选择可用请求协议，请先在模型设置中选择协议插件");
+    if (!requestConfig.channelId && !requestConfig.interfaceType && !requestConfig.baseUrl) throw new Error("当前模型未选择可用请求协议，请先在模型设置中选择协议插件");
 }
 
 function throwIfAborted(signal?: AbortSignal) {

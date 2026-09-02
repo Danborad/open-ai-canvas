@@ -127,10 +127,7 @@ export async function executeImageGeneration({
             failedPromptFingerprint: undefined,
         },
     }));
-    const batchConnections = [
-        ...(reuseSourceNode ? [] : [{ id: nanoid(), fromNodeId: nodeId, toNodeId: rootId }]),
-        ...childIds.map((childId) => ({ id: nanoid(), fromNodeId: rootId, toNodeId: childId })),
-    ];
+    const batchConnections = [...(reuseSourceNode ? [] : [{ id: nanoid(), fromNodeId: nodeId, toNodeId: rootId }]), ...childIds.map((childId) => ({ id: nanoid(), fromNodeId: rootId, toNodeId: childId }))];
 
     const nextNodes: CanvasNodeData[] = [
         ...canvasNodes.map((node) => {

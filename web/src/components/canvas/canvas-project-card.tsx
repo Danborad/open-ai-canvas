@@ -335,7 +335,7 @@ function buildNodePreviewLayout(nodes: CanvasNodeData[]) {
 }
 
 function getNodeMediaUrl(node: CanvasNodeData) {
-    const raw = node.metadata?.previewContent || node.metadata?.content || node.metadata?.dataUrl || node.metadata?.url;
+    const raw = node.metadata?.previewContent || node.metadata?.content;
     if (typeof raw !== "string" || !raw.trim()) return "";
     const trimmed = raw.trim();
     const resourceId = resourceIdFromStorageKey(trimmed) || resourceIdFromStorageKey(node.metadata?.storageKey);
