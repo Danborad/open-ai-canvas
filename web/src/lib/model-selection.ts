@@ -291,7 +291,7 @@ export function resolveModelGenerationDefaults(
         return {
             videoSeconds: normalized.seconds,
             size: normalized.ratio,
-            vquality: normalized.resolution.replace(/p$/i, ""),
+            vquality: normalized.resolution,
             videoGenerateAudio: source("videoGenerateAudio") ?? String(profile.video.generateAudio.default),
             videoWatermark: source("videoWatermark") ?? String(profile.video.watermark.default),
         };

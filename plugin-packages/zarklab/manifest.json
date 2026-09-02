@@ -1,12 +1,12 @@
 {
-  "apiVersion": "yingce.plugin/v1",
+  "apiVersion": "yingce.plugin/v2",
   "id": "zarklab-provider",
   "name": "ZarkLab 渠道",
   "version": "1.0.0",
   "enabled": true,
   "author": "影策社区",
   "description": "接入 ZarkLab.ai 格式模型与工具协议，支持 Kling、Seedance、Happy Horse 等模型。",
-  "documentation": "# ZarkLab.ai 渠道插件\n\n## 接口协议\n\n- 任务提交：`POST /mcp` (JSON-RPC `tools/call` `zark_ai`)\n- 结果查询：`GET /media/files/{id}`\n- 鉴权请求头：`X-API-Key: <key>`\n",
+  "documentation": "# ZarkLab 渠道插件\n\n该包提供 `zarklab-image` 和 `zarklab-video` 两个 provider，接入 ZarkLab.ai 格式模型与工具协议，支持 Kling、Seedance、Happy Horse 等模型。\n\n字段、约束、响应和兼容注意事项见 [docs/interface.md](docs/interface.md)。\n\n安装包由仓库根目录的 `plugin-packages/build-packages.sh` 生成，后端启动时从 `plugin-packages/*.yingce-plugin` 加载为官方插件。\n\n---\n\n# ZarkLab 接口字段\n\n## 鉴权与入口\n\n- 任务提交：`POST /mcp` (JSON-RPC `tools/call` `zark_ai`)\n- 结果查询：`GET /media/files/{id}`\n- 鉴权请求头：`X-API-Key: <key>`\n- 默认 Base URL：`https://api.zarklab.ai`\n\n## 配置字段\n\n| 字段 | 类型 | 必填 | 说明 |\n| --- | --- | --- | --- |\n| `apiKey` | secret | 是 | ZarkLab API Key，由宿主写入 X-API-Key 鉴权头。 |\n| `baseUrl` | string | 否 | 上游根地址，默认 `https://api.zarklab.ai`。 |\n\n<!-- YINGCE_MANIFEST_CONTRACT_START -->\n## Manifest 完整接口定义\n\n以下 JSON 与插件包内实际 `manifest.json` 逐字段一致，覆盖插件身份、权限、配置、鉴权、参数、校验、创建、Agent、查询、取消、结果下载、响应和 Agent 响应映射。`documentation` 字段的值就是当前完整文档；为避免文档在自身内部无限递归，JSON 中仅用等义占位文本表示正文。\n\n```json\n{\n  \"apiVersion\": \"yingce.plugin/v2\",\n  \"id\": \"zarklab-provider\",\n  \"name\": \"ZarkLab 渠道\",\n  \"version\": \"1.0.0\",\n  \"enabled\": true,\n  \"author\": \"影策社区\",\n  \"description\": \"接入 ZarkLab.ai 格式模型与工具协议，支持 Kling、Seedance、Happy Horse 等模型。\",\n  \"documentation\": \"<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>\",\n  \"permissions\": [\n    \"generation.run\",\n    \"media.read\"\n  ],\n  \"configuration\": {\n    \"fields\": [\n      {\n        \"name\": \"apiKey\",\n        \"type\": \"secret\",\n        \"label\": \"ZarkLab API Key\",\n        \"required\": true,\n        \"description\": \"填写 ZarkLab API Key。\"\n      }\n    ]\n  },\n  \"contributes\": {\n    \"providers\": [\n      {\n        \"id\": \"zarklab-image\",\n        \"label\": \"ZarkLab 图片\",\n        \"capabilities\": [\n          \"image\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\"\n        ],\n        \"baseUrl\": \"https://api.zarklab.ai\",\n        \"auth\": {\n          \"type\": \"header\",\n          \"field\": \"apiKey\",\n          \"header\": \"X-API-Key\"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\"\n          },\n          {\n            \"name\": \"aspectRatio\",\n            \"type\": \"string\",\n            \"mapping\": \"aspectRatio\"\n          }\n        ],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/mcp\",\n          \"contentType\": \"application/json\",\n          \"fields\": {\n            \"jsonrpc\": \"2.0\",\n            \"id\": \"1\",\n            \"method\": \"tools/call\",\n            \"params.name\": \"zark_ai\",\n            \"params.arguments.prompt\": \"request.prompt\",\n            \"params.arguments.aspect_ratio\": \"request.aspectRatio\"\n          }\n        },\n        \"response\": {\n          \"taskIdPaths\": [\n            \"result.structuredContent.run_id\"\n          ],\n          \"statusPaths\": [\n            \"result.status\",\n            \"status\"\n          ],\n          \"resultPaths\": [\n            \"result.structuredContent.generated_file_ids\",\n            \"result.content\"\n          ],\n          \"resultKind\": \"image\",\n          \"resultEphemeral\": true\n        }\n      },\n      {\n        \"id\": \"zarklab-video\",\n        \"label\": \"ZarkLab 视频\",\n        \"capabilities\": [\n          \"video\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\"\n        ],\n        \"baseUrl\": \"https://api.zarklab.ai\",\n        \"auth\": {\n          \"type\": \"header\",\n          \"field\": \"apiKey\",\n          \"header\": \"X-API-Key\"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\"\n          },\n          {\n            \"name\": \"duration\",\n            \"type\": \"integer\",\n            \"mapping\": \"duration\"\n          },\n          {\n            \"name\": \"aspectRatio\",\n            \"type\": \"string\",\n            \"mapping\": \"aspectRatio\"\n          }\n        ],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/mcp\",\n          \"contentType\": \"application/json\",\n          \"fields\": {\n            \"jsonrpc\": \"2.0\",\n            \"id\": \"1\",\n            \"method\": \"tools/call\",\n            \"params.name\": \"zark_ai\",\n            \"params.arguments.prompt\": \"request.prompt\",\n            \"params.arguments.duration\": \"request.duration\",\n            \"params.arguments.aspect_ratio\": \"request.aspectRatio\"\n          }\n        },\n        \"response\": {\n          \"taskIdPaths\": [\n            \"result.structuredContent.run_id\"\n          ],\n          \"statusPaths\": [\n            \"result.status\",\n            \"status\"\n          ],\n          \"resultPaths\": [\n            \"result.structuredContent.generated_file_ids\"\n          ],\n          \"resultKind\": \"video\",\n          \"resultEphemeral\": true\n        }\n      }\n    ],\n    \"workflows\": [\n      {\n        \"id\": \"GPT Image 2\",\n        \"label\": \"GPT Image 2\",\n        \"providerId\": \"zarklab-image\",\n        \"capability\": \"image\"\n      },\n      {\n        \"id\": \"Happy Horse\",\n        \"label\": \"Happy Horse 视频\",\n        \"providerId\": \"zarklab-video\",\n        \"capability\": \"video\"\n      },\n      {\n        \"id\": \"Seedance 2.5\",\n        \"label\": \"Seedance 2.5 视频\",\n        \"providerId\": \"zarklab-video\",\n        \"capability\": \"video\"\n      }\n    ]\n  }\n}\n```\n<!-- YINGCE_MANIFEST_CONTRACT_END -->\n",
   "permissions": [
     "generation.run",
     "media.read"
@@ -43,9 +43,23 @@
           "header": "X-API-Key"
         },
         "parameters": [
-          { "name": "model", "type": "string", "required": true, "mapping": "model" },
-          { "name": "prompt", "type": "string", "required": true, "mapping": "prompt" },
-          { "name": "aspectRatio", "type": "string", "mapping": "aspectRatio" }
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt"
+          },
+          {
+            "name": "aspectRatio",
+            "type": "string",
+            "mapping": "aspectRatio"
+          }
         ],
         "create": {
           "method": "POST",
@@ -95,10 +109,28 @@
           "header": "X-API-Key"
         },
         "parameters": [
-          { "name": "model", "type": "string", "required": true, "mapping": "model" },
-          { "name": "prompt", "type": "string", "required": true, "mapping": "prompt" },
-          { "name": "duration", "type": "integer", "mapping": "duration" },
-          { "name": "aspectRatio", "type": "string", "mapping": "aspectRatio" }
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt"
+          },
+          {
+            "name": "duration",
+            "type": "integer",
+            "mapping": "duration"
+          },
+          {
+            "name": "aspectRatio",
+            "type": "string",
+            "mapping": "aspectRatio"
+          }
         ],
         "create": {
           "method": "POST",
@@ -131,9 +163,24 @@
       }
     ],
     "workflows": [
-      { "id": "GPT Image 2", "label": "GPT Image 2", "providerId": "zarklab-image", "capability": "image" },
-      { "id": "Happy Horse", "label": "Happy Horse 视频", "providerId": "zarklab-video", "capability": "video" },
-      { "id": "Seedance 2.5", "label": "Seedance 2.5 视频", "providerId": "zarklab-video", "capability": "video" }
+      {
+        "id": "GPT Image 2",
+        "label": "GPT Image 2",
+        "providerId": "zarklab-image",
+        "capability": "image"
+      },
+      {
+        "id": "Happy Horse",
+        "label": "Happy Horse 视频",
+        "providerId": "zarklab-video",
+        "capability": "video"
+      },
+      {
+        "id": "Seedance 2.5",
+        "label": "Seedance 2.5 视频",
+        "providerId": "zarklab-video",
+        "capability": "video"
+      }
     ]
   }
 }

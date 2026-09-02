@@ -1,4 +1,5 @@
-import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
+import { getNodeSpec, NODE_DEFAULT_SIZE } from "@/constant/canvas";
+import { findAvailableGenerationGroupPosition } from "@/lib/canvas/canvas-generation-layout";
 import { fitNodeSize, nodeSizeFromRatio, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
 import { compositeEmotionImage } from "@/lib/canvas/canvas-emotion";
 import { storeGeneratedAudio } from "@/services/api/audio";
@@ -256,22 +257,58 @@ function applySuccessfulVersionSelection(nodes: CanvasNodeData[], updatedNode: C
     });
 }
 
+export function createNodeFromCompletedTask(task: GenerationTask, existingNodes: CanvasNodeData[] = []): CanvasNodeData {
+    const mode = generationTaskMode(task);
+    const nodeType = mode === "video" ? CanvasNodeType.Video : mode === "audio" ? CanvasNodeType.Audio : mode === "text" ? CanvasNodeType.Text : CanvasNodeType.Image;
+    const input = generationTaskInput(task);
+    const nodeId = input?.metadata?.nodeId || `task-${task.id}`;
+    const spec = getNodeSpec(nodeType);
+    const preferredPosition = { x: 0, y: 0 };
+    const position = findAvailableGenerationGroupPosition(existingNodes, preferredPosition, spec);
+    const now = new Date().toISOString();
+    return {
+        id: nodeId,
+        type: nodeType,
+        title: task.prompt ? task.prompt.slice(0, 32) : spec.title,
+        createdAt: task.createdAt || now,
+        updatedAt: task.completedAt || now,
+        position,
+        width: spec.width,
+        height: spec.height,
+        metadata: {
+            status: "loading",
+            prompt: task.prompt,
+            model: task.model,
+            taskId: task.id,
+            generationType: "generation",
+        },
+    };
+}
+
 export async function syncGenerationTaskToCanvasStore(task: GenerationTask) {
     if (task.status !== "succeeded" || !task.projectId) return false;
     const store = useCanvasStore.getState();
     const project = store.projects.find((item) => item.id === task.projectId);
     if (!project) return false;
-    const node = findGenerationTaskNode(project.nodes, task);
-    if (!node) return false;
-    if (node.metadata?.taskId === task.id && node.metadata.status === "success" && node.metadata.content) return false;
+    let node = findGenerationTaskNode(project.nodes, task);
+    let isNewNode = false;
+    if (!node) {
+        node = createNodeFromCompletedTask(task, project.nodes);
+        isNewNode = true;
+    } else if (node.metadata?.taskId === task.id && node.metadata.status === "success" && node.metadata.content) {
+        return false;
+    }
     const updatedNode = await buildGenerationTaskNodeResult(node, task, project.nodes);
     const latest = useCanvasStore.getState().projects.find((item) => item.id === project.id);
-    if (!latest?.nodes.some((item) => item.id === node.id)) return false;
-    useCanvasStore.getState().updateProject(project.id, { nodes: latest.nodes.map((item) => (item.id === node.id ? updatedNode : item)) });
+    if (!latest) return false;
+    const nextNodes = isNewNode
+        ? [...latest.nodes, updatedNode]
+        : latest.nodes.map((item) => (item.id === node!.id ? updatedNode : item));
+    useCanvasStore.getState().updateProject(project.id, { nodes: nextNodes });
     return true;
 }
 
-function findGenerationTaskNode(nodes: CanvasNodeData[], task: GenerationTask, targetNodeId?: string) {
+export function findGenerationTaskNode(nodes: CanvasNodeData[], task: GenerationTask, targetNodeId?: string) {
     const nodeId = targetNodeId || generationTaskNodeId(task);
     return nodes.find((node) => node.id === nodeId || node.metadata?.taskId === task.id);
 }

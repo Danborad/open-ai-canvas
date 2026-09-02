@@ -496,8 +496,16 @@ func miniMaxVideosAdapter() Adapter {
 		for _, audio := range r.Audios {
 			content = append(content, map[string]any{"type": "audio_url", "audio_url": map[string]any{"url": mediaValue(audio)}, "role": "reference_audio"})
 		}
-		body := map[string]any{"model": r.Model, "prompt": r.Prompt, "duration": defaultInt(r.Duration, 6), "content": content}
-		mergeExtra(body, r.Extra, "model", "prompt", "duration", "content", "resolution", "aspect_ratio")
+		body := map[string]any{
+			"model":          r.Model,
+			"duration":       defaultInt(r.Duration, 5),
+			"content":        content,
+			"resolution":     normalizeMiniMaxResolution(r.Resolution),
+			"ratio":          defaultValue(r.AspectRatio, "16:9"),
+			"aigc_watermark": r.Watermark,
+			"generate_audio": r.GenerateAudio,
+		}
+		mergeExtra(body, r.Extra, "model", "prompt", "duration", "content", "resolution", "aspect_ratio", "ratio")
 		return jsonSpec(http.MethodPost, "/v2/video_generation", body), nil
 	})
 }
@@ -1602,4 +1610,18 @@ func dataPayload(value string) string {
 		return value[index+1:]
 	}
 	return value
+}
+
+func normalizeMiniMaxResolution(value string) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if normalized == "2k" || normalized == "4k" || normalized == "high" || normalized == "1080" || normalized == "1080p" || normalized == "1440p" || normalized == "2160p" {
+		return "2K"
+	}
+	if normalized == "480" || normalized == "480p" {
+		return "480p"
+	}
+	if normalized == "512" || normalized == "512p" {
+		return "512p"
+	}
+	return "768P"
 }

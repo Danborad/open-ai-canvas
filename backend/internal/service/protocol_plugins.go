@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -174,13 +173,27 @@ func (c *pluginRuntime) bootstrapOfficialPlugins() error {
 	// 自动从根目录/工作区扫描并注册随包发布的 .yingce-plugin 插件包或未打包的插件目录
 	bundledIDs := make(map[string]struct{})
 	candidateDirs := []string{
+		officialDir,
 		"plugin-packages",
 		filepath.Join("..", "plugin-packages"),
 		filepath.Join("..", "..", "plugin-packages"),
+		filepath.Join("..", "..", "..", "plugin-packages"),
 		"/app/plugin-packages",
 		"/plugin-packages",
 	}
+	visitedDirs := make(map[string]struct{})
 	for _, dir := range candidateDirs {
+		if dir == "" {
+			continue
+		}
+		absDir, err := filepath.Abs(dir)
+		if err != nil {
+			absDir = dir
+		}
+		if _, seen := visitedDirs[absDir]; seen {
+			continue
+		}
+		visitedDirs[absDir] = struct{}{}
 		entries, err := os.ReadDir(dir)
 		if err != nil {
 			continue
@@ -193,11 +206,18 @@ func (c *pluginRuntime) bootstrapOfficialPlugins() error {
 					var manifest protocol.Manifest
 					if err := json.Unmarshal(raw, &manifest); err == nil && manifest.Metadata.ID != "" {
 						id := manifest.Metadata.ID
+						if _, isOfficial := officialIDs[id]; isOfficial {
+							continue
+						}
 						bundledIDs[id] = struct{}{}
 						if existing, exists := byID[id]; exists {
-							if !bytes.Equal(existing.Raw, raw) {
-								existing.Raw = raw
-								existing.PackageSHA256 = pluginHash(raw)
+							var previous protocol.Manifest
+							if err := json.Unmarshal(existing.Raw, &previous); err == nil {
+								manifest.Metadata.Enabled = previous.Metadata.Enabled
+							}
+							if manifestData, err := json.Marshal(manifest); err == nil {
+								existing.Raw = manifestData
+								existing.PackageSHA256 = pluginHash(manifestData)
 								existing.UpdatedAt = time.Now().UTC()
 								byID[id] = existing
 							}
@@ -228,12 +248,20 @@ func (c *pluginRuntime) bootstrapOfficialPlugins() error {
 					continue
 				}
 				id := pkg.Manifest.Metadata.ID
+				if _, isOfficial := officialIDs[id]; isOfficial {
+					continue
+				}
 				bundledIDs[id] = struct{}{}
 				if existing, exists := byID[id]; exists {
-					if !bytes.Equal(existing.Raw, pkg.ManifestRaw) {
+					manifest := pkg.Manifest
+					var previous protocol.Manifest
+					if err := json.Unmarshal(existing.Raw, &previous); err == nil {
+						manifest.Metadata.Enabled = previous.Metadata.Enabled
+					}
+					if manifestData, err := json.Marshal(manifest); err == nil {
 						destPath := filepath.Join(c.packageDir, entry.Name())
 						_ = os.WriteFile(destPath, data, 0o600)
-						existing.Raw = pkg.ManifestRaw
+						existing.Raw = manifestData
 						existing.PackagePath = destPath
 						existing.PackageSHA256 = pluginHash(data)
 						existing.UpdatedAt = time.Now().UTC()
@@ -285,10 +313,14 @@ func (c *pluginRuntime) bootstrapOfficialPlugins() error {
 	}
 	result := make([]pluginRegistryRecord, 0, len(byID))
 	for _, record := range byID {
-		if record.Source == "bundled" || record.Source == PluginOriginOfficial {
+		if record.Source == PluginOriginOfficial {
 			if _, exists := officialIDs[record.ID]; !exists {
 				// Official records are reconciled from repository packages on every
 				// startup, so removed packages cannot survive as stale providers.
+				continue
+			}
+		} else if record.Source == "bundled" {
+			if _, exists := bundledIDs[record.ID]; !exists {
 				continue
 			}
 		}

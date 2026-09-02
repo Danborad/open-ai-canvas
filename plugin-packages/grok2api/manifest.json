@@ -1,12 +1,12 @@
 {
-  "apiVersion": "yingce.plugin/v1",
+  "apiVersion": "yingce.plugin/v2",
   "id": "grok2api-provider",
   "name": "Grok2API 渠道",
   "version": "1.0.0",
   "enabled": true,
   "author": "影策社区",
   "description": "接入 Grok2API 与 xAI 格式图片与视频生成服务，支持多图参考和可变时长视频生成。",
-  "documentation": "# Grok2API 渠道插件\n\n## 接口协议\n\n- 图片生成/编辑：`POST /v1/images/generations`、`POST /v1/images/edits`\n- 视频生成：`POST /v1/videos/generations`\n- 视频轮询：`GET /v1/videos/{task_id}`\n\n## 支持模型\n\n- `Web/grok-imagine-image-2.0` / `Web/grok-imagine-image-quality-2.0`\n- `Web/grok-imagine-video` / `Console/grok-imagine-video`\n",
+  "documentation": "# Grok2API 渠道插件\n\n该包提供 `grok2api-image` 和 `grok2api-video` 两个 provider，接入 Grok2API 与 xAI 格式图片与视频生成服务，支持多图参考和可变时长视频生成。\n\n字段、约束、响应和兼容注意事项见 [docs/interface.md](docs/interface.md)。\n\n安装包由仓库根目录的 `plugin-packages/build-packages.sh` 生成，后端启动时从 `plugin-packages/*.yingce-plugin` 加载为官方插件。\n\n---\n\n# Grok2API 接口字段\n\n## 鉴权与入口\n\n- 鉴权：`Authorization: Bearer <apiKey>`。\n- 生成：`POST /v1/images/generations`、`POST /v1/images/edits`、`POST /v1/videos/generations`。\n- 轮询：`GET /v1/videos/{task_id}`。\n\n## 配置字段\n\n| 字段 | 类型 | 必填 | 说明 |\n| --- | --- | --- | --- |\n| `apiKey` | secret | 是 | Grok2API API Key，由宿主写入 Bearer 鉴权头。 |\n| `baseUrl` | string | 否 | 上游根地址。 |\n\n## 支持模型\n\n- `Web/grok-imagine-image-2.0` / `Web/grok-imagine-image-quality-2.0`\n- `Web/grok-imagine-video` / `Console/grok-imagine-video`\n\n<!-- YINGCE_MANIFEST_CONTRACT_START -->\n## Manifest 完整接口定义\n\n以下 JSON 与插件包内实际 `manifest.json` 逐字段一致，覆盖插件身份、权限、配置、鉴权、参数、校验、创建、Agent、查询、取消、结果下载、响应和 Agent 响应映射。`documentation` 字段的值就是当前完整文档；为避免文档在自身内部无限递归，JSON 中仅用等义占位文本表示正文。\n\n```json\n{\n  \"apiVersion\": \"yingce.plugin/v2\",\n  \"id\": \"grok2api-provider\",\n  \"name\": \"Grok2API 渠道\",\n  \"version\": \"1.0.0\",\n  \"enabled\": true,\n  \"author\": \"影策社区\",\n  \"description\": \"接入 Grok2API 与 xAI 格式图片与视频生成服务，支持多图参考和可变时长视频生成。\",\n  \"documentation\": \"<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>\",\n  \"permissions\": [\n    \"generation.run\",\n    \"media.read\"\n  ],\n  \"configuration\": {\n    \"fields\": [\n      {\n        \"name\": \"apiKey\",\n        \"type\": \"secret\",\n        \"label\": \"Grok2API Key\",\n        \"required\": true,\n        \"description\": \"填写 Grok2API 的 API Key。\"\n      }\n    ]\n  },\n  \"contributes\": {\n    \"providers\": [\n      {\n        \"id\": \"grok2api-image\",\n        \"label\": \"Grok2API 图片\",\n        \"capabilities\": [\n          \"image\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\"\n        ],\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\",\n          \"header\": \"Authorization\"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\"\n          },\n          {\n            \"name\": \"aspectRatio\",\n            \"type\": \"string\",\n            \"mapping\": \"aspectRatio\"\n          },\n          {\n            \"name\": \"quality\",\n            \"type\": \"string\",\n            \"mapping\": \"quality\"\n          }\n        ],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/v1/images/generations\",\n          \"contentType\": \"application/json\",\n          \"fields\": {\n            \"model\": \"request.model\",\n            \"prompt\": \"request.prompt\",\n            \"aspect_ratio\": \"request.aspectRatio\",\n            \"resolution\": \"request.quality|lower\",\n            \"image\": \"request.images.0.url\"\n          }\n        },\n        \"response\": {\n          \"resultPaths\": [\n            \"data\"\n          ],\n          \"resultKind\": \"image\"\n        }\n      },\n      {\n        \"id\": \"grok2api-video\",\n        \"label\": \"Grok2API 视频\",\n        \"capabilities\": [\n          \"video\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\"\n        ],\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\",\n          \"header\": \"Authorization\"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\"\n          },\n          {\n            \"name\": \"duration\",\n            \"type\": \"integer\",\n            \"mapping\": \"duration\"\n          },\n          {\n            \"name\": \"aspectRatio\",\n            \"type\": \"string\",\n            \"mapping\": \"aspectRatio\"\n          },\n          {\n            \"name\": \"resolution\",\n            \"type\": \"string\",\n            \"mapping\": \"resolution\"\n          }\n        ],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/v1/videos/generations\",\n          \"contentType\": \"application/json\",\n          \"fields\": {\n            \"model\": \"request.model\",\n            \"prompt\": \"request.prompt\",\n            \"duration\": \"request.duration\",\n            \"aspect_ratio\": \"request.aspectRatio\",\n            \"resolution\": \"request.resolution|lower\",\n            \"image.url\": \"request.images.0.url\"\n          }\n        },\n        \"poll\": {\n          \"method\": \"GET\",\n          \"path\": \"/v1/videos/{{taskId}}\"\n        },\n        \"response\": {\n          \"taskIdPaths\": [\n            \"id\",\n            \"request_id\",\n            \"data.task_id\"\n          ],\n          \"statusPaths\": [\n            \"status\",\n            \"state\",\n            \"data.status\"\n          ],\n          \"errorPaths\": [\n            \"code\",\n            \"error\"\n          ],\n          \"messagePaths\": [\n            \"message\",\n            \"error.message\"\n          ],\n          \"resultPaths\": [\n            \"video_url\",\n            \"url\",\n            \"data.url\",\n            \"videos\"\n          ],\n          \"resultKind\": \"video\"\n        }\n      }\n    ],\n    \"workflows\": [\n      {\n        \"id\": \"Web/grok-imagine-image-2.0\",\n        \"label\": \"Grok Imagine 图片\",\n        \"providerId\": \"grok2api-image\",\n        \"capability\": \"image\"\n      },\n      {\n        \"id\": \"Web/grok-imagine-video\",\n        \"label\": \"Grok Imagine 视频\",\n        \"providerId\": \"grok2api-video\",\n        \"capability\": \"video\"\n      }\n    ]\n  }\n}\n```\n<!-- YINGCE_MANIFEST_CONTRACT_END -->\n",
   "permissions": [
     "generation.run",
     "media.read"
@@ -42,10 +42,28 @@
           "header": "Authorization"
         },
         "parameters": [
-          { "name": "model", "type": "string", "required": true, "mapping": "model" },
-          { "name": "prompt", "type": "string", "required": true, "mapping": "prompt" },
-          { "name": "aspectRatio", "type": "string", "mapping": "aspectRatio" },
-          { "name": "quality", "type": "string", "mapping": "quality" }
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt"
+          },
+          {
+            "name": "aspectRatio",
+            "type": "string",
+            "mapping": "aspectRatio"
+          },
+          {
+            "name": "quality",
+            "type": "string",
+            "mapping": "quality"
+          }
         ],
         "create": {
           "method": "POST",
@@ -84,11 +102,33 @@
           "header": "Authorization"
         },
         "parameters": [
-          { "name": "model", "type": "string", "required": true, "mapping": "model" },
-          { "name": "prompt", "type": "string", "required": true, "mapping": "prompt" },
-          { "name": "duration", "type": "integer", "mapping": "duration" },
-          { "name": "aspectRatio", "type": "string", "mapping": "aspectRatio" },
-          { "name": "resolution", "type": "string", "mapping": "resolution" }
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt"
+          },
+          {
+            "name": "duration",
+            "type": "integer",
+            "mapping": "duration"
+          },
+          {
+            "name": "aspectRatio",
+            "type": "string",
+            "mapping": "aspectRatio"
+          },
+          {
+            "name": "resolution",
+            "type": "string",
+            "mapping": "resolution"
+          }
         ],
         "create": {
           "method": "POST",

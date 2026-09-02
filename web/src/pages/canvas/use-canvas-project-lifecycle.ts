@@ -2,7 +2,7 @@ import { startTransition, useCallback, useEffect, useRef, useState, type Dispatc
 import { App } from "antd";
 import { useNavigate } from "react-router";
 
-import { canvasAppearanceBaseTheme, canvasAppearanceForTheme, DEFAULT_CANVAS_BACKGROUND_MODE, normalizeCanvasAppearance, type CanvasAppearance } from "@/lib/canvas/canvas-appearance";
+import { canvasAppearanceForTheme, DEFAULT_CANVAS_BACKGROUND_MODE, normalizeCanvasAppearance, readCanvasAppearanceDefault, type CanvasAppearance } from "@/lib/canvas/canvas-appearance";
 import type { CanvasBackgroundMode } from "@/lib/canvas-theme";
 import { removeCanvasDrawing } from "@/lib/canvas/canvas-drawing-storage";
 import { normalizeCanvasNodeTimestamps } from "@/lib/canvas/canvas-node-timestamps";
@@ -94,16 +94,20 @@ export function useCanvasProjectLifecycle({
         const applyRestoredProject = (restoredNodes: CanvasNodeData[], restoredSessions: CanvasAssistantSession[]) => {
             if (cancelled) return;
             const fallbackTheme = useThemeStore.getState().theme;
-            const restoredAppearance = project.appearance
+            const restoredAppearance = project.appearance?.mode === "custom"
                 ? normalizeCanvasAppearance(project.appearance, fallbackTheme)
                 : canvasAppearanceForTheme(fallbackTheme);
+            const appearanceDefault = readCanvasAppearanceDefault();
+            const restoredBackgroundMode = project.backgroundMode === "dots" || project.backgroundMode === "blank"
+                ? project.backgroundMode
+                : (appearanceDefault?.backgroundMode || DEFAULT_CANVAS_BACKGROUND_MODE);
             const snapshot: CanvasHistorySnapshot = {
                 nodes: restoredNodes,
                 connections: project.connections,
                 chatSessions: restoredSessions,
                 activeChatId: project.activeChatId || null,
                 canvasAppearance: restoredAppearance,
-                backgroundMode: project.backgroundMode || DEFAULT_CANVAS_BACKGROUND_MODE,
+                backgroundMode: restoredBackgroundMode,
                 showImageInfo: project.showImageInfo || false,
             };
             nodesRef.current = snapshot.nodes;
@@ -114,7 +118,6 @@ export function useCanvasProjectLifecycle({
             setChatSessions(snapshot.chatSessions);
             setActiveChatId(snapshot.activeChatId);
             setCanvasAppearance(snapshot.canvasAppearance);
-            useThemeStore.getState().setTheme(canvasAppearanceBaseTheme(snapshot.canvasAppearance, fallbackTheme));
             setBackgroundMode(snapshot.backgroundMode);
             setShowImageInfo(snapshot.showImageInfo);
             setViewport(project.viewport);

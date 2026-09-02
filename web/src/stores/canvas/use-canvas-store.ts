@@ -459,6 +459,7 @@ export const useCanvasStore = create<CanvasStore>()(
             },
             importProject: (source) => {
                 const now = new Date().toISOString();
+                const appearanceDefault = readCanvasAppearanceDefault();
                 const project: CanvasProject = {
                     id: nanoid(),
                     projectId: source.projectId,
@@ -470,8 +471,12 @@ export const useCanvasStore = create<CanvasStore>()(
                     chatSessions: source.chatSessions || [],
                     activeChatId: source.activeChatId || null,
                     starterMode: source.starterMode,
-                    appearance: source.appearance ? normalizeCanvasAppearance(source.appearance, "dark") : undefined,
-                    backgroundMode: source.backgroundMode || DEFAULT_CANVAS_BACKGROUND_MODE,
+                    appearance: source.appearance?.mode === "custom"
+                        ? normalizeCanvasAppearance(source.appearance, "dark")
+                        : appearanceDefault?.appearance,
+                    backgroundMode: source.backgroundMode === "dots" || source.backgroundMode === "blank"
+                        ? source.backgroundMode
+                        : (appearanceDefault?.backgroundMode || DEFAULT_CANVAS_BACKGROUND_MODE),
                     showImageInfo: source.showImageInfo || false,
                     viewport: source.viewport || initialViewport,
                     directorScenes: source.directorScenes || [],

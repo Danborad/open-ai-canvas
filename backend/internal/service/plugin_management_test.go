@@ -69,3 +69,30 @@ func TestUploadedManifestCannotClaimUserActivationScope(t *testing.T) {
 		t.Fatalf("uploaded plugin policy = %#v", policy)
 	}
 }
+
+func TestBundledDirectoryPluginsAreReconciledAndResolvable(t *testing.T) {
+	center, err := newPluginRuntime(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry := center.registrySnapshot()
+	if registry == nil {
+		t.Fatal("registry snapshot is nil")
+	}
+
+	flowImage, ok := registry.Resolve("flow2api-image")
+	if !ok {
+		t.Fatal("flow2api-image adapter was not resolved from bundled directory")
+	}
+	if flowImage.Metadata().ID != "flow2api-image" || !flowImage.Metadata().Enabled {
+		t.Fatalf("flow2api-image metadata mismatch: %#v", flowImage.Metadata())
+	}
+
+	flowVideo, ok := registry.Resolve("flow2api-video")
+	if !ok {
+		t.Fatal("flow2api-video adapter was not resolved from bundled directory")
+	}
+	if flowVideo.Metadata().ID != "flow2api-video" || !flowVideo.Metadata().Enabled {
+		t.Fatalf("flow2api-video metadata mismatch: %#v", flowVideo.Metadata())
+	}
+}

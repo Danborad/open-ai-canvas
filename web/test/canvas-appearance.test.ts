@@ -159,4 +159,14 @@ describe("canvas custom appearance", () => {
         window.localStorage.setItem("infinite-canvas:active-user-scope", "account-B");
         expect(readCanvasAppearanceDefault()).toBeNull();
     });
+
+    test("defaults imported canvas background mode to dots and keeps appearance non-intrusive", async () => {
+        const storeSource = await Bun.file(new URL("../src/stores/canvas/use-canvas-store.ts", import.meta.url)).text();
+        expect(storeSource).toContain('source.backgroundMode === "dots" || source.backgroundMode === "blank"');
+        expect(storeSource).toContain('DEFAULT_CANVAS_BACKGROUND_MODE');
+
+        const lifecycleSource = await Bun.file(new URL("../src/pages/canvas/use-canvas-project-lifecycle.ts", import.meta.url)).text();
+        expect(lifecycleSource).not.toContain('useThemeStore.getState().setTheme(canvasAppearanceBaseTheme');
+        expect(lifecycleSource).toContain('project.backgroundMode === "dots" || project.backgroundMode === "blank"');
+    });
 });

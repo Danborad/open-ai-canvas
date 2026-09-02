@@ -2402,7 +2402,7 @@ func protocolRequestFromInput(input canvasGenerationInput) protocol.GenerationRe
 		Videos:        protocolMediaReferences(input.ReferenceVideos, "video"),
 		Audios:        protocolMediaReferences(input.ReferenceAudios, "audio"),
 		AspectRatio:   input.Config.Size,
-		Resolution:    input.Config.VQuality,
+		Resolution:    resolveProtocolInputResolution(input),
 		Quality:       input.Config.Quality,
 		GenerateAudio: parseBool(input.Config.VideoGenerateAudio, false),
 		Watermark:     parseBool(input.Config.VideoWatermark, false),
@@ -3554,10 +3554,24 @@ func miniMaxMediaURLValue(media providerMedia) (string, error) {
 	return value, nil
 }
 
+func resolveProtocolInputResolution(input canvasGenerationInput) string {
+	res := strings.TrimSpace(input.Config.VQuality)
+	if input.Config.InterfaceType == string(model.ChannelInterfaceMiniMaxVideo) {
+		return normalizeMiniMaxResolution(res)
+	}
+	return res
+}
+
 func normalizeMiniMaxResolution(value string) string {
 	normalized := strings.ToLower(strings.TrimSpace(value))
 	if normalized == "2k" || normalized == "4k" || normalized == "high" || normalized == "1080" || normalized == "1080p" || normalized == "1440p" || normalized == "2160p" {
 		return "2K"
+	}
+	if normalized == "480" || normalized == "480p" {
+		return "480p"
+	}
+	if normalized == "512" || normalized == "512p" {
+		return "512p"
 	}
 	return "768P"
 }

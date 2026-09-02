@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateA
 import { useQueryClient } from "@tanstack/react-query";
 import { App } from "antd";
 
-import { applyGenerationTaskResultToNodes, generationTaskCanReloadResource, generationTaskNodeId } from "@/lib/canvas/canvas-generation-task-sync";
+import { applyGenerationTaskResultToNodes, findGenerationTaskNode, generationTaskCanReloadResource, generationTaskNodeId, syncGenerationTaskToCanvasStore } from "@/lib/canvas/canvas-generation-task-sync";
 import { applyCanvasGenerationTaskNodeEffect, isCanvasGenerationDurableAckError } from "@/services/canvas-generation-consumer";
 import { consumeGenerationTaskNode, ensureCanvasNodeAsset } from "@/services/project-asset-sync";
 import { listGenerationTasks, listTaskLogs, queryGenerationTask, subscribeGenerationTasks, type GenerationTask, type TaskLog } from "@/services/api/task-center";
@@ -368,21 +368,44 @@ export function useCanvasGeneration({ projectId, domainProjectId, projectLoaded,
     const recoverInterruptedGenerationTasks = useCallback(
         async (startedProjectId: string, signal: AbortSignal, isCurrentProject: () => boolean) => {
             if (!isCurrentProject()) return;
+            const projectTasks = (
+                await listGenerationTasks(30, { projectId: startedProjectId }, undefined, signal).catch((error) => {
+                    if (!isCurrentProject()) throw error;
+                    return [];
+                })
+            ).filter((task) => task.projectId === startedProjectId && (task.type.startsWith("canvas_") || task.type === "agent_storyboard_rows"));
+            if (!isCurrentProject()) return;
+
+            // 1. 恢复成功但画布中丢失节点的任务
+            const missingTasks = projectTasks.filter((task) => {
+                if (task.status !== "succeeded") return false;
+                const existing = findGenerationTaskNode(nodesRef.current, task);
+                return !existing;
+            });
+            if (missingTasks.length) {
+                for (const task of missingTasks) {
+                    if (!isCurrentProject()) return;
+                    try {
+                        const detail = task.resultJson ? task : await queryGenerationTask(task.id);
+                        await syncGenerationTaskToCanvasStore(detail);
+                    } catch (e) {
+                        console.warn("恢复丢失生成任务节点失败", task.id, e);
+                    }
+                }
+                const refreshed = useCanvasStore.getState().projects.find((p) => p.id === startedProjectId);
+                if (refreshed && isCurrentProject()) {
+                    nodesRef.current = refreshed.nodes;
+                    setNodes(refreshed.nodes);
+                }
+            }
+
+            // 2. 恢复进行中/加载中的节点
             const recoveryNodes = nodesRef.current.filter((node) => {
                 const pendingAgentContinuation = node.metadata?.agentGenerationContinuation?.status === "pending";
                 const aggregateBatchRoot = node.metadata?.isBatchRoot && node.metadata.batchChildIds?.length && !node.metadata.taskId;
                 if (aggregateBatchRoot && !pendingAgentContinuation) return false;
                 return pendingAgentContinuation || node.metadata?.status === NODE_STATUS_LOADING || node.metadata?.errorDetails === "页面刷新后生成已中断，请重新生成。" || Boolean(node.metadata?.taskId && node.metadata.status !== NODE_STATUS_SUCCESS);
             });
-            const needsDiscovery = recoveryNodes.some((node) => !node.metadata?.taskId && !node.metadata?.agentGenerationContinuation?.taskId);
-            const projectTasks = needsDiscovery
-                ? (
-                      await listGenerationTasks(30, { projectId: startedProjectId }, undefined, signal).catch((error) => {
-                          if (!isCurrentProject()) throw error;
-                          return [];
-                      })
-                  ).filter((task) => task.projectId === startedProjectId && (task.type.startsWith("canvas_") || task.type === "agent_storyboard_rows"))
-                : [];
             if (!isCurrentProject()) return;
             await Promise.all(
                 recoveryNodes.map(async (node) => {

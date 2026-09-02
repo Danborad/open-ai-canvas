@@ -247,7 +247,7 @@ export default function CreatePage() {
         });
         setSeconds(normalized.seconds);
         setRatio(normalized.ratio);
-        setVideoQuality(normalized.resolution.replace(/p$/i, ""));
+        setVideoQuality(normalized.resolution);
         const maxReferences = videoProfile.operations.includes("image_to_video") ? videoProfile.references.maxImages : 0;
         if (attachments.length > maxReferences) setAttachments((current) => current.slice(0, maxReferences));
     }, [mode, selectedModel, videoProfile]);
@@ -602,7 +602,7 @@ export default function CreatePage() {
             ...(mode === "image"
                 ? { size: normalizedImage?.size || ratio, quality: normalizedImage?.quality || quality, count: normalizedImage?.count || count, videoSeconds: config.videoSeconds }
                 : mode === "video"
-                  ? { size: normalizedVideo?.ratio ?? ratio, videoSeconds: normalizedVideo?.seconds || seconds, vquality: (normalizedVideo?.resolution ?? videoQuality).replace(/p$/i, "") }
+                  ? { size: normalizedVideo?.ratio ?? ratio, videoSeconds: normalizedVideo?.seconds || seconds, vquality: normalizedVideo?.resolution ?? videoQuality }
                   : {}),
         };
         try {
@@ -886,7 +886,7 @@ export default function CreatePage() {
                 const normalized = normalizeVideoValue(nextProfile.video, { seconds: String(nextProfile.video.duration.default), ratio: nextProfile.video.defaultRatio, resolution: nextProfile.video.defaultResolution });
                 setRatio(normalized.ratio);
                 setSeconds(normalized.seconds);
-                setVideoQuality(normalized.resolution.replace(/p$/i, ""));
+                setVideoQuality(normalized.resolution);
             }
         },
         ratio,
