@@ -170,14 +170,15 @@ func normalizeVideoResolution(value string) string {
 }
 
 func videoResolutionNameRequest(profile *VideoCapabilityConfig, value string) string {
+	return videoResolutionNameRequestForInput(profile, value, "")
+}
+
+func videoResolutionNameRequestForInput(profile *VideoCapabilityConfig, value string, ratio string) string {
 	requested := strings.ToLower(strings.TrimSpace(value))
 	if requested == "" || requested == "auto" || requested == "default" || requested == "medium" || requested == "high" {
 		return ""
 	}
-	if profile == nil {
-		return ""
-	}
-	if len(profile.Resolutions) == 0 {
+	if profile == nil || len(profile.Resolutions) == 0 {
 		return ""
 	}
 	candidates := []string{requested, strings.ToLower(normalizeVideoResolution(requested))}
@@ -191,6 +192,37 @@ func videoResolutionNameRequest(profile *VideoCapabilityConfig, value string) st
 		for _, candidate := range candidates {
 			if strings.EqualFold(strings.TrimSpace(supported), candidate) {
 				return strings.TrimSpace(supported)
+			}
+		}
+	}
+	// 支持 AutoDL 等带中文字符的特定画幅分辨率枚举（如 768p横、768p竖、768p(1:1) 等）
+	var targetTier string
+	switch {
+	case strings.HasPrefix(requested, "480") || requested == "low":
+		targetTier = "480p"
+	case strings.HasPrefix(requested, "720") || strings.HasPrefix(requested, "768") || strings.HasPrefix(requested, "736") || requested == "standard":
+		targetTier = "768p"
+	case strings.HasPrefix(requested, "1080") || requested == "2k" || requested == "high":
+		targetTier = "1080p"
+	}
+	if targetTier != "" {
+		orientation := "横"
+		cleanRatio := strings.TrimSpace(ratio)
+		if cleanRatio == "9:16" || cleanRatio == "3:4" || cleanRatio == "2:3" {
+			orientation = "竖"
+		} else if cleanRatio == "1:1" {
+			orientation = "1:1"
+		}
+		for _, supported := range profile.Resolutions {
+			supp := strings.TrimSpace(supported)
+			if (strings.HasPrefix(supp, targetTier) || (targetTier == "768p" && strings.HasPrefix(supp, "736p"))) && strings.Contains(supp, orientation) {
+				return supp
+			}
+		}
+		for _, supported := range profile.Resolutions {
+			supp := strings.TrimSpace(supported)
+			if strings.HasPrefix(supp, targetTier) || (targetTier == "768p" && strings.HasPrefix(supp, "736p")) {
+				return supp
 			}
 		}
 	}

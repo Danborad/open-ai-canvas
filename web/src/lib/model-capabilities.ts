@@ -400,14 +400,14 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.operations.push("reference_to_video");
     }
     const cleanModel = model.toLowerCase();
-    if (protocol === "autodl-comfyui" || protocol === "autodl-comfyui-video" || cleanModel.startsWith("minimax_h3")) {
+    if (protocol === "autodl-comfyui" || protocol === "autodl-comfyui-video" || cleanModel.startsWith("minimax_h3") || cleanModel.startsWith("h3_")) {
         video.duration = { selection: "range", min: 1, max: cleanModel.includes("_12s") ? 12 : cleanModel.includes("_v2") && !cleanModel.includes("15s") ? 10 : 15, step: 1, default: 5 };
         video.ratios = ["9:16", "16:9", "1:1"];
         video.defaultRatio = "9:16";
         if (cleanModel.startsWith("minimax_h3_b99_")) {
             video.resolutions = ["736p竖", "736p横", "736p(1:1)"];
             video.defaultResolution = "736p竖";
-        } else if (cleanModel === "minimax_h3_image_audio_to_video_v2" || cleanModel === "minimax_h3_image_audio_to_video" || cleanModel === "minimax_h3_lightx2v_v5") {
+        } else if (cleanModel === "minimax_h3_image_audio_to_video_v2" || cleanModel === "minimax_h3_image_audio_to_video" || cleanModel === "minimax_h3_lightx2v_v5" || cleanModel.includes("_15s") || cleanModel.startsWith("minimax_h3_zm_")) {
             video.resolutions = ["480p竖", "768p竖", "1080p竖", "480p横", "768p横", "1080p横", "480p(1:1)", "768p(1:1)", "1080p(1:1)"];
             video.defaultResolution = "768p竖";
         } else {
@@ -425,7 +425,7 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
             case "minimax_h3_lightx2v":
             case "minimax_h3_b99_002":
                 video.references.maxImages = 2;
-                video.references.minImages = 2;
+                video.references.minImages = 1;
                 video.references.maxAudios = 0;
                 video.operations = ["image_to_video"];
                 video.defaultOperation = "image_to_video";
@@ -445,6 +445,14 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
                 video.references.minImages = 1;
                 video.references.maxAudios = 0;
                 video.operations = ["image_to_video", "reference_to_video"];
+                video.defaultOperation = "image_to_video";
+                break;
+            case "minimax_h3_zm_u24":
+            case "minimax_h3_zm_u08":
+                video.references.maxImages = 9;
+                video.references.minImages = 1;
+                video.references.maxAudios = 3;
+                video.operations = ["image_to_video", "reference_to_video", "audio_to_video"];
                 video.defaultOperation = "image_to_video";
                 break;
             case "minimax_h3_image_audio_to_video_v2":

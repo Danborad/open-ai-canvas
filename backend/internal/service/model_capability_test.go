@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"infinite-canvas/backend/internal/model"
 )
 
 func TestValidateImageTaskRejectsOversizedGrokPromptByUTF8Bytes(t *testing.T) {
@@ -67,6 +69,73 @@ func TestValidateTaskCapabilityRejectsWorkflowPromptAboveConfiguredLimit(t *test
 	err := (&Service{}).ValidateTaskCapability(input)
 	if err == nil || !strings.Contains(err.Error(), "完整提示词为 10001 个字符") {
 		t.Fatalf("ValidateTaskCapability() error = %v", err)
+	}
+}
+
+func TestValidateAutoDLComfyUIVideoCapability(t *testing.T) {
+	svc, db, _ := newResourceDeletionTestService(t)
+
+	rawJSON := `{"video": {"ratios": ["9:16", "16:9", "1:1"], "duration": {"max": 15, "min": 1, "step": 1, "default": 5, "selection": "range"}, "watermark": {"default": false, "supported": false}, "maxOutputs": 0, "operations": ["image_to_video", "audio_to_video"], "references": {"maxAudios": 3, "maxImages": 1, "maxVideos": 3, "minImages": 0, "maxAudioBytes": 15728640, "maxImageBytes": 31457280, "maxVideoBytes": 209715200, "promptMaxChars": 1000, "maxAudioDurationSeconds": 15, "maxVideoDurationSeconds": 15}, "resolutions": ["480p竖", "768p竖", "480p横", "768p横", "480p(1:1)", "768p(1:1)"], "defaultRatio": "16:9", "generateAudio": {"default": true, "supported": true}, "defaultOperation": "text_to_video", "defaultResolution": "768p竖"}, "version": 1}`
+	channelModel := model.ChannelModel{
+		ID:                   "cm-autodl-1",
+		ChannelID:            "CHANNEL_AUTODL",
+		ModelKey:             "minimax_h3_image_audio_to_video",
+		Capability:           "video",
+		Protocol:             "autodl-comfyui",
+		Enabled:              true,
+		CapabilityConfigJSON: rawJSON,
+	}
+	if err := db.Create(&channelModel).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	input := map[string]any{
+		"mode":   "video",
+		"prompt": "围绕同一主体设计多机位画面",
+		"config": map[string]any{
+			"channelId":     "CHANNEL_AUTODL",
+			"model":         "minimax_h3_image_audio_to_video",
+			"interfaceType": "autodl-comfyui",
+			"videoSeconds":  "4",
+			"size":          "16:9",
+			"vquality":      "720p",
+		},
+		"metadata": map[string]any{
+			"videoEditOperation": "image_to_video",
+		},
+		"referenceImages": []any{
+			map[string]any{"id": "img1", "url": "https://example.com/test.png"},
+		},
+	}
+
+	profile, _ := DecodeModelCapabilityConfig(rawJSON)
+	_, normalizeErr := NormalizeModelCapabilityConfigForModel("video", "autodl-comfyui", "minimax_h3_image_audio_to_video", profile)
+	if normalizeErr != nil {
+		t.Fatalf("NormalizeModelCapabilityConfigForModel failed: %v", normalizeErr)
+	}
+
+	err := svc.ValidateTaskCapability(input)
+	if err != nil {
+		t.Fatalf("ValidateTaskCapability failed: %v", err)
+	}
+}
+
+func TestAutoDLResolutionMappingForOrientations(t *testing.T) {
+	profile := DefaultAutoDLVideoCapability("minimax_h3_lightx2v_v5").Video
+	if res := videoResolutionNameRequestForInput(profile, "720p", "16:9"); res != "768p横" {
+		t.Fatalf("expected 768p横, got %s", res)
+	}
+	if res := videoResolutionNameRequestForInput(profile, "720p", "9:16"); res != "768p竖" {
+		t.Fatalf("expected 768p竖, got %s", res)
+	}
+	if res := videoResolutionNameRequestForInput(profile, "720p", "1:1"); res != "768p(1:1)" {
+		t.Fatalf("expected 768p(1:1), got %s", res)
+	}
+	if res := videoResolutionNameRequestForInput(profile, "1080p", "16:9"); res != "1080p横" {
+		t.Fatalf("expected 1080p横, got %s", res)
+	}
+	if res := videoResolutionNameRequestForInput(profile, "480p", "9:16"); res != "480p竖" {
+		t.Fatalf("expected 480p竖, got %s", res)
 	}
 }
 

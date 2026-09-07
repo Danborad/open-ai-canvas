@@ -926,10 +926,23 @@ func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, it
 				changed = true
 			}
 		}
+		defaultConfig := DefaultAutoDLVideoCapability(item.ModelKey)
 		if strings.TrimSpace(item.CapabilityConfigJSON) == "" {
-			if encoded, err := json.Marshal(DefaultAutoDLVideoCapability(item.ModelKey)); err == nil {
+			if encoded, err := json.Marshal(defaultConfig); err == nil {
 				item.CapabilityConfigJSON = string(encoded)
 				changed = true
+			}
+		} else if currentProfile, err := DecodeModelCapabilityConfig(item.CapabilityConfigJSON); err == nil && currentProfile != nil && currentProfile.Video != nil {
+			if !containsCapabilityString(currentProfile.Video.Operations, currentProfile.Video.DefaultOperation) || len(currentProfile.Video.Operations) == 0 {
+				currentProfile.Video.Operations = defaultConfig.Video.Operations
+				currentProfile.Video.DefaultOperation = defaultConfig.Video.DefaultOperation
+				currentProfile.Video.References = defaultConfig.Video.References
+				currentProfile.Video.Resolutions = defaultConfig.Video.Resolutions
+				currentProfile.Video.DefaultResolution = defaultConfig.Video.DefaultResolution
+				if encoded, err := json.Marshal(currentProfile); err == nil {
+					item.CapabilityConfigJSON = string(encoded)
+					changed = true
+				}
 			}
 		}
 	case "flow2api":

@@ -1257,6 +1257,9 @@ func (s *Service) validateResolvedVideoCapability(input *canvasGenerationInput) 
 		}
 		normalized, err := NormalizeModelCapabilityConfigForModel("video", input.Config.InterfaceType, input.Config.Model, profile)
 		if err != nil || normalized == nil || normalized.Video == nil {
+			if err != nil {
+				return err
+			}
 			return errors.New("当前视频模型能力参数无效")
 		}
 		input.Config.CapabilityConfig = normalized
@@ -1274,6 +1277,9 @@ func (s *Service) validateResolvedVideoCapability(input *canvasGenerationInput) 
 	}
 	normalized, err := NormalizeModelCapabilityConfigForModel("video", string(item.Protocol), firstNonEmpty(item.ProviderModelKey, item.ModelKey), profile)
 	if err != nil || normalized == nil || normalized.Video == nil {
+		if err != nil {
+			return err
+		}
 		return errors.New("当前视频模型能力参数无效")
 	}
 	input.VideoCapability = normalized.Video
@@ -2521,7 +2527,7 @@ func queryProtocolAdapterVideoTask(ctx context.Context, input canvasGenerationIn
 func protocolRequestFromInput(input canvasGenerationInput) protocol.GenerationRequest {
 	resolution := strings.TrimSpace(input.Config.VQuality)
 	if input.Mode == "video" {
-		if declared := videoResolutionNameRequest(input.VideoCapability, resolution); declared != "" {
+		if declared := videoResolutionNameRequestForInput(input.VideoCapability, resolution, input.Config.Size); declared != "" {
 			resolution = declared
 		} else if input.Config.InterfaceType == string(model.ChannelInterfaceMiniMaxVideo) {
 			resolution = normalizeMiniMaxResolution(resolution)

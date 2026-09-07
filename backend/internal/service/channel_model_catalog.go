@@ -327,6 +327,8 @@ var (
 		"Seedance 2.5",
 	}
 	autoDLPresetModels = []string{
+		"minimax_h3_zm_u24",
+		"minimax_h3_zm_u08",
 		"minimax_h3_b99_002",
 		"minimax_h3_b99_001",
 		"minimax_h3_b99_003_12s",
@@ -401,6 +403,8 @@ func senseNovaDisplayName(model string) string {
 
 func autoDLWorkflowDisplayName(workflow string) string {
 	names := map[string]string{
+		"minimax_h3_zm_u24":                     "H3 多图多音频生视频 (升级版)",
+		"minimax_h3_zm_u08":                     "H3 多图多音频生视频 (高速版)",
 		"minimax_h3_b99_002":                     "H3 首尾帧生成视频 (b99_002)",
 		"minimax_h3_b99_001":                     "H3 文生视频 (b99_001)",
 		"minimax_h3_b99_003_12s":                 "H3 多图生视频 12 秒",

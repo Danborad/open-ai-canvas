@@ -142,7 +142,7 @@ func DefaultAutoDLVideoCapability(workflow string) *ModelCapabilityConfig {
 	if strings.HasPrefix(workflow, "minimax_h3_b99_") {
 		profile.Video.Resolutions = []string{"736p竖", "736p横", "736p(1:1)"}
 		profile.Video.DefaultResolution = "736p竖"
-	} else if workflow == "minimax_h3_image_audio_to_video_v2" || workflow == "minimax_h3_image_audio_to_video" || workflow == "minimax_h3_lightx2v_v5" {
+	} else if workflow == "minimax_h3_image_audio_to_video_v2" || workflow == "minimax_h3_image_audio_to_video" || workflow == "minimax_h3_lightx2v_v5" || strings.Contains(workflow, "_15s") || strings.HasPrefix(workflow, "minimax_h3_zm_") {
 		profile.Video.Resolutions = []string{"480p竖", "768p竖", "1080p竖", "480p横", "768p横", "1080p横", "480p(1:1)", "768p(1:1)", "1080p(1:1)"}
 		profile.Video.DefaultResolution = "768p竖"
 	} else {
@@ -176,6 +176,12 @@ func DefaultAutoDLVideoCapability(workflow string) *ModelCapabilityConfig {
 		profile.Video.References.MinImages = 1
 		profile.Video.References.MaxAudios = 0
 		profile.Video.Operations = []string{"image_to_video", "reference_to_video"}
+		profile.Video.DefaultOperation = "image_to_video"
+	case "minimax_h3_zm_u24", "minimax_h3_zm_u08":
+		profile.Video.References.MaxImages = 9
+		profile.Video.References.MinImages = 1
+		profile.Video.References.MaxAudios = 3
+		profile.Video.Operations = []string{"image_to_video", "reference_to_video", "audio_to_video"}
 		profile.Video.DefaultOperation = "image_to_video"
 	case "minimax_h3_image_audio_to_video_v2", "minimax_h3_image_audio_to_video_v2_15s":
 		fallthrough
@@ -430,6 +436,8 @@ func DefaultModelCapabilityConfigForModel(protocol string, modelName string) *Mo
 		video.Watermark = VideoBooleanConfig{Supported: true, Default: false}
 	case model.ChannelInterfaceAgnesVideo:
 		video = applyModelSpecificVideoCapability(video, protocol, modelName)
+	case "autodl-comfyui", "autodl-comfyui-video":
+		return DefaultAutoDLVideoCapability(modelName)
 	}
 	return &ModelCapabilityConfig{Version: 1, Text: text, Image: DefaultImageCapabilityConfig(protocol, modelName), Video: video}
 }
@@ -477,10 +485,32 @@ func NormalizeModelCapabilityConfigForModel(capability string, protocol string, 
 		return nil, BadAuthRequest("请配置视频模型能力参数")
 	}
 	value := &ModelCapabilityConfig{Version: 1, Video: applyModelSpecificVideoCapability(input.Video, protocol, modelName)}
+	normalizeVideoCapabilityDefaults(value.Video)
 	if err := validateVideoCapabilityConfig(value.Video); err != nil {
 		return nil, err
 	}
 	return value, nil
+}
+
+func normalizeVideoCapabilityDefaults(value *VideoCapabilityConfig) {
+	if value == nil {
+		return
+	}
+	if len(value.Operations) > 0 {
+		if strings.TrimSpace(value.DefaultOperation) == "" || !containsCapabilityString(value.Operations, value.DefaultOperation) {
+			value.DefaultOperation = value.Operations[0]
+		}
+	}
+	if len(value.Ratios) > 0 {
+		if strings.TrimSpace(value.DefaultRatio) == "" || !containsCapabilityString(value.Ratios, value.DefaultRatio) {
+			value.DefaultRatio = value.Ratios[0]
+		}
+	}
+	if len(value.Resolutions) > 0 {
+		if strings.TrimSpace(value.DefaultResolution) == "" || !containsCapabilityString(value.Resolutions, value.DefaultResolution) {
+			value.DefaultResolution = value.Resolutions[0]
+		}
+	}
 }
 
 func applyModelSpecificVideoCapability(profile *VideoCapabilityConfig, protocol string, modelName string) *VideoCapabilityConfig {
@@ -847,6 +877,9 @@ func (s *Service) ValidateTaskCapability(input map[string]any) error {
 		}
 		normalized, normalizeErr := NormalizeModelCapabilityConfigForModel("video", taskInput.Config.InterfaceType, taskInput.Config.Model, profile)
 		if normalizeErr != nil || normalized == nil || normalized.Video == nil {
+			if normalizeErr != nil {
+				return normalizeErr
+			}
 			return BadAuthRequest("当前视频模型能力参数无效")
 		}
 		return validateVideoTask(normalized.Video, taskInput)
@@ -871,6 +904,9 @@ func (s *Service) ValidateTaskCapability(input map[string]any) error {
 	}
 	normalized, normalizeErr := NormalizeModelCapabilityConfigForModel("video", string(item.Protocol), firstNonEmpty(item.ProviderModelKey, item.ModelKey), profile)
 	if normalizeErr != nil || normalized == nil || normalized.Video == nil {
+		if normalizeErr != nil {
+			return normalizeErr
+		}
 		return BadAuthRequest("当前视频模型能力参数无效")
 	}
 	applyFixedVideoResolution(&taskInput, normalized.Video)
@@ -915,6 +951,9 @@ func validateVideoTask(profile *VideoCapabilityConfig, input canvasGenerationInp
 		return BadAuthRequest(fmt.Sprintf("当前视频模型至少需要 %d 张参考图", profile.References.MinImages))
 	}
 	if len(input.ReferenceAudios) < profile.References.MinAudios {
+		if profile.References.MinAudios == 1 {
+			return BadAuthRequest("当前视频模型需要提供参考音频（音频同步口型模型需连接音频素材；若只需画面生成，请切换至“H3多图参考生视频”或“H3多图多音频生视频”）")
+		}
 		return BadAuthRequest(fmt.Sprintf("当前视频模型至少需要 %d 个参考音频", profile.References.MinAudios))
 	}
 	for _, media := range input.ReferenceImages {
@@ -947,8 +986,14 @@ func validateVideoTask(profile *VideoCapabilityConfig, input canvasGenerationInp
 	if input.Config.Size != "" && !videoRatioAllowed(profile.Ratios, input.Config.Size) {
 		return BadAuthRequest("画面比例不在当前模型支持范围内")
 	}
-	if len(profile.Resolutions) > 0 && !isAutomaticVideoResolution(input.Config.VQuality) && videoResolutionNameRequest(profile, input.Config.VQuality) == "" {
-		return BadAuthRequest("输出分辨率不在当前模型支持范围内")
+	if len(profile.Resolutions) > 0 && !isAutomaticVideoResolution(input.Config.VQuality) {
+		matchedRes := videoResolutionNameRequestForInput(profile, input.Config.VQuality, input.Config.Size)
+		if matchedRes == "" && profile.DefaultResolution != "" {
+			matchedRes = profile.DefaultResolution
+		}
+		if matchedRes == "" {
+			return BadAuthRequest("输出分辨率不在当前模型支持范围内")
+		}
 	}
 	operation := metadataString(input.Metadata, "videoEditOperation")
 	if operation == "" {
