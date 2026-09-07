@@ -109,9 +109,5 @@ export function StorageResourcesPage() {
 }
 
 export function ESAMonitoringPage() {
-    return (
-        <Suspense fallback={<PageFallback label="ESA 监控" />}>
-            <ESAMonitoringPanel />
-        </Suspense>
-    );
+    return <ESAMonitoringPanel />;
 }

@@ -97,8 +97,8 @@ describe("workspace route loading", () => {
         const loader = source("../src/components/ui/aceternity/full-screen-loader.tsx");
         const css = source("../src/styles/globals.css");
 
-        expect(loader).toContain("full-screen-loader-topbar");
-        expect(loader).toContain("full-screen-loader-rail");
+        expect(loader).toContain("full-screen-loader-scene");
+        expect(loader).toContain("full-screen-loader-copy");
         expect(loader).toContain("LoadingSignal");
         expect(loader).not.toContain("YINGCE STUDIO");
         expect(loader).not.toContain("loading-cue");
