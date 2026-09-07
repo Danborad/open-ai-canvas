@@ -959,10 +959,22 @@ func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, it
 				changed = true
 			}
 		}
+		defaultConfig := DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey)
 		if strings.TrimSpace(item.CapabilityConfigJSON) == "" {
-			if encoded, err := json.Marshal(DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey)); err == nil {
+			if encoded, err := json.Marshal(defaultConfig); err == nil {
 				item.CapabilityConfigJSON = string(encoded)
 				changed = true
+			}
+		} else if item.Capability == "video" {
+			if currentProfile, err := DecodeModelCapabilityConfig(item.CapabilityConfigJSON); err == nil && currentProfile != nil && currentProfile.Video != nil {
+				if len(currentProfile.Video.Ratios) > 2 || (len(currentProfile.Video.Ratios) > 0 && (!containsCapabilityString(currentProfile.Video.Ratios, "16:9") || !containsCapabilityString(currentProfile.Video.Ratios, "9:16"))) {
+					currentProfile.Video.Ratios = []string{"16:9", "9:16"}
+					currentProfile.Video.DefaultRatio = "16:9"
+					if encoded, err := json.Marshal(currentProfile); err == nil {
+						item.CapabilityConfigJSON = string(encoded)
+						changed = true
+					}
+				}
 			}
 		}
 	case "grok2api":

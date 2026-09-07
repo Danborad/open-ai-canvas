@@ -394,6 +394,8 @@ func DefaultModelCapabilityConfigForModel(protocol string, modelName string) *Mo
 	case model.ChannelInterfaceGeminiVeo:
 		video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{4, 6, 8}, Default: 6}
 		video.Resolutions = []string{"720p", "1080p"}
+		video.Ratios = []string{"16:9", "9:16"}
+		video.DefaultRatio = "16:9"
 	case model.ChannelInterfaceVolcengineArkVideo:
 		video.Operations = append(video.Operations, "reference_to_video", "audio_to_video")
 		video.References.MaxVideos, video.References.MaxAudios = 3, 3

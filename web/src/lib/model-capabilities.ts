@@ -353,13 +353,18 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         operations: ["text_to_video", "image_to_video"],
         defaultOperation: "text_to_video",
     };
+    const cleanModel = model.toLowerCase();
     if (protocol === "volcengine-jimeng-video") {
         video.duration = { selection: "enum", values: [5, 10], default: 5 };
         video.resolutions = ["720p"];
     }
-    if (protocol === "gemini-veo") {
+    if (protocol === "gemini-veo" || cleanModel.startsWith("veo")) {
         video.duration = { selection: "enum", values: [4, 6, 8], default: 6 };
+        video.durationSupported = true;
         video.resolutions = ["720p", "1080p"];
+        video.defaultResolution = "720p";
+        video.ratios = ["16:9", "9:16"];
+        video.defaultRatio = "16:9";
     }
     if (protocol === "volcengine-ark-video" || protocol === "newapi-channel-1" || protocol === "newapi-channel-2") {
         video.references.maxVideos = 3;
@@ -399,7 +404,6 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.watermark = { supported: true, default: false };
         video.operations.push("reference_to_video");
     }
-    const cleanModel = model.toLowerCase();
     if (protocol === "autodl-comfyui" || protocol === "autodl-comfyui-video" || cleanModel.startsWith("minimax_h3") || cleanModel.startsWith("h3_")) {
         video.duration = { selection: "range", min: 1, max: cleanModel.includes("_12s") ? 12 : cleanModel.includes("_v2") && !cleanModel.includes("15s") ? 10 : 15, step: 1, default: 5 };
         video.ratios = ["9:16", "16:9", "1:1"];

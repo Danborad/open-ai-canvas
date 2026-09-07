@@ -5,7 +5,7 @@ import { VideoPlayer } from "@/components/video-player";
 import { CONTENT_MODERATION_ERROR_CODE, generationErrorMessage, isContentModerationError } from "@/lib/generation-error";
 import { generationTaskShowsProgress, generationTaskStageLabel, generationTaskStatusLabel, isGenerationTaskSubmissionUncertain } from "@/lib/generation-task-display";
 import { canvasRichTextHTML } from "@/lib/canvas/canvas-rich-text";
-import { fitNodeSize } from "@/lib/canvas/canvas-node-size";
+import { fitNodeSize, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
 import { loadCanvasDrawingPreview } from "@/lib/canvas/canvas-drawing-storage";
 import { canvasNodeVideoPreviewUrl } from "@/lib/canvas/canvas-media-preview";
 import { buildLibTVImagePreviewUrl, buildLibTVVideoSourceUrl } from "@/lib/canvas/libtv-import";
@@ -438,9 +438,21 @@ function VideoNodeContent({ node, theme, mediaActive = false, onMediaPlayRequest
         const handleLoadedMetadata = () => {
             if (video.videoWidth <= 0 || video.videoHeight <= 0) return;
             setVideoSize({ width: video.videoWidth, height: video.videoHeight });
-            if (node.metadata?.naturalWidth !== video.videoWidth || node.metadata?.naturalHeight !== video.videoHeight) {
-                updateMediaNode?.(node.id, (current) => ({ ...current, metadata: { ...current.metadata, naturalWidth: video.videoWidth, naturalHeight: video.videoHeight } }));
-            }
+            updateMediaNode?.(node.id, (current) => {
+                const metadata = current.metadata;
+                const needsMetadata = metadata?.naturalWidth !== video.videoWidth || metadata?.naturalHeight !== video.videoHeight;
+                if (current.metadata?.freeResize || current.metadata?.manualSize) {
+                    return needsMetadata ? { ...current, metadata: { ...metadata, naturalWidth: video.videoWidth, naturalHeight: video.videoHeight } } : current;
+                }
+                const size = fitNodeSize(video.videoWidth, video.videoHeight, VIDEO_NODE_MAX_SIZE.width, VIDEO_NODE_MAX_SIZE.height);
+                const needsResize = Math.abs(size.width - current.width) >= 1 || Math.abs(size.height - current.height) >= 1;
+                if (!needsMetadata && !needsResize) return current;
+                return {
+                    ...current,
+                    ...(needsResize ? size : {}),
+                    metadata: needsMetadata ? { ...metadata, naturalWidth: video.videoWidth, naturalHeight: video.videoHeight } : metadata,
+                };
+            });
         };
         video.addEventListener("loadedmetadata", handleLoadedMetadata);
         handleLoadedMetadata();
@@ -493,13 +505,15 @@ function InactiveVideoPreview({ node, theme, onPlay }: Pick<CanvasNodeContentPro
     const previewRef = useRef<HTMLDivElement>(null);
     const nearViewport = useNearViewport(previewRef);
     const previewUrl = canvasNodeVideoPreviewUrl(node);
-    const { updateMetadata } = useCanvasNodeActions();
+    const { updateMetadata, updateMediaNode } = useCanvasNodeActions();
     const updateMetadataRef = useRef(updateMetadata);
+    const updateMediaNodeRef = useRef(updateMediaNode);
     const [hydrating, setHydrating] = useState(false);
 
     useEffect(() => {
         updateMetadataRef.current = updateMetadata;
-    }, [updateMetadata]);
+        updateMediaNodeRef.current = updateMediaNode;
+    }, [updateMetadata, updateMediaNode]);
 
     useEffect(() => {
         if (previewUrl || !nearViewport || !node.metadata?.content || !updateMetadataRef.current) {
@@ -519,9 +533,30 @@ function InactiveVideoPreview({ node, theme, onPlay }: Pick<CanvasNodeContentPro
         return () => controller.abort();
     }, [nearViewport, node.id, node.metadata?.content, node.metadata?.storageKey, previewUrl]);
 
+    const handlePreviewImageLoad = (element: HTMLImageElement) => {
+        const naturalWidth = element.naturalWidth;
+        const naturalHeight = element.naturalHeight;
+        if (!naturalWidth || !naturalHeight) return;
+        updateMediaNodeRef.current?.(node.id, (current) => {
+            const metadata = current.metadata;
+            const needsMetadata = metadata?.naturalWidth !== naturalWidth || metadata?.naturalHeight !== naturalHeight;
+            if (current.metadata?.freeResize || current.metadata?.manualSize) {
+                return needsMetadata ? { ...current, metadata: { ...metadata, naturalWidth, naturalHeight } } : current;
+            }
+            const size = fitNodeSize(naturalWidth, naturalHeight, VIDEO_NODE_MAX_SIZE.width, VIDEO_NODE_MAX_SIZE.height);
+            const needsResize = Math.abs(size.width - current.width) >= 1 || Math.abs(size.height - current.height) >= 1;
+            if (!needsMetadata && !needsResize) return current;
+            return {
+                ...current,
+                ...(needsResize ? size : {}),
+                metadata: needsMetadata ? { ...metadata, naturalWidth, naturalHeight } : metadata,
+            };
+        });
+    };
+
     if (previewUrl) {
         return <div ref={previewRef} className="group/video-preview relative size-full overflow-hidden rounded-[var(--node-radius)] bg-black">
-            <img src={previewUrl} alt={`${node.title || "视频"} 静态预览`} loading="lazy" decoding="async" draggable={false} className="pointer-events-none size-full select-none object-contain" />
+            <img src={previewUrl} alt={`${node.title || "视频"} 静态预览`} loading="lazy" decoding="async" draggable={false} onLoad={(event) => handlePreviewImageLoad(event.currentTarget)} className="pointer-events-none size-full select-none object-contain" />
             <VideoPreviewPlayButton title={node.title || "视频"} onPlay={onPlay} />
         </div>;
     }

@@ -151,18 +151,22 @@ export async function buildGenerationTaskNodeResult(node: CanvasNodeData, task: 
 
     if (mode === "video") {
         if (!result.video?.dataUrl) throw new Error("后端任务没有返回视频");
+        const effectiveRatio = node.metadata?.vquality?.includes("竖") ? "9:16" : node.metadata?.vquality?.includes("横") ? "16:9" : node.metadata?.vquality?.includes("(1:1)") || node.metadata?.vquality?.includes("1:1") ? "1:1" : node.metadata?.size || node.metadata?.vquality;
+        const targetSpec = effectiveRatio ? nodeSizeFromRatio(effectiveRatio, VIDEO_NODE_MAX_SIZE.width, VIDEO_NODE_MAX_SIZE.height) : null;
         const video = result.video.storageKey
             ? {
                   url: await resolveMediaUrl(result.video.storageKey, result.video.dataUrl),
                   storageKey: result.video.storageKey,
-                  width: result.video.width,
-                  height: result.video.height,
+                  width: result.video.width || (targetSpec ? targetSpec.width : undefined),
+                  height: result.video.height || (targetSpec ? targetSpec.height : undefined),
                   durationMs: result.video.durationMs,
                   bytes: result.video.bytes || 0,
                   mimeType: result.video.mimeType || "video/mp4",
               }
             : await storeGeneratedVideo({ url: result.video.dataUrl, mimeType: result.video.mimeType || "video/mp4" });
-        const videoSize = fitNodeSize(video.width || node.width || VIDEO_NODE_MAX_SIZE.width, video.height || node.height || VIDEO_NODE_MAX_SIZE.height, VIDEO_NODE_MAX_SIZE.width, VIDEO_NODE_MAX_SIZE.height);
+        const videoWidth = video.width || targetSpec?.width || node.width || VIDEO_NODE_MAX_SIZE.width;
+        const videoHeight = video.height || targetSpec?.height || node.height || VIDEO_NODE_MAX_SIZE.height;
+        const videoSize = fitNodeSize(videoWidth, videoHeight, VIDEO_NODE_MAX_SIZE.width, VIDEO_NODE_MAX_SIZE.height);
         const geometry = node.metadata?.locked
             ? {}
             : {

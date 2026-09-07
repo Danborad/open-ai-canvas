@@ -35,7 +35,8 @@ export async function executeVideoGeneration({
     taskContext,
     retryContext,
 }: CanvasGenerationExecution) {
-    const spec = nodeSizeFromRatio(generationConfig.size || generationConfig.vquality, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
+    const effectiveRatio = generationConfig.vquality?.includes("竖") ? "9:16" : generationConfig.vquality?.includes("横") ? "16:9" : generationConfig.vquality?.includes("(1:1)") || generationConfig.vquality?.includes("1:1") ? "1:1" : generationConfig.size || generationConfig.vquality;
+    const spec = nodeSizeFromRatio(effectiveRatio, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
     const reuseSourceNode = canGenerateMediaInPlace(sourceNode, CanvasNodeType.Video);
     const isExistingVideoNode = sourceNode?.type === CanvasNodeType.Video && Boolean(sourceNode.metadata?.content) && !reuseSourceNode;
     const videoId = reuseSourceNode ? nodeId : nanoid();

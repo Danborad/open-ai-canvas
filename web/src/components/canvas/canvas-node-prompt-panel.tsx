@@ -756,11 +756,17 @@ function promptPlaceholder(mode: CanvasNodeGenerationMode, hasImageContent: bool
     return hasTextContent ? "请输入你想要将本段文本修改成什么" : "请输入你想要生成的文本内容";
 }
 
-function videoConfigPatch(key: keyof AiConfig, value: string) {
+function videoConfigPatch(key: keyof AiConfig, value: string): Partial<CanvasNodeMetadata> {
     if (key === "videoSeconds") return { seconds: value };
     if (key === "videoGenerateAudio") return { generateAudio: value };
     if (key === "videoWatermark") return { watermark: value };
     if (key === "videoArkPrivateAssetUpload") return { arkPrivateAssetUpload: value };
+    if (key === "vquality") {
+        if (value.includes("竖")) return { vquality: value, size: "9:16" };
+        if (value.includes("横")) return { vquality: value, size: "16:9" };
+        if (value.includes("(1:1)") || value.includes("1:1")) return { vquality: value, size: "1:1" };
+        return { vquality: value };
+    }
     return { [key]: value };
 }
 
