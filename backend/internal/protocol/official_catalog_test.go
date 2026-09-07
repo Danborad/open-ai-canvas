@@ -129,11 +129,11 @@ func TestOfficialAgentProfilesMapToolRequestsAndResponses(t *testing.T) {
 		name, packageName, providerID, marker, wantPath, response, wantID, wantSignature string
 	}{
 		{
-			name: "openai-chat", packageName: "openai-chat-completions.yingce-plugin", providerID: "chat-completion", marker: "chat", wantPath: "/v1/chat/completions", wantID: "call-chat",
+			name: "openai-chat", packageName: "openai-chat-completions.yingce-plugin", providerID: "chat-completion", marker: "chat", wantPath: "/chat/completions", wantID: "call-chat",
 			response: `{"choices":[{"message":{"content":"chat answer","tool_calls":[{"id":"call-chat","function":{"name":"canvas_get_state","arguments":"{\"scope\":\"all\"}"}}]}}]}`,
 		},
 		{
-			name: "openai-responses", packageName: "openai-responses.yingce-plugin", providerID: "openai-response", marker: "responses", wantPath: "/v1/responses", wantID: "call-responses",
+			name: "openai-responses", packageName: "openai-responses.yingce-plugin", providerID: "openai-response", marker: "responses", wantPath: "/responses", wantID: "call-responses",
 			response: `{"output_text":"responses answer","output":[{"type":"message"},{"type":"function_call","call_id":"call-responses","name":"canvas_get_state","arguments":"{\"scope\":\"all\"}"}]}`,
 		},
 		{
@@ -377,6 +377,55 @@ func TestOfficialRollDekWanVideoUsesVideosLifecycle(t *testing.T) {
 	}
 }
 
+func TestNewAPIVideoGenerationsParsesNestedTaskIDs(t *testing.T) {
+	adapter := officialPackageAdapter(t, "newapi-video-generations-v1.yingce-plugin", "newapi-channel-2")
+	tests := []struct {
+		name    string
+		payload string
+		wantID  string
+	}{
+		{name: "snake case", payload: `{"data":{"task_id":"task-snake","status":"queued"}}`, wantID: "task-snake"},
+		{name: "camel case", payload: `{"data":{"taskId":"task-camel","status":"queued"}}`, wantID: "task-camel"},
+		{name: "nested upstream id wins over wrapper id", payload: `{"id":"49137","data":{"task_id":"task-upstream","status":"queued"}}`, wantID: "task-upstream"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			created, err := adapter.ParseCreate(context.Background(), []byte(test.payload))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if created.TaskID != test.wantID || created.Status != StatusPending {
+				t.Fatalf("created = %#v, want task ID %q and pending status", created, test.wantID)
+			}
+		})
+	}
+}
+
+func TestNewAPIVideoGenerationsParsesNestedVideoResults(t *testing.T) {
+	adapter := officialPackageAdapter(t, "newapi-video-generations-v1.yingce-plugin", "newapi-channel-2")
+	tests := []struct {
+		name    string
+		payload string
+	}{
+		{name: "channel result URL", payload: `{"code":"success","data":{"task_id":"task-upstream","status":"SUCCESS","result_url":"https://cdn.example/channel-result.mp4"}}`},
+		{name: "provider nested video URL", payload: `{"code":"success","data":{"task_id":"task-upstream","status":"SUCCESS","data":{"status":"completed","video_url":"https://cdn.example/provider-result.mp4"}}}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			state, err := adapter.ParsePoll(context.Background(), PollContext{TaskID: "task-upstream"}, []byte(test.payload))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if state.Status != StatusSucceeded || state.Result == nil || len(state.Result.Videos) != 1 {
+				t.Fatalf("state = %#v, want one completed video", state)
+			}
+			if state.Result.Videos[0].URL == "" {
+				t.Fatalf("video = %#v, want a result URL", state.Result.Videos[0])
+			}
+		})
+	}
+}
+
 func TestOfficialOpenAIVideosDeclaresAuthenticatedResultDownload(t *testing.T) {
 	adapter := officialPackageAdapter(t, "openai-videos.yingce-plugin", "newapi")
 	capability, ok := adapter.(ResultCapability)
@@ -430,4 +479,38 @@ func manifestTestBody(t *testing.T, spec RequestSpec) map[string]any {
 		t.Fatal(err)
 	}
 	return body
+}
+
+func TestOfficialArkSeedreamMapsAspectRatioToPixelSize(t *testing.T) {
+	adapter := officialPackageAdapter(t, "volcengine-ark-seedream.yingce-plugin", "volcengine-ark-image")
+	tests := []struct {
+		name, aspectRatio, wantSize string
+	}{
+		{name: "ratio maps to 2K pixels", aspectRatio: "1:1", wantSize: "2048x2048"},
+		{name: "landscape ratio", aspectRatio: "16:9", wantSize: "2560x1440"},
+		{name: "auto maps to 2k tier", aspectRatio: "auto", wantSize: "2k"},
+		{name: "pixel size passes through", aspectRatio: "1920x1080", wantSize: "1920x1080"},
+		{name: "tier passes through", aspectRatio: "4k", wantSize: "4k"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			create, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "doubao-seedream-5-0-260128", Prompt: "circle", AspectRatio: tt.aspectRatio}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if create.Path != "/api/v3/images/generations" {
+				t.Fatalf("Seedream create = %#v", create)
+			}
+			if body := manifestTestBody(t, create); body["size"] != tt.wantSize {
+				t.Fatalf("Seedream size = %#v, want %q", body["size"], tt.wantSize)
+			}
+		})
+	}
+	create, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "doubao-seedream-5-0-260128", Prompt: "circle"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := manifestTestBody(t, create)["size"]; ok {
+		t.Fatalf("Seedream must omit size when no ratio is requested")
+	}
 }

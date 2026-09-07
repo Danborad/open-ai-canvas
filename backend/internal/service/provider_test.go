@@ -59,6 +59,8 @@ func TestChannelAPIURLNormalizesConfiguredVersionPrefix(t *testing.T) {
 		{name: "same v1beta is not duplicated", base: "http://provider.test:8000/v1beta", path: "/v1beta/models/model", want: "http://provider.test:8000/v1beta/models/model"},
 		{name: "path carries v2", base: "http://provider.test:8000/v1", path: "/v2/tasks", want: "http://provider.test:8000/v2/tasks"},
 		{name: "ark v3", base: "https://ark.example.com/api/v3", path: "/images/generations", want: "https://ark.example.com/api/v3/images/generations"},
+		{name: "ark v3 chat", base: "https://ark.example.com/api/v3", path: "/chat/completions", want: "https://ark.example.com/api/v3/chat/completions"},
+		{name: "ark v3 responses", base: "https://ark.example.com/api/v3", path: "/responses", want: "https://ark.example.com/api/v3/responses"},
 		{name: "path carries ark v3", base: "https://ark.example.com", path: "/api/v3/images/generations", want: "https://ark.example.com/api/v3/images/generations"},
 		{name: "path carries autodl api v1", base: "https://autodl.art", path: "/api/v1/comfyui/comfyui_workflow/workflow-1", want: "https://autodl.art/api/v1/comfyui/comfyui_workflow/workflow-1"},
 	}
@@ -484,6 +486,25 @@ data: [DONE]
 	}
 	if deltas.String() != "流式分镜" {
 		t.Fatalf("stream deltas = %q", deltas.String())
+	}
+}
+
+func TestTextThinkingOptionsAndReasoningParsing(t *testing.T) {
+	input := canvasGenerationInput{TextOptions: canvasTextOptions{Thinking: true}}
+	responsesBody := map[string]interface{}{}
+	applyTextThinking(responsesBody, input, "responses")
+	reasoning, _ := responsesBody["reasoning"].(map[string]interface{})
+	if reasoning["effort"] != "medium" || reasoning["summary"] != "auto" {
+		t.Fatalf("responses reasoning options = %#v", reasoning)
+	}
+	chatBody := map[string]interface{}{}
+	applyTextThinking(chatBody, input, "chat-completion")
+	if chatBody["reasoning_effort"] != "medium" {
+		t.Fatalf("chat reasoning options = %#v", chatBody)
+	}
+	result, err := parseAgentToolPayload(map[string]interface{}{"choices": []interface{}{map[string]interface{}{"message": map[string]interface{}{"content": "正文", "reasoning_content": "推理摘要"}}}}, "chat-completion")
+	if err != nil || result["text"] != "正文" || result["reasoning"] != "推理摘要" {
+		t.Fatalf("parsed reasoning result = %#v, err = %v", result, err)
 	}
 }
 
@@ -2684,6 +2705,39 @@ func TestRunMiniMaxVideoTaskCreatesPollsAndDownloads(t *testing.T) {
 	}
 	if got := strings.Join(paths, ","); got != "POST /v2/video_generation,GET /v2/query/video_generation/minimax-task-1,GET /video.mp4" {
 		t.Fatalf("paths = %q", got)
+	}
+}
+
+func TestRunMiniMaxVideoTaskSendsOfficial2KResolution(t *testing.T) {
+	t.Setenv("CANVAS_ALLOWED_PRIVATE_UPSTREAM_HOSTS", "127.0.0.1")
+	for _, quality := range []string{"2K", "1440p"} {
+		t.Run(quality, func(t *testing.T) {
+			requested := false
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodPost || r.URL.Path != "/v2/video_generation" {
+					t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+				}
+				requested = true
+				var body miniMaxVideoRequest
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Errorf("decode request: %v", err)
+				}
+				if body.Resolution != "2K" {
+					t.Errorf("resolution = %q, want official API value 2K", body.Resolution)
+				}
+				// End at submission: this test inspects the wire payload without polling.
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{}`))
+			}))
+			defer server.Close()
+			_, err := runMiniMaxVideoTask(context.Background(), canvasGenerationInput{
+				Mode: "video", Prompt: "make it move",
+				Config: providerConfig{BaseURL: server.URL, APIKey: "test-key", Model: "MiniMax-H3", VQuality: quality},
+			})
+			if !requested || err == nil || !strings.Contains(err.Error(), "没有返回任务 ID") {
+				t.Fatalf("expected submission without task ID, requested=%v err=%v", requested, err)
+			}
+		})
 	}
 }
 

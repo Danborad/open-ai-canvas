@@ -2,6 +2,8 @@ import { App, Button, Dropdown, Modal, Popconfirm } from "antd";
 import type { MenuProps } from "antd";
 import { Check, ChevronDown, FileText, FolderOpen, HardDrive, Image as ImageIcon, LoaderCircle, Music2, Puzzle, RotateCcw, Search, Trash2, Upload, UserRound, Video } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useUserStore } from "@/stores/use-user-store";
 
 import { AssetMediaPreview } from "@/components/asset-media-preview";
 import { AssetLibraryCard } from "@/components/assets/asset-library-card";
@@ -10,91 +12,93 @@ import { PaginationBar } from "@/components/layout/workspace-page";
 import { cn } from "@/lib/utils";
 import type { ExternalAssetPickerReference } from "@/lib/plugins/plugin-types";
 import { flushAssetStorePersistence, useAssetStore, type Asset } from "@/stores/use-asset-store";
-import { deleteAssetWithRemoteSync, saveRemoteUserDataNow } from "@/services/user-data-sync";
+import { deleteAssetWithRemoteSync, loadAssetLibraryPage, saveRemoteUserDataNow } from "@/services/user-data-sync";
 
 export type AssetLibraryPickerItem = {
     id: string;
     title: string;
     category: string;
-    folderId?: string;
     archived?: boolean;
-    kindLabel?: string;
+    kindLabel: string;
+    asset?: Asset;
     imageUrl?: string;
     imageStorageKey?: string;
     imageFit?: "cover" | "contain";
     description?: string;
     searchText?: string;
     disabledReason?: string;
-    asset?: Asset;
+    folderId?: string;
     external?: ExternalAssetPickerReference;
 };
 
 export type AssetLibraryPickerFolder = {
     id: string;
-    name: string;
     parentId?: string;
-    children?: AssetLibraryPickerFolder[];
-    count?: number;
+    name: string;
 };
 
-export type AssetLibraryPickerUploadConfig = {
-    accept?: string;
-    description: string;
-    onUpload: (files: FileList) => Promise<string[]>;
-    external?: {
-        accept?: string;
-        description: string;
-        onUpload: (files: FileList, folderId?: string) => Promise<AssetLibraryPickerItem[]>;
-    };
-};
-
-export function AssetLibraryPickerModal({
-    open,
-    items,
-    categoryLabels = {},
-    initialCategory = "all",
-    initialFolderId = "all",
-    initialSelectedIds = [],
-    folders = [],
-    folderActionSource = "external",
-    folderActionLabel = "在 Eagle 中查看",
-    eyebrow = "选择素材",
-    title = "素材库",
-    confirmLabel = (count) => `使用已选素材${count ? `（${count}）` : ""}`,
-    emptyTitle = "没有找到可用素材",
-    emptyDescription = "可以换个分类，或从底部上传一份新素材。",
-    footerNote,
-    multiple = false,
-    loading = false,
-    upload,
-    pagination,
-    onFolderAction,
-    onClose,
-    onConfirm,
-}: {
+type Props = {
+    remoteLibrary?: boolean;
+    remoteKind?: string;
     open: boolean;
     items: AssetLibraryPickerItem[];
-    categoryLabels?: Record<string, string>;
+    categoryLabels: Record<string, string>;
     initialCategory?: string;
     initialFolderId?: string;
-    initialSelectedIds?: string[];
     folders?: AssetLibraryPickerFolder[];
-    folderActionSource?: "local" | "external";
-    folderActionLabel?: string;
-    eyebrow?: string;
+    initialSelectedIds?: Iterable<string>;
+    multiple?: boolean;
     title?: string;
+    eyebrow?: string;
     confirmLabel?: (count: number) => string;
     emptyTitle?: string;
     emptyDescription?: string;
-    footerNote?: ReactNode;
-    multiple?: boolean;
+    footerNote?: string;
     loading?: boolean;
-    upload?: AssetLibraryPickerUploadConfig;
     pagination?: { current: number; pageSize: number; total: number; onChange: (page: number, pageSize: number) => void };
-    onFolderAction?: (folderId: string) => Promise<void> | void;
+    folderActionLabel?: string;
+    folderActionSource?: "local" | "all";
+    upload?: {
+        accept: string;
+        description: string;
+        onUpload: (files: FileList) => Promise<string[]>;
+        external?: {
+            accept: string;
+            description: string;
+            onUpload: (files: FileList, folderId?: string) => Promise<AssetLibraryPickerItem[]>;
+        };
+    };
     onClose: () => void;
     onConfirm: (ids: string[]) => Promise<void> | void;
-}) {
+    onFolderAction?: (folderId: string) => Promise<void> | void;
+};
+
+export function AssetLibraryPickerModal({
+    remoteLibrary = false,
+    remoteKind,
+    open,
+    items,
+    categoryLabels,
+    initialCategory = "all",
+    initialFolderId = "all",
+    folders = [],
+    initialSelectedIds,
+    multiple = true,
+    title = "素材库",
+    eyebrow = "参考内容",
+    confirmLabel = (count) => `使用已选素材${count ? `（${count}）` : ""}`,
+    emptyTitle = "这个分类还没有素材",
+    emptyDescription = "换个分类后再试。",
+    footerNote,
+    loading = false,
+    pagination,
+    folderActionLabel = "将文件夹放到画布",
+    folderActionSource = "all",
+    upload,
+    onClose,
+    onConfirm,
+    onFolderAction,
+}: Props) {
     const { message } = App.useApp();
     const [category, setCategory] = useState(initialCategory);
     const [folderId, setFolderId] = useState(initialFolderId);
@@ -106,6 +110,28 @@ export function AssetLibraryPickerModal({
     const [working, setWorking] = useState(false);
     const [uploadingCount, setUploadingCount] = useState(0);
     const [error, setError] = useState("");
+    const userId = useUserStore((state) => state.user?.id);
+    const sessionHydrated = useUserStore((state) => state.hydrated);
+    const [remotePage, setRemotePage] = useState(1);
+    const [remotePageSize, setRemotePageSize] = useState(40);
+    const [remoteKeyword, setRemoteKeyword] = useState("");
+    const remoteEnabled = remoteLibrary && Boolean(userId) && source === "local";
+    useEffect(() => {
+        const timer = window.setTimeout(() => setRemoteKeyword(keyword.trim()), 250);
+        return () => window.clearTimeout(timer);
+    }, [keyword]);
+    useEffect(() => setRemotePage(1), [category, remoteKeyword, open]);
+    const remoteQuery = useQuery({
+        queryKey: ["asset-picker", userId, remotePage, remotePageSize, category, remoteKeyword, remoteKind],
+        queryFn: ({ signal }) => loadAssetLibraryPage({ page: remotePage, pageSize: remotePageSize, kind: remoteKind, category: category === "all" || category === "archived" || category === remoteKind ? undefined : category, status: category === "archived" ? "archived" : "active", query: remoteKeyword, signal }),
+        enabled: remoteEnabled && open && sessionHydrated,
+    });
+    const remoteItems = useMemo<AssetLibraryPickerItem[]>(() => (remoteQuery.data?.assets || []).filter((asset) => asset.kind !== "entity" && asset.kind !== "model").map((asset) => ({
+        id: asset.id, title: asset.title, category: asset.category || "other", archived: asset.status === "archived", asset,
+        kindLabel: asset.kind === "image" ? "图片" : asset.kind === "video" ? "视频" : asset.kind === "audio" ? "音频" : "文本", searchText: asset.tags.join(" "),
+        ...(items.find((item) => item.id === asset.id) || { disabledReason: "此素材不适用于当前操作" }),
+    })), [remoteQuery.data, items]);
+    const effectivePagination = remoteEnabled ? { current: remotePage, pageSize: remotePageSize, total: remoteQuery.data?.total || 0, onChange: (page: number, pageSize: number) => { setRemotePage(page); setRemotePageSize(pageSize); } } : pagination;
     const uploadInputRef = useRef<HTMLInputElement>(null);
     const initialSelectedIdsRef = useRef(initialSelectedIds);
     const itemsRef = useRef(items);
@@ -118,28 +144,27 @@ export function AssetLibraryPickerModal({
     const localItems = useMemo(() => allItems.filter((item) => !item.external), [allItems]);
     const pluginItems = useMemo(() => allItems.filter((item) => Boolean(item.external)), [allItems]);
     const hasPluginSource = useMemo(() => Object.keys(categoryLabels).some((value) => value.startsWith("external:")) || pluginItems.some((item) => item.category.startsWith("external:")), [categoryLabels, pluginItems]);
-    const sourceItems = source === "plugin" ? pluginItems : localItems;
+    const sourceItems = source === "plugin" ? pluginItems : remoteEnabled ? remoteItems : localItems;
+    const activeSourceItems = useMemo(() => sourceItems.filter((item) => !item.archived), [sourceItems]);
+    const archivedItems = useMemo(() => sourceItems.filter((item) => item.archived), [sourceItems]);
     const sourceFolders = source === "plugin" ? folders : [];
     const showCategories = source === "local" || !sourceFolders.length;
-    const normalCategories = useMemo(() => ["all", ...Array.from(new Set(sourceItems.map((item) => item.category || "other"))).filter((c) => c !== "all" && c !== "archived")], [sourceItems]);
-    const archivedCount = useMemo(() => sourceItems.filter((item) => item.category === "archived" || item.archived).length, [sourceItems]);
+    const normalCategories = useMemo(() => remoteEnabled ? Object.keys(categoryLabels).filter((value) => value !== "archived" && !value.startsWith("external:")) : ["all", ...Array.from(new Set(activeSourceItems.map((item) => item.category || "other"))).filter((value) => value !== "all")], [activeSourceItems, categoryLabels, remoteEnabled]);
+    const archivedCount = archivedItems.length;
     const isRecycleBin = category === "archived";
 
     const visibleItems = useMemo(() => {
         const query = keyword.trim().toLowerCase();
         return sourceItems.filter((item) => {
-            const isItemArchived = item.category === "archived" || item.archived;
-            if (category === "all") {
-                if (isItemArchived) return false;
-            } else if (category === "archived") {
-                if (!isItemArchived) return false;
-            } else if (item.category !== category || isItemArchived) {
+            if (category === "archived") {
+                if (!item.archived) return false;
+            } else if (item.archived || (category !== "all" && item.category !== category)) {
                 return false;
             }
             if (folderId !== "all" && (item.folderId || "") !== folderId) return false;
-            return !query || [item.title, item.searchText || "", item.description || ""].join(" ").toLowerCase().includes(query);
+            return remoteEnabled || !query || [item.title, item.searchText || "", item.description || ""].join(" ").toLowerCase().includes(query);
         });
-    }, [category, folderId, keyword, sourceItems]);
+    }, [category, folderId, keyword, sourceItems, remoteEnabled]);
     const selectedIds = useMemo(
         () =>
             Array.from(selected).filter((id) => {
@@ -148,6 +173,7 @@ export function AssetLibraryPickerModal({
             }),
         [allItems, selected],
     );
+    const archivedSelectedIds = useMemo(() => selectedIds.filter((id) => allItems.find((item) => item.id === id)?.archived), [allItems, selectedIds]);
 
     useEffect(() => {
         if (!open) return;
@@ -208,61 +234,54 @@ export function AssetLibraryPickerModal({
     };
 
     const handleRestoreSelected = async () => {
-        if (!selectedIds.length) return;
+        if (!archivedSelectedIds.length) return;
         setWorking(true);
         try {
-            for (const id of selectedIds) {
+            for (const id of archivedSelectedIds) {
                 useAssetStore.getState().updateAsset(id, { status: "confirmed" });
             }
             await flushAssetStorePersistence();
             await saveRemoteUserDataNow();
             setSelected(new Set());
-            message.success(`已还原 ${selectedIds.length} 个素材至素材库`);
+            message.success(`已还原 ${archivedSelectedIds.length} 个素材至素材库`);
             setCategory("all");
         } catch {
             message.warning("已在本地还原，稍后自动同步至云端");
         } finally {
             setWorking(false);
+            if (remoteEnabled) void remoteQuery.refetch();
         }
     };
 
     const handleDeleteSelected = async () => {
-        if (!selectedIds.length) return;
+        if (!archivedSelectedIds.length) return;
         setWorking(true);
         try {
-            for (const id of selectedIds) {
-                await useAssetStore.getState().removeAsset(id);
-                await deleteAssetWithRemoteSync(id);
-            }
-            await flushAssetStorePersistence();
-            await saveRemoteUserDataNow();
+            for (const id of archivedSelectedIds) await deleteAssetWithRemoteSync(id);
             setSelected(new Set());
-            message.success(`已彻底删除 ${selectedIds.length} 个素材`);
+            message.success(`已彻底删除 ${archivedSelectedIds.length} 个素材`);
         } catch (err) {
             message.error(err instanceof Error ? err.message : "删除失败");
         } finally {
             setWorking(false);
+            if (remoteEnabled) void remoteQuery.refetch();
         }
     };
 
     const handleEmptyRecycleBin = async () => {
-        const toDelete = sourceItems.filter((item) => item.category === "archived" || item.archived);
+        const toDelete = archivedItems;
         if (!toDelete.length) return;
         setWorking(true);
         try {
-            for (const item of toDelete) {
-                await useAssetStore.getState().removeAsset(item.id);
-                await deleteAssetWithRemoteSync(item.id);
-            }
-            await flushAssetStorePersistence();
-            await saveRemoteUserDataNow();
+            for (const item of toDelete) await deleteAssetWithRemoteSync(item.id);
             setSelected(new Set());
-            message.success(`已清空回收站 ${toDelete.length} 个素材`);
+            message.success(`已删除${remoteEnabled ? "当前页" : "回收站"} ${toDelete.length} 个素材`);
             setCategory("all");
         } catch (err) {
             message.error(err instanceof Error ? err.message : "清空回收站失败");
         } finally {
             setWorking(false);
+            if (remoteEnabled) void remoteQuery.refetch();
         }
     };
 
@@ -303,7 +322,7 @@ export function AssetLibraryPickerModal({
         }
     };
 
-    const countFor = (value: string) => (value === "all" ? sourceItems.filter((item) => !item.archived && item.category !== "archived").length : sourceItems.filter((item) => !item.archived && item.category === value).length);
+    const countFor = (value: string) => (value === "all" ? activeSourceItems.length : activeSourceItems.filter((item) => item.category === value).length);
     const sourceLabel = source === "plugin" ? "插件来源" : "本地素材";
     const sourceMenuItems: MenuProps["items"] = [
         {
@@ -312,7 +331,7 @@ export function AssetLibraryPickerModal({
             label: (
                 <span className="asset-picker-source-menu-label">
                     <span>本地素材</span>
-                    <em>{localItems.filter((i) => !i.archived && i.category !== "archived").length}</em>
+                    <em>{localItems.filter((item) => !item.archived).length}</em>
                 </span>
             ),
         },
@@ -341,7 +360,7 @@ export function AssetLibraryPickerModal({
             title={null}
             destroyOnHidden
             closable={!working}
-            maskClosable={!working}
+            mask={{ closable: !working }}
             keyboard={!working}
             onCancel={() => {
                 if (!working) onClose();
@@ -379,7 +398,7 @@ export function AssetLibraryPickerModal({
                         <input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索素材名称或标签" aria-label="搜索素材" />
                     </label>
                     <span className="asset-picker-count">
-                        已选 {selectedIds.length} · {pagination ? pagination.total : visibleItems.length} 个素材
+                        已选 {selectedIds.length} · {effectivePagination ? effectivePagination.total : visibleItems.length} 个素材
                     </span>
                 </header>
                 <div className="asset-picker-body">
@@ -391,7 +410,7 @@ export function AssetLibraryPickerModal({
                                     <span className="assets-filter-item-label">全部文件夹</span>
                                     <span className="assets-filter-count">{sourceItems.length}</span>
                                 </button>
-                                {renderPickerFolders(sourceFolders, sourceItems, folderId, setFolderId)}
+                                {renderPickerFolders(sourceFolders, activeSourceItems, folderId, setFolderId)}
                             </>
                         ) : null}
                         {showCategories ? (
@@ -403,7 +422,7 @@ export function AssetLibraryPickerModal({
                                         <span className="assets-filter-count">{countFor(value)}</span>
                                     </button>
                                 ))}
-                                {archivedCount > 0 ? (
+                                {archivedCount > 0 || remoteEnabled ? (
                                     <div className="mt-3 border-t border-border/40 pt-2">
                                         <button
                                             type="button"
@@ -424,7 +443,7 @@ export function AssetLibraryPickerModal({
                     </nav>
                     <div className="asset-picker-grid-wrap">
                         <div className="asset-picker-grid">
-                            {loading ? (
+                            {remoteEnabled && remoteQuery.isError ? <div role="alert">素材读取失败<Button onClick={() => void remoteQuery.refetch()}>重试</Button></div> : loading || (remoteEnabled && remoteQuery.isFetching) ? (
                                 <div className="asset-picker-empty">
                                     <LoaderCircle className="animate-spin" />
                                     <strong>正在读取素材</strong>
@@ -440,7 +459,7 @@ export function AssetLibraryPickerModal({
                                 </div>
                             )}
                         </div>
-                        {pagination ? <PaginationBar alwaysShow current={pagination.current} pageSize={pagination.pageSize} total={pagination.total} itemLabel="项" pageSizeOptions={[20, 40, 80]} onChange={pagination.onChange} /> : null}
+                        {effectivePagination ? <PaginationBar alwaysShow current={effectivePagination.current} pageSize={effectivePagination.pageSize} total={effectivePagination.total} itemLabel="项" pageSizeOptions={[20, 40, 80]} onChange={effectivePagination.onChange} /> : null}
                     </div>
                 </div>
                 <footer className={cn("asset-picker-footer", !activeUpload && "is-compact")}>
@@ -468,21 +487,21 @@ export function AssetLibraryPickerModal({
                     <div className="asset-picker-actions">
                         {isRecycleBin ? (
                             <>
-                                <Popconfirm title="确认清空回收站？" description="清空后所有回收站素材及其物理文件将被彻底删除，不可恢复。" onConfirm={handleEmptyRecycleBin} okText="清空" okButtonProps={{ danger: true }} cancelText="取消">
+                                <Popconfirm title={remoteEnabled ? "确认删除当前页回收站素材？" : "确认清空回收站？"} description="仅删除当前列表中的素材；仍被引用的素材由服务端拒绝删除。删除不可恢复。" onConfirm={handleEmptyRecycleBin} okText="删除" okButtonProps={{ danger: true }} cancelText="取消">
                                     <Button type="text" danger disabled={working || !archivedCount}>
-                                        清空回收站
+                                        {remoteEnabled ? "删除当前页" : "清空回收站"}
                                     </Button>
                                 </Popconfirm>
                                 <Popconfirm title="确认彻底删除已选素材？" onConfirm={handleDeleteSelected} okText="删除" okButtonProps={{ danger: true }} cancelText="取消">
-                                    <Button type="text" danger disabled={working || !selectedIds.length}>
+                                    <Button type="text" danger disabled={working || !archivedSelectedIds.length}>
                                         彻底删除
                                     </Button>
                                 </Popconfirm>
                                 <Button type="text" onClick={onClose} disabled={working}>
                                     关闭
                                 </Button>
-                                <Button type="primary" icon={<RotateCcw className="size-3.5" />} disabled={working || !selectedIds.length} loading={working} onClick={handleRestoreSelected}>
-                                    还原已选素材{selectedIds.length ? `（${selectedIds.length}）` : ""}
+                                <Button type="primary" icon={<RotateCcw className="size-3.5" />} disabled={working || !archivedSelectedIds.length} loading={working} onClick={handleRestoreSelected}>
+                                    还原已选素材{archivedSelectedIds.length ? `（${archivedSelectedIds.length}）` : ""}
                                 </Button>
                             </>
                         ) : (
@@ -511,81 +530,69 @@ function PickerCard({ item, selected, onToggle }: { item: AssetLibraryPickerItem
     const disabled = Boolean(item.disabledReason);
     return (
         <AssetLibraryCard selected={selected} className={cn("asset-picker-card", disabled && "is-disabled")}>
-            <button type="button" className="asset-picker-card-action w-full text-left" onClick={onToggle} disabled={disabled} aria-pressed={selected} title={item.disabledReason || item.title}>
-                <div className="asset-picker-card-cover">
-                    <PickerMedia item={item} />
-                    <span className="asset-picker-card-check">
-                        <span className={cn("asset-picker-card-check-icon", selected && "is-checked")}>
-                            <Check aria-hidden="true" />
-                        </span>
+            <button type="button" className="asset-picker-card-action" onClick={onToggle} disabled={disabled} aria-pressed={selected} title={item.disabledReason || item.title}>
+                <div className="assets-cover asset-picker-card-media">
+                    {item.imageUrl || item.imageStorageKey ? (
+                        <CachedResourceImage
+                            storageKey={item.imageStorageKey}
+                            src={item.imageUrl}
+                            alt={item.title}
+                            loading="lazy"
+                            decoding="async"
+                            className={item.imageFit === "contain" ? "is-contain" : undefined}
+                            fallback={<div className="assets-cover-fallback">{kindIcon(item.kindLabel)}</div>}
+                        />
+                    ) : (
+                        <AssetMediaPreview asset={item.asset} alt={item.title} fallback={<div className="assets-cover-fallback">{kindIcon(item.kindLabel)}</div>} />
+                    )}
+                    <span className="assets-cover-vignette" aria-hidden="true" />
+                    <span className="assets-cover-badges" aria-hidden="true">
+                        <span className="assets-cover-badge is-kind">{item.kindLabel}</span>
                     </span>
+                    <span className="asset-picker-card-check" aria-hidden="true">
+                        <Check />
+                    </span>
+                    {item.disabledReason ? <span className="asset-picker-card-lock">{item.disabledReason}</span> : null}
                 </div>
-                <div className="asset-picker-card-info">
-                    <span className="asset-picker-card-title">{item.title}</span>
-                    {item.disabledReason ? <span className="asset-picker-card-desc text-amber-500 dark:text-amber-400">{item.disabledReason}</span> : item.description ? <span className="asset-picker-card-desc">{item.description}</span> : null}
+                <div className="asset-picker-card-copy">
+                    <strong>{item.title || "未命名素材"}</strong>
+                    {item.description ? <span>{item.description}</span> : null}
                 </div>
             </button>
         </AssetLibraryCard>
     );
 }
 
-function PickerMedia({ item }: { item: AssetLibraryPickerItem }) {
-    if (item.imageUrl || item.imageStorageKey) {
-        return <CachedResourceImage storageKey={item.imageStorageKey} src={item.imageUrl} alt={item.title} className={cn("size-full object-cover", item.imageFit === "contain" && "object-contain")} />;
-    }
-    if (item.asset) {
-        return <AssetMediaPreview asset={item.asset} alt={item.title} className="size-full object-cover" fallback={<PickerKindFallback kind={item.asset.kind} />} />;
-    }
-    return <PickerKindFallback kind={item.kindLabel} />;
+function renderPickerFolders(folders: AssetLibraryPickerFolder[], items: AssetLibraryPickerItem[], selectedId: string, onSelect: (folderId: string) => void, parentId = "", depth = 0, visited: ReadonlySet<string> = new Set()): ReactNode {
+    if (depth >= 8) return null;
+    return folders
+        .filter((folder) => (folder.parentId || "") === parentId && !visited.has(folder.id))
+        .map((folder) => {
+            const nextVisited = new Set(visited).add(folder.id);
+            return (
+                <span key={folder.id} className="contents">
+                    <button
+                        type="button"
+                        className={cn("assets-filter-item", selectedId === folder.id && "is-active")}
+                        aria-pressed={selectedId === folder.id}
+                        onClick={() => onSelect(folder.id)}
+                        style={{ paddingLeft: `calc(var(--space-3) + ${depth} * var(--space-3))` }}
+                    >
+                        <span className="assets-filter-item-label" title={folder.name}>
+                            {folder.name}
+                        </span>
+                        <span className="assets-filter-count">{items.filter((item) => item.folderId === folder.id).length}</span>
+                    </button>
+                    {renderPickerFolders(folders, items, selectedId, onSelect, folder.id, depth + 1, nextVisited)}
+                </span>
+            );
+        });
 }
 
-function PickerKindFallback({ kind }: { kind?: string }) {
-    if (kind === "video" || kind === "视频")
-        return (
-            <div className="assets-cover-fallback">
-                <Video className="size-6" />
-            </div>
-        );
-    if (kind === "audio" || kind === "音频")
-        return (
-            <div className="assets-cover-fallback">
-                <Music2 className="size-6" />
-            </div>
-        );
-    if (kind === "text" || kind === "文本")
-        return (
-            <div className="assets-cover-fallback">
-                <FileText className="size-6" />
-            </div>
-        );
-    if (kind === "character" || kind === "角色卡")
-        return (
-            <div className="assets-cover-fallback">
-                <UserRound className="size-6" />
-            </div>
-        );
-    return (
-        <div className="assets-cover-fallback">
-            <ImageIcon className="size-6" />
-        </div>
-    );
-}
-
-function renderPickerFolders(folders: AssetLibraryPickerFolder[], items: AssetLibraryPickerItem[], currentFolderId: string, onSelect: (folderId: string) => void, level = 0) {
-    return folders.map((folder) => {
-        const count = items.filter((item) => item.folderId === folder.id).length;
-        const active = currentFolderId === folder.id;
-        return (
-            <div key={folder.id}>
-                <button type="button" className={cn("assets-filter-item", active && "is-active")} style={{ paddingLeft: `${Math.max(12, level * 16 + 12)}px` }} aria-pressed={active} onClick={() => onSelect(folder.id)}>
-                    <span className="assets-filter-item-label flex items-center gap-1.5">
-                        <FolderOpen className="size-3.5 shrink-0" />
-                        <span className="truncate">{folder.name}</span>
-                    </span>
-                    <span className="assets-filter-count">{count}</span>
-                </button>
-                {folder.children?.length ? renderPickerFolders(folder.children, items, currentFolderId, onSelect, level + 1) : null}
-            </div>
-        );
-    });
+function kindIcon(label: string): ReactNode {
+    if (label.includes("角色")) return <UserRound />;
+    if (label.includes("视频")) return <Video />;
+    if (label.includes("音频")) return <Music2 />;
+    if (label.includes("文本")) return <FileText />;
+    return <ImageIcon />;
 }

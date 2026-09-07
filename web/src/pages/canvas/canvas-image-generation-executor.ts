@@ -101,7 +101,7 @@ export async function executeImageGeneration({
             ...generationMetadata,
             ...styleMetadata,
             ...skillMetadata,
-            imageBatchExpanded: count > 1 ? true : undefined,
+            imageBatchExpanded: count > 1 ? false : undefined,
             generationErrorCode: undefined,
             resourceReloadAvailable: undefined,
             failedPromptFingerprint: undefined,

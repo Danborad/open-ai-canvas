@@ -96,3 +96,10 @@ func TestBundledDirectoryPluginsAreReconciledAndResolvable(t *testing.T) {
 		t.Fatalf("flow2api-video metadata mismatch: %#v", flowVideo.Metadata())
 	}
 }
+
+func TestArtCritiqueIsUserToggleableApplication(t *testing.T) {
+	policy := pluginManagement(PluginAIArtCritique, "bundled")
+	if policy.Origin != PluginOriginOfficial || policy.Kind != PluginKindApplication || policy.ActivationScope != PluginScopeUser || policy.ConfigurationScope != PluginConfigurationNone {
+		t.Fatalf("AI art critique policy = %#v", policy)
+	}
+}

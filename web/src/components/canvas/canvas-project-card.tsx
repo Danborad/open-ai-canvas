@@ -175,7 +175,7 @@ export function CanvasProjectCard({
                                 menu={{
                                     onClick: ({ domEvent }) => domEvent.stopPropagation(),
                                     items: [
-                                        { key: "export", icon: <Download className="size-3.5" />, label: "导出画布", onClick: () => void exportCanvasProjects([project], project.title || "影策画布") },
+                                        { key: "export", icon: <Download className="size-3.5" />, label: "导出画布", onClick: () => void exportCanvasProjects([project], project.title || "画布") },
                                         { type: "divider" },
                                         { key: "delete", danger: true, icon: <Trash2 className="size-3.5" />, label: "删除", onClick: () => setDeleteIds([project.id]) },
                                     ],
@@ -215,7 +215,7 @@ export function CanvasProjectCard({
     );
 }
 
-export function ProjectPreview({ project, preferLatestImage = false, isBlurred }: { project: CanvasProject; preferLatestImage?: boolean; isBlurred?: boolean }) {
+export function ProjectPreview({ project, preferLatestImage = false, isBlurred }: { project: Pick<CanvasProject, "id" | "nodes"> & { coverBlurred?: boolean }; preferLatestImage?: boolean; isBlurred?: boolean }) {
     const syncProgress = useSyncProgressStore((state) => state.syncingProjects[project.id]);
     const isSyncing = Boolean(syncProgress && (syncProgress.phase === "uploading" || syncProgress.phase === "saving"));
     const coverBlurPluginEnabled = usePluginStore((state) => state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled));

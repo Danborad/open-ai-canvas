@@ -126,6 +126,25 @@ export function useCanvasMediaTools({
         }
     }, [message, nodesRef]);
 
+    const persistMediaNodes = useCallback(async (mediaNodes: CanvasNodeData[]) => {
+        const assetIds = new Map<string, string>();
+        for (const mediaNode of mediaNodes) {
+            try {
+                const result = await ensureCanvasNodeAsset({ canvasId: projectId, domainProjectId, node: mediaNode, source: "canvas-manual" });
+                assetIds.set(mediaNode.id, result.assetId);
+            } catch (error) {
+                message.warning(`媒体节点已创建，但素材库写入失败：${error instanceof Error ? error.message : "未知错误"}`);
+            }
+        }
+        if (assetIds.size > 0) {
+            setNodes((current) => current.map((item) => {
+                const assetId = assetIds.get(item.id);
+                return assetId ? { ...item, metadata: { ...item.metadata, assetId } } : item;
+            }));
+        }
+        return assetIds;
+    }, [domainProjectId, message, projectId, setNodes]);
+
     const createImageReversePromptNodes = useCallback((node: CanvasNodeData) => {
         if (node.type !== CanvasNodeType.Image || !node.metadata?.content) {
             message.warning("图片节点为空，无法反推提示词");
@@ -178,27 +197,29 @@ export function useCanvasMediaTools({
         const image = await uploadImage(cropped);
         const size = fitNodeSize(image.width, image.height, node.width, node.height);
         const childId = nanoid();
-        const child: CanvasNodeData = { id: childId, type: CanvasNodeType.Image, title: "Cropped Image", position: { x: node.position.x + node.width + 96, y: node.position.y }, width: size.width, height: size.height, metadata: { ...imageMetadata(image), prompt: node.metadata?.prompt } };
+        const child: CanvasNodeData = { id: childId, type: CanvasNodeType.Image, title: `${node.title || "图片"} · 裁剪`, position: { x: node.position.x + node.width + 96, y: node.position.y }, width: size.width, height: size.height, metadata: { ...imageMetadata(image), prompt: node.metadata?.prompt } };
         setNodes((current) => [...current, child]);
         setConnections((current) => [...current, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }]);
         setSelectedNodeIds(new Set([childId]));
         setDialogNodeId(childId);
         setCropNodeId(null);
-    }, [setConnections, setDialogNodeId, setNodes, setSelectedNodeIds]);
+        await persistMediaNodes([child]);
+    }, [persistMediaNodes, setConnections, setDialogNodeId, setNodes, setSelectedNodeIds]);
 
     const saveAnnotatedImageNode = useCallback(async (node: CanvasNodeData, dataUrl: string) => {
         const image = await uploadImage(dataUrl);
         const size = fitNodeSize(image.width, image.height, node.width, node.height);
         const childId = nanoid();
-        const child: CanvasNodeData = { id: childId, type: CanvasNodeType.Image, title: `标注 · ${node.title || "图片"}`, position: { x: node.position.x + node.width + 96, y: node.position.y }, width: size.width, height: size.height, metadata: { ...imageMetadata(image), prompt: node.metadata?.prompt } };
+        const child: CanvasNodeData = { id: childId, type: CanvasNodeType.Image, title: `${node.title || "图片"} · 标注`, position: { x: node.position.x + node.width + 96, y: node.position.y }, width: size.width, height: size.height, metadata: { ...imageMetadata(image), prompt: node.metadata?.prompt } };
         setNodes((current) => [...current, child]);
         setConnections((current) => [...current, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }]);
         setSelectedNodeIds(new Set([childId]));
         setSelectedConnectionId(null);
         setDialogNodeId(null);
         setAnnotationNodeId(null);
+        await persistMediaNodes([child]);
         message.success("标注图片已保存为新节点");
-    }, [message, setConnections, setDialogNodeId, setNodes, setSelectedConnectionId, setSelectedNodeIds]);
+    }, [message, persistMediaNodes, setConnections, setDialogNodeId, setNodes, setSelectedConnectionId, setSelectedNodeIds]);
 
     const openVideoFrameExtractor = useCallback((node: CanvasNodeData) => {
         if (!node.metadata?.content) {
@@ -251,6 +272,7 @@ export function useCanvasMediaTools({
             setConnections(nextConnections);
             setSelectedNodeIds(selection);
             setSelectedConnectionId(null);
+            await persistMediaNodes(frameNodes);
             const failedCount = captured.failures.length + uploadFailures.length;
             progress.done(failedCount ? `已提取 ${frameNodes.length} 帧，${failedCount} 帧失败` : `已提取 ${frameNodes.length} 帧并创建图片节点`);
             if (failedCount) message.warning(`${failedCount} 个时间点提取失败，其余画面已创建`);
@@ -262,7 +284,7 @@ export function useCanvasMediaTools({
             extractingVideoFramesNodeIdRef.current = null;
             setExtractingVideoFramesNodeId(null);
         }
-    }, [connectionsRef, message, nodesRef, selectedNodeIdsRef, setConnections, setNodes, setSelectedConnectionId, setSelectedNodeIds, startUploadStatus]);
+    }, [connectionsRef, message, nodesRef, persistMediaNodes, selectedNodeIdsRef, setConnections, setNodes, setSelectedConnectionId, setSelectedNodeIds, startUploadStatus]);
 
     const extractAudioFromVideo = useCallback((node: CanvasNodeData) => {
         if (!node.metadata?.content) {
@@ -309,7 +331,7 @@ export function useCanvasMediaTools({
                 { x: node.position.x + node.width + 96 + spec.width / 2, y: node.position.y + node.height / 2 },
                 { ...audioMetadata(uploaded), prompt: `从「${node.title || "视频"}」提取的声音`, status: NODE_STATUS_SUCCESS },
             );
-            audioNode.title = `声音 · ${node.title || "视频"}`;
+            audioNode.title = `${node.title || "视频"} · 音频`;
             const audioNodeId = audioNode.id;
             setNodes((current) => [...current, audioNode]);
             setConnections((current) => [...current, { id: nanoid(), fromNodeId: node.id, toNodeId: audioNodeId }]);
@@ -375,7 +397,7 @@ export function useCanvasMediaTools({
                     const segmentNode: CanvasNodeData = {
                         id: segmentId,
                         type: CanvasNodeType.Video,
-                        title: `片段 ${index + 1} · ${sourceNode?.title || node.title || "视频"}`,
+                        title: `${sourceNode?.title || node.title || "视频"} · 片段 ${index + 1}`,
                         position: { x: baseX, y: baseY + index * (Math.max(size.height, spec.height) + 24) },
                         width: size.width,
                         height: size.height,
@@ -502,6 +524,7 @@ export function useCanvasMediaTools({
             setSelectedNodeIds(selection);
             setSelectedConnectionId(null);
             setDialogNodeId(null);
+            await persistMediaNodes([mergedNode]);
             setMergeVideoProgress({ phase: "encoding", progress: 100 });
             message.success(`已合并 ${videos.length} 段视频，成片节点已添加`);
         } catch (error) {
@@ -510,7 +533,7 @@ export function useCanvasMediaTools({
             mergeVideoRunningRef.current = false;
             window.setTimeout(() => setMergeVideoProgress(null), 700);
         }
-    }, [connectionsRef, message, nodesRef, selectedNodeIdsRef, setConnections, setDialogNodeId, setNodes, setSelectedConnectionId, setSelectedNodeIds]);
+    }, [connectionsRef, message, nodesRef, persistMediaNodes, selectedNodeIdsRef, setConnections, setDialogNodeId, setNodes, setSelectedConnectionId, setSelectedNodeIds]);
 
     const mergeSelectedVideos = useCallback(() => mergeVideosByIds(Array.from(selectedNodeIdsRef.current)), [mergeVideosByIds, selectedNodeIdsRef]);
 
@@ -527,7 +550,7 @@ export function useCanvasMediaTools({
             return {
                 id: nanoid(),
                 type: CanvasNodeType.Image,
-                title: `${node.title || "图片"} ${piece.row + 1}-${piece.column + 1}`,
+                title: `${node.title || "图片"} · 宫格 ${piece.row + 1}-${piece.column + 1}`,
                 position: { x: startX + piece.column * (cellWidth + gap), y: node.position.y + piece.row * (cellHeight + gap) },
                 width: cellWidth,
                 height: cellHeight,
@@ -539,8 +562,9 @@ export function useCanvasMediaTools({
         setSelectedNodeIds(new Set(childNodes.map((child) => child.id)));
         setSelectedConnectionId(null);
         setDialogNodeId(null);
+        await persistMediaNodes(childNodes);
         message.success(`已切分为 ${childNodes.length} 个子节点`);
-    }, [message, setConnections, setDialogNodeId, setNodes, setSelectedConnectionId, setSelectedNodeIds]);
+    }, [message, persistMediaNodes, setConnections, setDialogNodeId, setNodes, setSelectedConnectionId, setSelectedNodeIds]);
 
     const maskEditImageNode = useCallback(async (node: CanvasNodeData, payload: CanvasImageMaskEditPayload) => {
         if (!node.metadata?.content) return;
@@ -572,7 +596,11 @@ export function useCanvasMediaTools({
             if (!image?.dataUrl) throw new Error("后端任务没有返回图片");
             const uploaded = await uploadImage(image.dataUrl);
             const size = fitNodeSize(uploaded.width, uploaded.height, node.width, node.height);
-            setNodes((current) => current.map((item) => item.id === childId ? { ...item, width: size.width, height: size.height, metadata: { ...item.metadata, ...imageMetadata(uploaded), prompt: effectivePrompt, ...generationMetadata } } : item));
+            const currentNode = nodesRef.current.find((item) => item.id === childId);
+            if (!currentNode) throw new Error("局部编辑节点已被删除");
+            const finalizedNode = { ...currentNode, width: size.width, height: size.height, metadata: { ...currentNode.metadata, ...imageMetadata(uploaded), prompt: effectivePrompt, ...generationMetadata } };
+            setNodes((current) => current.map((item) => item.id === childId ? finalizedNode : item));
+            await persistMediaNodes([finalizedNode]);
         } catch (error) {
             if (isGenerationCanceled(error)) return;
             const details = generationErrorMessage(error);
@@ -582,7 +610,7 @@ export function useCanvasMediaTools({
             finishGenerationRequest(childId, controller);
             setRunningNodeId(null);
         }
-    }, [bindGenerationTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, projectId, resolveImageEditStyle, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedConnectionId, setSelectedNodeIds, startGenerationRequest]);
+    }, [bindGenerationTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, nodesRef, persistMediaNodes, projectId, resolveImageEditStyle, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedConnectionId, setSelectedNodeIds, startGenerationRequest]);
 
     const upscaleImageNode = useCallback(async (node: CanvasNodeData, params: CanvasImageUpscaleParams) => {
         if (!node.metadata?.content) return;
@@ -591,12 +619,13 @@ export function useCanvasMediaTools({
         const image = await uploadImage(upscaled);
         const size = fitNodeSize(image.width, image.height);
         const childId = nanoid();
-        const child: CanvasNodeData = { id: childId, type: CanvasNodeType.Image, title: "Upscaled Image", position: { x: node.position.x + node.width + 96, y: node.position.y }, width: size.width, height: size.height, metadata: { ...imageMetadata(image), prompt: node.metadata?.prompt } };
+        const child: CanvasNodeData = { id: childId, type: CanvasNodeType.Image, title: `${node.title || "图片"} · 放大`, position: { x: node.position.x + node.width + 96, y: node.position.y }, width: size.width, height: size.height, metadata: { ...imageMetadata(image), prompt: node.metadata?.prompt } };
         setNodes((current) => [...current, child]);
         setConnections((current) => [...current, { id: nanoid(), fromNodeId: node.id, toNodeId: childId }]);
         setSelectedNodeIds(new Set([childId]));
         setDialogNodeId(childId);
-    }, [setConnections, setDialogNodeId, setNodes, setSelectedNodeIds]);
+        await persistMediaNodes([child]);
+    }, [persistMediaNodes, setConnections, setDialogNodeId, setNodes, setSelectedNodeIds]);
 
     const generateAngleNode = useCallback(async (node: CanvasNodeData, params: CanvasImageAngleParams) => {
         if (!node.metadata?.content) return;
@@ -628,7 +657,11 @@ export function useCanvasMediaTools({
             if (!image?.dataUrl) throw new Error("后端任务没有返回图片");
             const uploaded = await uploadImage(image.dataUrl);
             const size = fitNodeSize(uploaded.width, uploaded.height, imageSpec.width, imageSpec.height);
-            setNodes((current) => current.map((item) => item.id === childId ? { ...item, width: size.width, height: size.height, metadata: { ...item.metadata, ...imageMetadata(uploaded), prompt: effectivePrompt, ...generationMetadata } } : item));
+            const currentNode = nodesRef.current.find((item) => item.id === childId);
+            if (!currentNode) throw new Error("视角生成节点已被删除");
+            const finalizedNode = { ...currentNode, width: size.width, height: size.height, metadata: { ...currentNode.metadata, ...imageMetadata(uploaded), prompt: effectivePrompt, ...generationMetadata } };
+            setNodes((current) => current.map((item) => item.id === childId ? finalizedNode : item));
+            await persistMediaNodes([finalizedNode]);
         } catch (error) {
             if (isGenerationCanceled(error)) return;
             const details = generationErrorMessage(error);
@@ -637,7 +670,7 @@ export function useCanvasMediaTools({
             finishGenerationRequest(childId, controller);
             setRunningNodeId(null);
         }
-    }, [bindGenerationTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, projectId, resolveImageEditStyle, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedNodeIds, startGenerationRequest]);
+    }, [bindGenerationTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, nodesRef, persistMediaNodes, projectId, resolveImageEditStyle, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedNodeIds, startGenerationRequest]);
 
     const generateEmotionNode = useCallback(async (node: CanvasNodeData, payload: CanvasImageEmotionPayload) => {
         if (!node.metadata?.content) return;
@@ -689,14 +722,18 @@ export function useCanvasMediaTools({
             const composited = await compositeEmotionImage(node.metadata.content, image.dataUrl, payload.editRegion, payload.faceBox);
             const uploaded = await uploadImage(composited);
             const size = fitNodeSize(uploaded.width, uploaded.height, node.width, node.height);
-            setNodes((current) => current.map((item) => item.id === childId ? { ...item, width: size.width, height: size.height, metadata: { ...item.metadata, ...imageMetadata(uploaded), prompt: providerPrompt, ...generationMetadata, emotionEdit } } : item));
+            const currentNode = nodesRef.current.find((item) => item.id === childId);
+            if (!currentNode) throw new Error("表情编辑节点已被删除");
+            const finalizedNode = { ...currentNode, width: size.width, height: size.height, metadata: { ...currentNode.metadata, ...imageMetadata(uploaded), prompt: providerPrompt, ...generationMetadata, emotionEdit } };
+            setNodes((current) => current.map((item) => item.id === childId ? finalizedNode : item));
+            await persistMediaNodes([finalizedNode]);
         } catch (error) {
             if (isGenerationCanceled(error)) return;
             const details = generationErrorMessage(error);
             message.error(details);
             setNodes((current) => current.map((item) => item.id === childId ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails: details } } : item));
         } finally { finishGenerationRequest(childId, controller); setRunningNodeId(null); }
-    }, [bindGenerationTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, projectId, resolveImageEditStyle, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedConnectionId, setSelectedNodeIds, startGenerationRequest]);
+    }, [bindGenerationTask, effectiveConfig, finishGenerationRequest, isAiConfigReady, message, nodesRef, persistMediaNodes, projectId, resolveImageEditStyle, setConnections, setDialogNodeId, setNodes, setRunningNodeId, setSelectedConnectionId, setSelectedNodeIds, startGenerationRequest]);
 
     return {
         angleNodeId,

@@ -35,6 +35,8 @@ type ChannelModelRequest struct {
 	PriceTiers                   []ChannelModelPriceTierRequest `json:"priceTiers"`
 }
 
+const maxAdminChannelModelBatchDeleteCount = 100
+
 // ChannelModelPriceTierRequest 是系统渠道内某个规格的上游 SKU 与结算价格。
 // Resolution="*"、VideoSeconds=0 分别表示任意分辨率和任意时长。
 type ChannelModelPriceTierRequest struct {
@@ -57,6 +59,10 @@ type ChannelModelPriceTierRequest struct {
 type AdminChannelModelFetchResult struct {
 	Models []string `json:"models"`
 	Added  int64    `json:"added"`
+}
+
+type AdminChannelModelImportRequest struct {
+	Models []string `json:"models"`
 }
 
 type AdminChannelModelTestResult struct {
@@ -183,6 +189,107 @@ func (s *Service) FetchAdminChannelModels(ctx context.Context, actor *model.User
 		s.invalidateRouteCatalog()
 	}
 	return &AdminChannelModelFetchResult{Models: models, Added: added}, nil
+}
+
+// PreviewAdminChannelModels 只读取上游模型目录，不修改渠道模型配置。
+func (s *Service) PreviewAdminChannelModels(ctx context.Context, actor *model.User, channelID string) ([]string, error) {
+	if err := s.RequireAdmin(actor); err != nil {
+		return nil, err
+	}
+	return s.fetchAdminChannelModelCatalog(ctx, actor, channelID)
+}
+
+// ImportAdminChannelModels 只导入管理员明确选择、且仍存在于上游目录中的模型。
+func (s *Service) ImportAdminChannelModels(ctx context.Context, actor *model.User, channelID string, selected []string) (*AdminChannelModelFetchResult, error) {
+	if err := s.RequireAdmin(actor); err != nil {
+		return nil, err
+	}
+	channel, err := s.adminSystemChannel(channelID)
+	if err != nil {
+		return nil, err
+	}
+	models, err := s.fetchAdminChannelModelCatalog(ctx, actor, channelID)
+	if err != nil {
+		return nil, err
+	}
+	if len(selected) == 0 {
+		return nil, BadAuthRequest("请至少选择一个要导入的模型")
+	}
+	if len(selected) > 500 {
+		return nil, BadAuthRequest("单次最多导入 500 个模型")
+	}
+	available := make(map[string]string, len(models))
+	for _, name := range models {
+		available[channelModelCatalogKey(name)] = name
+	}
+	chosen := make([]string, 0, len(selected))
+	seen := make(map[string]struct{}, len(selected))
+	for _, rawName := range selected {
+		name := strings.TrimPrefix(strings.TrimSpace(rawName), "models/")
+		key := channelModelCatalogKey(name)
+		if key == "" {
+			continue
+		}
+		canonical, ok := available[key]
+		if !ok {
+			return nil, BadAuthRequest("所选模型不在上游模型目录中：" + name)
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		chosen = append(chosen, canonical)
+	}
+	if len(chosen) == 0 {
+		return nil, BadAuthRequest("请至少选择一个有效的模型")
+	}
+
+	existing, err := s.repo.ChannelModels(channelID, true)
+	if err != nil {
+		return nil, err
+	}
+	known := make(map[string]struct{}, len(existing))
+	for _, item := range existing {
+		known[channelModelCatalogKey(item.ModelKey)] = struct{}{}
+	}
+	retired := retiredChannelModelKeys(channel.RetiredModelsJSON)
+	missing := make([]model.ChannelModel, 0, len(chosen))
+	for _, name := range chosen {
+		key := channelModelCatalogKey(name)
+		if _, ok := known[key]; ok || retired[key] {
+			continue
+		}
+		modelID, idErr := s.repo.NextPrefixedID("MODEL")
+		if idErr != nil {
+			return nil, idErr
+		}
+		missing = append(missing, model.ChannelModel{ID: modelID, ChannelID: channelID, ModelKey: name, DisplayName: name, BillingMode: "fixed_request", Enabled: false, PriceConfigured: false, PriceVersion: 1})
+		known[key] = struct{}{}
+	}
+	added, err := s.repo.CreateMissingChannelModels(missing)
+	if err != nil {
+		return nil, err
+	}
+	if added > 0 {
+		s.invalidateRouteCatalog()
+	}
+	return &AdminChannelModelFetchResult{Models: chosen, Added: added}, nil
+}
+
+func (s *Service) fetchAdminChannelModelCatalog(ctx context.Context, actor *model.User, channelID string) ([]string, error) {
+	channel, err := s.adminSystemChannel(channelID)
+	if err != nil {
+		return nil, err
+	}
+	headers, err := ParseOutboundHeadersJSON(channel.HeadersJSON)
+	if err != nil {
+		return nil, err
+	}
+	models, err := s.FetchChannelModels(ctx, actor, ChannelModelsRequest{BaseURL: channel.BaseURL, AllowLocalChannel: channel.AllowLocalChannel, APIKey: channel.APIKey, APIFormat: channel.APIFormat, Headers: headers})
+	if err != nil {
+		return nil, err
+	}
+	return uniqueNonEmpty(models), nil
 }
 
 func (s *Service) SaveAdminChannelModel(actor *model.User, channelID string, id string, req ChannelModelRequest) (*model.ChannelModel, error) {
@@ -564,13 +671,25 @@ func (s *Service) TestAdminChannelModel(ctx context.Context, actor *model.User, 
 	}
 	imageSize, imageQuality := "", ""
 	var imageProfile *ImageCapabilityConfig
-	if capability == "image" {
+	videoRatio, videoResolution := videoTestDefaults(nil)
+	var videoProfile *VideoCapabilityConfig
+	switch capability {
+	case "image":
 		profile, normalizeErr := NormalizeModelCapabilityConfigForModel(capability, string(protocol), providerModelKey, req.CapabilityConfig)
 		if normalizeErr != nil {
 			return nil, normalizeErr
 		}
 		imageProfile = profile.Image
 		imageSize, imageQuality = imageTestDefaults(imageProfile)
+	case "video":
+		// 视频测试必须带上模型能力画像：声明式协议只按画像里的枚举回填分辨率名（如 480 -> 480p），
+		// 没有画像时会把裸数字发给上游，火山方舟等供应商会直接拒绝。
+		profile, normalizeErr := NormalizeModelCapabilityConfigForModel(capability, string(protocol), providerModelKey, req.CapabilityConfig)
+		if normalizeErr != nil {
+			return nil, normalizeErr
+		}
+		videoProfile = profile.Video
+		videoRatio, videoResolution = videoTestDefaults(videoProfile)
 	}
 	input := canvasGenerationInput{
 		Mode:   capability,
@@ -586,11 +705,11 @@ func (s *Service) TestAdminChannelModel(ctx context.Context, actor *model.User, 
 			Headers:            headers,
 			Model:              providerModelKey,
 			ChannelModelKey:    modelKey,
-			Size:               map[string]string{"image": imageSize, "video": "16:9"}[capability],
+			Size:               map[string]string{"image": imageSize, "video": videoRatio}[capability],
 			Quality:            imageQuality,
 			Count:              "1",
 			VideoSeconds:       videoSeconds,
-			VQuality:           "720",
+			VQuality:           videoResolution,
 			VideoGenerateAudio: "false",
 			VideoWatermark:     "false",
 			AudioVoice:         "alloy",
@@ -601,6 +720,9 @@ func (s *Service) TestAdminChannelModel(ctx context.Context, actor *model.User, 
 	}
 	if capability == "image" {
 		input.ImageCapability = imageProfile
+	}
+	if capability == "video" {
+		input.VideoCapability = videoProfile
 	}
 
 	// 测试复用真实生成协议、运行时并发和熔断策略，但不创建用户任务或计费订单。
@@ -634,6 +756,28 @@ func (s *Service) TestAdminChannelModel(ctx context.Context, actor *model.User, 
 }
 
 // 模型测试必须使用当前模型声明的默认参数，避免固定分辨率 SKU 被通用 1K 测试值误伤。
+// videoTestDefaults 从模型能力画像取测试用的比例和分辨率；画像缺失时回退到最通用的 16:9 / 720。
+func videoTestDefaults(profile *VideoCapabilityConfig) (string, string) {
+	if profile == nil {
+		return "16:9", "720"
+	}
+	ratio := strings.TrimSpace(profile.DefaultRatio)
+	if ratio == "" && len(profile.Ratios) > 0 {
+		ratio = strings.TrimSpace(profile.Ratios[0])
+	}
+	if ratio == "" {
+		ratio = "16:9"
+	}
+	resolution := strings.TrimSpace(profile.DefaultResolution)
+	if resolution == "" && len(profile.Resolutions) > 0 {
+		resolution = strings.TrimSpace(profile.Resolutions[0])
+	}
+	if resolution == "" {
+		resolution = "720"
+	}
+	return ratio, resolution
+}
+
 func imageTestDefaults(profile *ImageCapabilityConfig) (string, string) {
 	if profile == nil {
 		return "1024x1024", "auto"
@@ -685,47 +829,76 @@ func normalizeChannelModelContractWithRegistry(registry *protocol.Registry, chan
 }
 
 func (s *Service) DeleteAdminChannelModel(actor *model.User, channelID string, id string) error {
+	_, err := s.DeleteAdminChannelModels(actor, channelID, []string{id})
+	return err
+}
+
+// DeleteAdminChannelModels validates the complete selection before asking the
+// repository to remove it atomically. This deliberately rejects partial success:
+// administrators can safely correct an in-use model and retry the same selection.
+func (s *Service) DeleteAdminChannelModels(actor *model.User, channelID string, ids []string) (int64, error) {
 	if err := s.RequireAdmin(actor); err != nil {
-		return err
+		return 0, err
 	}
 	if _, err := s.repo.AdminSystemChannel(channelID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return BadAuthRequest("系统渠道不存在或已删除")
+			return 0, BadAuthRequest("系统渠道不存在或已删除")
 		}
-		return err
+		return 0, err
 	}
-	if _, err := s.repo.ChannelModelByID(channelID, id); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return BadAuthRequest("渠道模型不存在或已删除")
-		}
-		return err
-	}
-	items, err := s.repo.ChannelModels(channelID, false)
+	modelIDs, err := normalizeAdminChannelModelDeleteIDs(ids)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	names := make([]string, 0, len(items))
+	items, err := s.repo.ChannelModels(channelID, true)
+	if err != nil {
+		return 0, err
+	}
+	selected := make(map[string]bool, len(modelIDs))
+	for _, id := range modelIDs {
+		selected[id] = true
+	}
+	found := 0
 	for _, item := range items {
-		if item.ID != id {
-			names = append(names, item.ModelKey)
+		if selected[item.ID] {
+			found++
 		}
 	}
-	encoded, err := json.Marshal(names)
-	if err != nil {
-		return err
+	if found != len(modelIDs) {
+		return 0, BadAuthRequest("所选渠道模型中存在已删除或不属于当前渠道的记录，请刷新后重试")
 	}
 	// 删除模型与渠道的兼容模型清单必须同事务提交，避免接口报错但列表已部分变化。
-	err = s.repo.DeleteChannelModel(channelID, id, string(encoded), time.Now())
+	deleted, err := s.repo.DeleteChannelModels(channelID, modelIDs, time.Now())
 	if errors.Is(err, repository.ErrChannelModelInUse) {
-		return BadAuthRequest("渠道模型仍被前台模型供应线路或进行中任务使用，请先移除线路并等待任务结束")
+		return 0, BadAuthRequest("所选渠道模型中有模型仍被前台模型供应线路或进行中任务使用，本次未删除任何模型")
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return BadAuthRequest("渠道模型不存在或已删除")
+		return 0, BadAuthRequest("所选渠道模型中存在已删除或不属于当前渠道的记录，请刷新后重试")
 	}
 	if err == nil {
 		s.invalidateRouteCatalog()
 	}
-	return err
+	return deleted, err
+}
+
+func normalizeAdminChannelModelDeleteIDs(values []string) ([]string, error) {
+	result := make([]string, 0, len(values))
+	seen := make(map[string]bool, len(values))
+	for _, value := range values {
+		id := strings.TrimSpace(value)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		result = append(result, id)
+	}
+	if len(result) == 0 {
+		return nil, BadAuthRequest("请至少选择一个要删除的渠道模型")
+	}
+	if len(result) > maxAdminChannelModelBatchDeleteCount {
+		return nil, BadAuthRequest("单次最多删除 100 个渠道模型")
+	}
+	return result, nil
 }
 
 func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, item *model.ChannelModel) bool {
@@ -951,20 +1124,7 @@ func (s *Service) ensureChannelModels(channelID string, includeDisabled bool) ([
 }
 
 func (s *Service) syncChannelModelNames(channel *model.ModelChannel) error {
-	items, err := s.repo.ChannelModels(channel.ID, false)
-	if err != nil {
-		return err
-	}
-	names := make([]string, 0, len(items))
-	for _, item := range items {
-		names = append(names, item.ModelKey)
-	}
-	encoded, err := json.Marshal(names)
-	if err != nil {
-		return err
-	}
-	channel.ModelsJSON = string(encoded)
-	return s.repo.Save(channel)
+	return s.repo.SyncChannelModelNames(channel.ID, time.Now())
 }
 
 func (s *Service) capabilityForProtocol(protocol model.ChannelInterfaceType) string {

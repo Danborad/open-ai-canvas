@@ -35,6 +35,11 @@ type Resource struct {
 	Height           int    `json:"height"`
 	DurationMs       int64  `json:"durationMs"`
 	ETag             string `json:"etag" gorm:"size:160"`
+	// 浏览器兼容播放副本（HEVC/H.265 原片在 Chrome 等无法解码，由 ffmpeg 转 H.264）：
+	// PlaybackStatus: none|processing|ready|failed；PlaybackObjectKey 为本地播放目录下的文件名。
+	PlaybackStatus    string `json:"playbackStatus" gorm:"index;size:24"`
+	PlaybackObjectKey string `json:"playbackObjectKey"`
+	PlaybackError     string `json:"playbackError" gorm:"type:text"`
 	// UploadKey 是客户端逻辑上传身份的摘要；NULL 表示不参与幂等约束。
 	UploadKey *string   `json:"-" gorm:"size:64;uniqueIndex:idx_resources_user_upload_key,priority:2"`
 	Error     string    `json:"error"`
@@ -75,6 +80,7 @@ type AnnouncementImageDraft struct {
 type Asset struct {
 	ID               string             `json:"id" gorm:"primaryKey;size:80"`
 	UserID           string             `json:"userId" gorm:"index;size:36;index:idx_assets_user_updated,priority:1"`
+	FolderID         string             `json:"folderId,omitempty" gorm:"index;size:36"`
 	Kind             string             `json:"kind" gorm:"index;size:24"`
 	Category         AssetCategory      `json:"category" gorm:"index;size:32"`
 	Status           AssetVersionStatus `json:"status" gorm:"index;size:24"`
@@ -83,6 +89,17 @@ type Asset struct {
 	PayloadJSON      string             `json:"payloadJson" gorm:"type:text"`
 	CreatedAt        time.Time          `json:"createdAt"`
 	UpdatedAt        time.Time          `json:"updatedAt" gorm:"index:idx_assets_user_updated,priority:2"`
+}
+
+// AssetFolder 是用户素材库的一层自定义分类；业务分类仍由 Asset.Category 表达。
+type AssetFolder struct {
+	ID        string    `json:"id" gorm:"primaryKey;size:36"`
+	UserID    string    `json:"userId" gorm:"index;size:36;uniqueIndex:idx_asset_folders_user_name,priority:1"`
+	Name      string    `json:"name" gorm:"size:80"`
+	NameKey   string    `json:"-" gorm:"size:80;uniqueIndex:idx_asset_folders_user_name,priority:2"`
+	Position  int       `json:"position" gorm:"index"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type ProjectAssetLink struct {

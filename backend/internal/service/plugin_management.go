@@ -12,6 +12,7 @@ const (
 	PluginEagleAssetConnector  = "eagle-asset-connector"
 	PluginPromptOptimizer      = "prompt-optimizer"
 	PluginPortraitClearance    = "portrait-clearance"
+	PluginAIArtCritique        = "ai-art-critique"
 	PluginCanvasProjectStats   = "canvas-project-stats"
 	PluginCanvasNodeModelBadge = "canvas-node-model-badge"
 	PluginCanvasCoverBlur      = "canvas-cover-blur"
@@ -75,6 +76,10 @@ var officialApplicationPolicies = map[string]PluginManagementView{
 		ActivationScope: PluginScopeUser, ConfigurationScope: PluginConfigurationNone,
 	},
 	PluginPortraitClearance: {
+		Origin: PluginOriginOfficial, Kind: PluginKindApplication,
+		ActivationScope: PluginScopeUser, ConfigurationScope: PluginConfigurationNone,
+	},
+	PluginAIArtCritique: {
 		Origin: PluginOriginOfficial, Kind: PluginKindApplication,
 		ActivationScope: PluginScopeUser, ConfigurationScope: PluginConfigurationNone,
 	},

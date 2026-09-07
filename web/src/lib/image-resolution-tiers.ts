@@ -59,11 +59,13 @@ export function parseImageResolutionOption(value: string): ImageResolutionOption
     if (!match) return null;
     const width = Number(match[1]);
     const height = Number(match[2]);
+    if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width <= 0 || height <= 0) return null;
     const pixels = width * height;
     const tier: ImageResolutionTier | null = pixels <= 2_000_000 ? "1k" : pixels <= 4_300_000 ? "2k" : pixels <= 17_000_000 ? "4k" : null;
     if (!tier) return null;
-    const ratio = closestRatio(width / height);
-    if (!ratio) return null;
+    let a = width, b = height;
+    while (b) [a, b] = [b, a % b];
+    const ratio = closestRatio(width / height) || `${width / a}:${height / a}`;
     return { size: `${width}x${height}`, tier, ratio, width, height };
 }
 
