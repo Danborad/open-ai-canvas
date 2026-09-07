@@ -275,6 +275,12 @@ export function useCanvasGeneration({ projectId, domainProjectId, projectLoaded,
         async (node: CanvasNodeData, taskId: string, signal?: AbortSignal) => {
             const result = await retryCanvasAssetSyncAfterRateLimit(() => ensureCanvasNodeAsset({ canvasId: projectId, domainProjectId, node, source: "canvas-generation", taskId, signal }), { signal });
             setNodes((current) => current.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, assetId: result.assetId } } : item)));
+            const currentProjects = useCanvasStore.getState().projects;
+            const target = currentProjects.find((p) => p.id === projectId);
+            if (target) {
+                const nextNodes = target.nodes.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, assetId: result.assetId } } : item));
+                useCanvasStore.getState().updateProject(projectId, { nodes: nextNodes }, false);
+            }
             if (domainProjectId) await queryClient.invalidateQueries({ queryKey: ["project", domainProjectId] });
         },
         [domainProjectId, projectId, queryClient, setNodes],
@@ -536,6 +542,7 @@ export function useCanvasGeneration({ projectId, domainProjectId, projectLoaded,
         nodes.forEach((node) => {
             const taskId = node.metadata?.taskId;
             if (!taskId || !node.metadata?.content || node.metadata.status !== NODE_STATUS_SUCCESS || (node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video && node.type !== CanvasNodeType.Audio)) return;
+            if (!domainProjectId && node.metadata?.assetId) return;
             const saveKey = `${taskId}:${node.id}:${domainProjectId || "personal"}`;
             if (autoSavedTaskIdsRef.current.has(saveKey)) return;
             autoSavedTaskIdsRef.current.add(saveKey);

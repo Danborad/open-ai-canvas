@@ -7,6 +7,7 @@ import type { CanvasBackgroundMode } from "@/lib/canvas-theme";
 import { removeCanvasDrawing } from "@/lib/canvas/canvas-drawing-storage";
 import { normalizeCanvasNodeTimestamps } from "@/lib/canvas/canvas-node-timestamps";
 import { hydrateAssistantImages, resetInterruptedGeneration } from "@/lib/canvas/canvas-project-generation";
+import { repairMissingCanvasAssets } from "@/services/canvas-asset-repair";
 import { listAddedSkills, type Skill } from "@/services/api/skills";
 import { createCanvasProjectWithRemoteSync, deleteCanvasProjectsWithRemoteSync, loadCanvasProjectForEditing, saveRemoteUserDataNow } from "@/services/user-data-sync";
 import { flushCanvasStorePersistence, useCanvasStore } from "@/stores/canvas/use-canvas-store";
@@ -91,12 +92,14 @@ export function useCanvasProjectLifecycle({
         setProjectLoaded(false);
         setLoadError("");
         const load = async () => {
-        const project = await loadCanvasProjectForEditing(projectId);
+        const loadedProject = await loadCanvasProjectForEditing(projectId);
         if (cancelled) return;
-        if (!project) {
+        if (!loadedProject) {
             navigate("/canvas", { replace: true });
             return;
         }
+        repairMissingCanvasAssets(new Set([loadedProject.id]), false);
+        const project = useCanvasStore.getState().projects.find((p) => p.id === projectId) || loadedProject;
 
         const applyRestoredProject = (restoredNodes: CanvasNodeData[], restoredSessions: CanvasAssistantSession[]) => {
             if (cancelled) return;

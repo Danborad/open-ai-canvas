@@ -219,3 +219,26 @@ func TestValidateCanvasMediaAssetsRejectsMismatchedAsset(t *testing.T) {
 		t.Fatalf("validateCanvasMediaAssets() error = %v", err)
 	}
 }
+
+func TestValidateCanvasMediaAssetsAutoHealsMissingAssetForReadyResource(t *testing.T) {
+	svc, db, _ := newResourceDeletionTestService(t)
+	resource := model.Resource{
+		ID: "resource-canvas-historical", UserID: "user-1", Status: model.ResourceStatusReady,
+		Provider: "local", ObjectKey: "users/user-1/image/historical.png",
+	}
+	if err := db.Create(&resource).Error; err != nil {
+		t.Fatal(err)
+	}
+	raw := json.RawMessage(`{
+		"id":"canvas-1",
+		"nodes":[{"id":"node-1","type":"image","metadata":{"assetId":"asset-not-in-db","storageKey":"resource:resource-canvas-historical","content":"/api/resources/resource-canvas-historical/file"}}]
+	}`)
+
+	if err := svc.validateCanvasMediaAssets("user-1", raw); err != nil {
+		t.Fatalf("validateCanvasMediaAssets() should auto heal but failed: %v", err)
+	}
+	var healed model.Asset
+	if err := db.First(&healed, "id = ? AND user_id = ?", "asset-not-in-db", "user-1").Error; err != nil {
+		t.Fatalf("expected healed asset in database: %v", err)
+	}
+}

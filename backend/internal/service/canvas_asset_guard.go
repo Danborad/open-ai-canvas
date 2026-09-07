@@ -2,7 +2,10 @@ package service
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"strings"
+	"time"
+	"unicode/utf8"
 
 	"infinite-canvas/backend/internal/model"
 )
@@ -48,19 +51,25 @@ func (s *Service) validateCanvasMediaAssets(userID string, raw json.RawMessage) 
 	if err != nil {
 		return err
 	}
-	readyResources := make(map[string]struct{}, len(resources))
+	readyResources := make(map[string]model.Resource, len(resources))
 	for _, resource := range resources {
 		if resource.Status == model.ResourceStatusReady {
-			readyResources[resource.ID] = struct{}{}
+			readyResources[resource.ID] = resource
 		}
 	}
 
 	for _, reference := range references {
-		if _, exists := readyResources[reference.ResourceID]; !exists {
-			return BadAuthRequest("画布媒体对应的云端资源不存在或尚未就绪，请重新上传")
+		resource, exists := readyResources[reference.ResourceID]
+		if !exists {
+			// 对于历史遗留节点或已清理的媒体，若资源表中已无此记录，不阻断画布工程的持久化保存
+			continue
 		}
 		resourceIDs, assetExists := assetResources[reference.AssetID]
 		if !assetExists {
+			if err := s.ensureAssetRecordForResourceWithID(userID, reference.AssetID, resource); err == nil {
+				assetResources[reference.AssetID] = map[string]struct{}{reference.ResourceID: {}}
+				continue
+			}
 			return BadAuthRequest("画布媒体尚未进入素材库，请等待同步完成后重试")
 		}
 		if _, matches := resourceIDs[reference.ResourceID]; !matches {
@@ -68,6 +77,64 @@ func (s *Service) validateCanvasMediaAssets(userID string, raw json.RawMessage) 
 		}
 	}
 	return nil
+}
+
+func (s *Service) ensureAssetRecordForResourceWithID(userID string, assetID string, resource model.Resource) error {
+	cleanAssetID := strings.TrimSpace(assetID)
+	if cleanAssetID == "" {
+		cleanAssetID = newID()
+	}
+	if utf8.RuneCountInString(cleanAssetID) > model.AssetIDMaxLength {
+		cleanAssetID = cleanAssetID[:model.AssetIDMaxLength]
+	}
+	existing, err := s.repo.AssetForUser(userID, cleanAssetID)
+	if err == nil && existing != nil {
+		return nil
+	}
+
+	now := time.Now().UTC()
+	title := strings.TrimSpace(filepath.Base(resource.ObjectKey))
+	if title == "" || title == "." || title == "/" {
+		title = "画布媒体素材"
+	}
+	kind := strings.TrimSpace(resource.Kind)
+	if kind == "" {
+		kind = "image"
+	}
+	category := model.NormalizeAssetCategory(model.AssetCategoryMaterial, kind)
+	storageKey := "resource:" + resource.ID
+	fileURL := "/api/resources/" + resource.ID + "/file"
+	payload := map[string]any{
+		"id":        cleanAssetID,
+		"title":     title,
+		"kind":      kind,
+		"category":  string(category),
+		"status":    string(model.AssetVersionStatusConfirmed),
+		"source":    "Canvas",
+		"createdAt": now.Format(time.RFC3339Nano),
+		"updatedAt": now.Format(time.RFC3339Nano),
+		"data": map[string]any{
+			"storageKey": storageKey,
+			"url":        fileURL,
+			"dataUrl":    fileURL,
+		},
+	}
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	newAsset := model.Asset{
+		ID:          cleanAssetID,
+		UserID:      userID,
+		Kind:        kind,
+		Category:    category,
+		Status:      model.AssetVersionStatusConfirmed,
+		Title:       title,
+		PayloadJSON: string(payloadBytes),
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	return s.repo.UpsertAsset(&newAsset)
 }
 
 // validateAssetCanvasReferences prevents an Asset update from changing the
