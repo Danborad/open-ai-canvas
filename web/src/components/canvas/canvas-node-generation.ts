@@ -79,9 +79,20 @@ export function buildNodeGenerationContext(nodeId: string, nodes: CanvasNodeData
               return image ? [{ nodeId: sourceNode.id, type: "image" as const, title: sourceNode.title, image }] : [];
           })()
         : [];
+    const selfImageInput = sourceNode?.type === CanvasNodeType.Image && sourceNode.metadata?.content
+        ? (() => {
+              const image = readReferenceImage(sourceNode, nodes, connections);
+              return image ? [{ nodeId: sourceNode.id, type: "image" as const, title: sourceNode.title, image }] : [];
+          })()
+        : [];
     // 显式 @ 引用必须与提示词面板展示的资源集合一致；默认自动输入仍只取入边，
     // 避免已有图片在没有 @图片N 时被悄悄当作自身参考图。
-    const mentionInputs = mergeGenerationInputs(buildNodeMentionGenerationInputs(nodeId, nodes, connections), portraitTextureInput, buildAssetGenerationInputs(assets));
+    const mentionInputs = mergeGenerationInputs(
+        buildNodeMentionGenerationInputs(nodeId, nodes, connections),
+        connectedInputs.some((input) => input.type === "image") ? [] : selfImageInput,
+        portraitTextureInput,
+        buildAssetGenerationInputs(assets),
+    );
     const storyboardInputs = getConnectedStoryboardRows(nodeId, nodes, connections);
     assertResolvableGenerationMentions(prompt, mentionInputs);
     const hasExplicitResourceMention = hasResolvableGenerationMention(prompt, mentionInputs);
