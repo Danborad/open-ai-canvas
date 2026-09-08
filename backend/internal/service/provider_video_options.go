@@ -126,8 +126,8 @@ func normalizePixelSize(value string) string {
 		return "1824x1024"
 	case "9:16":
 		return "1024x1824"
-	case "21:9":
-		return "2352x1008"
+	case "21:9", "1938:812":
+		return "1938x812"
 	}
 	if strings.Contains(value, "x") {
 		return value

@@ -191,7 +191,12 @@ func openAIImagesAdapter() Adapter {
 			if r.ImageCount > 0 {
 				body["n"] = r.ImageCount
 			}
-			copyIf(body, "size", r.AspectRatio)
+			size := r.AspectRatio
+			cleanSize := strings.ToLower(strings.TrimSpace(size))
+			if cleanSize == "21:9" || cleanSize == "1938:812" || cleanSize == "2048x878" || cleanSize == "2048*878" {
+				size = "1938x812"
+			}
+			copyIf(body, "size", size)
 			copyIf(body, "quality", r.Quality)
 			mergeExtra(body, r.Extra, "size", "quality", "background", "response_format", "output_format", "style", "n")
 			return jsonSpec(http.MethodPost, "/v1/images/generations", body), nil

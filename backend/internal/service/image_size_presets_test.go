@@ -83,3 +83,27 @@ func TestImageSizePresetsEnforceResolutionRatioPair(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGPTImage2Ratio219ResolvesTo1938x812(t *testing.T) {
+	profile := DefaultImageCapabilityConfig("openai-image", "gpt-image-2")
+	input := canvasGenerationInput{
+		Mode: "image",
+		Config: providerConfig{
+			InterfaceType: "openai-image",
+			Model:         "gpt-image-2",
+			Size:          "21:9",
+		},
+	}
+	if err := validateImageTask(profile, input); err != nil {
+		t.Fatalf("validateImageTask(gpt-image-2, 21:9) failed: %v", err)
+	}
+
+	req := protocolRequestFromInput(input)
+	if req.AspectRatio != "1938x812" {
+		t.Fatalf("expected AspectRatio = 1938x812, got %s", req.AspectRatio)
+	}
+
+	if err := validateGPTImage2CustomSize("1938x812"); err != nil {
+		t.Fatalf("validateGPTImage2CustomSize(1938x812) failed: %v", err)
+	}
+}

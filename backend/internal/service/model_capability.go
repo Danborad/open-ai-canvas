@@ -319,7 +319,7 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 func defaultImageSizeValues() []string {
 	return []string{
 		"auto", "1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "21:9", "9:16",
-		"1024x1024", "1360x1024", "1024x1360", "1536x1024", "1024x1536", "1024x1280", "1280x1024", "2048x878", "1824x1024", "1024x1824",
+		"1024x1024", "1360x1024", "1024x1360", "1536x1024", "1024x1536", "1024x1280", "1280x1024", "1938x812", "2048x878", "1824x1024", "1024x1824",
 		"2048x2048", "2304x1728", "1728x2304", "2496x1664", "1664x2496", "1792x2240", "2240x1792", "3136x1344", "2752x1536", "1536x2752",
 		"2880x2880", "3264x2448", "2448x3264", "3504x2336", "2336x3504", "2560x3200", "3200x2560", "3808x1632", "3840x2160", "2160x3840",
 	}
@@ -1034,6 +1034,12 @@ func validateImageTask(profile *ImageCapabilityConfig, input canvasGenerationInp
 	if input.Mask != nil && !profile.References.MaskSupported {
 		return BadAuthRequest("当前图片模型不支持蒙版编辑")
 	}
+	if strings.HasPrefix(modelName, "gpt-image-2") || strings.Contains(modelName, "image-2") {
+		cleanSize := strings.ToLower(strings.TrimSpace(input.Config.Size))
+		if cleanSize == "21:9" || cleanSize == "1938:812" || cleanSize == "2048x878" || cleanSize == "2048*878" {
+			input.Config.Size = "1938x812"
+		}
+	}
 	if profile.Size.Parameter != "none" && !profile.Size.AllowCustom && strings.TrimSpace(input.Config.Size) != "" && !containsCapabilityString(profile.Size.Values, input.Config.Size) {
 		return BadAuthRequest("图片尺寸不在当前模型支持范围内")
 	}
@@ -1116,6 +1122,9 @@ func validateGPTImage2CustomSize(value string) error {
 	height, heightErr := strconv.Atoi(parts[1])
 	if widthErr != nil || heightErr != nil || width <= 0 || height <= 0 {
 		return errors.New("图片尺寸必须是正整数")
+	}
+	if (width == 1938 && height == 812) || (width == 812 && height == 1938) {
+		return nil
 	}
 	if width%16 != 0 || height%16 != 0 {
 		return errors.New("图片尺寸宽高必须是 16 的倍数")

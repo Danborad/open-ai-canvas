@@ -26,6 +26,8 @@ describe("统一图片分辨率与宽高比", () => {
     test("常用比例保持明确尺寸，等价比例归一", () => {
         expect(imagePresetForRatio("1k", "16:9").size).toBe("1824x1024");
         expect(imagePresetForRatio("4k", "9:16").size).toBe("2160x3840");
+        expect(imagePresetForRatio("1k", "21:9").size).toBe("1938x812");
+        expect(imagePresetForRatio("1k", "1938:812").size).toBe("1938x812");
         expect(imagePresetForRatio("1k", "32：18")).toEqual(imagePresetForRatio("1k", "16:9"));
         expect(imagePresetForRatio("2k", "7:3").ratio).toBe("21:9");
         expect(imagePresetForRatio("2k", "34:22").ratio).toBe("17:11");

@@ -2592,6 +2592,13 @@ func protocolRequestFromInput(input canvasGenerationInput) protocol.GenerationRe
 			resolution = normalizeMiniMaxResolution(resolution)
 		}
 	}
+	size := input.Config.Size
+	if input.Mode == "image" {
+		cleanSize := strings.ToLower(strings.TrimSpace(size))
+		if cleanSize == "21:9" || cleanSize == "1938:812" || cleanSize == "2048x878" || cleanSize == "2048*878" {
+			size = "1938x812"
+		}
+	}
 	request := protocol.GenerationRequest{
 		Capability:    protocol.Capability(input.Mode),
 		Model:         input.Config.Model,
@@ -2600,7 +2607,7 @@ func protocolRequestFromInput(input canvasGenerationInput) protocol.GenerationRe
 		Images:        protocolImageReferences(input),
 		Videos:        protocolMediaReferences(input.ReferenceVideos, "video"),
 		Audios:        protocolMediaReferences(input.ReferenceAudios, "audio"),
-		AspectRatio:   input.Config.Size,
+		AspectRatio:   size,
 		Resolution:    resolution,
 		Quality:       input.Config.Quality,
 		GenerateAudio: parseBool(input.Config.VideoGenerateAudio, false),

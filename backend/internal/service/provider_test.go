@@ -1248,9 +1248,10 @@ func TestNormalizePixelSizeConvertsCanvasAspectRatios(t *testing.T) {
 		"2:3":  "1024x1536",
 		"4:3":  "1360x1024",
 		"3:4":  "1024x1360",
-		"16:9": "1824x1024",
-		"9:16": "1024x1824",
-		"21:9": "2352x1008",
+		"16:9":     "1824x1024",
+		"9:16":     "1024x1824",
+		"21:9":     "1938x812",
+		"1938:812": "1938x812",
 	}
 	for input, want := range tests {
 		t.Run(input, func(t *testing.T) {

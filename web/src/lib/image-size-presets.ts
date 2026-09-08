@@ -11,11 +11,18 @@ const standardSizes: Record<string, string[]> = {
     "3:4": ["1024x1360", "1728x2304", "2448x3264"],
     "3:2": ["1536x1024", "2496x1664", "3504x2336"],
     "2:3": ["1024x1536", "1664x2496", "2336x3504"],
-    "21:9": ["2048x878", "3136x1344", "3808x1632"],
+    "21:9": ["1938x812", "3136x1344", "3808x1632"],
 };
 
 export function imagePresetForRatio(tier: ImageResolutionTier, input: string): ImageResolutionOption {
-    const match = input.trim().match(/^(\d{1,5})\s*[:：]\s*(\d{1,5})$/);
+    const cleanInput = input.trim();
+    if (cleanInput === "1938:812" || cleanInput === "1938x812" || cleanInput === "1938*812") {
+        const index = Math.max(0, IMAGE_RESOLUTIONS.indexOf(tier));
+        const standard = standardSizes["21:9"][index] || "1938x812";
+        const [width, height] = standard.split("x").map(Number);
+        return { tier, ratio: "21:9", width, height, size: standard };
+    }
+    const match = cleanInput.match(/^(\d{1,5})\s*[:：]\s*(\d{1,5})$/);
     if (!match) throw new Error("请输入宽高比，例如 16:9");
     let w = Number(match[1]),
         h = Number(match[2]);
