@@ -73,6 +73,14 @@ func (s *Service) validateCanvasMediaAssets(userID string, raw json.RawMessage) 
 			return BadAuthRequest("画布媒体尚未进入素材库，请等待同步完成后重试")
 		}
 		if _, matches := resourceIDs[reference.ResourceID]; !matches {
+			// 节点上记录的 assetId 与当前的云端资源不匹配（例如切换批次主图、删除批次图片或旧节点元数据陈旧），
+			// 检查素材库中是否已存在关联该资源的素材记录；若不存在则自动兜底补齐，不阻断画布保存。
+			if matched, err := s.repo.AssetForUserReferencingResource(userID, reference.ResourceID); err == nil && matched != nil {
+				continue
+			}
+			if err := s.ensureAssetRecordForResourceWithID(userID, "", resource); err == nil {
+				continue
+			}
 			return BadAuthRequest("画布媒体与素材库记录不一致，请重新同步")
 		}
 	}

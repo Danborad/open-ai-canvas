@@ -197,7 +197,7 @@ func TestValidateCanvasMediaAssetsAcceptsMatchingNodeAndTimelineAssets(t *testin
 	}
 }
 
-func TestValidateCanvasMediaAssetsRejectsMismatchedAsset(t *testing.T) {
+func TestValidateCanvasMediaAssetsAutoHealsMismatchedAsset(t *testing.T) {
 	svc, db, _ := newResourceDeletionTestService(t)
 	resources := []model.Resource{
 		{ID: "resource-canvas", UserID: "user-1", Status: model.ResourceStatusReady, Provider: "local", ObjectKey: "users/user-1/image/canvas.png"},
@@ -215,8 +215,13 @@ func TestValidateCanvasMediaAssetsRejectsMismatchedAsset(t *testing.T) {
 	raw := json.RawMessage(`{"nodes":[{"type":"image","metadata":{"assetId":"asset-wrong","storageKey":"resource:resource-canvas"}}]}`)
 
 	err := svc.validateCanvasMediaAssets("user-1", raw)
-	if err == nil || !strings.Contains(err.Error(), "不一致") {
-		t.Fatalf("validateCanvasMediaAssets() error = %v", err)
+	if err != nil {
+		t.Fatalf("validateCanvasMediaAssets() should auto heal mismatched asset, but got error = %v", err)
+	}
+	// Verify an asset for resource-canvas was auto-created
+	matched, err := svc.repo.AssetForUserReferencingResource("user-1", "resource-canvas")
+	if err != nil || matched == nil {
+		t.Fatalf("expected auto-created asset for resource-canvas, got %v", err)
 	}
 }
 

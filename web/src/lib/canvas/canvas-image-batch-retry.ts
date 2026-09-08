@@ -146,6 +146,8 @@ export function reconcileImageBatchRoot(root: CanvasNodeData, nodes: CanvasNodeD
     if (primary) {
         metadata.content = primary.metadata?.content;
         metadata.storageKey = primary.metadata?.storageKey;
+        metadata.assetId = primary.metadata?.assetId;
+        metadata.taskId = primary.metadata?.taskId;
         metadata.mimeType = primary.metadata?.mimeType;
         metadata.bytes = primary.metadata?.bytes;
         metadata.naturalWidth = primary.metadata?.naturalWidth;
@@ -158,6 +160,8 @@ export function reconcileImageBatchRoot(root: CanvasNodeData, nodes: CanvasNodeD
     } else {
         delete metadata.content;
         delete metadata.storageKey;
+        delete metadata.assetId;
+        delete metadata.taskId;
         delete metadata.mimeType;
         delete metadata.bytes;
         delete metadata.naturalWidth;

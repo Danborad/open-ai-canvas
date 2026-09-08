@@ -1176,6 +1176,19 @@ func (r *Repository) AssetsForUserIDs(userID string, ids []string) ([]model.Asse
 	return assets, err
 }
 
+func (r *Repository) AssetForUserReferencingResource(userID string, resourceID string) (*model.Asset, error) {
+	cleanResourceID := strings.TrimSpace(resourceID)
+	if cleanResourceID == "" {
+		return nil, gorm.ErrRecordNotFound
+	}
+	var asset model.Asset
+	err := r.db.Where("user_id = ? AND payload_json LIKE ?", userID, "%"+cleanResourceID+"%").First(&asset).Error
+	if err != nil {
+		return nil, err
+	}
+	return &asset, nil
+}
+
 func (r *Repository) UpsertAsset(asset *model.Asset) error {
 	result := r.db.Model(&model.Asset{}).
 		Where("id = ? AND user_id = ?", asset.ID, asset.UserID).

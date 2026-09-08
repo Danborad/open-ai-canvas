@@ -389,6 +389,9 @@ export function applyBatchPrimaryImage(root: CanvasNodeData, primary: CanvasNode
         metadata: {
             ...root.metadata,
             primaryImageId: primary.id,
+            assetId: primary.metadata?.assetId,
+            taskId: primary.metadata?.taskId,
+            characterAssetId: primary.metadata?.characterAssetId,
             content: primary.metadata?.content,
             storageKey: primary.metadata?.storageKey,
             status: primary.metadata?.status,
@@ -433,6 +436,18 @@ export function removeCanvasNodes(nodes: CanvasNodeData[], requestedIds: Set<str
             : detached;
         const childIds = cleaned.metadata?.batchChildIds?.filter((childId) => !removedIds.has(childId));
         if (!cleaned.metadata?.isBatchRoot || childIds?.length === cleaned.metadata.batchChildIds?.length) return cleaned;
+        if (childIds && childIds.length === 0) {
+            const emptyMetadata = { ...cleaned.metadata, batchChildIds: [] };
+            delete emptyMetadata.primaryImageId;
+            delete emptyMetadata.content;
+            delete emptyMetadata.storageKey;
+            delete emptyMetadata.assetId;
+            delete emptyMetadata.taskId;
+            delete emptyMetadata.naturalWidth;
+            delete emptyMetadata.naturalHeight;
+            emptyMetadata.status = "idle";
+            return { ...cleaned, metadata: emptyMetadata };
+        }
         const primaryImageId = childIds?.includes(cleaned.metadata.primaryImageId || "") ? cleaned.metadata.primaryImageId : childIds?.[0];
         const primaryNode = remainingNodes.find((item) => item.id === primaryImageId);
         const batchRoot = { ...cleaned, metadata: { ...cleaned.metadata, batchChildIds: childIds, primaryImageId } };
