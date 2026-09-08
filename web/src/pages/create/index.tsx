@@ -11,7 +11,8 @@ import { GenerationToolCard, type GenerationToolStatus } from "@/components/ai/g
 import { MessageReasoning } from "@/components/ai/message-reasoning";
 import type { AssetLibraryPickerItem } from "@/components/assets/asset-library-picker-modal";
 import { CachedResourceImage } from "@/components/cached-resource-image";
-import { CanvasResourceMentionTextarea } from "@/components/canvas/canvas-resource-mention-textarea";
+import { CanvasResourceMentionTextarea, extractImageFilesFromClipboardData } from "@/components/canvas/canvas-resource-mention-textarea";
+import { useComposerImagePasteEnabled } from "@/lib/plugins/builtin/composer-image-paste";
 import { VoiceRecordingButton } from "@/components/conversation/voice-recording-button";
 import { ModelPicker } from "@/components/model-picker";
 import { CreditSymbol, requestCreditCost } from "@/constant/credits";
@@ -583,6 +584,41 @@ export default function CreatePage() {
         }
     }, [addAsset, busy, referenceReplacementBusy, replaceAttachmentReference, toast]);
 
+    const addReferenceFromFiles = useCallback(async (files: File[]) => {
+        if (busy || referenceReplacementBusy) return;
+        const imageFiles = files.filter((item) => item.type.startsWith("image/"));
+        if (!imageFiles.length) return;
+        const imageReferencesSupported = imageProfile.references.maxImages > 0;
+        const referencesSupported = mode === "image" ? imageReferencesSupported : mode !== "video" || videoProfile.operations.includes("image_to_video");
+        if (!referencesSupported) {
+            toast.warning("当前生成模式或模型不支持添加参考图片");
+            return;
+        }
+        if (attachmentsRef.current.length >= maxReferences) {
+            toast.warning(`已达到当前模型的参考内容上限（${maxReferences} 个）`);
+            return;
+        }
+        const remaining = Math.max(0, maxReferences - attachmentsRef.current.length);
+        const toUpload = imageFiles.slice(0, remaining);
+        let addedCount = 0;
+        for (const file of toUpload) {
+            try {
+                const { asset, attachment } = await uploadCreationAsset(file);
+                if (asset) addAsset(asset);
+                if (attachment) {
+                    setAttachments((current) => [...current, attachment]);
+                    attachmentsRef.current = [...attachmentsRef.current, attachment];
+                    addedCount += 1;
+                }
+            } catch (error) {
+                toast.error(error instanceof Error ? error.message : "图片上传失败");
+            }
+        }
+        if (addedCount > 0) {
+            toast.success(`已从剪贴板添加 ${addedCount} 张参考图`);
+        }
+    }, [addAsset, busy, imageProfile.references.maxImages, maxReferences, mode, referenceReplacementBusy, toast, uploadCreationAsset, videoProfile.operations]);
+
     const submit = async (retryContext?: CreationRetryContext, retryLockKey?: string) => {
         const releaseRetryLock = () => {
             if (retryLockKey) retryPreparingRef.current.delete(retryLockKey);
@@ -951,6 +987,7 @@ export default function CreatePage() {
         onReorderAttachments: reorderAttachments,
         onReplaceAttachment: replaceReferenceFromTrack,
         onReplaceReferenceFiles: replaceReferenceFromFiles,
+        onAddFiles: addReferenceFromFiles,
         onOpenLibrary: () => setLibraryOpen(true),
         onModeChange: selectMode,
         model: selectedModel,
@@ -1318,6 +1355,7 @@ type ComposerProps = {
     onReorderAttachments: (attachments: CreationAttachment[]) => void;
     onReplaceAttachment: (targetAttachmentId: string, replacement: CreationAttachment) => void;
     onReplaceReferenceFiles: (targetAttachmentId: string, files: File[]) => void;
+    onAddFiles?: (files: File[]) => void;
     onOpenLibrary: () => void;
     onModeChange: (mode: CreationMode) => void;
     model: string;
@@ -1483,10 +1521,22 @@ function CreationComposer(props: ComposerProps) {
         }
         return undefined;
     };
-    const composer = <section className={`creation-chat-composer is-${props.variant}`}>
+    const composerPastePluginEnabled = useComposerImagePasteEnabled();
+
+    const handleComposerPasteCapture = (event: React.ClipboardEvent) => {
+        if (!composerPastePluginEnabled || !props.onAddFiles) return;
+        const imageFiles = extractImageFilesFromClipboardData(event.clipboardData);
+        if (imageFiles.length) {
+            event.preventDefault();
+            event.stopPropagation();
+            void props.onAddFiles(imageFiles);
+        }
+    };
+
+    const composer = <section className={`creation-chat-composer is-${props.variant}`} onPasteCapture={handleComposerPasteCapture}>
         <div className="creation-chat-writing-surface">
             <div className="creation-chat-editor">
-                <CanvasResourceMentionTextarea ref={props.composerFocusRef} value={props.prompt} references={props.references} mentionMenuWidth={400} sendOnEnter={false} onFocus={props.onPromptFocus} onChange={props.setPrompt} onSubmit={props.onSubmit} containerClassName="creation-chat-mention-container" className="creation-chat-mention-editor creation-scrollbar" style={{ color: "var(--creation-text)" }} placeholder={props.placeholderOverride || (props.variant === "empty" ? emptyPlaceholder : placeholder)} aria-label="创作提示词，可使用 @ 引用当前参考内容或技能" spellCheck disabled={interactionBusy} activeDropReferenceId={dropTargetReferenceId} onReferenceFilesDrop={(reference, files) => { const target = props.references.find((item) => item.id === reference.id); if (target?.attachmentId) props.onReplaceReferenceFiles(target.attachmentId, files); }} />
+                <CanvasResourceMentionTextarea ref={props.composerFocusRef} value={props.prompt} references={props.references} mentionMenuWidth={400} sendOnEnter={false} onFocus={props.onPromptFocus} onChange={props.setPrompt} onSubmit={props.onSubmit} onPasteFiles={composerPastePluginEnabled ? props.onAddFiles : undefined} containerClassName="creation-chat-mention-container" className="creation-chat-mention-editor creation-scrollbar" style={{ color: "var(--creation-text)" }} placeholder={props.placeholderOverride || (props.variant === "empty" ? emptyPlaceholder : placeholder)} aria-label="创作提示词，可使用 @ 引用当前参考内容或技能" spellCheck disabled={interactionBusy} activeDropReferenceId={dropTargetReferenceId} onReferenceFilesDrop={(reference, files) => { const target = props.references.find((item) => item.id === reference.id); if (target?.attachmentId) props.onReplaceReferenceFiles(target.attachmentId, files); }} />
                 {props.attachments.length || referencesSupported ? <div className={`creation-reference-panel${trackState.isExpanded ? " is-expanded" : ""}`} aria-busy={interactionBusy}>
                     {trackState.isExpanded ? <div className="creation-reference-panel-header">
                         <div className="creation-reference-filter-tabs" role="group" aria-label="筛选参考内容">

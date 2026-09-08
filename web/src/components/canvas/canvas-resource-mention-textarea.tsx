@@ -46,10 +46,35 @@ type Props = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange" | "val
     includeAssetLibrary?: boolean;
     activeDropReferenceId?: string | null;
     onReferenceFilesDrop?: (reference: CanvasResourceReference, files: File[]) => void;
+    onPasteFiles?: (files: File[]) => void;
 };
 
+export function extractImageFilesFromClipboardData(clipboardData: DataTransfer | null): File[] {
+    if (!clipboardData) return [];
+    const files: File[] = [];
+    const items = clipboardData.items;
+    if (items) {
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.kind === "file" && item.type.startsWith("image/")) {
+                const file = item.getAsFile();
+                if (file) files.push(file);
+            }
+        }
+    }
+    if (!files.length && clipboardData.files) {
+        for (let i = 0; i < clipboardData.files.length; i++) {
+            const file = clipboardData.files[i];
+            if (file.type.startsWith("image/")) {
+                files.push(file);
+            }
+        }
+    }
+    return files;
+}
+
 export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function CanvasResourceMentionTextarea(
-    { value, references, onChange, onSubmit, onKeyDown, className, containerClassName, style, highlightLabels = true, mentionMenuWidth = 320, sendOnEnter = true, onContentSizeChange, includeAssetLibrary = false, activeDropReferenceId, onReferenceFilesDrop, ...props },
+    { value, references, onChange, onSubmit, onKeyDown, className, containerClassName, style, highlightLabels = true, mentionMenuWidth = 320, sendOnEnter = true, onContentSizeChange, includeAssetLibrary = false, activeDropReferenceId, onReferenceFilesDrop, onPasteFiles, ...props },
     forwardedRef,
 ) {
     const rawTheme = useThemeStore((state) => state.theme);
@@ -275,6 +300,12 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
                         props.onCompositionEnd?.(event as unknown as React.CompositionEvent<HTMLTextAreaElement>);
                     }}
                     onPaste={(event: ClipboardEvent<HTMLDivElement>) => {
+                        const imageFiles = extractImageFilesFromClipboardData(event.clipboardData);
+                        if (imageFiles.length && onPasteFiles) {
+                            event.preventDefault();
+                            onPasteFiles(imageFiles);
+                            return;
+                        }
                         event.preventDefault();
                         replaceEditableSelection(event.clipboardData.getData("text/plain"));
                     }}
@@ -400,6 +431,15 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
                 onCompositionEnd={(event) => {
                     composingRef.current = false;
                     props.onCompositionEnd?.(event);
+                }}
+                onPaste={(event) => {
+                    const imageFiles = extractImageFilesFromClipboardData(event.clipboardData);
+                    if (imageFiles.length && onPasteFiles) {
+                        event.preventDefault();
+                        onPasteFiles(imageFiles);
+                        return;
+                    }
+                    props.onPaste?.(event);
                 }}
                 onKeyDown={(event) => {
                     if (event.key === "Enter" && (event.nativeEvent.isComposing || composingRef.current)) return;

@@ -16,6 +16,7 @@ const (
 	PluginCanvasProjectStats   = "canvas-project-stats"
 	PluginCanvasNodeModelBadge = "canvas-node-model-badge"
 	PluginCanvasCoverBlur      = "canvas-cover-blur"
+	PluginComposerImagePaste   = "composer-image-paste"
 
 	PluginOriginOfficial = "official"
 	PluginOriginSystem   = "system"
@@ -92,6 +93,10 @@ var officialApplicationPolicies = map[string]PluginManagementView{
 		ActivationScope: PluginScopeUser, ConfigurationScope: PluginConfigurationNone,
 	},
 	PluginCanvasCoverBlur: {
+		Origin: PluginOriginOfficial, Kind: PluginKindApplication,
+		ActivationScope: PluginScopeUser, ConfigurationScope: PluginConfigurationNone,
+	},
+	PluginComposerImagePaste: {
 		Origin: PluginOriginOfficial, Kind: PluginKindApplication,
 		ActivationScope: PluginScopeUser, ConfigurationScope: PluginConfigurationNone,
 	},

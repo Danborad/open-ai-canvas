@@ -7,3 +7,4 @@ import "./editor/editor-shell";
 import "./canvas-stats";
 import "./canvas-node-model-badge";
 import "./canvas-cover-blur";
+import "./composer-image-paste";
