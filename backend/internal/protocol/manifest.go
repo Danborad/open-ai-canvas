@@ -1036,6 +1036,9 @@ func manifestRequestValues(request GenerationRequest) map[string]any {
 	output.Watermark = output.Watermark || request.Watermark
 	outputValue, _ := requestAsManifestValue(output)
 
+	providerOptions, _ := requestAsManifestValue(request.ProviderOptions)
+	extra, _ := requestAsManifestValue(request.Extra)
+
 	return map[string]any{
 		"capability":      request.Capability,
 		"model":           request.Model,
@@ -1055,8 +1058,8 @@ func manifestRequestValues(request GenerationRequest) map[string]any {
 		"watermark":       request.Watermark,
 		"operation":       request.Operation,
 		"output":          outputValue,
-		"providerOptions": request.ProviderOptions,
-		"extra":           request.Extra,
+		"providerOptions": providerOptions,
+		"extra":           extra,
 	}
 }
 
