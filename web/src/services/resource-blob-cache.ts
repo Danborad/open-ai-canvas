@@ -29,6 +29,15 @@ const MAX_CACHE_ENTRIES = 500;
 const TOUCH_INTERVAL_MS = 10 * 60 * 1000;
 const MAX_CONCURRENT_DOWNLOADS = 4;
 
+export function peekCachedResourceObjectUrl(storageKey: string): string {
+    const resourceId = resourceIdFromStorageKey(storageKey);
+    if (!resourceId) return "";
+    const userScope = getActiveUserScope();
+    if (userScope === "guest") return "";
+    const key = `${userScope}:${resourceId}:file`;
+    return objectUrls.get(key) || "";
+}
+
 export async function getCachedResourceObjectUrl(storageKey: string) {
     const target = await cacheTarget(storageKey);
     if (!target) return "";

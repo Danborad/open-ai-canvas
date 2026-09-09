@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ImgHTMLAttributes, type ReactNode } from "react";
 
 import { resourceIdFromStorageKey } from "@/services/api/resources";
-import { cacheResourceObjectUrl } from "@/services/resource-blob-cache";
+import { cacheResourceObjectUrl, peekCachedResourceObjectUrl } from "@/services/resource-blob-cache";
 import { resolveImageUrl } from "@/services/image-storage";
 
 type CachedResourceImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> & {
@@ -20,7 +20,8 @@ export function CachedResourceImage({ storageKey, src = "", fallback = null, eag
     const localImageResource = Boolean(storageKey && storageKey.startsWith("image:"));
     const targetRef = useRef<HTMLSpanElement>(null);
     const [nearViewport, setNearViewport] = useState(eager || !remoteResource);
-    const [cachedSrc, setCachedSrc] = useState(remoteResource ? "" : src);
+    const synchronousUrl = remoteResource && storageKey ? peekCachedResourceObjectUrl(storageKey) : "";
+    const [cachedSrc, setCachedSrc] = useState(synchronousUrl || (remoteResource ? "" : src));
     const [cacheFailed, setCacheFailed] = useState(false);
 
     useEffect(() => {
@@ -57,7 +58,14 @@ export function CachedResourceImage({ storageKey, src = "", fallback = null, eag
                     cancelled = true;
                 };
             }
-            setCachedSrc("");
+            const sync = peekCachedResourceObjectUrl(storageKey);
+            if (sync) {
+                setCachedSrc(sync);
+                return () => {
+                    cancelled = true;
+                };
+            }
+            if (!cachedSrc) setCachedSrc("");
             const resolve = cacheResourceObjectUrl(storageKey);
             void resolve
                 .then((url) => {

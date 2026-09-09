@@ -15,7 +15,7 @@ import type { CanvasTheme } from "@/lib/canvas-theme";
 import { formatBytes } from "@/lib/image-utils";
 import { resourceIdFromStorageKey } from "@/services/api/resources";
 import type { GenerationTask } from "@/services/api/task-center";
-import { cacheResourceObjectUrl, getCachedResourceObjectUrl, scheduleResourceBlobCache } from "@/services/resource-blob-cache";
+import { cacheResourceObjectUrl, getCachedResourceObjectUrl, peekCachedResourceObjectUrl, scheduleResourceBlobCache } from "@/services/resource-blob-cache";
 import { resolveMediaUrl } from "@/services/file-storage";
 import { hydrateCanvasVideoPreview } from "@/services/canvas-video-preview";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
@@ -690,8 +690,12 @@ function useNodeResourceUrl(node: CanvasNodeData, eager: boolean) {
     // still expensive. Images must wait for the same viewport gate as remote
     // resources; otherwise DOM virtualization does not reduce image work.
     const isLazyVisual = node.type === CanvasNodeType.Image;
-    const [url, setUrl] = useState(isRemoteResource || isLazyVisual ? "" : fallback);
-    const [loading, setLoading] = useState(isRemoteResource && eager);
+    const synchronousUrl = isRemoteResource ? peekCachedResourceObjectUrl(storageKey) : "";
+    const [url, setUrl] = useState(() => {
+        if (synchronousUrl) return synchronousUrl;
+        return isRemoteResource || isLazyVisual ? "" : fallback;
+    });
+    const [loading, setLoading] = useState(() => isRemoteResource && eager && !synchronousUrl);
 
     useEffect(() => {
         let cancelled = false;
@@ -700,8 +704,15 @@ function useNodeResourceUrl(node: CanvasNodeData, eager: boolean) {
             setLoading(false);
             return;
         }
-        setUrl("");
-        setLoading(eager);
+        const cachedSync = peekCachedResourceObjectUrl(storageKey);
+        if (cachedSync) {
+            setUrl(cachedSync);
+            setLoading(false);
+            return;
+        }
+        if (!url) {
+            setLoading(eager);
+        }
         // 只有进入视口或被激活的节点才下载远程媒体；缓存层会复用已有 Blob URL 和 in-flight 请求。
         const resolve = eager ? cacheResourceObjectUrl(storageKey) : getCachedResourceObjectUrl(storageKey);
         void resolve.then((cached) => {
