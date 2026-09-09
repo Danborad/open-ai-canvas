@@ -29,6 +29,32 @@ describe("canvas node copy title", () => {
 });
 
 describe("canvas generation copy metadata", () => {
+    test("副本不继承源节点的生成落盘标记，但保留原媒体与参数", () => {
+        const source: CanvasNodeData = {
+            id: "source",
+            type: CanvasNodeType.Image,
+            title: "图片",
+            position: { x: 0, y: 0 },
+            width: 340,
+            height: 240,
+            metadata: {
+                content: "/api/resources/source/file",
+                storageKey: "resource:source",
+                assetId: "source-asset",
+                taskId: "source-task",
+                generationEffectKeys: ["attach-node:source-task:source:0"],
+                prompt: "保留提示词",
+            },
+        };
+
+        const metadata = isolateCopiedNodeMetadata(source, new Map([[source.id, "copy"]]));
+
+        expect(metadata.generationEffectKeys).toBeUndefined();
+        expect(metadata.taskId).toBeUndefined();
+        expect(metadata).toMatchObject({ content: source.metadata?.content, storageKey: "resource:source", assetId: "source-asset", prompt: "保留提示词" });
+        expect(source.metadata?.generationEffectKeys).toEqual(["attach-node:source-task:source:0"]);
+    });
+
     test("媒体副本保留提示词与参考字段，并明确原地回填生成结果", () => {
         const source: CanvasNodeData = {
             id: "source",
