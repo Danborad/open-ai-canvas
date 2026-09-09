@@ -2305,6 +2305,19 @@
         background: var(--plugin-switch-off-hover-bg) !important;
     }
 
+    /* 自研 Switch 滑块行程与状态位移保证 */
+    [data-slot="switch"] .sc-switch-thumb[data-state="on"] {
+        transform: translate(1.5rem, -50%);
+    }
+
+    [data-slot="switch"].h-5 .sc-switch-thumb[data-state="on"] {
+        transform: translate(0.875rem, -50%);
+    }
+
+    [data-slot="switch"] .sc-switch-thumb[data-state="off"] {
+        transform: translate(0, -50%);
+    }
+
     :where(.ant-switch):focus-visible {
         outline: 2px solid var(--control-focus-ring);
         outline-offset: 2px;

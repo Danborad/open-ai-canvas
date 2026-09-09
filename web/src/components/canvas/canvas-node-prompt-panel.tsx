@@ -98,6 +98,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
             size: node.metadata?.size || globalConfig.size,
             quality: node.metadata?.quality || globalConfig.quality,
             count: String(node.metadata?.count || globalConfig.count),
+            transparentBackground: node.metadata?.transparentBackground || globalConfig.transparentBackground,
             videoSeconds: node.metadata?.seconds || globalConfig.videoSeconds,
             vquality: node.metadata?.vquality || globalConfig.vquality,
             videoGenerateAudio: node.metadata?.generateAudio || globalConfig.videoGenerateAudio,

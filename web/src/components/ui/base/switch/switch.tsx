@@ -36,17 +36,19 @@ export interface SwitchProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
 }
 
 /** 几何档：轨道尺寸与 thumb 行程（thumb 用 left-0.5 起始 + translate-x 档位） */
-const SWITCH_SIZE: Record<"sm" | "md", { root: string; thumbPlain: string; thumbText: string; hasTextRoot: string }> = {
+const SWITCH_SIZE: Record<"sm" | "md", { root: string; thumbSize: string; thumbShift: string; thumbTextShift: string; hasTextRoot: string }> = {
     sm: {
         root: "h-5 w-8 rounded-full",
-        thumbPlain: "size-3.5 data-[state=on]:translate-x-3.5",
-        thumbText: "size-3.5 data-[state=on]:translate-x-3.5",
+        thumbSize: "size-3.5",
+        thumbShift: "translate-x-3.5",
+        thumbTextShift: "translate-x-3.5",
         hasTextRoot: "",
     },
     md: {
         root: "h-6 w-11 rounded-full",
-        thumbPlain: "size-4 data-[state=on]:translate-x-6",
-        thumbText: "size-4 data-[state=on]:translate-x-9",
+        thumbSize: "size-4",
+        thumbShift: "translate-x-6",
+        thumbTextShift: "translate-x-9",
         hasTextRoot: "w-14",
     },
 };
@@ -69,7 +71,7 @@ export function Switch({ size = "md", checked: checkedProp, defaultChecked = fal
     };
 
     const geometry = SWITCH_SIZE[size];
-    const thumbClass = hasText ? geometry.thumbText : geometry.thumbPlain;
+    const thumbShift = checked ? (hasText ? geometry.thumbTextShift : geometry.thumbShift) : "translate-x-0";
 
     return (
         <button
@@ -83,7 +85,7 @@ export function Switch({ size = "md", checked: checkedProp, defaultChecked = fal
             disabled={disabled}
             onClick={handleClick}
             className={cn(
-                "relative inline-flex shrink-0 select-none items-center align-middle transition-colors motion-reduce:transition-none",
+                "relative inline-flex shrink-0 select-none items-center align-middle transition-colors motion-reduce:transition-none cursor-pointer",
                 "data-[state=on]:bg-foreground",
                 "data-[state=off]:bg-surface-tertiary data-[state=off]:ring-1 data-[state=off]:ring-inset data-[state=off]:ring-foreground/15",
                 "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
@@ -115,7 +117,13 @@ export function Switch({ size = "md", checked: checkedProp, defaultChecked = fal
             ) : (
                 <span
                     aria-hidden="true"
-                    className={cn("sc-switch-thumb absolute left-0.5 top-1/2 -translate-y-1/2 rounded-full bg-surface-strong border border-border/80 transition-transform duration-200 ease-out motion-reduce:transition-none", thumbClass)}
+                    data-state={checked ? "on" : "off"}
+                    className={cn(
+                        "sc-switch-thumb absolute left-0.5 top-1/2 -translate-y-1/2 rounded-full border transition-all duration-200 ease-out motion-reduce:transition-none",
+                        geometry.thumbSize,
+                        thumbShift,
+                        checked ? "bg-background border-background shadow-sm" : "bg-surface-strong border-border/80",
+                    )}
                 />
             )}
         </button>

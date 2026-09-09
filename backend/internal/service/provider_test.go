@@ -1000,6 +1000,26 @@ func TestRunGeminiImageTaskUsesInlineDataAndImageConfig(t *testing.T) {
 	}
 }
 
+func TestProtocolRequestFromInputTransparentBackground(t *testing.T) {
+	input := canvasGenerationInput{
+		Mode:   "image",
+		Prompt: "a transparent icon",
+		Config: providerConfig{
+			InterfaceType:         "openai-image",
+			Model:                 "gpt-image-2",
+			TransparentBackground: "true",
+			Size:                  "1:1",
+		},
+	}
+	req := protocolRequestFromInput(input)
+	if req.Extra["background"] != "transparent" {
+		t.Fatalf("expected Extra[background] = transparent, got %v", req.Extra["background"])
+	}
+	if req.Extra["output_format"] != "png" {
+		t.Fatalf("expected Extra[output_format] = png, got %v", req.Extra["output_format"])
+	}
+}
+
 func TestRunGeminiImageTaskRejectsInvalidReferenceBeforeRequest(t *testing.T) {
 	called := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
