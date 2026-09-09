@@ -479,7 +479,7 @@ export async function persistCanvasGenerationEffect(input: CanvasGenerationEffec
                     document: durable,
                     baseProjects: [delta.baseProject],
                     localProjects: [delta.localProject],
-                    baseRevision,
+                    baseRevision: Math.max(baseRevision, durable.storageRevision),
                 });
                 if (rebased.conflicts.some((conflict) => conflict.reason === "concurrent-update")) {
                     reconcileLiveOnFailure = true;
@@ -509,7 +509,7 @@ export async function persistCanvasGenerationEffect(input: CanvasGenerationEffec
                 const finalDocument = parseCanvasStorageDocument(await storage.getItem(CANVAS_STORE_KEY), rebased.document.state.projects);
                 latestDurable = finalDocument;
                 recordCanvasStorageDocument(scope, finalDocument);
-                const persistedProject = rebaseCommittedCanvasGenerationOntoLiveProject(scope, input.projectId, finalDocument, memoryProject, baseRevision) ?? generationCommittedProject;
+                const persistedProject = rebaseCommittedCanvasGenerationOntoLiveProject(scope, input.projectId, finalDocument, memoryProject, Math.max(baseRevision, finalDocument.storageRevision)) ?? generationCommittedProject;
                 if (!persistedProject) throw new Error("画布项目不存在，无法确认生成副作用");
                 if (getActiveUserScope() === scope) {
                     withCanvasStorePersistenceSuppressed(() => {

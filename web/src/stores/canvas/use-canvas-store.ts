@@ -287,6 +287,14 @@ function ordinaryCanvasProjectSnapshot(scope: string, project: CanvasProject, du
                 if (durableKeys?.length) metadata.generationEffectKeys = [...durableKeys];
                 else delete metadata.generationEffectKeys;
                 nodes.push({ ...rolledBack, metadata });
+            } else {
+                const attempt = pendingGenerationAttempt(scope, project.id, localKeys);
+                const previousNode = attempt?.previousNodes?.find((candidate) => candidate.id === node.id);
+                const targetNode = previousNode || node;
+                const metadata = { ...(targetNode.metadata || {}) };
+                if (durableKeys?.length) metadata.generationEffectKeys = [...durableKeys];
+                else delete metadata.generationEffectKeys;
+                nodes.push({ ...targetNode, metadata });
             }
             continue;
         }
@@ -317,6 +325,14 @@ function ordinaryCanvasProjectSnapshot(scope: string, project: CanvasProject, du
                 if (durableKeys?.length) rolledBack.generationEffectKeys = [...durableKeys];
                 else delete rolledBack.generationEffectKeys;
                 chatSessions.push(rolledBack);
+            } else {
+                const attempt = pendingGenerationAttempt(scope, project.id, session.generationEffectKeys);
+                const previousSession = attempt?.previousChatSessions?.find((candidate) => candidate.id === session.id);
+                const targetSession = previousSession || session;
+                const nextSession = { ...targetSession };
+                if (durableKeys?.length) nextSession.generationEffectKeys = [...durableKeys];
+                else delete nextSession.generationEffectKeys;
+                chatSessions.push(nextSession);
             }
             continue;
         }

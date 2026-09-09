@@ -136,3 +136,172 @@ for (const mode of ["variant", "copy"] as const) {
         }
     });
 }
+
+test("创建参数变体后批量生成多图，普通持久化与副作用确认不丢弃变体根与子节点", async () => {
+    await flushCanvasStorePersistence();
+    const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
+    const originalGetItem = localforage.getItem;
+    const originalSetItem = localforage.setItem;
+    const previousState = useCanvasStore.getState();
+    const values = new Map<string, string>();
+    const localStorage = new Map<string, string>();
+    const scope = "canvas-variant-batch-persistence";
+    const storageKey = `${CANVAS_STORE_KEY}:user:${scope}`;
+    Object.defineProperty(globalThis, "window", {
+        configurable: true,
+        value: {
+            localStorage: {
+                getItem: (key: string) => localStorage.get(key) ?? null,
+                setItem: (key: string, value: string) => localStorage.set(key, value),
+                removeItem: (key: string) => localStorage.delete(key),
+            },
+        },
+    });
+    localforage.getItem = (async (key: string) => values.get(key) ?? null) as typeof localforage.getItem;
+    localforage.setItem = (async (key: string, value: string) => {
+        values.set(key, value);
+        return value;
+    }) as typeof localforage.setItem;
+
+    try {
+        setActiveUserScope(scope);
+        const source: CanvasNodeData = {
+            id: "source-a",
+            type: CanvasNodeType.Image,
+            title: "原图 · A",
+            position: { x: 0, y: 0 },
+            width: 340,
+            height: 240,
+            metadata: {
+                status: "success",
+                content: "/api/resources/source/file",
+                storageKey: "resource:source",
+                versionOfNodeId: "source-a",
+                versionLabel: "A",
+                versionPrimary: true,
+                generationEffectKeys: ["attach-node:source-task:source-a:0"],
+            },
+        };
+        const project: CanvasProject = {
+            id: "batch-project",
+            title: "变体批次项目",
+            createdAt: "2026-09-09T00:00:00.000Z",
+            updatedAt: "2026-09-09T00:00:00.000Z",
+            nodes: [source],
+            connections: [],
+            chatSessions: [],
+            activeChatId: null,
+            backgroundMode: "dots",
+            showImageInfo: false,
+            viewport: { x: 0, y: 0, k: 1 },
+            directorScenes: [],
+        };
+        useCanvasStore.setState({ projects: [project] });
+        await flushCanvasStorePersistence();
+
+        const variantId = "variant-b";
+        const variantNode: CanvasNodeData = {
+            ...source,
+            id: variantId,
+            title: "原图 · B",
+            position: { x: 36, y: 36 },
+            metadata: {
+                ...isolateCopiedNodeMetadata(source, new Map([[source.id, variantId]])),
+                versionOfNodeId: source.id,
+                versionLabel: "B",
+                versionPrimary: false,
+            },
+        };
+
+        const childIds = ["batch-c0", "batch-c1", "batch-c2", "batch-c3"];
+        const rootGeneratingNode: CanvasNodeData = {
+            ...variantNode,
+            metadata: {
+                ...variantNode.metadata,
+                status: "loading",
+                content: "",
+                isBatchRoot: true,
+                batchChildIds: childIds,
+            },
+        };
+        const childNodes: CanvasNodeData[] = childIds.map((cid, i) => ({
+            id: cid,
+            type: CanvasNodeType.Image,
+            title: `原图 · B · ${i + 1}`,
+            position: { x: 100 + i * 50, y: 100 },
+            width: 340,
+            height: 240,
+            metadata: { status: "loading", batchRootId: variantId },
+        }));
+
+        const currentNodes = [source, rootGeneratingNode, ...childNodes];
+        useCanvasStore.getState().updateProject(project.id, { nodes: currentNodes });
+
+        // 模拟 4 个子任务并发完成并确认持久化
+        let nodesRef = [...currentNodes];
+        for (let i = 0; i < childIds.length; i += 1) {
+            const cid = childIds[i]!;
+            const effectKey = `attach-node:task-${i}:${cid}:0`;
+            const previousNodes = [...nodesRef];
+            const appliedNodes = nodesRef.map((node) => {
+                if (node.id === cid) {
+                    return {
+                        ...node,
+                        metadata: {
+                            ...node.metadata,
+                            status: "success" as const,
+                            content: `/api/resources/${cid}/file`,
+                            storageKey: `resource:${cid}`,
+                            generationEffectKeys: [effectKey],
+                        },
+                    };
+                }
+                return node;
+            });
+
+            const persisted = await persistCanvasGenerationEffect({
+                projectId: project.id,
+                effectKey,
+                previousNodes,
+                nodes: appliedNodes,
+            });
+            nodesRef = persisted.nodes;
+
+            // 批次首图回填主图
+            if (i === 0) {
+                const updatedRoot = nodesRef.map((node) =>
+                    node.id === variantId
+                        ? {
+                              ...node,
+                              metadata: {
+                                  ...node.metadata,
+                                  content: `/api/resources/${cid}/file`,
+                                  primaryImageId: cid,
+                                  status: "success" as const,
+                              },
+                          }
+                        : node,
+                );
+                useCanvasStore.getState().updateProject(project.id, { nodes: updatedRoot });
+                nodesRef = updatedRoot;
+            }
+        }
+
+        await flushCanvasStorePersistence();
+        await useCanvasStore.persist.rehydrate();
+
+        const currentProject = () => useCanvasStore.getState().projects.find((item) => item.id === project.id)!;
+        const durableProject = () => parseCanvasStorageDocument(values.get(storageKey) ?? null).state.projects.find((item) => item.id === project.id)!;
+
+        // 验证变体根与所有子节点全部稳定保留
+        expect(currentProject().nodes.map((node) => node.id)).toEqual([source.id, variantId, ...childIds]);
+        expect(durableProject().nodes.map((node) => node.id)).toEqual([source.id, variantId, ...childIds]);
+    } finally {
+        await flushCanvasStorePersistence();
+        withCanvasStorePersistenceSuppressed(() => useCanvasStore.setState({ projects: previousState.projects, hydrated: previousState.hydrated }));
+        localforage.getItem = originalGetItem;
+        localforage.setItem = originalSetItem;
+        if (windowDescriptor) Object.defineProperty(globalThis, "window", windowDescriptor);
+        else delete (globalThis as { window?: unknown }).window;
+    }
+});
