@@ -10,6 +10,7 @@ import { EAGLE_PLUGIN_ID } from "@/lib/plugins/builtin/eagle";
 import { PROMPT_OPTIMIZER_PLUGIN_ID } from "@/lib/plugins/builtin/prompt-optimizer";
 import { COMFYUI_PLUGIN_ID, RUNNINGHUB_PLUGIN_ID } from "@/lib/plugins/builtin/workflows";
 import { MEDIA_CONVERSION_PLUGIN_ID } from "@/lib/plugins/builtin/media-conversion";
+import { WECOM_BOT_PLUGIN_ID } from "@/lib/plugins/builtin/wecom-bot";
 import { ART_CRITIQUE_PLUGIN_ID } from "@/lib/art-critique/contracts";
 import type { PluginManifest, PluginManifestV2, RegisteredPlugin } from "@/lib/plugins/plugin-types";
 import { getEagleLibrary, type EagleFolder } from "@/services/api/eagle";
@@ -202,7 +203,7 @@ export default function PluginsPage() {
     const detailsPlugin = detailsPluginId ? registeredPlugins.find((plugin) => plugin.manifest.id === detailsPluginId) : undefined;
 
     const hasPluginConfiguration = (plugin: RegisteredPlugin) => Boolean(plugin.manifest.configuration?.fields?.length);
-    const canConfigurePlugin = (plugin: RegisteredPlugin) => Boolean(pluginStates[plugin.manifest.id]?.canConfigure) && (hasPluginConfiguration(plugin) || plugin.manifest.id === RUNNINGHUB_PLUGIN_ID || plugin.manifest.id === COMFYUI_PLUGIN_ID);
+    const canConfigurePlugin = (plugin: RegisteredPlugin) => Boolean(pluginStates[plugin.manifest.id]?.canConfigure) && (hasPluginConfiguration(plugin) || plugin.manifest.id === RUNNINGHUB_PLUGIN_ID || plugin.manifest.id === COMFYUI_PLUGIN_ID || plugin.manifest.id === WECOM_BOT_PLUGIN_ID);
 
     const isPluginEnabled = (plugin: RegisteredPlugin, installation = installations.find((item) => item.manifest.id === plugin.manifest.id)) => pluginStates[plugin.manifest.id]?.effectiveEnabled ?? Boolean(installation?.enabled);
 
@@ -381,6 +382,10 @@ export default function PluginsPage() {
                                                                 className="plugin-card-main"
                                                                 aria-label={`查看${plugin.manifest.name}文档`}
                                                                 onClick={(event) => {
+                                                                    if (plugin.manifest.id === WECOM_BOT_PLUGIN_ID && user?.role === "admin") {
+                                                                        navigate("/admin/wecom");
+                                                                        return;
+                                                                    }
                                                                     const openedByKeyboard = event.detail === 0;
                                                                     setDetailsRestoreFocus(openedByKeyboard);
                                                                     setDetailsPluginId(plugin.manifest.id);
@@ -457,7 +462,13 @@ export default function PluginsPage() {
                                                                         icon={<Settings2 className="size-4" />}
                                                                         aria-expanded={settingsPluginId === plugin.manifest.id}
                                                                         aria-haspopup="dialog"
-                                                                        onClick={() => setSettingsPluginId(plugin.manifest.id)}
+                                                                        onClick={() => {
+                                                                            if (plugin.manifest.id === WECOM_BOT_PLUGIN_ID) {
+                                                                                navigate("/admin/wecom");
+                                                                                return;
+                                                                            }
+                                                                            setSettingsPluginId(plugin.manifest.id);
+                                                                        }}
                                                                     >
                                                                         设置
                                                                     </Button>
@@ -630,7 +641,7 @@ function toRegisteredPlugin(plugin: BackendPlugin): RegisteredPlugin {
 }
 
 function isOfficialApplicationPlugin(pluginId: string) {
-    return [RUNNINGHUB_PLUGIN_ID, COMFYUI_PLUGIN_ID, EAGLE_PLUGIN_ID, PROMPT_OPTIMIZER_PLUGIN_ID, "portrait-clearance", ART_CRITIQUE_PLUGIN_ID, MEDIA_CONVERSION_PLUGIN_ID, "canvas-project-stats", "canvas-node-model-badge", "canvas-cover-blur", "composer-image-paste"].includes(pluginId);
+    return [RUNNINGHUB_PLUGIN_ID, COMFYUI_PLUGIN_ID, EAGLE_PLUGIN_ID, PROMPT_OPTIMIZER_PLUGIN_ID, "portrait-clearance", ART_CRITIQUE_PLUGIN_ID, MEDIA_CONVERSION_PLUGIN_ID, "canvas-project-stats", "canvas-node-model-badge", "canvas-cover-blur", "composer-image-paste", WECOM_BOT_PLUGIN_ID].includes(pluginId);
 }
 
 function pluginSourceLabel(plugin: RegisteredPlugin, state?: PluginState) {

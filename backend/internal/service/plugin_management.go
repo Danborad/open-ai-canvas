@@ -18,6 +18,7 @@ const (
 	PluginCanvasNodeModelBadge = "canvas-node-model-badge"
 	PluginCanvasCoverBlur      = "canvas-cover-blur"
 	PluginComposerImagePaste   = "composer-image-paste"
+	PluginWecomDailyReport     = "wecom-daily-report"
 
 	PluginOriginOfficial = "official"
 	PluginOriginSystem   = "system"
@@ -105,6 +106,10 @@ var officialApplicationPolicies = map[string]PluginManagementView{
 		Origin: PluginOriginOfficial, Kind: PluginKindApplication,
 		ActivationScope: PluginScopeUser, ConfigurationScope: PluginConfigurationNone,
 	},
+	PluginWecomDailyReport: {
+		Origin: PluginOriginOfficial, Kind: PluginKindApplication,
+		ActivationScope: PluginScopeUser, ConfigurationScope: PluginConfigurationSystem,
+	},
 }
 
 var systemPaymentPolicies = map[string]PluginManagementView{
@@ -184,6 +189,26 @@ func (s *Service) PluginStatesForUser(actor *model.User) (map[string]PluginState
 }
 
 func (s *Service) pluginStateForUser(actor *model.User, pluginID string, items []PluginView) (PluginStateView, error) {
+	if pluginID == PluginWecomDailyReport {
+		_, wecomSetting, _ := s.readWecomSetting()
+		canToggle := actor != nil && actor.Role == "admin"
+		canConfigure := actor != nil && actor.Role == "admin"
+		blockedReason := ""
+		if !canToggle {
+			blockedReason = "由平台管理员在企微简报中统一管理"
+		}
+		return PluginStateView{
+			PluginID:          pluginID,
+			PlatformAvailable: true,
+			UserEnabled:       wecomSetting.Enabled,
+			UserConfigured:    true,
+			EffectiveEnabled:  wecomSetting.Enabled,
+			CanToggle:         canToggle,
+			CanConfigure:      canConfigure,
+			BlockedReason:     blockedReason,
+		}, nil
+	}
+
 	runtimePlugin, hasRuntime := runtimePluginByID(items, pluginID)
 	source := "bundled"
 	if hasRuntime {
@@ -257,6 +282,24 @@ func (s *Service) SetUserPluginEnabled(actor *model.User, pluginID string, enabl
 		return PluginStateView{}, Forbidden("请先登录")
 	}
 	items := s.Plugins()
+	if pluginID == PluginWecomDailyReport {
+		if actor.Role != "admin" {
+			return PluginStateView{}, Forbidden("仅管理员可开启或关闭企业微信汇报")
+		}
+		setting, val, err := s.readWecomSetting()
+		if err != nil {
+			return PluginStateView{}, err
+		}
+		if enabled && strings.TrimSpace(val.WebhookURL) == "" {
+			return PluginStateView{}, BadAuthRequest("启用企业微信通知必须先配置 Webhook 地址")
+		}
+		val.Enabled = enabled
+		if err := s.saveWecomSetting(setting, val); err != nil {
+			return PluginStateView{}, err
+		}
+		return s.pluginStateForUser(actor, pluginID, items)
+	}
+
 	current, err := s.pluginStateForUser(actor, pluginID, items)
 	if err != nil {
 		return PluginStateView{}, err
@@ -306,6 +349,25 @@ func (s *Service) SetPluginPlatformAvailability(actor *model.User, pluginID stri
 	if err := s.RequireAdmin(actor); err != nil {
 		return AdminPluginStateView{}, err
 	}
+	if pluginID == PluginWecomDailyReport {
+		setting, val, err := s.readWecomSetting()
+		if err != nil {
+			return AdminPluginStateView{}, err
+		}
+		if available && strings.TrimSpace(val.WebhookURL) == "" {
+			return AdminPluginStateView{}, BadAuthRequest("启用企业微信通知必须先配置 Webhook 地址")
+		}
+		val.Enabled = available
+		if err := s.saveWecomSetting(setting, val); err != nil {
+			return AdminPluginStateView{}, err
+		}
+		states, err := s.AdminPluginStates(actor)
+		if err != nil {
+			return AdminPluginStateView{}, err
+		}
+		return states[pluginID], nil
+	}
+
 	items := s.Plugins()
 	runtimePlugin, hasRuntime := runtimePluginByID(items, pluginID)
 	source := "bundled"
