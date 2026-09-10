@@ -1889,13 +1889,13 @@ func normalizeGrokImageResolution(quality string) string {
 	switch raw {
 	case "", "auto":
 		return ""
-	case "1k", "low", "standard":
+	case "1k", "low", "standard", "720", "720p":
 		return "1k"
-	case "2k", "medium", "hd", "high", "4k":
+	case "2k", "medium", "hd", "high", "4k", "1080", "1080p":
 		// xAI Imagine 图片通常最高 2k；超出则夹到 2k，避免上游拒参。
 		return "2k"
 	default:
-		return ""
+		return "1k"
 	}
 }
 

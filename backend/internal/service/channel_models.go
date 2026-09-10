@@ -1004,7 +1004,12 @@ func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, it
 			item.DisplayName = grok2APIDisplayName(item.ModelKey)
 			changed = true
 		}
-		if item.ProviderModelKey == "" {
+		if strings.Contains(strings.ToLower(item.ModelKey), "image-quality-2.0") || item.ModelKey == "Web/grok-imagine-image-quality-2.0" {
+			if item.ProviderModelKey != "Web/grok-imagine-image-2.0" {
+				item.ProviderModelKey = "Web/grok-imagine-image-2.0"
+				changed = true
+			}
+		} else if item.ProviderModelKey == "" {
 			item.ProviderModelKey = item.ModelKey
 			changed = true
 		}

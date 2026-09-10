@@ -404,8 +404,9 @@ func presetChannelModels(preset string) []string {
 
 func grok2APIDisplayName(model string) string {
 	names := map[string]string{
-		"Web/grok-imagine-image-2.0":     "Grok Imagine 2.0 (极速出图)",
-		"Web/grok-imagine-image":         "Grok Imagine (标准生图)",
+		"Web/grok-imagine-image-2.0":         "Grok Imagine 2.0 (极速出图)",
+		"Web/grok-imagine-image-quality-2.0": "Grok Imagine 2.0 (高质量)",
+		"Web/grok-imagine-image":             "Grok Imagine (标准生图)",
 		"Console/grok-imagine-image-2.0": "Grok Imagine 2.0 (Console)",
 		"Console/grok-imagine-image":     "Grok Imagine (Console)",
 		"Web/grok-imagine-video":         "Grok Video (Web)",

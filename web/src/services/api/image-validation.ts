@@ -31,9 +31,9 @@ export function normalizeQuality(quality: string) {
 export function normalizeGrokImageResolution(quality: string | undefined) {
     const value = (quality || "").trim().toLowerCase();
     if (!value || value === "auto") return undefined;
-    if (value === "1k" || value === "low" || value === "standard") return "1k";
-    if (value === "2k" || value === "medium" || value === "hd" || value === "high" || value === "4k") return "2k";
-    return undefined;
+    if (value === "1k" || value === "low" || value === "standard" || value === "720" || value === "720p") return "1k";
+    if (value === "2k" || value === "medium" || value === "hd" || value === "high" || value === "4k" || value === "1080" || value === "1080p") return "2k";
+    return "1k";
 }
 
 /** Map "quality + ratio" to an explicit pixel dimension like "3840x2160". */
