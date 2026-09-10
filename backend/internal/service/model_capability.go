@@ -394,6 +394,9 @@ func DefaultModelCapabilityConfigForModel(protocol string, modelName string) *Mo
 			video.DurationSupported = boolPointer(true)
 			video.Resolutions = []string{}
 			video.DefaultResolution = ""
+			video.References.MaxVideos = 1
+			video.References.MaxVideoDuration = 10
+			video.Operations = []string{"text_to_video", "image_to_video", "video_to_video", "reference_to_video"}
 		} else if strings.Contains(cleanModel, "quality") {
 			// The upstream ignores duration for Quality; keep a valid internal
 			// capability value while the UI and adapter omit the request field.

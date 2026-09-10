@@ -7,7 +7,7 @@ import { resourceIdFromStorageKey } from "@/services/api/resources";
 import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
 import { normalizeVideoDuration, normalizeVideoResolution } from "@/lib/video-generation-options";
 import { isSeedanceVideoConfig } from "@/lib/seedance-video";
-import { modelCapabilityConfigFor, workflowFieldCurrentValue, workflowFieldHasStoredValue, workflowFieldKey, workflowFieldRandomKey, workflowFieldSubmissionValue, workflowOutputSizeValue, workflowVideoFieldsFromJson } from "@/lib/model-capabilities";
+import { matchOmniVideoDuration, modelCapabilityConfigFor, workflowFieldCurrentValue, workflowFieldHasStoredValue, workflowFieldKey, workflowFieldRandomKey, workflowFieldSubmissionValue, workflowOutputSizeValue, workflowVideoFieldsFromJson } from "@/lib/model-capabilities";
 import { modelRequestOptions, resolveCompatibleModel, resolveModelGenerationDefaults, resolveVideoOperation, type ModelGenerationDefaults, type ModelRequirements } from "@/lib/model-selection";
 import { imageMetadata } from "@/lib/canvas/canvas-generation-task-sync";
 import { ensureMediaNodeMinimumSize } from "@/lib/canvas/canvas-node-size";
@@ -515,6 +515,16 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
     const runningHubCapability = normalizeRunningHubCapability(selectedRunningHubWorkflow?.capability, normalizeRunningHubCapability(config.runningHub.capability));
     const runningHub = { ...config.runningHub, enabled: workflowProvider === "runninghub" && config.runningHub.enabled, selectedKind: selectedRunningHubWorkflow?.kind === "app" ? "app" as const : "workflow" as const, workflowId: runningHubWorkflowId, capability: runningHubCapability, workflows: workflowProvider === "runninghub" ? config.runningHub.workflows.map((item) => item.workflowId.trim() === runningHubWorkflowId && (!node?.metadata?.runningHubWorkflowKind || (item.kind === "app" ? "app" : "workflow") === node.metadata.runningHubWorkflowKind) ? { ...item, fields: applyWorkflowParameterValues(item.fields?.length ? item.fields : workflowVideoFieldsFromJson(item.workflowJson) as WorkflowFieldMapping[], workflowParameters) } : item) : config.runningHub.workflows };
     const comfyBridge = { ...config.comfyBridge, enabled: workflowProvider === "comfyui" && config.comfyBridge.enabled, workflowId: comfyBridgeWorkflowId, capability: selectedComfyBridgeWorkflow?.capability || modeCapability, workflows: workflowProvider === "comfyui" ? config.comfyBridge.workflows.map((item) => item.workflowId.trim() === comfyBridgeWorkflowId ? { ...item, fields: applyWorkflowParameterValues(item.fields?.length ? item.fields : workflowVideoFieldsFromJson(item.workflowJson) as WorkflowFieldMapping[], workflowParameters) } : item) : config.comfyBridge.workflows };
+    const isOmni = model.toLowerCase().includes("omni");
+    let resolvedVideoSeconds = generationDefaults.videoSeconds ?? requestedConfig.videoSeconds;
+    if (mode === "video" && isOmni) {
+        const refDuration = requirements?.referenceVideoDurationSeconds;
+        if (refDuration && refDuration > 0) {
+            resolvedVideoSeconds = String(matchOmniVideoDuration(refDuration));
+        } else if (resolvedVideoSeconds) {
+            resolvedVideoSeconds = String(matchOmniVideoDuration(Number(resolvedVideoSeconds)));
+        }
+    }
     return {
         ...requestedConfig,
         taskWorkflowProvider: workflowProvider,
@@ -524,7 +534,7 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
         quality: generationDefaults.quality ?? requestedConfig.quality,
         size: generationDefaults.size ?? requestedConfig.size,
         transparentBackground: generationDefaults.transparentBackground ?? (requestedConfig.transparentBackground === "true" ? "true" : "false"),
-        videoSeconds: generationDefaults.videoSeconds ?? requestedConfig.videoSeconds,
+        videoSeconds: resolvedVideoSeconds,
         vquality: generationDefaults.vquality ?? requestedConfig.vquality,
         videoGenerateAudio: generationDefaults.videoGenerateAudio ?? requestedConfig.videoGenerateAudio,
         videoWatermark: generationDefaults.videoWatermark ?? requestedConfig.videoWatermark,

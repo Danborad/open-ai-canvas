@@ -2643,6 +2643,15 @@ func protocolRequestFromInput(input canvasGenerationInput) protocol.GenerationRe
 	if duration, err := strconv.Atoi(strings.TrimSpace(input.Config.VideoSeconds)); err == nil && duration > 0 {
 		request.Duration = duration
 	}
+	if input.Mode == "video" && strings.Contains(strings.ToLower(input.Config.Model), "omni") {
+		if len(input.ReferenceVideos) > 0 && input.ReferenceVideos[0].DurationMs > 0 {
+			refSec := float64(input.ReferenceVideos[0].DurationMs) / 1000.0
+			request.Duration = matchOmniVideoDuration(refSec)
+			request.Extra["videoSeconds"] = strconv.Itoa(request.Duration)
+		} else if request.Duration > 0 {
+			request.Duration = matchOmniVideoDuration(float64(request.Duration))
+		}
+	}
 	if count, err := strconv.Atoi(strings.TrimSpace(input.Config.Count)); err == nil && count > 0 {
 		request.ImageCount = count
 	}

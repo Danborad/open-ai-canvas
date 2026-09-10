@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -244,6 +245,24 @@ func videoResolutionNameRequestForInput(profile *VideoCapabilityConfig, value st
 		}
 	}
 	return ""
+}
+
+func matchOmniVideoDuration(durationSeconds float64) int {
+	candidates := []int{4, 6, 8, 10}
+	if durationSeconds <= 0 {
+		return 6
+	}
+	clamped := math.Max(4, math.Min(10, durationSeconds))
+	best := candidates[0]
+	minDiff := math.Abs(clamped - float64(best))
+	for _, c := range candidates {
+		diff := math.Abs(clamped - float64(c))
+		if diff < minDiff {
+			minDiff = diff
+			best = c
+		}
+	}
+	return best
 }
 
 func isAutomaticVideoResolution(value string) bool {

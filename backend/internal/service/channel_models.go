@@ -983,6 +983,20 @@ func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, it
 						changed = true
 					}
 				}
+				if strings.Contains(strings.ToLower(item.ModelKey), "omni") {
+					if currentProfile.Video.References.MaxVideos != 1 || currentProfile.Video.References.MaxVideoDuration != 10 || !containsCapabilityString(currentProfile.Video.Operations, "video_to_video") {
+						currentProfile.Video.References.MaxVideos = 1
+						currentProfile.Video.References.MaxVideoDuration = 10
+						currentProfile.Video.Operations = defaultConfig.Video.Operations
+						currentProfile.Video.DefaultOperation = defaultConfig.Video.DefaultOperation
+						currentProfile.Video.Duration = defaultConfig.Video.Duration
+						currentProfile.Video.DurationSupported = defaultConfig.Video.DurationSupported
+						if encoded, err := json.Marshal(currentProfile); err == nil {
+							item.CapabilityConfigJSON = string(encoded)
+							changed = true
+						}
+					}
+				}
 			}
 		}
 	case "grok2api":

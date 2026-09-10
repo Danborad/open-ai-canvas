@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { canvasConnectionError } from "../src/lib/canvas/canvas-connection-policy";
 import { assertCanvasImageReferenceLimit, buildGenerationConfig, canvasImageReferenceLimitError, resolveCanvasGenerationModel } from "../src/lib/canvas/canvas-project-generation";
-import { defaultModelCapabilityConfig } from "../src/lib/model-capabilities";
+import { defaultModelCapabilityConfig, matchOmniVideoDuration } from "../src/lib/model-capabilities";
 import { groupModelsByDisplayName, inferVideoOperation, modelCompatibilityError, modelGroupReferenceLimits, modelPromptLengthError, resolveCompatibleModel, resolveModelGenerationDefaults, resolveModelVideoBooleanOptions } from "../src/lib/model-selection";
 import { defaultConfig, normalizeModelOptionValue, type AiConfig, type ModelChannel } from "../src/stores/use-config-store";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "../src/types/canvas";
@@ -404,5 +404,77 @@ describe("图片参考图上限", () => {
         expect(canvasImageReferenceLimitError(config, references)).toContain("最多支持 1 张参考图，当前已连接 2 张");
         expect(() => assertCanvasImageReferenceLimit(config, references)).toThrow("请移除多余连线后重试");
         expect(references).toHaveLength(2);
+    });
+});
+
+describe("Flow2API Omni 1.1 Flash 视频输入与时长匹配", () => {
+    test("matchOmniVideoDuration 自动就近匹配 (最短 4s，最长 10s)", () => {
+        expect(matchOmniVideoDuration(0)).toBe(6);
+        expect(matchOmniVideoDuration(2)).toBe(4);
+        expect(matchOmniVideoDuration(4.5)).toBe(4);
+        expect(matchOmniVideoDuration(5.2)).toBe(6);
+        expect(matchOmniVideoDuration(6)).toBe(6);
+        expect(matchOmniVideoDuration(7.5)).toBe(8);
+        expect(matchOmniVideoDuration(8)).toBe(8);
+        expect(matchOmniVideoDuration(9.1)).toBe(10);
+        expect(matchOmniVideoDuration(10)).toBe(10);
+        expect(matchOmniVideoDuration(20)).toBe(10);
+    });
+
+    test("Omni 1.1 Flash 默认能力包含视频输入支持", () => {
+        const capability = defaultModelCapabilityConfig("flow2api-video", "Omni 1.1 Flash");
+        expect(capability.video?.references.maxVideos).toBe(1);
+        expect(capability.video?.references.maxVideoDurationSeconds).toBe(10);
+        expect(capability.video?.operations).toContain("video_to_video");
+        expect(capability.video?.duration.values).toEqual([4, 6, 8, 10]);
+    });
+
+    test("buildGenerationConfig 在 Omni 模型传入参考视频时自动匹配时长", () => {
+        const base = defaultConfig;
+        const config: AiConfig = {
+            ...base,
+            channels: [{
+                id: "ch-flow",
+                name: "Flow2API",
+                baseUrl: "https://api.flow2api.com",
+                apiKey: "flow-key",
+                apiFormat: "openai",
+                models: ["Omni 1.1 Flash"],
+                modelCosts: [{ model: "Omni 1.1 Flash", capability: "video" }],
+            }],
+            videoModel: "ch-flow::Omni 1.1 Flash",
+            videoSeconds: "6",
+        };
+        const targetNode: CanvasNodeData = {
+            id: "v-node",
+            type: CanvasNodeType.Video,
+            title: "Omni Video",
+            position: { x: 0, y: 0 },
+            width: 320,
+            height: 180,
+            metadata: { model: "ch-flow::Omni 1.1 Flash" },
+        };
+        const requirements: ModelRequirements = {
+            capability: "video",
+            input: { textCount: 1, imageCount: 0, videoCount: 1, audioCount: 0, characterCount: 0 },
+            referenceVideoDurationSeconds: 8.7, // 8.7s 应自动就近匹配为 8 (8.7 距 8 为 0.7，距 10 为 1.3 -> 8)
+        };
+        const generated = buildGenerationConfig(config, targetNode, "video", requirements);
+        expect(generated.videoSeconds).toBe("8");
+
+        // 测试最短 4s 与最长 10s 截断
+        const shortReq: ModelRequirements = {
+            capability: "video",
+            input: { textCount: 1, imageCount: 0, videoCount: 1, audioCount: 0, characterCount: 0 },
+            referenceVideoDurationSeconds: 2.1,
+        };
+        expect(buildGenerationConfig(config, targetNode, "video", shortReq).videoSeconds).toBe("4");
+
+        const longReq: ModelRequirements = {
+            capability: "video",
+            input: { textCount: 1, imageCount: 0, videoCount: 1, audioCount: 0, characterCount: 0 },
+            referenceVideoDurationSeconds: 16.5,
+        };
+        expect(buildGenerationConfig(config, targetNode, "video", longReq).videoSeconds).toBe("10");
     });
 });

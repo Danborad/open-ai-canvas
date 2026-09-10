@@ -19,7 +19,7 @@
 - 图片比例：`generationConfig.imageConfig.aspectRatio`，支持 `16:9`、`9:16`、`1:1`、`4:3`、`3:4`。
 - 图片分辨率：`generationConfig.imageConfig.imageSize`，Nano Banana Pro/2 支持 `1k`、`2k`、`4k`；Imagen 4 不发送该字段。
 - 视频比例：`generationConfig.aspectRatio`，支持 `16:9`、`9:16`。
-- Omni 1.1 Flash 额外读取 `generationConfig.durationSeconds`，支持 4/6/8/10 秒。
+- Omni 1.1 Flash 支持传入一段 10 秒以内的视频作为素材（素材模式），时长在 4s/6s/8s/10s 间自动根据素材时长匹配最接近值；无视频时支持手动选择 4/6/8/10 秒。
 - 只有 Veo 3.1 - Quality 读取 `generationConfig.imageSize`，支持 `1080p`、`4k`；Lite/Fast 忽略时长和输出分辨率。
 
 ## 官方支持模型
@@ -170,6 +170,12 @@
             "name": "resolution",
             "type": "string",
             "mapping": "resolution"
+          },
+          {
+            "name": "videos",
+            "type": "media[]",
+            "mapping": "videos",
+            "description": "视频输入素材，Omni 1.1 Flash 支持传入一段 10 秒以内的视频作为素材"
           }
         ],
         "create": {
@@ -218,13 +224,89 @@
         "id": "Omni 1.1 Flash",
         "label": "Omni 1.1 Flash 视频",
         "providerId": "flow2api-video",
-        "capability": "video"
+        "capability": "video",
+        "parameters": [
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt"
+          },
+          {
+            "name": "aspectRatio",
+            "type": "string",
+            "mapping": "aspectRatio",
+            "values": [
+              "16:9",
+              "9:16"
+            ]
+          },
+          {
+            "name": "duration",
+            "type": "integer",
+            "mapping": "duration",
+            "values": [
+              "4",
+              "6",
+              "8",
+              "10"
+            ],
+            "description": "视频时长 4/6/8/10 秒；传入视频素材时自动匹配最接近值"
+          },
+          {
+            "name": "videos",
+            "type": "media[]",
+            "mapping": "videos"
+          }
+        ],
+        "defaults": {
+          "aspectRatio": "16:9",
+          "duration": 6
+        }
       },
       {
         "id": "Omni Flash",
         "label": "Omni Flash 视频",
         "providerId": "flow2api-video",
-        "capability": "video"
+        "capability": "video",
+        "parameters": [
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt"
+          },
+          {
+            "name": "aspectRatio",
+            "type": "string",
+            "mapping": "aspectRatio",
+            "values": [
+              "16:9",
+              "9:16"
+            ]
+          },
+          {
+            "name": "duration",
+            "type": "integer",
+            "mapping": "duration",
+            "values": [
+              "4",
+              "6",
+              "8",
+              "10"
+            ],
+            "description": "视频时长 4/6/8/10 秒；传入视频素材时自动匹配最接近值"
+          },
+          {
+            "name": "videos",
+            "type": "media[]",
+            "mapping": "videos"
+          }
+        ],
+        "defaults": {
+          "aspectRatio": "16:9",
+          "duration": 6
+        }
       },
       {
         "id": "Veo 3.1 - Lite",

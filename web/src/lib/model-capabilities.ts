@@ -508,6 +508,9 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
             video.durationSupported = true;
             video.resolutions = [];
             video.defaultResolution = "";
+            video.references.maxVideos = 1;
+            video.references.maxVideoDurationSeconds = 10;
+            video.operations = ["text_to_video", "image_to_video", "video_to_video", "reference_to_video"];
         } else if (cleanModel.includes("quality")) {
             video.duration = { selection: "enum", values: [], default: 0 };
             video.durationSupported = false;
@@ -1198,3 +1201,20 @@ export function videoDurationAllowed(profile: VideoCapabilityConfig, value: numb
     const step = profile.duration.step || 1;
     return value >= min && value <= max && (value - min) % step === 0;
 }
+
+export function matchOmniVideoDuration(durationSeconds: number): number {
+    const candidates = [4, 6, 8, 10];
+    if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return 6;
+    const clamped = Math.max(4, Math.min(10, durationSeconds));
+    let best = candidates[0]!;
+    let minDiff = Math.abs(clamped - best);
+    for (const c of candidates) {
+        const diff = Math.abs(clamped - c);
+        if (diff < minDiff) {
+            minDiff = diff;
+            best = c;
+        }
+    }
+    return best;
+}
+

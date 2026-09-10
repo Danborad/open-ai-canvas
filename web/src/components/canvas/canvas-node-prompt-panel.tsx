@@ -10,6 +10,7 @@ import { CreditSymbol, requestCreditCost } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { modelQuoteRequest } from "@/lib/model-pricing";
 import { normalizeVideoDuration, normalizeVideoResolution } from "@/lib/video-generation-options";
+import { matchOmniVideoDuration } from "@/lib/model-capabilities";
 import { modelRequestOptions, resolveCompatibleModel, resolveModelGenerationDefaults, defaultImageParamsForModel, type ModelRequirements } from "@/lib/model-selection";
 import { navigateToSettings } from "@/lib/settings-navigation";
 import { useThemeStore } from "@/stores/use-theme-store";
@@ -746,13 +747,22 @@ export function buildNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mo
             videoWatermark: globalConfig.videoWatermark || defaultConfig.videoWatermark,
         },
     );
+    let resolvedVideoSeconds = defaults.videoSeconds ?? normalizeVideoDuration(globalConfig.videoSeconds || defaultConfig.videoSeconds);
+    if (mode === "video" && model.toLowerCase().includes("omni")) {
+        const refDuration = requirements?.referenceVideoDurationSeconds;
+        if (refDuration && refDuration > 0) {
+            resolvedVideoSeconds = String(matchOmniVideoDuration(refDuration));
+        } else if (resolvedVideoSeconds) {
+            resolvedVideoSeconds = String(matchOmniVideoDuration(Number(resolvedVideoSeconds)));
+        }
+    }
     return {
         ...globalConfig,
         model,
         quality: defaults.quality ?? globalConfig.quality ?? defaultConfig.quality,
         size: defaults.size ?? globalConfig.size ?? defaultConfig.size,
         transparentBackground: defaults.transparentBackground ?? "false",
-        videoSeconds: defaults.videoSeconds ?? normalizeVideoDuration(globalConfig.videoSeconds || defaultConfig.videoSeconds),
+        videoSeconds: resolvedVideoSeconds,
         vquality: defaults.vquality ?? normalizeVideoResolution(globalConfig.vquality || defaultConfig.vquality),
         videoGenerateAudio: defaults.videoGenerateAudio ?? globalConfig.videoGenerateAudio ?? defaultConfig.videoGenerateAudio,
         videoWatermark: defaults.videoWatermark ?? globalConfig.videoWatermark ?? defaultConfig.videoWatermark,

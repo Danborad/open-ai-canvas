@@ -358,10 +358,38 @@ func TestFlow2APIPresetCapabilitiesFollowModelAliases(t *testing.T) {
 			if len(test.videoDurations) > 0 && len(profile.Video.Duration.Values) != 4 {
 				t.Fatalf("video durations = %v", profile.Video.Duration.Values)
 			}
+			if len(test.videoDurations) > 0 {
+				if profile.Video.References.MaxVideos != 1 || profile.Video.References.MaxVideoDuration != 10 {
+					t.Fatalf("expected maxVideos = 1, maxVideoDuration = 10, got maxVideos = %d, maxVideoDuration = %d", profile.Video.References.MaxVideos, profile.Video.References.MaxVideoDuration)
+				}
+				if !containsCapabilityString(profile.Video.Operations, "video_to_video") {
+					t.Fatalf("expected operations to include video_to_video, got %v", profile.Video.Operations)
+				}
+			}
 			if len(test.resolutions) > 0 && len(profile.Video.Resolutions) != 2 {
 				t.Fatalf("video resolutions = %v", profile.Video.Resolutions)
 			}
 		})
+	}
+
+	// 验证 Omni 时长自动就近匹配 (最短 4s，最长 10s)
+	if matchOmniVideoDuration(2.5) != 4 {
+		t.Fatalf("expected 4 for 2.5s, got %d", matchOmniVideoDuration(2.5))
+	}
+	if matchOmniVideoDuration(4.2) != 4 {
+		t.Fatalf("expected 4 for 4.2s, got %d", matchOmniVideoDuration(4.2))
+	}
+	if matchOmniVideoDuration(5.5) != 6 {
+		t.Fatalf("expected 6 for 5.5s, got %d", matchOmniVideoDuration(5.5))
+	}
+	if matchOmniVideoDuration(7.2) != 8 {
+		t.Fatalf("expected 8 for 7.2s, got %d", matchOmniVideoDuration(7.2))
+	}
+	if matchOmniVideoDuration(9.4) != 10 {
+		t.Fatalf("expected 10 for 9.4s, got %d", matchOmniVideoDuration(9.4))
+	}
+	if matchOmniVideoDuration(15.0) != 10 {
+		t.Fatalf("expected 10 for 15s, got %d", matchOmniVideoDuration(15.0))
 	}
 }
 

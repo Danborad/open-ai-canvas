@@ -230,6 +230,33 @@ func TestFlow2APIAdaptersMapDocumentedGenerationConfig(t *testing.T) {
 		t.Fatalf("Omni 1.1 Flash must not receive imageSize: %#v", omniConfig)
 	}
 
+	omniVideoSpec, err := videoAdapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{
+		Model: "Omni 1.1 Flash", Prompt: "transform video", AspectRatio: "16:9", Duration: 8,
+		Videos: []MediaReference{{URL: "https://example.com/material.mp4"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	omniVideoBody := omniVideoSpec.Body.(map[string]any)
+	omniVideoMsgs := omniVideoBody["messages"].([]any)
+	omniVideoContent := omniVideoMsgs[0].(map[string]any)["content"].([]any)
+	hasVideoPart := false
+	for _, part := range omniVideoContent {
+		if pMap, ok := part.(map[string]any); ok && pMap["type"] == "video_url" {
+			hasVideoPart = true
+			if vu, ok := pMap["video_url"].(map[string]any); !ok || vu["url"] != "https://example.com/material.mp4" {
+				t.Fatalf("unexpected video_url: %#v", pMap)
+			}
+		}
+	}
+	if !hasVideoPart {
+		t.Fatalf("expected video_url in messages content: %#v", omniVideoContent)
+	}
+	omniVideoConfig := omniVideoBody["generationConfig"].(map[string]any)
+	if omniVideoConfig["durationSeconds"] != 8 {
+		t.Fatalf("expected durationSeconds = 8, got %#v", omniVideoConfig["durationSeconds"])
+	}
+
 	qualitySpec, err := videoAdapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "Veo 3.1 - Quality", Prompt: "a clip", AspectRatio: "9:16", Duration: 10, Resolution: "1080p"}})
 	if err != nil {
 		t.Fatal(err)

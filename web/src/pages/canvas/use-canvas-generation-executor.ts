@@ -382,11 +382,18 @@ export function useCanvasGenerationExecutor({
 
 function generationModelRequirements(
     mode: CanvasNodeGenerationMode,
-    input: Pick<Awaited<ReturnType<typeof hydrateNodeGenerationContext>>, "textCount" | "imageCount" | "videoCount" | "audioCount" | "characterReferences">,
+    input: Pick<Awaited<ReturnType<typeof hydrateNodeGenerationContext>>, "textCount" | "imageCount" | "videoCount" | "audioCount" | "characterReferences"> & { referenceVideos?: Array<{ durationMs?: number }> },
     sourceNode: CanvasNodeData | undefined,
     config: ReturnType<typeof useEffectiveConfig>,
     includeCharacterMinimum = false,
 ): ModelRequirements {
+    let referenceVideoDurationSeconds: number | undefined;
+    if (input.referenceVideos && input.referenceVideos.length > 0) {
+        const first = input.referenceVideos[0];
+        if (first?.durationMs && first.durationMs > 0) {
+            referenceVideoDurationSeconds = first.durationMs / 1000;
+        }
+    }
     return {
         capability: mode,
         input: {
@@ -398,6 +405,7 @@ function generationModelRequirements(
         },
         videoOperation: sourceNode?.metadata?.videoEditOperation,
         videoSeconds: config.videoSeconds,
+        referenceVideoDurationSeconds,
         options: config.taskWorkflowProvider === "model" ? modelRequestOptions(config, mode) : undefined,
     };
 }

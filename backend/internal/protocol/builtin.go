@@ -629,6 +629,9 @@ func flow2APIVideosAdapter() Adapter {
 			for _, img := range r.Images {
 				content = append(content, map[string]any{"type": "image_url", "image_url": map[string]any{"url": mediaValue(img)}})
 			}
+			for _, vid := range r.Videos {
+				content = append(content, map[string]any{"type": "video_url", "video_url": map[string]any{"url": mediaValue(vid)}})
+			}
 			generationConfig := map[string]any{}
 			copyIf(generationConfig, "aspectRatio", r.AspectRatio)
 			flowModel := strings.ToLower(r.Model)

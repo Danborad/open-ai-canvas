@@ -6,7 +6,7 @@
   "enabled": true,
   "author": "影策社区",
   "description": "接入 Flow2API 生态模型服务，支持 Nano Banana 系列文生图/图生图以及 Omni 1.1 Flash、Veo 视频生成。",
-  "documentation": "# Flow2API 渠道插件\n\n该包提供 `flow2api-image` 和 `flow2api-video` 两个 provider，接入 Flow2API 生态模型服务，支持 Nano Banana 系列文生图/图生图以及 Omni 1.1 Flash、Veo 系列视频生成。\n\n字段、约束、响应和兼容注意事项见 [docs/interface.md](docs/interface.md)。\n\n安装包由仓库根目录的 `plugin-packages/build-packages.sh` 生成，后端启动时从 `plugin-packages/*.yingce-plugin` 加载为官方插件。\n\n---\n\n# Flow2API 接口字段\n\n## 鉴权与入口\n\n- 鉴权：`Authorization: Bearer <apiKey>`。\n- 默认 Base URL：`https://api.flow2api.com`。\n- 生成：`POST /v1/chat/completions`，`application/json`。\n\n## 配置字段\n\n| 字段 | 类型 | 必填 | 说明 |\n| --- | --- | --- | --- |\n| `apiKey` | secret | 是 | Flow2API API Key，由宿主写入 Bearer 鉴权头。 |\n| `baseUrl` | string | 否 | 上游根地址，默认 `https://api.flow2api.com`。 |\n\n## 接口协议\n\n- 对话与多模态生成：`POST /v1/chat/completions`\n- 图片比例：`generationConfig.imageConfig.aspectRatio`，支持 `16:9`、`9:16`、`1:1`、`4:3`、`3:4`。\n- 图片分辨率：`generationConfig.imageConfig.imageSize`，Nano Banana Pro/2 支持 `1k`、`2k`、`4k`；Imagen 4 不发送该字段。\n- 视频比例：`generationConfig.aspectRatio`，支持 `16:9`、`9:16`。\n- Omni 1.1 Flash 额外读取 `generationConfig.durationSeconds`，支持 4/6/8/10 秒。\n- 只有 Veo 3.1 - Quality 读取 `generationConfig.imageSize`，支持 `1080p`、`4k`；Lite/Fast 忽略时长和输出分辨率。\n\n## 官方支持模型\n\n- 图片：`Nano Banana Pro` / `Nano Banana 2` / `Imagen 4`\n- 视频：`Omni 1.1 Flash` / `Omni Flash` / `Veo 3.1 - Lite` / `Veo 3.1 - Fast` / `Veo 3.1 - Quality`\n\n## 响应\n\n- `choices[0].message.content` 或 `data` 提取媒体结果。\n- 临时媒体标记为 ephemeral，由宿主立即下载持久化。\n\n<!-- YINGCE_MANIFEST_CONTRACT_START -->\n## Manifest 完整接口定义\n\n以下 JSON 与插件包内实际 `manifest.json` 逐字段一致，覆盖插件身份、权限、配置、鉴权、参数、校验、创建、Agent、查询、取消、结果下载、响应和 Agent 响应映射。`documentation` 字段的值就是当前完整文档；为避免文档在自身内部无限递归，JSON 中仅用等义占位文本表示正文。\n\n```json\n{\n  \"apiVersion\": \"yingce.plugin/v2\",\n  \"id\": \"flow2api-provider\",\n  \"name\": \"Flow2API 渠道\",\n  \"version\": \"1.0.0\",\n  \"enabled\": true,\n  \"author\": \"影策社区\",\n  \"description\": \"接入 Flow2API 生态模型服务，支持 Nano Banana 系列文生图/图生图以及 Omni 1.1 Flash、Veo 视频生成。\",\n  \"documentation\": \"<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>\",\n  \"permissions\": [\n    \"generation.run\",\n    \"media.read\"\n  ],\n  \"configuration\": {\n    \"fields\": [\n      {\n        \"name\": \"apiKey\",\n        \"type\": \"secret\",\n        \"label\": \"Flow2API Key\",\n        \"required\": true,\n        \"description\": \"填写 Flow2API 的 API Key。\"\n      }\n    ]\n  },\n  \"contributes\": {\n    \"providers\": [\n      {\n        \"id\": \"flow2api-image\",\n        \"label\": \"Flow2API 图片\",\n        \"capabilities\": [\n          \"image\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\"\n        ],\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\",\n          \"header\": \"Authorization\"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\"\n          },\n          {\n            \"name\": \"aspectRatio\",\n            \"type\": \"string\",\n            \"mapping\": \"aspectRatio\"\n          },\n          {\n            \"name\": \"quality\",\n            \"type\": \"string\",\n            \"mapping\": \"quality\"\n          }\n        ],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/v1/chat/completions\",\n          \"contentType\": \"application/json\",\n          \"fields\": {\n            \"model\": \"request.model\",\n            \"messages\": \"request.messages\",\n            \"generationConfig.imageConfig.aspectRatio\": \"request.aspectRatio|omit_empty\",\n            \"generationConfig.imageConfig.imageSize\": \"request.quality|lower|omit_auto|omit_empty|omit_unless_model_contains:banana\",\n            \"stream\": \"false|bool\"\n          }\n        },\n        \"response\": {\n          \"resultPaths\": [\n            \"choices.0.message.content\",\n            \"data\"\n          ],\n          \"resultKind\": \"image\",\n          \"resultEphemeral\": true\n        }\n      },\n      {\n        \"id\": \"flow2api-video\",\n        \"label\": \"Flow2API 视频\",\n        \"capabilities\": [\n          \"video\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\"\n        ],\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\",\n          \"header\": \"Authorization\"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\"\n          },\n          {\n            \"name\": \"aspectRatio\",\n            \"type\": \"string\",\n            \"mapping\": \"aspectRatio\"\n          },\n          {\n            \"name\": \"duration\",\n            \"type\": \"integer\",\n            \"mapping\": \"duration\"\n          },\n          {\n            \"name\": \"resolution\",\n            \"type\": \"string\",\n            \"mapping\": \"resolution\"\n          }\n        ],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/v1/chat/completions\",\n          \"contentType\": \"application/json\",\n          \"fields\": {\n            \"model\": \"request.model\",\n            \"messages\": \"request.messages\",\n            \"generationConfig.aspectRatio\": \"request.aspectRatio|omit_empty\",\n            \"generationConfig.durationSeconds\": \"request.duration|int|omit_zero|omit_unless_model_contains:omni\",\n            \"generationConfig.imageSize\": \"request.resolution|lower|resolution_p|omit_empty|omit_unless_model_contains:quality\",\n            \"stream\": \"false|bool\"\n          }\n        },\n        \"response\": {\n          \"resultPaths\": [\n            \"choices.0.message.content\",\n            \"data\"\n          ],\n          \"resultKind\": \"video\",\n          \"resultEphemeral\": true\n        }\n      }\n    ],\n    \"workflows\": [\n      {\n        \"id\": \"Nano Banana 2\",\n        \"label\": \"Nano Banana 2\",\n        \"providerId\": \"flow2api-image\",\n        \"capability\": \"image\"\n      },\n      {\n        \"id\": \"Nano Banana Pro\",\n        \"label\": \"Nano Banana Pro\",\n        \"providerId\": \"flow2api-image\",\n        \"capability\": \"image\"\n      },\n      {\n        \"id\": \"Imagen 4\",\n        \"label\": \"Imagen 4\",\n        \"providerId\": \"flow2api-image\",\n        \"capability\": \"image\"\n      },\n      {\n        \"id\": \"Omni 1.1 Flash\",\n        \"label\": \"Omni 1.1 Flash 视频\",\n        \"providerId\": \"flow2api-video\",\n        \"capability\": \"video\"\n      },\n      {\n        \"id\": \"Omni Flash\",\n        \"label\": \"Omni Flash 视频\",\n        \"providerId\": \"flow2api-video\",\n        \"capability\": \"video\"\n      },\n      {\n        \"id\": \"Veo 3.1 - Lite\",\n        \"label\": \"Veo 3.1 - Lite 视频\",\n        \"providerId\": \"flow2api-video\",\n        \"capability\": \"video\"\n      },\n      {\n        \"id\": \"Veo 3.1 - Fast\",\n        \"label\": \"Veo 3.1 - Fast 视频\",\n        \"providerId\": \"flow2api-video\",\n        \"capability\": \"video\"\n      },\n      {\n        \"id\": \"Veo 3.1 - Quality\",\n        \"label\": \"Veo 3.1 - Quality 视频\",\n        \"providerId\": \"flow2api-video\",\n        \"capability\": \"video\"\n      }\n    ]\n  }\n}\n```\n<!-- YINGCE_MANIFEST_CONTRACT_END -->\n",
+  "documentation": "# Flow2API 渠道插件\n\n该包提供 `flow2api-image` 和 `flow2api-video` 两个 provider，接入 Flow2API 生态模型服务，支持 Nano Banana 系列文生图/图生图以及 Omni 1.1 Flash、Veo 系列视频生成。\n\n字段、约束、响应和兼容注意事项见 [docs/interface.md](docs/interface.md)。\n\n安装包由仓库根目录的 `plugin-packages/build-packages.sh` 生成，后端启动时从 `plugin-packages/*.yingce-plugin` 加载为官方插件。\n\n---\n\n# Flow2API 接口字段\n\n## 鉴权与入口\n\n- 鉴权：`Authorization: Bearer <apiKey>`。\n- 默认 Base URL：`https://api.flow2api.com`。\n- 生成：`POST /v1/chat/completions`，`application/json`。\n\n## 配置字段\n\n| 字段 | 类型 | 必填 | 说明 |\n| --- | --- | --- | --- |\n| `apiKey` | secret | 是 | Flow2API API Key，由宿主写入 Bearer 鉴权头。 |\n| `baseUrl` | string | 否 | 上游根地址，默认 `https://api.flow2api.com`。 |\n\n## 接口协议\n\n- 对话与多模态生成：`POST /v1/chat/completions`\n- 图片比例：`generationConfig.imageConfig.aspectRatio`，支持 `16:9`、`9:16`、`1:1`、`4:3`、`3:4`。\n- 图片分辨率：`generationConfig.imageConfig.imageSize`，Nano Banana Pro/2 支持 `1k`、`2k`、`4k`；Imagen 4 不发送该字段。\n- 视频比例：`generationConfig.aspectRatio`，支持 `16:9`、`9:16`。\n- Omni 1.1 Flash 支持传入一段 10 秒以内的视频作为素材（素材模式），时长在 4s/6s/8s/10s 间自动根据素材时长匹配最接近值；无视频时支持手动选择 4/6/8/10 秒。\n- 只有 Veo 3.1 - Quality 读取 `generationConfig.imageSize`，支持 `1080p`、`4k`；Lite/Fast 忽略时长和输出分辨率。\n\n## 官方支持模型\n\n- 图片：`Nano Banana Pro` / `Nano Banana 2` / `Imagen 4`\n- 视频：`Omni 1.1 Flash` / `Omni Flash` / `Veo 3.1 - Lite` / `Veo 3.1 - Fast` / `Veo 3.1 - Quality`\n\n## 响应\n\n- `choices[0].message.content` 或 `data` 提取媒体结果。\n- 临时媒体标记为 ephemeral，由宿主立即下载持久化。\n\n<!-- YINGCE_MANIFEST_CONTRACT_START -->\n## Manifest 完整接口定义\n\n以下 JSON 与插件包内实际 `manifest.json` 逐字段一致，覆盖插件身份、权限、配置、鉴权、参数、校验、创建、Agent、查询、取消、结果下载、响应和 Agent 响应映射。`documentation` 字段的值就是当前完整文档；为避免文档在自身内部无限递归，JSON 中仅用等义占位文本表示正文。\n\n```json\n{\n  \"apiVersion\": \"yingce.plugin/v2\",\n  \"id\": \"flow2api-provider\",\n  \"name\": \"Flow2API 渠道\",\n  \"version\": \"1.0.0\",\n  \"enabled\": true,\n  \"author\": \"影策社区\",\n  \"description\": \"接入 Flow2API 生态模型服务，支持 Nano Banana 系列文生图/图生图以及 Omni 1.1 Flash、Veo 视频生成。\",\n  \"documentation\": \"<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>\",\n  \"permissions\": [\n    \"generation.run\",\n    \"media.read\"\n  ],\n  \"configuration\": {\n    \"fields\": [\n      {\n        \"name\": \"apiKey\",\n        \"type\": \"secret\",\n        \"label\": \"Flow2API Key\",\n        \"required\": true,\n        \"description\": \"填写 Flow2API 的 API Key。\"\n      }\n    ]\n  },\n  \"contributes\": {\n    \"providers\": [\n      {\n        \"id\": \"flow2api-image\",\n        \"label\": \"Flow2API 图片\",\n        \"capabilities\": [\n          \"image\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\"\n        ],\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\",\n          \"header\": \"Authorization\"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\"\n          },\n          {\n            \"name\": \"aspectRatio\",\n            \"type\": \"string\",\n            \"mapping\": \"aspectRatio\"\n          },\n          {\n            \"name\": \"quality\",\n            \"type\": \"string\",\n            \"mapping\": \"quality\"\n          }\n        ],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/v1/chat/completions\",\n          \"contentType\": \"application/json\",\n          \"fields\": {\n            \"model\": \"request.model\",\n            \"messages\": \"request.messages\",\n            \"generationConfig.imageConfig.aspectRatio\": \"request.aspectRatio|omit_empty\",\n            \"generationConfig.imageConfig.imageSize\": \"request.quality|lower|omit_auto|omit_empty|omit_unless_model_contains:banana\",\n            \"stream\": \"false|bool\"\n          }\n        },\n        \"response\": {\n          \"resultPaths\": [\n            \"choices.0.message.content\",\n            \"data\"\n          ],\n          \"resultKind\": \"image\",\n          \"resultEphemeral\": true\n        }\n      },\n      {\n        \"id\": \"flow2api-video\",\n        \"label\": \"Flow2API 视频\",\n        \"capabilities\": [\n          \"video\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\"\n        ],\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\",\n          \"header\": \"Authorization\"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\"\n          },\n          {\n            \"name\": \"aspectRatio\",\n            \"type\": \"string\",\n            \"mapping\": \"aspectRatio\"\n          },\n          {\n            \"name\": \"duration\",\n            \"type\": \"integer\",\n            \"mapping\": \"duration\"\n          },\n          {\n            \"name\": \"resolution\",\n            \"type\": \"string\",\n            \"mapping\": \"resolution\"\n          },\n          {\n            \"name\": \"videos\",\n            \"type\": \"media[]\",\n            \"mapping\": \"videos\",\n            \"description\": \"视频输入素材，Omni 1.1 Flash 支持传入一段 10 秒以内的视频作为素材\"\n          }\n        ],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/v1/chat/completions\",\n          \"contentType\": \"application/json\",\n          \"fields\": {\n            \"model\": \"request.model\",\n            \"messages\": \"request.messages\",\n            \"generationConfig.aspectRatio\": \"request.aspectRatio|omit_empty\",\n            \"generationConfig.durationSeconds\": \"request.duration|int|omit_zero|omit_unless_model_contains:omni\",\n            \"generationConfig.imageSize\": \"request.resolution|lower|resolution_p|omit_empty|omit_unless_model_contains:quality\",\n            \"stream\": \"false|bool\"\n          }\n        },\n        \"response\": {\n          \"resultPaths\": [\n            \"choices.0.message.content\",\n            \"data\"\n          ],\n          \"resultKind\": \"video\",\n          \"resultEphemeral\": true\n        }\n      }\n    ],\n    \"workflows\": [\n      {\n        \"id\": \"Nano Banana 2\",\n        \"label\": \"Nano Banana 2\",\n        \"providerId\": \"flow2api-image\",\n        \"capability\": \"image\"\n      },\n      {\n        \"id\": \"Nano Banana Pro\",\n        \"label\": \"Nano Banana Pro\",\n        \"providerId\": \"flow2api-image\",\n        \"capability\": \"image\"\n      },\n      {\n        \"id\": \"Imagen 4\",\n        \"label\": \"Imagen 4\",\n        \"providerId\": \"flow2api-image\",\n        \"capability\": \"image\"\n      },\n      {\n        \"id\": \"Omni 1.1 Flash\",\n        \"label\": \"Omni 1.1 Flash 视频\",\n        \"providerId\": \"flow2api-video\",\n        \"capability\": \"video\",\n        \"parameters\": [\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\"\n          },\n          {\n            \"name\": \"aspectRatio\",\n            \"type\": \"string\",\n            \"mapping\": \"aspectRatio\",\n            \"values\": [\n              \"16:9\",\n              \"9:16\"\n            ]\n          },\n          {\n            \"name\": \"duration\",\n            \"type\": \"integer\",\n            \"mapping\": \"duration\",\n            \"values\": [\n              \"4\",\n              \"6\",\n              \"8\",\n              \"10\"\n            ],\n            \"description\": \"视频时长 4/6/8/10 秒；传入视频素材时自动匹配最接近值\"\n          },\n          {\n            \"name\": \"videos\",\n            \"type\": \"media[]\",\n            \"mapping\": \"videos\"\n          }\n        ],\n        \"defaults\": {\n          \"aspectRatio\": \"16:9\",\n          \"duration\": 6\n        }\n      },\n      {\n        \"id\": \"Omni Flash\",\n        \"label\": \"Omni Flash 视频\",\n        \"providerId\": \"flow2api-video\",\n        \"capability\": \"video\",\n        \"parameters\": [\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\"\n          },\n          {\n            \"name\": \"aspectRatio\",\n            \"type\": \"string\",\n            \"mapping\": \"aspectRatio\",\n            \"values\": [\n              \"16:9\",\n              \"9:16\"\n            ]\n          },\n          {\n            \"name\": \"duration\",\n            \"type\": \"integer\",\n            \"mapping\": \"duration\",\n            \"values\": [\n              \"4\",\n              \"6\",\n              \"8\",\n              \"10\"\n            ],\n            \"description\": \"视频时长 4/6/8/10 秒；传入视频素材时自动匹配最接近值\"\n          },\n          {\n            \"name\": \"videos\",\n            \"type\": \"media[]\",\n            \"mapping\": \"videos\"\n          }\n        ],\n        \"defaults\": {\n          \"aspectRatio\": \"16:9\",\n          \"duration\": 6\n        }\n      },\n      {\n        \"id\": \"Veo 3.1 - Lite\",\n        \"label\": \"Veo 3.1 - Lite 视频\",\n        \"providerId\": \"flow2api-video\",\n        \"capability\": \"video\"\n      },\n      {\n        \"id\": \"Veo 3.1 - Fast\",\n        \"label\": \"Veo 3.1 - Fast 视频\",\n        \"providerId\": \"flow2api-video\",\n        \"capability\": \"video\"\n      },\n      {\n        \"id\": \"Veo 3.1 - Quality\",\n        \"label\": \"Veo 3.1 - Quality 视频\",\n        \"providerId\": \"flow2api-video\",\n        \"capability\": \"video\"\n      }\n    ]\n  }\n}\n```\n<!-- YINGCE_MANIFEST_CONTRACT_END -->\n",
   "permissions": [
     "generation.run",
     "media.read"
@@ -130,6 +130,12 @@
             "name": "resolution",
             "type": "string",
             "mapping": "resolution"
+          },
+          {
+            "name": "videos",
+            "type": "media[]",
+            "mapping": "videos",
+            "description": "视频输入素材，Omni 1.1 Flash 支持传入一段 10 秒以内的视频作为素材"
           }
         ],
         "create": {
@@ -178,13 +184,89 @@
         "id": "Omni 1.1 Flash",
         "label": "Omni 1.1 Flash 视频",
         "providerId": "flow2api-video",
-        "capability": "video"
+        "capability": "video",
+        "parameters": [
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt"
+          },
+          {
+            "name": "aspectRatio",
+            "type": "string",
+            "mapping": "aspectRatio",
+            "values": [
+              "16:9",
+              "9:16"
+            ]
+          },
+          {
+            "name": "duration",
+            "type": "integer",
+            "mapping": "duration",
+            "values": [
+              "4",
+              "6",
+              "8",
+              "10"
+            ],
+            "description": "视频时长 4/6/8/10 秒；传入视频素材时自动匹配最接近值"
+          },
+          {
+            "name": "videos",
+            "type": "media[]",
+            "mapping": "videos"
+          }
+        ],
+        "defaults": {
+          "aspectRatio": "16:9",
+          "duration": 6
+        }
       },
       {
         "id": "Omni Flash",
         "label": "Omni Flash 视频",
         "providerId": "flow2api-video",
-        "capability": "video"
+        "capability": "video",
+        "parameters": [
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt"
+          },
+          {
+            "name": "aspectRatio",
+            "type": "string",
+            "mapping": "aspectRatio",
+            "values": [
+              "16:9",
+              "9:16"
+            ]
+          },
+          {
+            "name": "duration",
+            "type": "integer",
+            "mapping": "duration",
+            "values": [
+              "4",
+              "6",
+              "8",
+              "10"
+            ],
+            "description": "视频时长 4/6/8/10 秒；传入视频素材时自动匹配最接近值"
+          },
+          {
+            "name": "videos",
+            "type": "media[]",
+            "mapping": "videos"
+          }
+        ],
+        "defaults": {
+          "aspectRatio": "16:9",
+          "duration": 6
+        }
       },
       {
         "id": "Veo 3.1 - Lite",

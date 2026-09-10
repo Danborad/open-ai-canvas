@@ -28,7 +28,7 @@ import { useCopyText } from "@/hooks/use-copy-text";
 import { useExternalAssetSources } from "@/hooks/use-external-asset-sources";
 import { buildImageResolutionOptions, formatImageResolutionSize, supportsImageResolutionPresets } from "@/lib/image-resolution-tiers";
 import { formatVideoResolutionLabel as videoResolutionLabel, VIDEO_RESOLUTION_OPTIONS } from "@/lib/video-generation-options";
-import { modelCapabilityConfigFor, normalizeImageValue, normalizeVideoValue, videoDurationAllowed, videoDurationOptions, type ImageCapabilityConfig, type VideoCapabilityConfig } from "@/lib/model-capabilities";
+import { matchOmniVideoDuration, modelCapabilityConfigFor, normalizeImageValue, normalizeVideoValue, videoDurationAllowed, videoDurationOptions, type ImageCapabilityConfig, type VideoCapabilityConfig } from "@/lib/model-capabilities";
 import { inferVideoOperation, resolveCompatibleModel, mergedImageCapabilityConfig, type ModelRequirements } from "@/lib/model-selection";
 import type { BackendGenerationResult } from "@/services/api/generation-task";
 import type { Skill } from "@/services/api/skills";
@@ -739,6 +739,10 @@ export default function CreatePage() {
         abortRef.current = controller;
         const normalizedImage = mode === "image" ? normalizeImageValue(imageProfile, { size: ratio, quality, count }) : undefined;
         const normalizedVideo = mode === "video" ? normalizeVideoValue(videoProfile, { seconds, ratio, resolution: videoQuality }) : undefined;
+        let finalVideoSeconds = normalizedVideo?.seconds || seconds;
+        if (mode === "video" && selectedModel.toLowerCase().includes("omni") && referenceVideos.length > 0 && referenceVideos[0].durationMs) {
+            finalVideoSeconds = String(matchOmniVideoDuration(referenceVideos[0].durationMs / 1000));
+        }
         const requestConfig = {
             ...config,
             model: selectedModel,
@@ -748,7 +752,7 @@ export default function CreatePage() {
             ...(mode === "image"
                 ? { size: normalizedImage?.size || ratio, quality: normalizedImage?.quality || quality, count: normalizedImage?.count || count, videoSeconds: config.videoSeconds }
                 : mode === "video"
-                  ? { size: normalizedVideo?.ratio ?? ratio, videoSeconds: normalizedVideo?.seconds || seconds, vquality: normalizedVideo?.resolution ?? videoQuality }
+                  ? { size: normalizedVideo?.ratio ?? ratio, videoSeconds: finalVideoSeconds, vquality: normalizedVideo?.resolution ?? videoQuality }
                   : {}),
         };
         try {

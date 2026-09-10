@@ -17,6 +17,7 @@ export type ModelRequirements = {
     videoOperation?: string;
     videoSeconds?: string;
     imageSize?: string;
+    referenceVideoDurationSeconds?: number;
     options?: Record<string, unknown>;
 };
 
