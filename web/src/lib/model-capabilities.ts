@@ -264,14 +264,14 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
     } else if (protocol === "grok-image") {
         image.references.maxImages = 1;
         image.references.maskSupported = false;
-        // grok2api / xAI Imagine：size→aspect_ratio，quality→resolution(1k/2k)。
+        // grok2api / xAI Imagine：9种宽高比与 1k/2k 分辨率。
         image.size = {
             parameter: "aspect_ratio",
-            values: ["1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2"],
+            values: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "2:1", "1:2"],
             default: "1:1",
             allowCustom: false,
         };
-        image.quality = { supported: true, values: ["1k", "2k"], default: "2k" };
+        image.quality = { supported: true, values: ["1k", "2k"], default: "1k" };
         image.transparentBackground = { supported: false, default: false };
         image.responseFormat = { supported: true };
         image.outputFormat = { supported: false };
@@ -524,10 +524,13 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         }
     }
     if (protocol === "xai-video" || protocol === "grok2api-video" || protocol === "grok2api-new-video") {
-        video.references.maxImages = 1;
+        video.references.maxImages = 8;
+        video.references.promptMaxChars = 2000;
+        video.operations = ["text_to_video", "image_to_video", "reference_to_video"];
+        video.defaultOperation = "text_to_video";
         video.duration = { selection: "range", min: 1, max: 15, step: 1, default: 6 };
-        video.ratios = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "2:1", "1:2"];
-        video.defaultRatio = "1:1";
+        video.ratios = ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"];
+        video.defaultRatio = "16:9";
         video.resolutions = ["480p", "720p", "1080p"];
         video.defaultResolution = "720p";
     }

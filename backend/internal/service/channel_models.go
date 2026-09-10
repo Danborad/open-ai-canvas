@@ -1000,23 +1000,76 @@ func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, it
 			}
 		}
 	case "grok2api":
-		if strings.Contains(strings.ToLower(item.ModelKey), "video") {
+		if item.DisplayName != grok2APIDisplayName(item.ModelKey) {
+			item.DisplayName = grok2APIDisplayName(item.ModelKey)
+			changed = true
+		}
+		if item.ProviderModelKey == "" {
+			item.ProviderModelKey = item.ModelKey
+			changed = true
+		}
+		lowerKey := strings.ToLower(item.ModelKey)
+		if strings.Contains(lowerKey, "voice") || strings.Contains(lowerKey, "stt") {
+			if item.Capability != "audio" || item.Protocol != "openai-audio" {
+				item.Capability = "audio"
+				item.Protocol = "openai-audio"
+				changed = true
+			}
+		} else if strings.Contains(lowerKey, "video") {
 			if item.Capability != "video" || item.Protocol != "xai-video" {
 				item.Capability = "video"
 				item.Protocol = "xai-video"
 				changed = true
 			}
-		} else {
+		} else if strings.Contains(lowerKey, "image") || strings.Contains(lowerKey, "imagine") {
 			if item.Capability != "image" || item.Protocol != "grok-image" {
 				item.Capability = "image"
 				item.Protocol = "grok-image"
 				changed = true
 			}
+		} else {
+			if item.Capability != "text" || item.Protocol != "openai" {
+				item.Capability = "text"
+				item.Protocol = "openai"
+				changed = true
+			}
 		}
+		defaultConfig := DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey)
 		if strings.TrimSpace(item.CapabilityConfigJSON) == "" {
-			if encoded, err := json.Marshal(DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey)); err == nil {
+			if encoded, err := json.Marshal(defaultConfig); err == nil {
 				item.CapabilityConfigJSON = string(encoded)
 				changed = true
+			}
+		} else {
+			if item.Capability == "image" {
+				if currentProfile, err := DecodeModelCapabilityConfig(item.CapabilityConfigJSON); err == nil && currentProfile != nil && currentProfile.Image != nil {
+					if len(currentProfile.Image.Size.Values) < 9 || !containsCapabilityString(currentProfile.Image.Size.Values, "2:1") {
+						currentProfile.Image.Size.Values = defaultConfig.Image.Size.Values
+						currentProfile.Image.Size.Default = defaultConfig.Image.Size.Default
+						currentProfile.Image.Quality = defaultConfig.Image.Quality
+						if encoded, err := json.Marshal(currentProfile); err == nil {
+							item.CapabilityConfigJSON = string(encoded)
+							changed = true
+						}
+					}
+				}
+			} else if item.Capability == "video" {
+				if currentProfile, err := DecodeModelCapabilityConfig(item.CapabilityConfigJSON); err == nil && currentProfile != nil && currentProfile.Video != nil {
+					if currentProfile.Video.References.MaxImages < 7 || len(currentProfile.Video.Ratios) < 7 || !containsCapabilityString(currentProfile.Video.Operations, "reference_to_video") {
+						currentProfile.Video.References = defaultConfig.Video.References
+						currentProfile.Video.Operations = defaultConfig.Video.Operations
+						currentProfile.Video.DefaultOperation = defaultConfig.Video.DefaultOperation
+						currentProfile.Video.Ratios = defaultConfig.Video.Ratios
+						currentProfile.Video.DefaultRatio = defaultConfig.Video.DefaultRatio
+						currentProfile.Video.Resolutions = defaultConfig.Video.Resolutions
+						currentProfile.Video.DefaultResolution = defaultConfig.Video.DefaultResolution
+						currentProfile.Video.Duration = defaultConfig.Video.Duration
+						if encoded, err := json.Marshal(currentProfile); err == nil {
+							item.CapabilityConfigJSON = string(encoded)
+							changed = true
+						}
+					}
+				}
 			}
 		}
 	case "zarklab":

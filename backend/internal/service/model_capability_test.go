@@ -393,6 +393,24 @@ func TestFlow2APIPresetCapabilitiesFollowModelAliases(t *testing.T) {
 	}
 }
 
+func TestGrok2APIPresetCapabilitiesFollowDocument(t *testing.T) {
+	img := DefaultModelCapabilityConfigForModel("grok-image", "Web/grok-imagine-image-2.0")
+	if img.Image == nil || len(img.Image.Size.Values) != 9 || !containsCapabilityString(img.Image.Size.Values, "2:1") || !containsCapabilityString(img.Image.Size.Values, "1:2") {
+		t.Fatalf("grok-image profile size values = %#v", img.Image.Size.Values)
+	}
+	if img.Image.Quality.Default != "1k" || !containsCapabilityString(img.Image.Quality.Values, "2k") {
+		t.Fatalf("grok-image quality = %#v", img.Image.Quality)
+	}
+
+	vid := DefaultModelCapabilityConfigForModel("xai-video", "Web/grok-imagine-video")
+	if vid.Video == nil || vid.Video.References.MaxImages != 8 || len(vid.Video.Ratios) != 7 || !containsCapabilityString(vid.Video.Operations, "reference_to_video") {
+		t.Fatalf("grok video profile = %#v", vid.Video)
+	}
+	if len(vid.Video.Resolutions) != 3 || !containsCapabilityString(vid.Video.Resolutions, "1080p") {
+		t.Fatalf("grok video resolutions = %#v", vid.Video.Resolutions)
+	}
+}
+
 func TestSenseNovaPresetCapabilitiesFollowDocument(t *testing.T) {
 	u15 := DefaultModelCapabilityConfigForModel("sensenova-image", "sensenova-u1.5-lite")
 	if u15.Image == nil || u15.Image.Size.Default != "2048x2048" || !u15.Image.Size.AllowCustom || u15.Image.References.MaxImages != 1 {

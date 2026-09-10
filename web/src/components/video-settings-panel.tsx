@@ -505,7 +505,7 @@ function Flow2APIVideoSettingsPanel({ config, profile, priceTiers, onConfigChang
 function Grok2APIVideoSettingsPanel({ config, profile, priceTiers, onConfigChange, theme, showTitle, className }: VideoSettingsPanelProps & { profile: VideoCapabilityConfig; priceTiers: ReturnType<typeof modelPriceTiers> }) {
     const seconds = normalizeVideoDuration(config.videoSeconds || String(profile.duration?.default || 6));
     const resolution = normalizeVideoResolutionValue(config.vquality || profile.defaultResolution || "720p");
-    const ratio = normalizeRatioValue(config.size || profile.defaultRatio || "1:1");
+    const ratio = normalizeRatioValue(config.size || profile.defaultRatio || "16:9");
 
     return (
         <ImageSettingsTheme theme={theme}>

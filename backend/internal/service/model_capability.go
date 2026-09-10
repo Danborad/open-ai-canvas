@@ -299,12 +299,12 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 			image.OutputFormat = ParameterSupport{Supported: true}
 			image.MaxOutputs = 1
 		}
-	case model.ChannelInterfaceGrokImage:
+	case model.ChannelInterfaceGrokImage, "grok2api-image":
 		image.References.MaxImages = 1
 		image.References.MaskSupported = false
-		// grok2api / xAI Imagine：size→aspect_ratio，quality→resolution(1k/2k)。
-		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2"}, Default: "1:1", AllowCustom: false}
-		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1k", "2k"}, Default: "2k"}
+		// grok2api / xAI Imagine：9种宽高比，quality→resolution(1k/2k)。
+		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "2:1", "1:2"}, Default: "1:1", AllowCustom: false}
+		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1k", "2k"}, Default: "1k"}
 		image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
 		image.ResponseFormat = ParameterSupport{Supported: true}
 		image.OutputFormat = ParameterSupport{Supported: false}
@@ -331,11 +331,11 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		image.OutputFormat.Supported = false
 		image.MaxOutputs = 4
 	}
-	if model.ChannelInterfaceType(protocol) != model.ChannelInterfaceGrokImage && strings.HasPrefix(strings.ToLower(strings.TrimSpace(modelName)), "grok-imagine-image") {
-		image.References.MaxImages = 0
+	if model.ChannelInterfaceType(protocol) != model.ChannelInterfaceGrokImage && protocol != "grok2api-image" && strings.HasPrefix(strings.ToLower(strings.TrimSpace(modelName)), "grok-imagine-image") {
+		image.References.MaxImages = 1
 		image.References.MaskSupported = false
-		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2"}, Default: "1:1", AllowCustom: false}
-		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1k", "2k"}, Default: "2k"}
+		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "2:1", "1:2"}, Default: "1:1", AllowCustom: false}
+		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1k", "2k"}, Default: "1k"}
 		image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
 		image.ResponseFormat = ParameterSupport{Supported: true}
 		image.OutputFormat = ParameterSupport{Supported: false}
@@ -443,8 +443,21 @@ func DefaultModelCapabilityConfigForModel(protocol string, modelName string) *Mo
 		if model.ChannelInterfaceType(protocol) == model.ChannelInterfaceNewAPIChannel1 {
 			video.Resolutions = []string{"480p", "720p", "1080p"}
 		}
-	case model.ChannelInterfaceNewAPIVideo, model.ChannelInterfaceXAIVideo:
+	case model.ChannelInterfaceNewAPIVideo:
 		video.GenerateAudio = VideoBooleanConfig{Supported: false, Default: false}
+	case model.ChannelInterfaceXAIVideo, "grok2api-video":
+		video.References.MaxImages = 8
+		video.References.PromptMaxChars = 2000
+		video.Operations = []string{"text_to_video", "image_to_video", "reference_to_video"}
+		video.DefaultOperation = "text_to_video"
+		video.Duration = VideoDurationConfig{Selection: "range", Min: 1, Max: 15, Step: 1, Default: 6}
+		video.DurationSupported = boolPointer(true)
+		video.Ratios = []string{"16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"}
+		video.DefaultRatio = "16:9"
+		video.Resolutions = []string{"480p", "720p", "1080p"}
+		video.DefaultResolution = "720p"
+		video.GenerateAudio = VideoBooleanConfig{Supported: false, Default: false}
+		video.Watermark = VideoBooleanConfig{Supported: false, Default: false}
 	case model.ChannelInterfaceNovitaVideo:
 		video.References.MaxImages, video.References.MaxImageBytes = 1, 10*1024*1024
 		video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{5, 10}, Default: 5}
