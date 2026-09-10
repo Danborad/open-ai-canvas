@@ -166,7 +166,7 @@ export default function SettingsPage() {
                             <h3 className="text-[13px] font-medium text-foreground/60">音频默认值</h3>
                             <p className="mt-1 text-xs text-foreground/55">用于新建音频节点和未单独设置参数的生成任务。</p>
                         </div>
-                        <SettingsRow label="默认声音" control={<Select value={config.audioVoice} options={audioVoiceOptions} onChange={(value) => updateConfig("audioVoice", value)} />} controlClassName="w-[200px]" />
+                        <SettingsRow label="默认声音" control={<Select value={config.audioVoice} options={audioVoiceOptions} onChange={(value) => updateConfig("audioVoice", value)} />} controlClassName="w-[220px]" />
                         <SettingsRow label="文件格式" control={<Select value={config.audioFormat} options={audioFormatOptions} onChange={(value) => updateConfig("audioFormat", value)} />} controlClassName="w-[200px]" />
                         <SettingsRow
                             label="语速"

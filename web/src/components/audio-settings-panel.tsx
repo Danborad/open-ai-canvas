@@ -4,6 +4,7 @@ import { ImageSettingsTheme } from "@/components/image-settings-panel";
 import { audioFormatOptions, audioSpeedLabel, audioVoiceOptions, normalizeAudioFormatValue, normalizeAudioSpeedValue, normalizeAudioVoiceValue } from "@/lib/audio-generation";
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import type { AiConfig } from "@/stores/use-config-store";
+import { cn } from "@/lib/utils";
 
 const speedOptions = ["0.75", "1", "1.25", "1.5"];
 
@@ -27,10 +28,18 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-lg font-semibold">音频设置</div> : null}
                 <SettingGroup title="声音" color={theme.node.muted}>
-                    <div className="grid grid-cols-3 gap-2.5">
+                    <div className="grid grid-cols-3 gap-2">
                         {audioVoiceOptions.map((item) => (
-                            <OptionPill key={item.value} selected={voice === item.value} theme={theme} onClick={() => onConfigChange("audioVoice", item.value)}>
-                                {item.label}
+                            <OptionPill
+                                key={item.value}
+                                selected={voice === item.value}
+                                theme={theme}
+                                className="h-11 py-1 flex-col justify-center rounded-xl gap-0.5"
+                                title={`${item.zh} (${item.en}) · ${item.description}`}
+                                onClick={() => onConfigChange("audioVoice", item.value)}
+                            >
+                                <span className="text-xs font-medium leading-tight">{item.zh}</span>
+                                <span className="text-[10px] leading-tight opacity-60 font-mono tracking-tight">{item.en}</span>
                             </OptionPill>
                         ))}
                     </div>
@@ -80,11 +89,29 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
     );
 }
 
-function OptionPill({ selected, theme, onClick, children }: { selected: boolean; theme: CanvasTheme; onClick: () => void; children: ReactNode }) {
+function OptionPill({
+    selected,
+    theme,
+    onClick,
+    className,
+    title,
+    children,
+}: {
+    selected: boolean;
+    theme: CanvasTheme;
+    onClick: () => void;
+    className?: string;
+    title?: string;
+    children: ReactNode;
+}) {
     return (
         <button
             type="button"
-            className="h-9 cursor-pointer rounded-full border px-2 text-sm transition hover:opacity-80"
+            title={title}
+            className={cn(
+                "cursor-pointer border px-2 text-sm transition hover:opacity-80 flex items-center justify-center",
+                className || "h-9 rounded-full",
+            )}
             style={{ background: "transparent", borderColor: selected ? theme.node.text : theme.node.stroke, color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={onClick}
