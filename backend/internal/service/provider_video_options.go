@@ -175,10 +175,19 @@ func videoResolutionNameRequest(profile *VideoCapabilityConfig, value string) st
 
 func videoResolutionNameRequestForInput(profile *VideoCapabilityConfig, value string, ratio string) string {
 	requested := strings.ToLower(strings.TrimSpace(value))
-	if requested == "" || requested == "auto" || requested == "default" || requested == "medium" || requested == "high" {
+	if profile == nil || len(profile.Resolutions) == 0 {
 		return ""
 	}
-	if profile == nil || len(profile.Resolutions) == 0 {
+	cleanRatio := strings.TrimSpace(ratio)
+	if requested == "" || requested == "auto" || requested == "default" || requested == "medium" || requested == "high" {
+		if cleanRatio != "" {
+			for _, supported := range profile.Resolutions {
+				supp := strings.TrimSpace(supported)
+				if (cleanRatio == "9:16" && strings.Contains(supp, "竖")) || (cleanRatio == "16:9" && strings.Contains(supp, "横")) {
+					return supp
+				}
+			}
+		}
 		return ""
 	}
 	candidates := []string{requested, strings.ToLower(normalizeVideoResolution(requested))}
@@ -222,6 +231,14 @@ func videoResolutionNameRequestForInput(profile *VideoCapabilityConfig, value st
 		for _, supported := range profile.Resolutions {
 			supp := strings.TrimSpace(supported)
 			if strings.HasPrefix(supp, targetTier) || (targetTier == "768p" && strings.HasPrefix(supp, "736p")) {
+				return supp
+			}
+		}
+	}
+	if cleanRatio != "" {
+		for _, supported := range profile.Resolutions {
+			supp := strings.TrimSpace(supported)
+			if (cleanRatio == "9:16" && strings.Contains(supp, "竖")) || (cleanRatio == "16:9" && strings.Contains(supp, "横")) {
 				return supp
 			}
 		}

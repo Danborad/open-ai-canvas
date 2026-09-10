@@ -913,6 +913,10 @@ func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, it
 			item.DisplayName = autoDLWorkflowDisplayName(item.ModelKey)
 			changed = true
 		}
+		if item.ProviderModelKey == "" {
+			item.ProviderModelKey = item.ModelKey
+			changed = true
+		}
 		if item.ModelKey == "indextts2-v1" {
 			if item.Capability != "audio" || item.Protocol != "autodl-comfyui-audio" {
 				item.Capability = "audio"
@@ -933,12 +937,16 @@ func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, it
 				changed = true
 			}
 		} else if currentProfile, err := DecodeModelCapabilityConfig(item.CapabilityConfigJSON); err == nil && currentProfile != nil && currentProfile.Video != nil {
-			if !containsCapabilityString(currentProfile.Video.Operations, currentProfile.Video.DefaultOperation) || len(currentProfile.Video.Operations) == 0 {
+			if !containsCapabilityString(currentProfile.Video.Operations, currentProfile.Video.DefaultOperation) || len(currentProfile.Video.Operations) == 0 || !sameCapabilityStrings(currentProfile.Video.Resolutions, defaultConfig.Video.Resolutions) {
 				currentProfile.Video.Operations = defaultConfig.Video.Operations
 				currentProfile.Video.DefaultOperation = defaultConfig.Video.DefaultOperation
 				currentProfile.Video.References = defaultConfig.Video.References
 				currentProfile.Video.Resolutions = defaultConfig.Video.Resolutions
 				currentProfile.Video.DefaultResolution = defaultConfig.Video.DefaultResolution
+				currentProfile.Video.Duration = defaultConfig.Video.Duration
+				currentProfile.Video.DurationSupported = defaultConfig.Video.DurationSupported
+				currentProfile.Video.Ratios = defaultConfig.Video.Ratios
+				currentProfile.Video.DefaultRatio = defaultConfig.Video.DefaultRatio
 				if encoded, err := json.Marshal(currentProfile); err == nil {
 					item.CapabilityConfigJSON = string(encoded)
 					changed = true

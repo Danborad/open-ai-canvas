@@ -535,6 +535,18 @@ func autodlComfyUIVideoAdapter() Adapter {
 	info.RequiresPublicMediaURLs = true
 	info.Parameters = videoParams()
 	return videoAdapterWithPoll(info, func(r GenerationRequest) (RequestSpec, error) {
+		if r.Model == "wan2.2animate-v4-motion_retargeting" {
+			body := map[string]any{
+				"resolution": defaultValue(r.Resolution, "464*832px(竖版)"),
+			}
+			if len(r.Images) > 0 && mediaValue(r.Images[0]) != "" {
+				body["ref_image"] = mediaValue(r.Images[0])
+			}
+			if len(r.Videos) > 0 && mediaValue(r.Videos[0]) != "" {
+				body["ref_video"] = mediaValue(r.Videos[0])
+			}
+			return jsonSpec(http.MethodPost, "/api/v1/comfyui/comfyui_workflow/"+url.PathEscape(r.Model), body), nil
+		}
 		body := map[string]any{
 			"prompt":     r.Prompt,
 			"duration":   defaultInt(r.Duration, 5),

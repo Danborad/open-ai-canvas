@@ -49,7 +49,7 @@ function detectChannelKind(channel?: ModelChannel | null): ChannelKind {
 const channelKindOptions = [
     { label: "标准兼容渠道 (OpenAI / Gemini / 火山等)", value: "standard" },
     { label: "SenseNova 商汤日日新 (6.8 Flash Lite, U1.5 Lite, U1 Fast)", value: "sensenova" },
-    { label: "AutoDL.Art ComfyUI (11 个工作流)", value: "autodl" },
+    { label: "AutoDL.Art ComfyUI (14 个工作流)", value: "autodl" },
     { label: "Flow2API 渠道 (Nano Banana 2/Pro, Omni 1.1 Flash, Veo 3.1 等)", value: "flow2api" },
     { label: "Grok2API 渠道 (Grok Image 2.0 / Grok Video 等)", value: "grok2api" },
     { label: "ZarkLab.ai 渠道 (GPT Image 2, Kling, Seedance 2.5 等)", value: "zarklab" },

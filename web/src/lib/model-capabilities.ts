@@ -404,21 +404,46 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.watermark = { supported: true, default: false };
         video.operations.push("reference_to_video");
     }
-    if (protocol === "autodl-comfyui" || protocol === "autodl-comfyui-video" || cleanModel.startsWith("minimax_h3") || cleanModel.startsWith("h3_")) {
+    if (protocol === "autodl-comfyui" || protocol === "autodl-comfyui-video" || cleanModel.startsWith("minimax_h3") || cleanModel.startsWith("h3_") || cleanModel.startsWith("wan2.2animate")) {
         video.duration = { selection: "range", min: 1, max: cleanModel.includes("_12s") ? 12 : cleanModel.includes("_v2") && !cleanModel.includes("15s") ? 10 : 15, step: 1, default: 5 };
         video.ratios = ["9:16", "16:9", "1:1"];
         video.defaultRatio = "9:16";
-        if (cleanModel.startsWith("minimax_h3_b99_")) {
+        if (cleanModel === "wan2.2animate-v4-motion_retargeting") {
+            video.resolutions = ["464*832px(竖版)", "832*464px(横版)"];
+            video.defaultResolution = "464*832px(竖版)";
+            video.ratios = ["9:16", "16:9"];
+            video.defaultRatio = "9:16";
+            video.durationSupported = false;
+            video.duration = { selection: "enum", values: [], default: 0 };
+        } else if (cleanModel.startsWith("minimax_h3_b99_")) {
             video.resolutions = ["736p竖", "736p横", "736p(1:1)"];
             video.defaultResolution = "736p竖";
-        } else if (cleanModel === "minimax_h3_image_audio_to_video_v2" || cleanModel === "minimax_h3_image_audio_to_video" || cleanModel === "minimax_h3_lightx2v_v5" || cleanModel.includes("_15s") || cleanModel.startsWith("minimax_h3_zm_")) {
+        } else if (cleanModel === "minimax_h3_lightx2v_v5") {
             video.resolutions = ["480p竖", "768p竖", "1080p竖", "480p横", "768p横", "1080p横", "480p(1:1)", "768p(1:1)", "1080p(1:1)"];
             video.defaultResolution = "768p竖";
+        } else if (cleanModel === "minimax_h3_image_audio_to_video_v2" || cleanModel === "minimax_h3_image_audio_to_video") {
+            video.resolutions = ["480p竖", "768p竖", "1080p竖", "480p横", "768p横", "1080p横"];
+            video.defaultResolution = "768p竖";
+            video.ratios = ["9:16", "16:9"];
+            video.defaultRatio = "9:16";
+        } else if (cleanModel === "minimax_h3_image_audio_to_video_v2_15s") {
+            video.resolutions = ["480p竖", "768p竖", "480p横", "768p横"];
+            video.defaultResolution = "768p竖";
+            video.ratios = ["9:16", "16:9"];
+            video.defaultRatio = "9:16";
         } else {
             video.resolutions = ["480p竖", "768p竖", "480p横", "768p横", "480p(1:1)", "768p(1:1)"];
             video.defaultResolution = "768p竖";
         }
         switch (cleanModel) {
+            case "wan2.2animate-v4-motion_retargeting":
+                video.references.maxImages = 1;
+                video.references.minImages = 1;
+                video.references.maxVideos = 1;
+                video.references.maxAudios = 0;
+                video.operations = ["video_to_video", "image_to_video"];
+                video.defaultOperation = "video_to_video";
+                break;
             case "minimax_h3_lightx2v_no_pic":
             case "minimax_h3_b99_001":
                 video.references.maxImages = 0;

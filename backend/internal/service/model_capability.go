@@ -139,20 +139,48 @@ func DefaultAutoDLVideoCapability(workflow string) *ModelCapabilityConfig {
 	if strings.Contains(workflow, "_12s") {
 		profile.Video.Duration.Max = 12
 	}
-	if strings.HasPrefix(workflow, "minimax_h3_b99_") {
+	if workflow == "wan2.2animate-v4-motion_retargeting" {
+		profile.Video.DurationSupported = boolPointer(false)
+		profile.Video.Duration = VideoDurationConfig{Selection: "none"}
+		profile.Video.Resolutions = []string{"464*832px(竖版)", "832*464px(横版)"}
+		profile.Video.DefaultResolution = "464*832px(竖版)"
+		profile.Video.Ratios = []string{"9:16", "16:9"}
+		profile.Video.DefaultRatio = "9:16"
+	} else if strings.HasPrefix(workflow, "minimax_h3_b99_") {
 		profile.Video.Resolutions = []string{"736p竖", "736p横", "736p(1:1)"}
 		profile.Video.DefaultResolution = "736p竖"
-	} else if workflow == "minimax_h3_image_audio_to_video_v2" || workflow == "minimax_h3_image_audio_to_video" || workflow == "minimax_h3_lightx2v_v5" || strings.Contains(workflow, "_15s") || strings.HasPrefix(workflow, "minimax_h3_zm_") {
+		profile.Video.Ratios = []string{"9:16", "16:9", "1:1"}
+		profile.Video.DefaultRatio = "9:16"
+	} else if workflow == "minimax_h3_lightx2v_v5" {
 		profile.Video.Resolutions = []string{"480p竖", "768p竖", "1080p竖", "480p横", "768p横", "1080p横", "480p(1:1)", "768p(1:1)", "1080p(1:1)"}
 		profile.Video.DefaultResolution = "768p竖"
+		profile.Video.Ratios = []string{"9:16", "16:9", "1:1"}
+		profile.Video.DefaultRatio = "9:16"
+	} else if workflow == "minimax_h3_image_audio_to_video_v2" || workflow == "minimax_h3_image_audio_to_video" {
+		profile.Video.Resolutions = []string{"480p竖", "768p竖", "1080p竖", "480p横", "768p横", "1080p横"}
+		profile.Video.DefaultResolution = "768p竖"
+		profile.Video.Ratios = []string{"9:16", "16:9"}
+		profile.Video.DefaultRatio = "9:16"
+	} else if workflow == "minimax_h3_image_audio_to_video_v2_15s" {
+		profile.Video.Resolutions = []string{"480p竖", "768p竖", "480p横", "768p横"}
+		profile.Video.DefaultResolution = "768p竖"
+		profile.Video.Ratios = []string{"9:16", "16:9"}
+		profile.Video.DefaultRatio = "9:16"
 	} else {
 		profile.Video.Resolutions = []string{"480p竖", "768p竖", "480p横", "768p横", "480p(1:1)", "768p(1:1)"}
 		profile.Video.DefaultResolution = "768p竖"
+		profile.Video.Ratios = []string{"9:16", "16:9", "1:1"}
+		profile.Video.DefaultRatio = "9:16"
 	}
-	profile.Video.Ratios = []string{"9:16", "16:9", "1:1"}
-	profile.Video.DefaultRatio = "9:16"
 
 	switch workflow {
+	case "wan2.2animate-v4-motion_retargeting":
+		profile.Video.References.MaxImages = 1
+		profile.Video.References.MinImages = 1
+		profile.Video.References.MaxVideos = 1
+		profile.Video.References.MaxAudios = 0
+		profile.Video.Operations = []string{"video_to_video", "image_to_video"}
+		profile.Video.DefaultOperation = "video_to_video"
 	case "minimax_h3_lightx2v_no_pic", "minimax_h3_b99_001":
 		profile.Video.References.MaxImages = 0
 		profile.Video.References.MaxAudios = 0
@@ -1205,6 +1233,18 @@ func containsCapabilityString(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func sameCapabilityStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !strings.EqualFold(strings.TrimSpace(a[i]), strings.TrimSpace(b[i])) {
+			return false
+		}
+	}
+	return true
 }
 
 func containsInt(values []int, target int) bool {

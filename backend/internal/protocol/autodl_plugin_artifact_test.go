@@ -182,6 +182,41 @@ func TestAutoDLPluginArtifact(t *testing.T) {
 		t.Fatalf("b99_003 must not send first_frame: %#v", bodyB99003)
 	}
 
+	createZMU24, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://autodl.art", Request: GenerationRequest{
+		Model: "minimax_h3_zm_u24", Prompt: "h3 quality video", Duration: 5, Resolution: "768p竖",
+		Images: []MediaReference{{URL: "https://cdn.example/img0.png"}, {URL: "https://cdn.example/img1.png"}},
+		Audios: []MediaReference{{URL: "https://cdn.example/aud0.mp3"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bodyZMU24 := createZMU24.Body.(map[string]any)
+	if bodyZMU24["prompt"] != "h3 quality video" || bodyZMU24["duration"] != 5 || bodyZMU24["resolution"] != "768p竖" ||
+		bodyZMU24["ref_image_0"] != "https://cdn.example/img0.png" || bodyZMU24["ref_image_1"] != "https://cdn.example/img1.png" ||
+		bodyZMU24["ref_audio_0"] != "https://cdn.example/aud0.mp3" {
+		t.Fatalf("zm_u24 body = %#v", bodyZMU24)
+	}
+
+	createMotion, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://autodl.art", Request: GenerationRequest{
+		Model: "wan2.2animate-v4-motion_retargeting", AspectRatio: "9:16",
+		Images: []MediaReference{{URL: "https://cdn.example/character.png"}},
+		Videos: []MediaReference{{URL: "https://cdn.example/dance.mp4"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bodyMotion := createMotion.Body.(map[string]any)
+	if bodyMotion["ref_image"] != "https://cdn.example/character.png" || bodyMotion["ref_video"] != "https://cdn.example/dance.mp4" ||
+		bodyMotion["resolution"] != "464*832px(竖版)" {
+		t.Fatalf("wan2.2 motion retargeting body = %#v", bodyMotion)
+	}
+	if _, exists := bodyMotion["prompt"]; exists {
+		t.Fatalf("wan2.2 motion retargeting must not send prompt: %#v", bodyMotion)
+	}
+	if _, exists := bodyMotion["duration"]; exists {
+		t.Fatalf("wan2.2 motion retargeting must not send duration: %#v", bodyMotion)
+	}
+
 	failed, err := adapter.ParseCreate(context.Background(), []byte(`{"code":"RequestParameterIsWrong","data":null,"msg":"参数: resolution 的值: 768P 不在 options 列表中"}`))
 	if err != nil || failed.Status != StatusFailed || failed.Message == "" {
 		t.Fatalf("failed = %#v, err = %v", failed, err)

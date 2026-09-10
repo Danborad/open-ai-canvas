@@ -137,6 +137,14 @@ func TestAutoDLResolutionMappingForOrientations(t *testing.T) {
 	if res := videoResolutionNameRequestForInput(profile, "480p", "9:16"); res != "480p竖" {
 		t.Fatalf("expected 480p竖, got %s", res)
 	}
+
+	motionProfile := DefaultAutoDLVideoCapability("wan2.2animate-v4-motion_retargeting").Video
+	if res := videoResolutionNameRequestForInput(motionProfile, "auto", "9:16"); res != "464*832px(竖版)" {
+		t.Fatalf("expected 464*832px(竖版), got %s", res)
+	}
+	if res := videoResolutionNameRequestForInput(motionProfile, "auto", "16:9"); res != "832*464px(横版)" {
+		t.Fatalf("expected 832*464px(横版), got %s", res)
+	}
 }
 
 func TestValidateImageTaskEnforcesGPTImage2CustomSizeLimits(t *testing.T) {
