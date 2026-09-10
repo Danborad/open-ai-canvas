@@ -14,6 +14,7 @@ const EmailSettingsPanel = lazy(() => import("./components/email-settings-panel"
 const FeatureAvailabilityPanel = lazy(() => import("./components/feature-availability-panel"));
 const StorageResourcesPanel = lazy(() => import("./components/storage-resources-panel"));
 const ESAMonitoringPanel = lazy(() => import("./esa/esa-monitoring-page"));
+const WecomNotificationPanel = lazy(() => import("./notifications/wecom-notification-page"));
 
 export function AnalyticsPage() {
     const { references } = useAdminContext();
@@ -110,4 +111,8 @@ export function StorageResourcesPage() {
 
 export function ESAMonitoringPage() {
     return <ESAMonitoringPanel />;
+}
+
+export function WecomNotificationPage() {
+    return <WecomNotificationPanel />;
 }

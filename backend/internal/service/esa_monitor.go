@@ -732,3 +732,104 @@ func findFirstInt64(m map[string]any, keys ...string) int64 {
 	}
 	return 0
 }
+
+func (s *Service) FetchESADomainStats(ctx context.Context, targetDomain string, from, to time.Time) (traffic int64, requests int64, enabled bool, err error) {
+	_, setting, err := s.readESASetting()
+	if err != nil || setting.AccessKeyID == "" || setting.AccessKeySecret == "" {
+		return 0, 0, false, nil
+	}
+	if !setting.Enabled {
+		return 0, 0, false, nil
+	}
+
+	cleanDomain := strings.TrimSpace(targetDomain)
+	if cleanDomain == "" {
+		cleanDomain = "art.960916.xyz"
+	}
+
+	allSites, err := fetchESASiteList(ctx, setting.AccessKeyID, setting.AccessKeySecret)
+	if err != nil {
+		return 0, 0, true, err
+	}
+
+	var targetSite *ESASiteInfo
+	for _, site := range allSites {
+		if site.SiteName == cleanDomain || strings.HasSuffix(cleanDomain, "."+site.SiteName) || strings.HasSuffix(cleanDomain, site.SiteName) {
+			targetSite = &site
+			break
+		}
+	}
+	if targetSite == nil && len(allSites) > 0 {
+		targetSite = &allSites[0]
+	}
+	if targetSite == nil {
+		return 0, 0, true, nil
+	}
+
+	startStr := from.UTC().Format("2006-01-02T15:04:05Z")
+	endStr := to.UTC().Format("2006-01-02T15:04:05Z")
+
+	topParams := map[string]string{
+		"Action":    "DescribeSiteTopData",
+		"SiteId":    targetSite.SiteID,
+		"StartTime": startStr,
+		"EndTime":   endStr,
+		"Limit":     "10",
+		"Fields":    `[{"FieldName":"Traffic","Dimension":["ClientRequestHost"]}]`,
+	}
+	topBytes, topErr := doAliyunPopRequest(ctx, "GET", topParams, setting.AccessKeyID, setting.AccessKeySecret)
+	if topErr != nil {
+		return 0, 0, true, topErr
+	}
+	var topResp struct {
+		Data []struct {
+			FieldName  string `json:"FieldName"`
+			DetailData []struct {
+				DimensionValue string `json:"DimensionValue"`
+				Value          int64  `json:"Value"`
+			} `json:"DetailData"`
+		} `json:"Data"`
+	}
+	if err := json.Unmarshal(topBytes, &topResp); err != nil {
+		return 0, 0, true, err
+	}
+	for _, dataItem := range topResp.Data {
+		for _, d := range dataItem.DetailData {
+			if strings.EqualFold(d.DimensionValue, cleanDomain) {
+				traffic += d.Value
+			}
+		}
+	}
+
+	// 请求数
+	reqTopParams := map[string]string{
+		"Action":    "DescribeSiteTopData",
+		"SiteId":    targetSite.SiteID,
+		"StartTime": startStr,
+		"EndTime":   endStr,
+		"Limit":     "10",
+		"Fields":    `[{"FieldName":"Requests","Dimension":["ClientRequestHost"]}]`,
+	}
+	reqTopBytes, reqTopErr := doAliyunPopRequest(ctx, "GET", reqTopParams, setting.AccessKeyID, setting.AccessKeySecret)
+	if reqTopErr == nil {
+		var reqTopResp struct {
+			Data []struct {
+				FieldName  string `json:"FieldName"`
+				DetailData []struct {
+					DimensionValue string `json:"DimensionValue"`
+					Value          int64  `json:"Value"`
+				} `json:"DetailData"`
+			} `json:"Data"`
+		}
+		if json.Unmarshal(reqTopBytes, &reqTopResp) == nil {
+			for _, dataItem := range reqTopResp.Data {
+				for _, d := range dataItem.DetailData {
+					if strings.EqualFold(d.DimensionValue, cleanDomain) {
+						requests += d.Value
+					}
+				}
+			}
+		}
+	}
+	return traffic, requests, true, nil
+}

@@ -9,3 +9,4 @@ import "./canvas-stats";
 import "./canvas-node-model-badge";
 import "./canvas-cover-blur";
 import "./composer-image-paste";
+import "./wecom-bot";

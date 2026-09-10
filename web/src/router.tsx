@@ -12,6 +12,7 @@ const AnalyticsPage = lazy(() => import("@/pages/admin/admin-route-pages").then(
 const AnnouncementsPage = lazy(() => import("@/pages/admin/admin-route-pages").then((module) => ({ default: module.AnnouncementsPage })));
 const StorageResourcesPage = lazy(() => import("@/pages/admin/admin-route-pages").then((module) => ({ default: module.StorageResourcesPage })));
 const ESAMonitoringPage = lazy(() => import("@/pages/admin/admin-route-pages").then((module) => ({ default: module.ESAMonitoringPage })));
+const WecomNotificationPage = lazy(() => import("@/pages/admin/admin-route-pages").then((module) => ({ default: module.WecomNotificationPage })));
 const CreditOperationsPage = lazy(() => import("@/pages/admin/admin-route-pages").then((module) => ({ default: module.CreditOperationsPage })));
 const AccessSettingsPage = lazy(() => import("@/pages/admin/admin-route-pages").then((module) => ({ default: module.AccessSettingsPage })));
 const EmailSettingsPage = lazy(() => import("@/pages/admin/admin-route-pages").then((module) => ({ default: module.EmailSettingsPage })));
@@ -194,6 +195,8 @@ export const router = createBrowserRouter([
                     { path: "announcements", element: <AnnouncementsPage /> },
                     { path: "resources", element: <StorageResourcesPage /> },
                     { path: "esa", element: <ESAMonitoringPage /> },
+                    { path: "wecom", element: <WecomNotificationPage /> },
+                    { path: "notifications", element: <Navigate to="/admin/wecom" replace /> },
                     { path: "credit-operations", element: <CreditOperationsPage /> },
                     { path: "redemption-codes", element: <RedemptionCodesPage /> },
                     { path: "logs", element: <LogsPage /> },
