@@ -85,3 +85,49 @@ func (r *Repository) DailyTopCreators(from, to time.Time, limit int) ([]CreatorS
 	}
 	return results, nil
 }
+
+type ModelTaskRow struct {
+	Model        string `gorm:"column:model"`
+	TaskCount    int64  `gorm:"column:task_count"`
+	SuccessCount int64  `gorm:"column:success_count"`
+	FailedCount  int64  `gorm:"column:failed_count"`
+}
+
+func (r *Repository) DailyModelTaskStats(from, to time.Time) ([]ModelTaskRow, error) {
+	var rows []ModelTaskRow
+	err := r.db.Model(&model.Task{}).
+		Select(`
+			model,
+			COUNT(*) AS task_count,
+			COALESCE(SUM(CASE WHEN status = 'succeeded' THEN 1 ELSE 0 END), 0) AS success_count,
+			COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) AS failed_count
+		`).
+		Where("created_at >= ? AND created_at < ? AND model != ''", from, to).
+		Group("model").
+		Order("task_count DESC").
+		Scan(&rows).Error
+	return rows, err
+}
+
+func (r *Repository) ChannelModelDisplayNames() (map[string]string, error) {
+	var list []struct {
+		ModelKey    string `gorm:"column:model_key"`
+		DisplayName string `gorm:"column:display_name"`
+	}
+	err := r.db.Model(&model.ChannelModel{}).
+		Select("model_key, display_name").
+		Where("display_name != ''").
+		Scan(&list).Error
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]string, len(list))
+	for _, item := range list {
+		k := strings.TrimSpace(item.ModelKey)
+		v := strings.TrimSpace(item.DisplayName)
+		if k != "" && v != "" {
+			result[k] = v
+		}
+	}
+	return result, nil
+}

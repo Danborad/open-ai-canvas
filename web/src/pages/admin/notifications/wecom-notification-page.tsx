@@ -206,6 +206,19 @@ export default function WecomNotificationPage() {
                     </div>
                 </div>
 
+                {/* 今日实际调用的模型标签栏（未调用的不显示） */}
+                {preview?.data?.modelStats && preview.data.modelStats.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3 shadow-sm text-xs">
+                        <span className="font-semibold text-foreground">今日调用模型 ({preview.data.modelStats.length})：</span>
+                        {preview.data.modelStats.map((m) => (
+                            <Tag key={m.modelName} color={m.failedCount > 0 ? "orange" : "blue"} className="px-2 py-0.5 text-xs">
+                                {m.modelName} · {m.taskCount} 次
+                                {m.failedCount > 0 ? ` (成功 ${m.successCount} / 失败 ${m.failedCount})` : " (全成功)"}
+                            </Tag>
+                        ))}
+                    </div>
+                ) : null}
+
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
                     {/* 左侧：实时汇报文本预览 */}
                     <div className="lg:col-span-7">

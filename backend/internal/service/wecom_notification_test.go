@@ -45,6 +45,11 @@ func TestFormatWecomDailyReportText(t *testing.T) {
 			{AccountName: "danborad@gmail.com", TaskCount: 29},
 			{AccountName: "zhangxunvvv@163.com", TaskCount: 21},
 		},
+		ModelStats: []ModelUsageStat{
+			{ModelName: "gpt-image-2", TaskCount: 46, SuccessCount: 45, FailedCount: 1},
+			{ModelName: "Omni 1.1 Flash", TaskCount: 3, SuccessCount: 2, FailedCount: 1},
+			{ModelName: "MiniMax-H3", TaskCount: 1, SuccessCount: 1, FailedCount: 0},
+		},
 		SystemImages:     6859,
 		SystemImageBytes: 12951254676,
 		SystemVideos:     227,
@@ -69,6 +74,10 @@ func TestFormatWecomDailyReportText(t *testing.T) {
 		"视频生成：4 条 (成功 3 / 失败 1)",
 		"danborad@gmail.com (29 次)",
 		"zhangxunvvv@163.com (21 次)",
+		"调用模型统计",
+		"gpt-image-2：46 次 (成功 45 / 失败 1)",
+		"Omni 1.1 Flash：3 次 (成功 2 / 失败 1)",
+		"MiniMax-H3：1 次 (全部成功)",
 		"系统总图片数：6859 张",
 		"系统总视频数：227 条",
 		"art.960916.xyz",
@@ -79,6 +88,14 @@ func TestFormatWecomDailyReportText(t *testing.T) {
 		if !strings.Contains(text, check) {
 			t.Errorf("FormatWecomDailyReportText missing %q\nFull text:\n%s", check, text)
 		}
+	}
+
+	// 验证未使用的模型不出现：空模型列表时完全不输出该段
+	emptyData := *data
+	emptyData.ModelStats = nil
+	emptyText := FormatWecomDailyReportText(&emptyData)
+	if strings.Contains(emptyText, "调用模型统计") {
+		t.Errorf("expected no model section when empty, got:\n%s", emptyText)
 	}
 }
 

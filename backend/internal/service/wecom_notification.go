@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -50,6 +51,13 @@ type wecomSettingValue struct {
 	LastSentStatus string `json:"lastSentStatus"`
 }
 
+type ModelUsageStat struct {
+	ModelName    string `json:"modelName"`
+	TaskCount    int64  `json:"taskCount"`
+	SuccessCount int64  `json:"successCount"`
+	FailedCount  int64  `json:"failedCount"`
+}
+
 type WecomDailyReportData struct {
 	ReportTime       time.Time                     `json:"reportTime"`
 	TotalUsers       int64                         `json:"totalUsers"`
@@ -64,6 +72,7 @@ type WecomDailyReportData struct {
 	VideoSuccess     int64                         `json:"videoSuccess"`
 	VideoFailed      int64                         `json:"videoFailed"`
 	TopCreators      []repository.CreatorStat      `json:"topCreators"`
+	ModelStats       []ModelUsageStat              `json:"modelStats"`
 	SystemImages     int64                         `json:"systemImages"`
 	SystemImageBytes int64                         `json:"systemImageBytes"`
 	SystemVideos     int64                         `json:"systemVideos"`
@@ -251,7 +260,56 @@ func (s *Service) BuildDailyReportData(ctx context.Context, targetDomain string)
 		topCreators = []repository.CreatorStat{}
 	}
 
-	// 4. 当前系统资源占用状态
+	// 4. 今日调用模型统计（聚合 cleanModel 并只保留今天实际产生过任务的模型，未调用的不显示）
+	modelRows, _ := s.repo.DailyModelTaskStats(startOfDay, nowUTC)
+	displayNames, _ := s.repo.ChannelModelDisplayNames()
+	if displayNames == nil {
+		displayNames = map[string]string{}
+	}
+
+	modelMap := make(map[string]*ModelUsageStat)
+	var modelOrder []string
+
+	for _, row := range modelRows {
+		cleanKey := strings.TrimSpace(row.Model)
+		if cleanKey == "" {
+			continue
+		}
+		if idx := strings.Index(cleanKey, "::"); idx >= 0 {
+			cleanKey = cleanKey[idx+2:]
+		}
+		displayName := displayNames[cleanKey]
+		if displayName == "" {
+			displayName = cleanKey
+		}
+
+		if stat, exists := modelMap[displayName]; exists {
+			stat.TaskCount += row.TaskCount
+			stat.SuccessCount += row.SuccessCount
+			stat.FailedCount += row.FailedCount
+		} else {
+			stat = &ModelUsageStat{
+				ModelName:    displayName,
+				TaskCount:    row.TaskCount,
+				SuccessCount: row.SuccessCount,
+				FailedCount:  row.FailedCount,
+			}
+			modelMap[displayName] = stat
+			modelOrder = append(modelOrder, displayName)
+		}
+	}
+
+	var modelStats []ModelUsageStat
+	for _, name := range modelOrder {
+		if stat := modelMap[name]; stat != nil && stat.TaskCount > 0 {
+			modelStats = append(modelStats, *stat)
+		}
+	}
+	sort.Slice(modelStats, func(i, j int) bool {
+		return modelStats[i].TaskCount > modelStats[j].TaskCount
+	})
+
+	// 5. 当前系统资源占用状态
 	kindStats, _ := s.repo.ResourceKindStats()
 	storageSummary, _ := s.repo.ResourceStorageSummary()
 
@@ -297,6 +355,7 @@ func (s *Service) BuildDailyReportData(ctx context.Context, targetDomain string)
 		VideoSuccess:     taskStats.VideoSuccess,
 		VideoFailed:      taskStats.VideoFailed,
 		TopCreators:      topCreators,
+		ModelStats:       modelStats,
 		SystemImages:     systemImages,
 		SystemImageBytes: systemImageBytes,
 		SystemVideos:     systemVideos,
@@ -335,6 +394,19 @@ func FormatWecomDailyReportText(data *WecomDailyReportData) string {
 		b.WriteString(fmt.Sprintf("• 失败任务数：%d 个\n\n", data.FailedTasks))
 	} else {
 		b.WriteString("• 失败任务数：0 个 (全部成功运行)\n\n")
+	}
+
+	// 仅展示今天实际产生过任务的模型；未调用的模型不显示
+	if len(data.ModelStats) > 0 {
+		b.WriteString("🤖 调用模型统计\n")
+		for _, stat := range data.ModelStats {
+			if stat.FailedCount > 0 {
+				b.WriteString(fmt.Sprintf("• %s：%d 次 (成功 %d / 失败 %d)\n", stat.ModelName, stat.TaskCount, stat.SuccessCount, stat.FailedCount))
+			} else {
+				b.WriteString(fmt.Sprintf("• %s：%d 次 (全部成功)\n", stat.ModelName, stat.TaskCount))
+			}
+		}
+		b.WriteString("\n")
 	}
 
 	b.WriteString("🏆 今日高频创作账号\n")

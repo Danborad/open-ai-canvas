@@ -20,6 +20,13 @@ export interface WecomSettingRequest {
     mentionAll?: boolean;
 }
 
+export interface ModelUsageStat {
+    modelName: string;
+    taskCount: number;
+    successCount: number;
+    failedCount: number;
+}
+
 export interface WecomDailyReportData {
     reportTime: string;
     totalUsers: number;
@@ -37,6 +44,7 @@ export interface WecomDailyReportData {
         accountName: string;
         taskCount: number;
     }>;
+    modelStats: ModelUsageStat[];
     systemImages: number;
     systemImageBytes: number;
     systemVideos: number;
