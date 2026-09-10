@@ -1,6 +1,6 @@
 # Grok2API 渠道插件
 
-该包提供 `grok2api-image` 和 `grok2api-video` 两个 provider，接入 Grok2API 与 xAI 格式图片与视频生成服务，支持 Web/Console 渠道生图与多图参考异步视频生成。
+该包提供 `grok2api-image`、`grok2api-video` 与 `grok2api-audio` 三个 provider，接入 Grok2API 与 xAI 格式图片、视频与语音合成服务。
 
 字段、约束、响应和兼容注意事项见 [docs/interface.md](docs/interface.md)。
 

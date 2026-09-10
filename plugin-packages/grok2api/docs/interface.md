@@ -9,6 +9,8 @@
 - 视频生成（异步）：`POST /v1/videos/generations`。
 - 视频轮询：`GET /v1/videos/{task_id}`。
 - 视频内容下载：`GET /v1/videos/{task_id}/content`。
+- 语音合成 (TTS)：`POST /v1/audio/speech`。
+- 语音识别 (STT)：`POST /v1/audio/transcriptions`。
 
 ## 配置字段
 
@@ -21,7 +23,7 @@
 
 - **图片生成/编辑**：`Web/grok-imagine-image-2.0` (推荐极速，约15秒)、`Web/grok-imagine-image`、`Console/grok-imagine-image-2.0`、`Console/grok-imagine-image`
 - **视频生成**：`Web/grok-imagine-video` (推荐)、`Console/grok-imagine-video-1.5` (Console 1080p)、`Console/grok-imagine-video` (Console 720p)
-- **语音模型**：`grok-voice-latest` (TTS)、`grok-voice-think-fast-2.0`、`grok-stt` (STT)
+- **语音模型**：`grok-voice-latest` (TTS，默认音色 Eve)、`grok-voice-think-fast-2.0`、`grok-voice-think-fast-1.0`、`grok-stt` (STT)
 - **推理对话**：`Build/grok-4.6`、`Build/grok-4.5`、`Web/grok-chat-fast`
 
 ## 图片参数
@@ -36,6 +38,13 @@
 - `resolution`: `480p`、`720p`、`1080p`。
 - `image`: 首帧输入对象 `{"url": "..."}`。
 - `reference_images`: 角色/风格参考图列表，最多 7 张。
+
+## 语音参数
+
+- `input`: 待朗读文本内容。
+- `voice`: 说话人音色名称（支持 `Eve`, `Rex`, `Ara`, `Sal` 等 28 款原生音色，默认 `Eve`）。
+- `response_format`: `mp3`、`opus`、`aac`、`flac`、`wav`、`pcm`。
+- `speed`: 语速倍率（0.25 ~ 4.0）。
 
 <!-- YINGCE_MANIFEST_CONTRACT_START -->
 ## Manifest 完整接口定义
@@ -249,6 +258,80 @@
           ],
           "resultKind": "video"
         }
+      },
+      {
+        "id": "grok2api-audio",
+        "label": "Grok2API 语音",
+        "capabilities": [
+          "audio"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation"
+        ],
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey",
+          "header": "Authorization"
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model"
+          },
+          {
+            "name": "input",
+            "type": "string",
+            "required": true,
+            "mapping": "input",
+            "description": "待朗读文本内容。"
+          },
+          {
+            "name": "voice",
+            "type": "string",
+            "mapping": "voice",
+            "description": "说话人音色名称（支持 Eve, Rex, Ara 等 28 款原生音色，默认 Eve）。"
+          },
+          {
+            "name": "response_format",
+            "type": "string",
+            "mapping": "response_format",
+            "values": [
+              "mp3",
+              "opus",
+              "aac",
+              "flac",
+              "wav",
+              "pcm"
+            ],
+            "description": "输出音频格式，默认 mp3。"
+          },
+          {
+            "name": "speed",
+            "type": "number",
+            "mapping": "speed",
+            "description": "语速倍率 0.25 ~ 4.0，默认 1.0。"
+          }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/v1/audio/speech",
+          "contentType": "application/json",
+          "fields": {
+            "model": "request.model",
+            "input": "request.prompt",
+            "voice": "request.extra.audioVoice|default:Eve",
+            "response_format": "request.extra.audioFormat|default:mp3",
+            "speed": "request.extra.audioSpeed|float|default:1"
+          }
+        },
+        "response": {
+          "resultKind": "audio"
+        }
       }
     ],
     "workflows": [
@@ -287,6 +370,30 @@
         "label": "Grok Video (Console 720p)",
         "providerId": "grok2api-video",
         "capability": "video"
+      },
+      {
+        "id": "grok-voice-latest",
+        "label": "Grok Voice Latest (多语言TTS)",
+        "providerId": "grok2api-audio",
+        "capability": "audio"
+      },
+      {
+        "id": "grok-voice-think-fast-2.0",
+        "label": "Grok Voice Think Fast 2.0",
+        "providerId": "grok2api-audio",
+        "capability": "audio"
+      },
+      {
+        "id": "grok-voice-think-fast-1.0",
+        "label": "Grok Voice Think Fast 1.0",
+        "providerId": "grok2api-audio",
+        "capability": "audio"
+      },
+      {
+        "id": "grok-stt",
+        "label": "Grok STT (语音识别)",
+        "providerId": "grok2api-audio",
+        "capability": "audio"
       }
     ]
   }

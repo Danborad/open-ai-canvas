@@ -192,6 +192,40 @@ func TestBundledProviderCatalogExposesUpstreamOperation(t *testing.T) {
 	t.Fatal("xAI bundled provider missing from administrator catalog")
 }
 
+func TestAudioProvidersAppearInAdministratorCatalog(t *testing.T) {
+	dataDir := t.TempDir()
+	center, err := newPluginRuntime(dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog := (&Service{pluginRuntime: center}).PluginProviderCatalog(string(protocol.SurfaceAdminSystemChannel), string(protocol.CapabilityAudio), false)
+	for _, item := range catalog {
+		t.Logf("Audio Provider: ID=%q, Name=%q, Create=%q, Vendor=%q", item.ID, item.Name, item.Create, item.Vendor)
+	}
+	foundGrok := false
+	foundOpenAI := false
+	for _, item := range catalog {
+		if item.ID == "grok2api-audio" || item.ID == "grok-audio" {
+			foundGrok = true
+			if item.Create != "POST /v1/audio/speech" {
+				t.Fatalf("grok audio create = %q, want POST /v1/audio/speech", item.Create)
+			}
+		}
+		if item.ID == "openai-audio" {
+			foundOpenAI = true
+			if item.Create != "POST /v1/audio/speech" {
+				t.Fatalf("openai audio create = %q, want POST /v1/audio/speech", item.Create)
+			}
+		}
+	}
+	if !foundGrok {
+		t.Fatalf("grok audio provider missing from catalog: %#v", catalog)
+	}
+	if !foundOpenAI {
+		t.Fatalf("openai audio provider missing from catalog: %#v", catalog)
+	}
+}
+
 func TestPluginRuntimeIsTheProtocolSourceOfTruth(t *testing.T) {
 	dataDir := t.TempDir()
 	center, err := newPluginRuntime(dataDir)

@@ -1010,9 +1010,9 @@ func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, it
 		}
 		lowerKey := strings.ToLower(item.ModelKey)
 		if strings.Contains(lowerKey, "voice") || strings.Contains(lowerKey, "stt") {
-			if item.Capability != "audio" || item.Protocol != "openai-audio" {
+			if item.Capability != "audio" || (item.Protocol != "grok2api-audio" && item.Protocol != "grok-audio") {
 				item.Capability = "audio"
-				item.Protocol = "openai-audio"
+				item.Protocol = "grok2api-audio"
 				changed = true
 			}
 		} else if strings.Contains(lowerKey, "video") {

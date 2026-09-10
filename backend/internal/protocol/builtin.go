@@ -76,7 +76,7 @@ func Builtins() *Registry {
 		openAIChatAdapter(), openAIResponsesAdapter(), claudeAdapter(),
 		openAIImagesAdapter(), grokImagesAdapter(), arkImagesAdapter(), jimengImagesAdapter(), geminiImagesAdapter(), senseNovaImagesAdapter(),
 		openAIVideosAdapter(), newAPIChannel1Adapter(), newAPIVideosAdapter(), xAIVideosAdapter(), arkVideosAdapter(), jimengVideosAdapter(), geminiVeoAdapter(), novitaVideosAdapter(), miniMaxVideosAdapter(),
-		openAIAudioAdapter(), asyncAudioAdapter(), agnesAdapter(),
+		openAIAudioAdapter(), grokAudioAdapter(), asyncAudioAdapter(), agnesAdapter(),
 	)
 	if err != nil {
 		panic(err)
@@ -519,6 +519,29 @@ func openAIAudioAdapter() Adapter {
 	info := metadata("openai-audio", "OpenAI Audio", "OpenAI", CapabilityAudio, "POST /v1/audio/speech", "", "application/json")
 	return builtinAdapter{info: info, create: func(r GenerationRequest) (RequestSpec, error) {
 		return jsonSpec(http.MethodPost, "/v1/audio/speech", map[string]any{"model": r.Model, "input": r.Prompt}), nil
+	}, parseCreate: parseAudioResponse}
+}
+
+func grokAudioAdapter() Adapter {
+	info := metadata("grok-audio", "Grok 语音", "xAI / Grok2API", CapabilityAudio, "POST /v1/audio/speech", "", "application/json")
+	info.LegacyAliases = []string{"grok2api-audio"}
+	return builtinAdapter{info: info, create: func(r GenerationRequest) (RequestSpec, error) {
+		voice := defaultValue(firstString(r.Extra, "audioVoice", "voice"), "Eve")
+		if voice == "alloy" {
+			voice = "Eve"
+		}
+		format := defaultValue(firstString(r.Extra, "audioFormat", "response_format"), "mp3")
+		body := map[string]any{
+			"model":           r.Model,
+			"input":           r.Prompt,
+			"voice":           voice,
+			"response_format": format,
+			"speed":           1,
+		}
+		if speedVal, ok := r.Extra["audioSpeed"]; ok && speedVal != nil {
+			body["speed"] = speedVal
+		}
+		return jsonSpec(http.MethodPost, "/v1/audio/speech", body), nil
 	}, parseCreate: parseAudioResponse}
 }
 

@@ -83,6 +83,7 @@ func (s *Service) PluginProviderCatalog(scope, capability string, includeUnavail
 	wantScope := protocol.Surface(strings.TrimSpace(scope))
 	wantCapability := protocol.Capability(strings.TrimSpace(capability))
 	items := make([]PluginProviderCatalogItem, 0)
+	seen := make(map[string]struct{})
 	for _, plugin := range s.Plugins() {
 		for _, provider := range plugin.Manifest.Contributes.Providers {
 			if !containsPluginSurface(provider.Scopes, wantScope) || (wantCapability != "" && !containsPluginCapability(provider.Capabilities, wantCapability)) {
@@ -98,8 +99,39 @@ func (s *Service) PluginProviderCatalog(scope, capability string, includeUnavail
 			}
 			if includeUnavailable || item.Enabled {
 				items = append(items, item)
+				seen[provider.ID] = struct{}{}
 			}
 		}
+	}
+	// 补充内置尚未被插件包覆盖的基础协议（如 OpenAI Audio、Grok 语音、异步音频等）
+	for _, builtinMeta := range protocol.Builtins().List(wantScope, wantCapability, includeUnavailable) {
+		if _, exists := seen[builtinMeta.ID]; exists {
+			continue
+		}
+		isCovered := false
+		for _, alias := range builtinMeta.LegacyAliases {
+			if _, exists := seen[alias]; exists {
+				isCovered = true
+				break
+			}
+		}
+		if isCovered {
+			continue
+		}
+		items = append(items, PluginProviderCatalogItem{
+			ID:                builtinMeta.ID,
+			Version:           builtinMeta.Version,
+			Name:              builtinMeta.Name,
+			Vendor:            builtinMeta.Vendor,
+			Categories:        builtinMeta.Categories,
+			Scopes:            builtinMeta.Scopes,
+			Create:            builtinMeta.Create,
+			Poll:              builtinMeta.Poll,
+			ContentType:       builtinMeta.ContentType,
+			Enabled:           builtinMeta.Enabled,
+			UnavailableReason: builtinMeta.UnavailableReason,
+		})
+		seen[builtinMeta.ID] = struct{}{}
 	}
 	return items
 }

@@ -2381,8 +2381,10 @@ func shouldFallbackTextToChat(err error) bool {
 }
 
 func runAudioTask(ctx context.Context, input canvasGenerationInput) (map[string]interface{}, error) {
-	if _, ok := declarativeProtocolAdapterForContext(ctx, input.Config.InterfaceType); ok {
-		return runDeclarativeProtocolTask(ctx, input)
+	if input.Config.InterfaceType != "grok2api-audio" && input.Config.InterfaceType != "grok-audio" && input.Config.InterfaceType != "openai-audio" {
+		if _, ok := declarativeProtocolAdapterForContext(ctx, input.Config.InterfaceType); ok {
+			return runDeclarativeProtocolTask(ctx, input)
+		}
 	}
 	if resolved, ok := input.Metadata["resolvedCharacterVersions"].([]interface{}); ok && len(resolved) > 0 {
 		voiceKey := metadataString(input.Metadata, "resolvedCharacterVoiceKey")
@@ -2391,10 +2393,14 @@ func runAudioTask(ctx context.Context, input canvasGenerationInput) (map[string]
 		}
 	}
 	format := defaultString(input.Config.AudioFormat, "mp3")
+	voice := defaultString(input.Config.AudioVoice, "alloy")
+	if (strings.Contains(strings.ToLower(input.Config.Model), "grok") || input.Config.InterfaceType == "grok-audio" || input.Config.InterfaceType == "grok2api-audio") && (input.Config.AudioVoice == "" || input.Config.AudioVoice == "alloy") {
+		voice = "Eve"
+	}
 	body := map[string]interface{}{
 		"model":           input.Config.Model,
 		"input":           input.Prompt,
-		"voice":           defaultString(input.Config.AudioVoice, "alloy"),
+		"voice":           voice,
 		"response_format": format,
 		"speed":           1,
 	}
