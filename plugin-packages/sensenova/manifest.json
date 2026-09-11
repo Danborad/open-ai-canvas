@@ -6,7 +6,7 @@
   "enabled": true,
   "author": "商汤科技 / 影策",
   "description": "接入商汤日日新 (SenseNova) 生态大模型，支持 6.8 Flash Lite 文本对话以及 U1.5 Lite、U1 Fast 图像生成与单图编辑。",
-  "documentation": "# SenseNova 商汤日日新渠道插件\n\n该包提供 `sensenova-chat` 和 `sensenova-image` 两个 provider，接入商汤日日新 (SenseNova) 生态大模型服务，支持 SenseNova 6.8 Flash Lite 文本与多模态对话，以及 SenseNova U1.5 Lite、SenseNova U1 Fast 图像生成与单图编辑。\n\n字段、约束、响应和兼容注意事项见 [docs/interface.md](docs/interface.md)。\n\n安装包由仓库根目录的 `plugin-packages/build-packages.sh` 生成，后端启动时从 `plugin-packages/*.yingce-plugin` 或随包目录加载为官方插件。\n\n---\n\n# SenseNova 接口字段\n\n## 鉴权与入口\n\n- 鉴权：`Authorization: Bearer <apiKey>`。\n- 默认 Base URL：`https://token.sensenova.cn/v1`。\n- 文本与多模态对话：`POST /chat/completions`。\n- 文生图：`POST /images/generations`。\n- 图像编辑（单图编辑）：`POST /images/edits`。\n\n## 配置字段\n\n| 字段 | 类型 | 必填 | 说明 |\n| --- | --- | --- | --- |\n| `apiKey` | secret | 是 | SenseNova API Key，由宿主写入 Bearer 鉴权头。 |\n| `baseUrl` | string | 否 | 上游根地址，默认 `https://token.sensenova.cn/v1`。 |\n\n## 接口协议\n\n- 对话与多模态：`POST /chat/completions`\n- 文生图：`POST /images/generations`\n- 图像编辑：`POST /images/edits`，支持 `images: [{\"image_url\": \"...\"}]`\n- 图片比例与尺寸：`size` 字段（支持 1024x1024、2048x2048、3840x2160、2160x3840、3456x2304、2304x3456 等 32 倍数画幅）。\n- 水印开关：`watermark: false`。\n\n## 官方支持模型\n\n- 文本：`sensenova-6.8-flash-lite`\n- 图片：`sensenova-u1.5-lite` / `sensenova-u1-fast`\n\n## 响应\n\n- 对话从 `choices[0].message.content` 提取回复。\n- 图片从 `data` 或 `images` 提取媒体结果。\n- 临时媒体标记为 ephemeral，由宿主立即下载持久化。\n",
+  "documentation": "# SenseNova 商汤日日新渠道插件\n\n该包提供 `sensenova-chat` 和 `sensenova-image` 两个 provider，接入商汤日日新 (SenseNova) 生态大模型服务，支持 SenseNova 6.8 Flash Lite 文本与多模态对话，以及 SenseNova U1.5 Lite、SenseNova U1 Fast 图像生成与单图编辑。\n\n字段、约束、响应和兼容注意事项见 [docs/interface.md](docs/interface.md)。\n\n安装包由仓库根目录的 `plugin-packages/build-packages.sh` 生成，后端启动时从 `plugin-packages/*.yingce-plugin` 或随包目录加载为官方插件。\n\n---\n\n# SenseNova 接口字段\n\n## 鉴权与入口\n\n- 鉴权：`Authorization: Bearer <apiKey>`。\n- 默认 Base URL：`https://token.sensenova.cn/v1`。\n- 文本与多模态对话：`POST /chat/completions`。\n- 文生图：`POST /images/generations`。\n- 图像编辑（单图编辑）：`POST /images/edits`。\n\n## 配置字段\n\n| 字段 | 类型 | 必填 | 说明 |\n| --- | --- | --- | --- |\n| `apiKey` | secret | 是 | SenseNova API Key，由宿主写入 Bearer 鉴权头。 |\n| `baseUrl` | string | 否 | 上游根地址，默认 `https://token.sensenova.cn/v1`。 |\n\n## 接口协议\n\n- 对话与多模态：`POST /chat/completions`\n- 文生图：`POST /images/generations`\n- 图像编辑：`POST /images/edits`，支持 `images: [{\"image_url\": \"...\"}]`\n- 图片比例与尺寸：`size` 字段（支持 1024x1024、2048x2048、3840x2160、2160x3840、3456x2304、2304x3456 等 32 倍数画幅）。\n- 水印开关：`watermark: false`。\n\n## 官方支持模型\n\n- 文本：`sensenova-6.8-flash-lite`\n- 图片：`sensenova-u1.5-lite` / `sensenova-u1-fast`\n\n## 响应\n\n- 对话从 `choices[0].message.content` 提取回复。\n- 图片从 `data` 或 `images` 提取媒体结果。\n- 临时媒体标记为 ephemeral，由宿主立即下载持久化。\n\n<!-- YINGCE_MANIFEST_CONTRACT_START -->\n## Manifest 完整接口定义\n\n以下 JSON 与插件包内实际 `manifest.json` 逐字段一致，覆盖插件身份、权限、配置、鉴权、参数、校验、创建、Agent、查询、取消、结果下载、响应和 Agent 响应映射。`documentation` 字段的值就是当前完整文档；为避免文档在自身内部无限递归，JSON 中仅用等义占位文本表示正文。\n\n```json\n{\n  \"apiVersion\": \"yingce.plugin/v2\",\n  \"id\": \"sensenova-provider\",\n  \"name\": \"SenseNova 商汤日日新\",\n  \"version\": \"1.0.0\",\n  \"enabled\": true,\n  \"author\": \"商汤科技 / 影策\",\n  \"description\": \"接入商汤日日新 (SenseNova) 生态大模型，支持 6.8 Flash Lite 文本对话以及 U1.5 Lite、U1 Fast 图像生成与单图编辑。\",\n  \"documentation\": \"<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>\",\n  \"permissions\": [\n    \"generation.run\",\n    \"media.read\"\n  ],\n  \"configuration\": {\n    \"fields\": [\n      {\n        \"name\": \"apiKey\",\n        \"type\": \"secret\",\n        \"label\": \"SenseNova API Key\",\n        \"required\": true,\n        \"description\": \"填写商汤日日新 (SenseNova) 控制台生成的 API Key。\"\n      }\n    ]\n  },\n  \"contributes\": {\n    \"providers\": [\n      {\n        \"id\": \"sensenova-chat\",\n        \"label\": \"SenseNova 文本\",\n        \"capabilities\": [\n          \"text\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\"\n        ],\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\",\n            \"description\": \"SenseNova 模型 ID\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\",\n            \"description\": \"提示词\"\n          }\n        ],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/chat/completions\",\n          \"contentType\": \"application/json\",\n          \"body\": {\n            \"model\": {\n              \"$ref\": \"request.model\"\n            },\n            \"messages\": {\n              \"$ref\": \"request.messages\"\n            },\n            \"stream\": false\n          }\n        },\n        \"response\": {\n          \"texts\": {\n            \"$ref\": \"response.choices.0.message.content\"\n          }\n        }\n      },\n      {\n        \"id\": \"sensenova-image\",\n        \"label\": \"SenseNova 图片\",\n        \"capabilities\": [\n          \"image\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\"\n        ],\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\",\n            \"description\": \"SenseNova 图片模型 ID\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\",\n            \"description\": \"提示词\"\n          },\n          {\n            \"name\": \"images\",\n            \"type\": \"media[]\",\n            \"mapping\": \"images\",\n            \"description\": \"参考图（单图编辑）\"\n          },\n          {\n            \"name\": \"aspectRatio\",\n            \"type\": \"string\",\n            \"mapping\": \"size\",\n            \"description\": \"画幅尺寸\"\n          },\n          {\n            \"name\": \"watermark\",\n            \"type\": \"boolean\",\n            \"mapping\": \"watermark\",\n            \"description\": \"水印开关\"\n          }\n        ],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/images/generations\",\n          \"contentType\": \"application/json\",\n          \"body\": {\n            \"model\": {\n              \"$ref\": \"request.model\"\n            },\n            \"prompt\": {\n              \"$ref\": \"request.prompt\"\n            },\n            \"size\": {\n              \"$ref\": \"request.aspectRatio\"\n            },\n            \"n\": 1,\n            \"watermark\": {\n              \"$ref\": \"request.watermark\"\n            }\n          }\n        },\n        \"response\": {\n          \"images\": {\n            \"$ref\": \"response.data\"\n          }\n        }\n      }\n    ]\n  }\n}\n```\n<!-- YINGCE_MANIFEST_CONTRACT_END -->\n",
   "permissions": [
     "generation.run",
     "media.read"
@@ -61,13 +61,19 @@
           "path": "/chat/completions",
           "contentType": "application/json",
           "body": {
-            "model": { "$ref": "request.model" },
-            "messages": { "$ref": "request.messages" },
+            "model": {
+              "$ref": "request.model"
+            },
+            "messages": {
+              "$ref": "request.messages"
+            },
             "stream": false
           }
         },
         "response": {
-          "texts": { "$ref": "response.choices.0.message.content" }
+          "texts": {
+            "$ref": "response.choices.0.message.content"
+          }
         }
       },
       {
@@ -125,15 +131,25 @@
           "path": "/images/generations",
           "contentType": "application/json",
           "body": {
-            "model": { "$ref": "request.model" },
-            "prompt": { "$ref": "request.prompt" },
-            "size": { "$ref": "request.aspectRatio" },
+            "model": {
+              "$ref": "request.model"
+            },
+            "prompt": {
+              "$ref": "request.prompt"
+            },
+            "size": {
+              "$ref": "request.aspectRatio"
+            },
             "n": 1,
-            "watermark": { "$ref": "request.watermark" }
+            "watermark": {
+              "$ref": "request.watermark"
+            }
           }
         },
         "response": {
-          "images": { "$ref": "response.data" }
+          "images": {
+            "$ref": "response.data"
+          }
         }
       }
     ]

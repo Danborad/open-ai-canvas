@@ -33,3 +33,169 @@
 - 对话从 `choices[0].message.content` 提取回复。
 - 图片从 `data` 或 `images` 提取媒体结果。
 - 临时媒体标记为 ephemeral，由宿主立即下载持久化。
+
+<!-- YINGCE_MANIFEST_CONTRACT_START -->
+## Manifest 完整接口定义
+
+以下 JSON 与插件包内实际 `manifest.json` 逐字段一致，覆盖插件身份、权限、配置、鉴权、参数、校验、创建、Agent、查询、取消、结果下载、响应和 Agent 响应映射。`documentation` 字段的值就是当前完整文档；为避免文档在自身内部无限递归，JSON 中仅用等义占位文本表示正文。
+
+```json
+{
+  "apiVersion": "yingce.plugin/v2",
+  "id": "sensenova-provider",
+  "name": "SenseNova 商汤日日新",
+  "version": "1.0.0",
+  "enabled": true,
+  "author": "商汤科技 / 影策",
+  "description": "接入商汤日日新 (SenseNova) 生态大模型，支持 6.8 Flash Lite 文本对话以及 U1.5 Lite、U1 Fast 图像生成与单图编辑。",
+  "documentation": "<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>",
+  "permissions": [
+    "generation.run",
+    "media.read"
+  ],
+  "configuration": {
+    "fields": [
+      {
+        "name": "apiKey",
+        "type": "secret",
+        "label": "SenseNova API Key",
+        "required": true,
+        "description": "填写商汤日日新 (SenseNova) 控制台生成的 API Key。"
+      }
+    ]
+  },
+  "contributes": {
+    "providers": [
+      {
+        "id": "sensenova-chat",
+        "label": "SenseNova 文本",
+        "capabilities": [
+          "text"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation"
+        ],
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey"
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "SenseNova 模型 ID"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt",
+            "description": "提示词"
+          }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/chat/completions",
+          "contentType": "application/json",
+          "body": {
+            "model": {
+              "$ref": "request.model"
+            },
+            "messages": {
+              "$ref": "request.messages"
+            },
+            "stream": false
+          }
+        },
+        "response": {
+          "texts": {
+            "$ref": "response.choices.0.message.content"
+          }
+        }
+      },
+      {
+        "id": "sensenova-image",
+        "label": "SenseNova 图片",
+        "capabilities": [
+          "image"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation"
+        ],
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey"
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "SenseNova 图片模型 ID"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt",
+            "description": "提示词"
+          },
+          {
+            "name": "images",
+            "type": "media[]",
+            "mapping": "images",
+            "description": "参考图（单图编辑）"
+          },
+          {
+            "name": "aspectRatio",
+            "type": "string",
+            "mapping": "size",
+            "description": "画幅尺寸"
+          },
+          {
+            "name": "watermark",
+            "type": "boolean",
+            "mapping": "watermark",
+            "description": "水印开关"
+          }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/images/generations",
+          "contentType": "application/json",
+          "body": {
+            "model": {
+              "$ref": "request.model"
+            },
+            "prompt": {
+              "$ref": "request.prompt"
+            },
+            "size": {
+              "$ref": "request.aspectRatio"
+            },
+            "n": 1,
+            "watermark": {
+              "$ref": "request.watermark"
+            }
+          }
+        },
+        "response": {
+          "images": {
+            "$ref": "response.data"
+          }
+        }
+      }
+    ]
+  }
+}
+```
+<!-- YINGCE_MANIFEST_CONTRACT_END -->
