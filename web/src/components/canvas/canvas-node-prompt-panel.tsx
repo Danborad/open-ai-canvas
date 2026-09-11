@@ -794,14 +794,14 @@ function ConnectedReferenceShelf({
                                     }
                                 }}
                             >
-                                <span className="canvas-node-reference-replace-indicator pointer-events-none absolute inset-0 z-30 hidden items-center justify-center gap-1 rounded-[var(--r-md)] bg-blue-600 font-bold text-white shadow-xl">
-                                    <ArrowLeftRight className="size-3" />
-                                    <span className="text-[11px]">替换</span>
+                                <span className="canvas-node-reference-replace-indicator pointer-events-none absolute inset-0 z-30 hidden items-center justify-center gap-1.5 rounded-[var(--r-md)] border border-white/20 bg-black/65 px-2 font-medium text-white/95 shadow-xl backdrop-blur-md transition-all">
+                                    <ArrowLeftRight className="size-3 text-blue-400" />
+                                    <span className="text-[11px] tracking-wide">替换</span>
                                 </span>
                                 {isDropTarget ? (
-                                    <span className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center gap-1 rounded-[var(--r-md)] bg-blue-600 font-bold text-white shadow-xl">
-                                        <ArrowLeftRight className="size-3" />
-                                        <span className="text-[11px]">替换</span>
+                                    <span className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center gap-1.5 rounded-[var(--r-md)] border border-white/20 bg-black/65 px-2 font-medium text-white/95 shadow-xl backdrop-blur-md transition-all">
+                                        <ArrowLeftRight className="size-3 text-blue-400" />
+                                        <span className="text-[11px] tracking-wide">替换</span>
                                     </span>
                                 ) : null}
                                 {onReorder ? (

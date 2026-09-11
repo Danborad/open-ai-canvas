@@ -9487,28 +9487,16 @@
 
     .canvas-node-reference-chip[data-connection-hover-replace="true"] {
         position: relative;
-        background: #1d4ed8 !important;
-        outline: 2px solid #60a5fa !important;
-        outline-offset: 1px !important;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5), 0 0 20px rgba(59, 130, 246, 0.7) !important;
-        transform: scale(1.08) !important;
-        transition: transform 0.12s ease, box-shadow 0.12s ease !important;
+        outline: 1.5px solid rgba(255, 255, 255, 0.4) !important;
+        outline-offset: 2px !important;
+        box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+        transform: scale(1.04) !important;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, outline-color 0.15s ease !important;
         z-index: 50 !important;
     }
 
     .canvas-node-reference-chip[data-connection-hover-replace="true"] .canvas-node-reference-replace-indicator {
         display: flex !important;
-    }
-
-    .canvas-node-reference-chip[data-connection-hover-replace="true"] .canvas-node-reference-label {
-        color: #ffffff !important;
-        font-weight: 700 !important;
-    }
-
-    .canvas-node-reference-chip[data-connection-hover-replace="true"] .canvas-node-reference-order {
-        background: #ffffff !important;
-        color: #1d4ed8 !important;
-        font-weight: 800 !important;
     }
 
     .canvas-node-reference-chip[data-dragging="true"] {
