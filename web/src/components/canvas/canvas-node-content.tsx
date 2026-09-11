@@ -691,11 +691,12 @@ function useNodeResourceUrl(node: CanvasNodeData, eager: boolean) {
     // resources; otherwise DOM virtualization does not reduce image work.
     const isLazyVisual = node.type === CanvasNodeType.Image;
     const synchronousUrl = isRemoteResource ? peekCachedResourceObjectUrl(storageKey) : "";
-    const [url, setUrl] = useState(() => {
-        if (synchronousUrl) return synchronousUrl;
-        return isRemoteResource || isLazyVisual ? "" : fallback;
-    });
-    const [loading, setLoading] = useState(() => isRemoteResource && eager && !synchronousUrl);
+    const isHttpUrl = Boolean(fallback && !fallback.startsWith("data:"));
+    // 优先使用内存中的有效 Blob URL；若已进入视口且有服务端的直接图片地址（非 data: base64），
+    // 立即作为初始图片呈现，利用浏览器原生 HTTP 磁盘缓存秒开，消除满屏转圈等待。
+    const initialUrl = synchronousUrl || (eager && isHttpUrl ? fallback : (isRemoteResource || isLazyVisual ? "" : fallback));
+    const [url, setUrl] = useState(() => initialUrl);
+    const [loading, setLoading] = useState(() => !initialUrl && isRemoteResource && eager);
 
     useEffect(() => {
         let cancelled = false;
@@ -710,20 +711,24 @@ function useNodeResourceUrl(node: CanvasNodeData, eager: boolean) {
             setLoading(false);
             return;
         }
-        if (!url) {
+        if (!url && eager && isHttpUrl) {
+            setUrl(fallback);
+            setLoading(false);
+        } else if (!url) {
             setLoading(eager);
         }
         // 只有进入视口或被激活的节点才下载远程媒体；缓存层会复用已有 Blob URL 和 in-flight 请求。
         const resolve = eager ? cacheResourceObjectUrl(storageKey) : getCachedResourceObjectUrl(storageKey);
         void resolve.then((cached) => {
-            if (!cancelled) setUrl(cached || (eager ? fallback : ""));
+            if (!cancelled && cached) setUrl(cached);
+            else if (!cancelled && eager && fallback) setUrl(fallback);
         }).catch(() => {
             if (!cancelled && eager) setUrl(fallback);
         }).finally(() => {
             if (!cancelled) setLoading(false);
         });
         return () => { cancelled = true; };
-    }, [eager, fallback, isLazyVisual, isRemoteResource, storageKey]);
+    }, [eager, fallback, isHttpUrl, isLazyVisual, isRemoteResource, storageKey]);
 
     return { url, loading };
 }
