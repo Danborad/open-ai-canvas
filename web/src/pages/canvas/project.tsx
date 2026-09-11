@@ -2664,16 +2664,16 @@ function InfiniteCanvasPage() {
 
                     {connectionReplaceHover ? (
                         <div
-                            className="pointer-events-none fixed z-[var(--z-dialog-popover)] flex select-none items-center gap-2 rounded-full border border-white/15 bg-black/75 px-3 py-1.5 text-xs font-medium text-white/95 shadow-[0_12px_32px_rgba(0,0,0,0.5)] backdrop-blur-xl transition-all"
+                            className="pointer-events-none fixed z-[var(--z-dialog-popover)] flex select-none items-center gap-1.5 rounded-full border border-white/15 bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white/90 shadow-[0_8px_24px_rgba(0,0,0,0.4)] backdrop-blur-md transition-all"
                             style={{
-                                left: connectionReplaceHover.clientX + 16,
-                                top: connectionReplaceHover.clientY + 16,
+                                left: connectionReplaceHover.clientX + 14,
+                                top: connectionReplaceHover.clientY + 14,
                                 transform: "translateY(-50%)",
                             }}
                         >
-                            <ArrowLeftRight className="size-3.5 text-blue-400" />
+                            <ArrowLeftRight className="size-3 text-blue-400" />
                             <span>松开替换</span>
-                            <span className="rounded-md border border-white/10 bg-white/10 px-1.5 py-0.5 text-[11px] font-semibold text-white/90">
+                            <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold text-blue-200">
                                 @{connectionReplaceHover.referenceLabel}
                             </span>
                         </div>
