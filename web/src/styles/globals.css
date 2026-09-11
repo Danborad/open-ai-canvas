@@ -9485,47 +9485,30 @@
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 10%, transparent);
     }
 
-    [data-connection-hover-replace="true"] {
-        outline: 2px solid #3b82f6 !important;
-        outline-offset: 2px !important;
-        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4), 0 0 20px rgba(59, 130, 246, 0.35) !important;
+    .canvas-node-reference-chip[data-connection-hover-replace="true"] {
         position: relative;
+        background: #1d4ed8 !important;
+        outline: 2px solid #60a5fa !important;
+        outline-offset: 1px !important;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5), 0 0 20px rgba(59, 130, 246, 0.7) !important;
+        transform: scale(1.08) !important;
+        transition: transform 0.12s ease, box-shadow 0.12s ease !important;
+        z-index: 50 !important;
     }
 
-    .canvas-node-reference-chip[data-connection-hover-replace="true"]::after {
-        content: "松开替换此参考图";
-        position: absolute;
-        bottom: calc(100% + 6px);
-        left: 50%;
-        transform: translateX(-50%);
-        background: #2563eb;
-        color: #ffffff;
-        font-size: 11px;
-        font-weight: 600;
-        padding: 3px 8px;
-        border-radius: 9999px;
-        white-space: nowrap;
-        pointer-events: none;
-        z-index: 999;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    .canvas-node-reference-chip[data-connection-hover-replace="true"] .canvas-node-reference-replace-indicator {
+        display: flex !important;
     }
 
-    .canvas-node-shell[data-connection-hover-replace="true"]::after {
-        content: "松开替换此节点图片";
-        position: absolute;
-        bottom: calc(100% + 8px);
-        left: 50%;
-        transform: translateX(-50%);
-        background: #2563eb;
-        color: #ffffff;
-        font-size: 12px;
-        font-weight: 600;
-        padding: 4px 10px;
-        border-radius: 9999px;
-        white-space: nowrap;
-        pointer-events: none;
-        z-index: 999;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    .canvas-node-reference-chip[data-connection-hover-replace="true"] .canvas-node-reference-label {
+        color: #ffffff !important;
+        font-weight: 700 !important;
+    }
+
+    .canvas-node-reference-chip[data-connection-hover-replace="true"] .canvas-node-reference-order {
+        background: #ffffff !important;
+        color: #1d4ed8 !important;
+        font-weight: 800 !important;
     }
 
     .canvas-node-reference-chip[data-dragging="true"] {

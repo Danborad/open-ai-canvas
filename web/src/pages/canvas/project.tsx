@@ -28,6 +28,7 @@ import { ensureCanvasNodeAsset } from "@/services/project-asset-sync";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { App, Button } from "antd";
+import { ArrowLeftRight } from "lucide-react";
 import { AppModal } from "@/components/ui/product/app-modal";
 import { getNodeSpec } from "@/constant/canvas";
 import { CanvasConfigComposer } from "@/components/canvas/canvas-config-composer";
@@ -951,88 +952,6 @@ function InfiniteCanvasPage() {
         onNodesDeleted: handleNodesDeleted,
     });
 
-    const handleReplaceNodeWithNode = useCallback((targetNodeId: string, sourceNodeId: string) => {
-        const targetNode = nodesRef.current.find((n) => n.id === targetNodeId);
-        const sourceNode = nodesRef.current.find((n) => n.id === sourceNodeId);
-        if (!targetNode || !sourceNode || targetNode.id === sourceNode.id) return;
-        if (targetNode.metadata?.locked) {
-            message.warning("目标节点已锁定，无法替换图片");
-            return;
-        }
-        const sourceContent = sourceNode.metadata?.content;
-        if (!sourceContent) {
-            message.warning("源节点没有可替换的图片内容");
-            return;
-        }
-
-        const oldTitle = targetNode.title;
-        const newTitle = sourceNode.title || targetNode.title;
-        const naturalWidth = sourceNode.metadata?.naturalWidth;
-        const naturalHeight = sourceNode.metadata?.naturalHeight;
-        const fittedSize = naturalWidth && naturalHeight ? fitNodeSize(naturalWidth, naturalHeight) : null;
-
-        const previousNodes = nodesRef.current;
-        const nextNodes = previousNodes.map((n) => {
-            if (n.id === targetNodeId) {
-                return {
-                    ...n,
-                    title: newTitle,
-                    width: fittedSize ? fittedSize.width : n.width,
-                    height: fittedSize ? fittedSize.height : n.height,
-                    metadata: {
-                        ...n.metadata,
-                        content: sourceContent,
-                        storageKey: sourceNode.metadata?.storageKey,
-                        previewContent: sourceNode.metadata?.previewContent,
-                        naturalWidth,
-                        naturalHeight,
-                        status: NODE_STATUS_SUCCESS,
-                    },
-                };
-            }
-            // 同步下游引用的提示词：如果下游节点提示词中包含了 @oldTitle，全部替换为 @newTitle
-            if (oldTitle && newTitle && oldTitle !== newTitle) {
-                const currentPrompt = n.metadata?.composerContent ?? n.metadata?.prompt ?? "";
-                if (currentPrompt.includes(`@${oldTitle}`)) {
-                    const updated = replaceCanvasMentionToken(currentPrompt, `@${oldTitle}`, `@${newTitle}`);
-                    return writeCanvasNodePrompt(n, updated);
-                }
-            }
-            return n;
-        });
-
-        nodesRef.current = nextNodes;
-        setNodes(nextNodes);
-        message.success(`已将节点图片替换为「${newTitle}」${oldTitle !== newTitle ? "，相关提示词已同步更新" : ""}`);
-    }, [message, nodesRef, setNodes]);
-
-    const handleReplaceNodeWithFiles = useCallback((targetNodeId: string, files: File[]) => {
-        const file = files.find((f) => f.type.startsWith("image/"));
-        if (!file) return;
-        const targetNode = nodesRef.current.find((n) => n.id === targetNodeId);
-        if (targetNode?.metadata?.locked) {
-            message.warning("目标节点已锁定，无法替换图片");
-            return;
-        }
-        const oldTitle = targetNode?.title;
-        const newTitle = file.name.replace(/\.[^/.]+$/, "");
-        void replaceNodeMedia(targetNodeId, file).then((success) => {
-            if (success) {
-                if (oldTitle && newTitle && oldTitle !== newTitle) {
-                    setNodes((current) => current.map((n) => {
-                        const prompt = n.metadata?.composerContent ?? n.metadata?.prompt ?? "";
-                        if (prompt.includes(`@${oldTitle}`)) {
-                            const updated = replaceCanvasMentionToken(prompt, `@${oldTitle}`, `@${newTitle}`);
-                            return writeCanvasNodePrompt(n, updated);
-                        }
-                        return n;
-                    }));
-                }
-                message.success("媒体已替换，相关提示词已保持同步");
-            }
-        });
-    }, [message, nodesRef, replaceNodeMedia, setNodes]);
-
     const handleReplaceNodeReference = useCallback((
         targetNodeId: string,
         oldReference: { id: string; nodeId?: string; label?: string; title?: string },
@@ -1091,14 +1010,18 @@ function InfiniteCanvasPage() {
     }, [connectionsRef, message, nodesRef, setConnections, setNodes]);
 
     const handleReplaceNodeReferenceFiles = useCallback((
-        targetNodeId: string,
+        _targetNodeId: string,
         oldReference: { id: string; nodeId?: string; label?: string; title?: string },
         files: File[],
     ) => {
         const file = files.find((f) => f.type.startsWith("image/"));
         if (!file || !oldReference.nodeId) return;
-        handleReplaceNodeWithFiles(oldReference.nodeId, [file]);
-    }, [handleReplaceNodeWithFiles]);
+        void replaceNodeMedia(oldReference.nodeId, file).then((success) => {
+            if (success) {
+                message.success("参考图片已替换");
+            }
+        });
+    }, [message, replaceNodeMedia]);
 
     const {
         cancelPendingConnectionCreate,
@@ -1106,6 +1029,7 @@ function InfiniteCanvasPage() {
         connectionTargetAnchorRatio,
         connectionTargetNodeId,
         connectionApproach,
+        connectionReplaceHover,
         connectingParams,
         createConnectedNode,
         getConnectionCreateDisabledReason,
@@ -1134,7 +1058,6 @@ function InfiniteCanvasPage() {
         setDialogNodeId,
         setDrawingNodeId,
         onReplaceReference: handleReplaceNodeReference,
-        onReplaceNodeWithNode: handleReplaceNodeWithNode,
     });
 
     const batchSourceNodeIds = useMemo(() => nodes
@@ -2550,8 +2473,6 @@ function InfiniteCanvasPage() {
                                     onOpenVersions={openCanvasNodeVersions}
                                      onViewImage={viewCanvasNodeImage}
                                      onReplaceMedia={replaceCanvasNodeMedia}
-                                     onReplaceNodeWithNode={handleReplaceNodeWithNode}
-                                     onReplaceNodeWithFiles={handleReplaceNodeWithFiles}
                                      onOpenTextEditor={openTextNodeEditor}
                                     onOpenDirector={editCanvasDirector}
                                     onOpenDrawing={openDrawingNode}
@@ -2739,6 +2660,20 @@ function InfiniteCanvasPage() {
                             onCreate={(type) => void createConnectedNode(type, pendingConnectionCreate)}
                             onClose={cancelPendingConnectionCreate}
                         />
+                    ) : null}
+
+                    {connectionReplaceHover ? (
+                        <div
+                            className="pointer-events-none fixed z-[var(--z-dialog-popover)] flex select-none items-center gap-1.5 rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-2xl backdrop-blur"
+                            style={{
+                                left: connectionReplaceHover.clientX + 16,
+                                top: connectionReplaceHover.clientY + 16,
+                                transform: "translateY(-50%)",
+                            }}
+                        >
+                            <ArrowLeftRight className="size-3.5" />
+                            <span>松开替换参考图 {connectionReplaceHover.referenceLabel}</span>
+                        </div>
                     ) : null}
 
                     {selectedNodeBounds && !selectionBox && !isCanvasNodeMoving ? (

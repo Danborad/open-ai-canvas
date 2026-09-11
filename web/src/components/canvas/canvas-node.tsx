@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { AlertCircle, ArrowLeftRight, BookOpenCheck, CheckCircle2, ChevronRight, Clapperboard, Copy, Download, Image as ImageIcon, Lock, Maximize2, Music2, Pencil, RefreshCw, ScanSearch, Settings2, Star, Trash2, Type, Video, WandSparkles } from "lucide-react";
+import { AlertCircle, BookOpenCheck, CheckCircle2, ChevronRight, Clapperboard, Copy, Download, Image as ImageIcon, Lock, Maximize2, Music2, Pencil, RefreshCw, ScanSearch, Settings2, Star, Trash2, Type, Video, WandSparkles } from "lucide-react";
 
 import { useCanvasNodeActions } from "./canvas-node-action-context";
 
@@ -64,8 +64,6 @@ type CanvasNodeProps = {
     onOpenVersions?: (node: CanvasNodeData) => void;
     onViewImage?: (node: CanvasNodeData) => void;
     onReplaceMedia?: (node: CanvasNodeData) => void;
-    onReplaceNodeWithNode?: (targetNodeId: string, sourceNodeId: string) => void;
-    onReplaceNodeWithFiles?: (targetNodeId: string, files: File[]) => void;
     onOpenTextEditor?: (node: CanvasNodeData) => void;
     onOpenDirector?: (node: CanvasNodeData) => void;
     onOpenDrawing?: (node: CanvasNodeData) => void;
@@ -114,8 +112,6 @@ export const CanvasNode = React.memo(function CanvasNode({
     onOpenVersions,
     onViewImage,
     onReplaceMedia,
-    onReplaceNodeWithNode,
-    onReplaceNodeWithFiles,
     onOpenTextEditor,
     onOpenDirector,
     onOpenDrawing,
@@ -127,7 +123,6 @@ export const CanvasNode = React.memo(function CanvasNode({
     const [isEditingContent, setIsEditingContent] = useState(false);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [titleDraft, setTitleDraft] = useState(data.title);
-    const [isDropTarget, setIsDropTarget] = useState(false);
     const { download: downloadNode, duplicate: duplicateNode, deleteNode } = useCanvasNodeActions();
     const hasImageContent = data.type === CanvasNodeType.Image && Boolean(data.metadata?.content);
     const hasVideoContent = data.type === CanvasNodeType.Video && Boolean(data.metadata?.content);
@@ -318,53 +313,16 @@ export const CanvasNode = React.memo(function CanvasNode({
                 className="canvas-node-shell relative h-full w-full overflow-visible rounded-[var(--node-radius)]"
                 data-node-state={nodeState}
                 data-connection-tilt={connectionTilt ? "true" : undefined}
-                data-drop-target={isDropTarget ? "true" : undefined}
                 data-state={data.metadata?.status || (isActive ? "active" : isRelated ? "related" : "idle")}
                 style={{
                     background: theme.node.fill,
                     // 固定占位但不绘制描边，避免聚焦切换时边框宽度变化造成白边跳动。
                     border: isComposerNode ? "0" : "1px solid transparent",
-                    boxShadow: isDropTarget ? "0 0 0 2px #3b82f6, 0 0 20px rgba(59, 130, 246, 0.45)" : isComposerNode ? "none" : isSelected || isFocusRelated ? theme.node.hoverShadow : theme.node.shadow,
+                    boxShadow: isComposerNode ? "none" : isSelected || isFocusRelated ? theme.node.hoverShadow : theme.node.shadow,
                     "--connection-tilt-x": `${connectionTilt?.rotateX || 0}deg`,
                     "--connection-tilt-y": `${connectionTilt?.rotateY || 0}deg`,
                     transformOrigin: connectionTilt?.origin,
                 } as React.CSSProperties}
-                onDragOver={(event) => {
-                    if (data.type === CanvasNodeType.Image && !readOnly && !data.metadata?.locked) {
-                        const hasImageNode = event.dataTransfer.types.includes("application/x-canvas-image-node-id");
-                        const hasFiles = event.dataTransfer.types.includes("Files");
-                        if (hasImageNode || hasFiles) {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            event.dataTransfer.dropEffect = "copy";
-                            if (!isDropTarget) setIsDropTarget(true);
-                        }
-                    }
-                }}
-                onDragLeave={(event) => {
-                    if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-                        setIsDropTarget(false);
-                    }
-                }}
-                onDrop={(event) => {
-                    if (data.type === CanvasNodeType.Image && !readOnly && !data.metadata?.locked) {
-                        setIsDropTarget(false);
-                        const sourceNodeId = event.dataTransfer.getData("application/x-canvas-image-node-id");
-                        if (sourceNodeId && sourceNodeId !== data.id && onReplaceNodeWithNode) {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            onReplaceNodeWithNode(data.id, sourceNodeId);
-                            return;
-                        }
-                        const files = Array.from(event.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
-                        if (files.length && onReplaceNodeWithFiles) {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            onReplaceNodeWithFiles(data.id, files);
-                            return;
-                        }
-                    }
-                }}
                 onMouseDown={(event) => onMouseDown(event, data.id)}
                 onDoubleClick={(event) => {
                     if (isBatchRoot) {
@@ -439,15 +397,6 @@ export const CanvasNode = React.memo(function CanvasNode({
                         onMediaPlayRequest={onMediaPlayRequest}
                     />
                 </div>
-
-                {isDropTarget ? (
-                    <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-[inherit] bg-blue-500/20 backdrop-blur-[2px] transition-all">
-                        <span className="flex items-center gap-1.5 rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow-xl">
-                            <ArrowLeftRight className="size-3.5" />
-                            <span>松开直接替换图片</span>
-                        </span>
-                    </div>
-                ) : null}
 
                 {data.type === CanvasNodeType.Text && data.metadata?.workflowKind !== "character" && !readOnly ? (
                     <div
@@ -588,8 +537,6 @@ function areCanvasNodePropsEqual(previous: CanvasNodeProps, next: CanvasNodeProp
         previous.onOpenVersions === next.onOpenVersions &&
         previous.onViewImage === next.onViewImage &&
         previous.onReplaceMedia === next.onReplaceMedia &&
-        previous.onReplaceNodeWithNode === next.onReplaceNodeWithNode &&
-        previous.onReplaceNodeWithFiles === next.onReplaceNodeWithFiles &&
         previous.onOpenTextEditor === next.onOpenTextEditor &&
         previous.onOpenDirector === next.onOpenDirector &&
         previous.onOpenDrawing === next.onOpenDrawing &&

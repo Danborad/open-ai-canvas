@@ -35,7 +35,13 @@ type UseCanvasConnectionControllerOptions = {
     setDialogNodeId: Dispatch<SetStateAction<string | null>>;
     setDrawingNodeId: Dispatch<SetStateAction<string | null>>;
     onReplaceReference?: (targetNodeId: string, oldReference: { id: string; nodeId?: string; label?: string; title?: string }, sourceNodeId: string) => void;
-    onReplaceNodeWithNode?: (targetNodeId: string, sourceNodeId: string) => void;
+};
+
+export type ConnectionReplaceHover = {
+    targetNodeId: string;
+    referenceLabel: string;
+    clientX: number;
+    clientY: number;
 };
 
 type ConnectionDropTarget = {
@@ -84,7 +90,6 @@ export function useCanvasConnectionController({
     setDialogNodeId,
     setDrawingNodeId,
     onReplaceReference,
-    onReplaceNodeWithNode,
 }: UseCanvasConnectionControllerOptions) {
     const { message } = App.useApp();
     const tldrawLicenseKey = useUserStore((state) => state.drawingEngine.tldrawLicenseKey);
@@ -93,6 +98,7 @@ export function useCanvasConnectionController({
     const [connectionTargetNodeId, setConnectionTargetNodeId] = useState<string | null>(null);
     const [connectionApproach, setConnectionApproach] = useState<CanvasConnectionApproach>(null);
     const [connectionTargetAnchorRatio, setConnectionTargetAnchorRatio] = useState<number | undefined>();
+    const [connectionReplaceHover, setConnectionReplaceHover] = useState<ConnectionReplaceHover | null>(null);
     const [pendingConnectionCreate, setPendingConnectionCreate] = useState<PendingConnectionCreate | null>(null);
     const [batchConnectionPreview, setBatchConnectionPreview] = useState<CanvasBatchConnectionPreview | null>(null);
     const [mouseWorld, setMouseWorld] = useState<Position>({ x: 0, y: 0 });
@@ -107,14 +113,24 @@ export function useCanvasConnectionController({
     const latestPointerMoveRef = useRef<PointerEvent | null>(null);
     const hoveredReplaceElRef = useRef<HTMLElement | null>(null);
 
-    const updateConnectionReplaceHover = useCallback((element: HTMLElement | null) => {
-        if (hoveredReplaceElRef.current === element) return;
+    const updateConnectionReplaceHover = useCallback((element: HTMLElement | null, clientX = 0, clientY = 0) => {
+        if (hoveredReplaceElRef.current === element) {
+            if (element) {
+                setConnectionReplaceHover((prev) => prev ? { ...prev, clientX, clientY } : null);
+            }
+            return;
+        }
         if (hoveredReplaceElRef.current) {
             hoveredReplaceElRef.current.removeAttribute("data-connection-hover-replace");
         }
         hoveredReplaceElRef.current = element;
-        if (hoveredReplaceElRef.current) {
-            hoveredReplaceElRef.current.setAttribute("data-connection-hover-replace", "true");
+        if (element) {
+            element.setAttribute("data-connection-hover-replace", "true");
+            const targetNodeId = element.getAttribute("data-target-node-id") || "";
+            const referenceLabel = element.getAttribute("data-reference-label") || "参考图";
+            setConnectionReplaceHover({ targetNodeId, referenceLabel, clientX, clientY });
+        } else {
+            setConnectionReplaceHover(null);
         }
     }, []);
 
@@ -139,13 +155,14 @@ export function useCanvasConnectionController({
         connectingParamsRef.current = next;
         setConnectingParams(next);
         if (!next) {
+            updateConnectionReplaceHover(null);
             setConnectionApproach(null);
             connectingPointerIdRef.current = null;
             connectingPointerStartRef.current = null;
             setConnectionTargetNodeId(null);
             setConnectionTargetAnchorRatio(undefined);
         }
-    }, []);
+    }, [updateConnectionReplaceHover]);
 
     const closeConnectionCreateMenu = useCallback(() => {
         pendingConnectionCreateRef.current = null;
@@ -566,7 +583,7 @@ export function useCanvasConnectionController({
         const currentConnection = connectingParamsRef.current;
         if (!currentConnection) return;
 
-        // 1. 如果是从输出端（source）拖出的连线，优先检查是否拖到了参考图卡片或另一个图片节点上进行替换
+        // 1. 如果是从输出端（source）拖出的连线，检查是否拖到了参考图卡片或参考区上进行替换
         if (currentConnection.handleType === "source" && typeof document !== "undefined") {
             const hitElement = document.elementFromPoint(clientX, clientY);
             if (hitElement) {
@@ -613,21 +630,6 @@ export function useCanvasConnectionController({
                         }
                     }
                 }
-
-                // C) 释放在画布另一个图片节点的卡片上（直接整图替换）
-                const targetNodeElement = hitElement.closest<HTMLElement>("[data-node-id]");
-                if (targetNodeElement) {
-                    const targetNodeId = targetNodeElement.getAttribute("data-node-id");
-                    if (targetNodeId && targetNodeId !== currentConnection.nodeId) {
-                        const targetNode = nodesRef.current.find((n) => n.id === targetNodeId);
-                        const sourceNode = nodesRef.current.find((n) => n.id === currentConnection.nodeId);
-                        if (targetNode?.type === CanvasNodeType.Image && sourceNode?.type === CanvasNodeType.Image && onReplaceNodeWithNode) {
-                            onReplaceNodeWithNode(targetNodeId, sourceNode.id);
-                            setConnecting(null);
-                            return;
-                        }
-                    }
-                }
             }
         }
 
@@ -644,7 +646,7 @@ export function useCanvasConnectionController({
             pendingConnectionCreateRef.current = pending;
             setPendingConnectionCreate(pending);
         }
-    }, [connectNodes, getConnectionDropTarget, onReplaceNodeWithNode, onReplaceReference, screenToCanvas, setConnecting, updateConnectionReplaceHover]);
+    }, [connectNodes, getConnectionDropTarget, onReplaceReference, screenToCanvas, setConnecting, updateConnectionReplaceHover]);
 
     const handleConnectStart = useCallback((event: ReactPointerEvent, nodeId: string, handleType: "source" | "target", handleId?: string, anchorRatio?: number) => {
         event.preventDefault();
@@ -691,10 +693,25 @@ export function useCanvasConnectionController({
             if (!current || connectingPointerIdRef.current !== event.pointerId || pendingConnectionCreateRef.current) return;
             if (current.handleType === "source" && typeof document !== "undefined") {
                 const el = document.elementFromPoint(event.clientX, event.clientY);
-                const chip = el?.closest<HTMLElement>("[data-reference-chip]");
-                const imgNode = !chip ? el?.closest<HTMLElement>("[data-node-id]") : null;
-                const replaceTarget = chip || (imgNode && imgNode.getAttribute("data-node-id") !== current.nodeId ? imgNode : null);
-                updateConnectionReplaceHover(replaceTarget);
+                let chip = el?.closest<HTMLElement>("[data-reference-chip]");
+                if (!chip) {
+                    const shelf = el?.closest<HTMLElement>(".canvas-node-composer-references");
+                    if (shelf) {
+                        const chips = Array.from(shelf.querySelectorAll<HTMLElement>("[data-reference-chip]"));
+                        let closestChip: HTMLElement | null = null;
+                        let minDistance = Number.POSITIVE_INFINITY;
+                        chips.forEach((c) => {
+                            const rect = c.getBoundingClientRect();
+                            const dist = Math.abs(event.clientX - (rect.left + rect.width / 2));
+                            if (dist < minDistance) {
+                                minDistance = dist;
+                                closestChip = c;
+                            }
+                        });
+                        chip = closestChip;
+                    }
+                }
+                updateConnectionReplaceHover(chip || null, event.clientX, event.clientY);
             } else {
                 updateConnectionReplaceHover(null);
             }
@@ -786,6 +803,7 @@ export function useCanvasConnectionController({
         connectionTargetNodeId,
         connectionApproach,
         connectionTargetAnchorRatio,
+        connectionReplaceHover,
         connectingParams,
         createConnectedNode,
         getConnectionCreateDisabledReason,

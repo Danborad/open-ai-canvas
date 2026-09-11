@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
-import { AlertCircle, ArrowLeftRight, BookOpenCheck, Clock3, Download, FileText, GripVertical, Image as ImageIcon, LoaderCircle, Music2, Pencil, Play, RefreshCw, Video } from "lucide-react";
+import { AlertCircle, BookOpenCheck, Clock3, Download, FileText, Image as ImageIcon, LoaderCircle, Music2, Pencil, Play, RefreshCw, Video } from "lucide-react";
 
 import { VideoPlayer } from "@/components/video-player";
 import { CONTENT_MODERATION_ERROR_CODE, generationErrorMessage, isContentModerationError } from "@/lib/generation-error";
@@ -665,37 +665,8 @@ function ImageContent({ node, theme, isBatchRoot, batchCount, batchPreviewNodes,
 
     return (
         <BatchFrame batchPreviewNodes={batchPreviewNodes} batchCount={isBatchRoot ? batchCount : 0} batchExpanded={batchExpanded} batchOpening={batchOpening} batchRecovering={batchRecovering} theme={theme} onToggleBatch={onToggleBatch}>
-            <div ref={imageContainerRef} className="group/image-card relative h-full w-full overflow-hidden rounded-[var(--node-radius)]">
-                {url ? (
-                    <>
-                        <img src={url} alt={node.title} loading="lazy" decoding="async" draggable={false} onDragStart={(event) => event.preventDefault()} onLoad={(event) => fitToImage(event.currentTarget)} className={`pointer-events-none block h-full w-full select-none ${node.metadata?.freeResize ? "object-fill" : "object-contain"}`} />
-                        <div
-                            draggable
-                            onDragStart={(event) => {
-                                event.stopPropagation();
-                                event.dataTransfer.setData("application/x-canvas-image-node-id", node.id);
-                                event.dataTransfer.setData("text/plain", node.id);
-                                event.dataTransfer.effectAllowed = "copyMove";
-                                const img = event.currentTarget.parentElement?.querySelector("img");
-                                if (img) {
-                                    try {
-                                        event.dataTransfer.setDragImage(img, 32, 32);
-                                    } catch {
-                                        // ignore
-                                    }
-                                }
-                            }}
-                            onMouseDown={(event) => event.stopPropagation()}
-                            onPointerDown={(event) => event.stopPropagation()}
-                            className="canvas-image-drag-pill absolute right-2 top-2 z-20 flex cursor-grab select-none items-center gap-1 rounded-md bg-black/75 px-1.5 py-0.5 text-[10px] font-medium text-white/95 shadow-md backdrop-blur opacity-0 transition-all duration-150 hover:scale-105 hover:bg-black/90 active:cursor-grabbing group-hover/image-card:opacity-100"
-                            title="按住拖拽此图片到其他节点或参考图直接替换"
-                            aria-label="拖拽替换此图片"
-                        >
-                            <GripVertical className="size-2.5 opacity-70" />
-                            <span>拖拽替换</span>
-                        </div>
-                    </>
-                ) : <div className="grid size-full place-items-center" style={{ color: theme.node.muted }}>{loading ? <LoaderCircle className="size-5 animate-spin" /> : <ImageIcon className="size-5 opacity-45" />}</div>}
+            <div ref={imageContainerRef} className="h-full w-full overflow-hidden rounded-[var(--node-radius)]">
+                {url ? <img src={url} alt={node.title} loading="lazy" decoding="async" draggable={false} onDragStart={(event) => event.preventDefault()} onLoad={(event) => fitToImage(event.currentTarget)} className={`pointer-events-none block h-full w-full select-none ${node.metadata?.freeResize ? "object-fill" : "object-contain"}`} /> : <div className="grid size-full place-items-center" style={{ color: theme.node.muted }}>{loading ? <LoaderCircle className="size-5 animate-spin" /> : <ImageIcon className="size-5 opacity-45" />}</div>}
             </div>
         </BatchFrame>
     );
