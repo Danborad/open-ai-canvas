@@ -3994,9 +3994,8 @@ test("an in-flight provider request is aborted and drained before the account ch
     const originalWindow = (globalThis as { window?: unknown }).window;
     const originalGetItem = localforage.getItem.bind(localforage);
     const originalSetItem = localforage.setItem.bind(localforage);
+    const indexedValues = new Map<string, string>();
     const localStorageValues = new Map<string, string>();
-    localforage.getItem = (async () => null) as typeof localforage.getItem;
-    localforage.setItem = (async (_key: string, value: string) => value) as typeof localforage.setItem;
     Object.defineProperty(globalThis, "window", {
         configurable: true,
         value: {
@@ -4007,6 +4006,11 @@ test("an in-flight provider request is aborted and drained before the account ch
             },
         },
     });
+    localforage.getItem = (async (key: string) => indexedValues.get(key) ?? null) as typeof localforage.getItem;
+    localforage.setItem = (async (key: string, value: string) => {
+        indexedValues.set(key, value);
+        return value;
+    }) as typeof localforage.setItem;
     setActiveUserScope("account-A");
     const request = beginGenerationConsumer();
     let abortObserved = false;
@@ -4441,6 +4445,54 @@ test("incremental sessions leave cached entities untouched and fetch only the op
         resetRemoteUserDataSync();
         apiClient.defaults.adapter = previousAdapter;
         useCanvasStore.setState({ projects: previousProjects });
+        useAssetStore.setState({ assets: previousAssets });
+        if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
+        else Object.defineProperty(globalThis, "window", { configurable: true, value: originalWindow });
+    }
+});
+
+test("a remote asset page rejects incomplete records instead of patching them into the store", async () => {
+    const previousAdapter = apiClient.defaults.adapter;
+    const previousAssets = useAssetStore.getState().assets;
+    const legacy = {
+        id: "legacy-remote-image",
+        kind: "image",
+        title: "镜头01 · 图片",
+        category: "material",
+        coverUrl: "opaque://legacy",
+        createdAt: "2026-09-01T00:00:00.000Z",
+        updatedAt: "2026-09-01T00:00:00.000Z",
+        data: { dataUrl: "opaque://legacy", width: 1, height: 1, bytes: 1, mimeType: "image/png" },
+    };
+    apiClient.defaults.adapter = async (config) => ({
+        data: { code: 0, data: { assets: [legacy], page: 1, pageSize: 40, total: 1, hasMore: false }, msg: "" },
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        config,
+    });
+    const originalWindow = (globalThis as { window?: unknown }).window;
+    const localStorageValues = new Map<string, string>();
+    Object.defineProperty(globalThis, "window", {
+        configurable: true,
+        value: {
+            setTimeout: () => 1,
+            clearTimeout: () => undefined,
+            localStorage: {
+                getItem: (key: string) => localStorageValues.get(key) ?? null,
+                setItem: (key: string, value: string) => localStorageValues.set(key, value),
+                removeItem: (key: string) => localStorageValues.delete(key),
+            },
+        },
+    });
+    try {
+        useAssetStore.setState({ assets: [] });
+        await initializeRemoteUserDataSession("account-legacy");
+        await expect(loadAssetLibraryPage({ page: 1, pageSize: 40 })).rejects.toThrow(/tags/);
+        expect(useAssetStore.getState().assets).toEqual([]);
+    } finally {
+        resetRemoteUserDataSync();
+        apiClient.defaults.adapter = previousAdapter;
         useAssetStore.setState({ assets: previousAssets });
         if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
         else Object.defineProperty(globalThis, "window", { configurable: true, value: originalWindow });

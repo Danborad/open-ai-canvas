@@ -156,8 +156,12 @@ func RegisterUserDataRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "200"))
-		resources, err := svc.Resources(user.ID, limit)
+		pageSize, err := parsePositiveQueryInt(c.Query("pageSize"), 200)
+		if err != nil {
+			fail(c, http.StatusBadRequest, err)
+			return
+		}
+		resources, err := svc.Resources(user.ID, pageSize)
 		if err != nil {
 			failService(c, err)
 			return
@@ -420,18 +424,13 @@ func RegisterUserDataRoutes(r *gin.RouterGroup, svc *service.Service) {
 			return
 		}
 		if _, paged := c.GetQuery("page"); paged || hasUserAssetPageFilters(c) {
-			page, pageErr := strconv.Atoi(c.DefaultQuery("page", "1"))
-			if pageErr != nil || page < 1 {
-				fail(c, http.StatusBadRequest, service.BadAuthRequest("页码必须是正整数"))
-				return
-			}
-			pageSize, pageSizeErr := strconv.Atoi(c.DefaultQuery("page_size", "40"))
-			if pageSizeErr != nil || pageSize < 1 {
-				fail(c, http.StatusBadRequest, service.BadAuthRequest("每页数量必须是正整数"))
+			page, pageSize, pageErr := parsePaginationQuery(c, 40)
+			if pageErr != nil {
+				fail(c, http.StatusBadRequest, pageErr)
 				return
 			}
 			var folderID *string
-			if value, present := c.GetQuery("folder_id"); present {
+			if value, present := c.GetQuery("folderId"); present {
 				folderID = &value
 			}
 			assets, pageErr := svc.UserAssetsPage(user.ID, page, pageSize, service.UserAssetPageFilter{
@@ -607,9 +606,12 @@ func RegisterUserDataRoutes(r *gin.RouterGroup, svc *service.Service) {
 			return
 		}
 		if c.Query("page") != "" {
-			page, _ := strconv.Atoi(c.Query("page"))
-			pageSize, _ := strconv.Atoi(c.Query("page_size"))
-			result, pageErr := svc.UserCanvasProjectsPage(user.ID, page, pageSize, c.Query("project_id"), c.Query("q"), c.Query("sort"))
+			page, pageSize, pageErr := parsePaginationQuery(c, 40)
+			if pageErr != nil {
+				fail(c, http.StatusBadRequest, pageErr)
+				return
+			}
+			result, pageErr := svc.UserCanvasProjectsPage(user.ID, page, pageSize, c.Query("projectId"), c.Query("q"), c.Query("sort"))
 			if pageErr != nil {
 				failService(c, pageErr)
 				return
@@ -684,7 +686,7 @@ func RegisterUserDataRoutes(r *gin.RouterGroup, svc *service.Service) {
 }
 
 func hasUserAssetPageFilters(c *gin.Context) bool {
-	for _, key := range []string{"page_size", "kind", "category", "folder_id", "uncategorized", "status", "q"} {
+	for _, key := range []string{"pageSize", "kind", "category", "folderId", "uncategorized", "status", "q"} {
 		if _, present := c.GetQuery(key); present {
 			return true
 		}

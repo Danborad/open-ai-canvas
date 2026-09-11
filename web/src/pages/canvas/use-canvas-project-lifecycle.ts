@@ -9,7 +9,7 @@ import { normalizeCanvasNodeTimestamps } from "@/lib/canvas/canvas-node-timestam
 import { hydrateAssistantImages, resetInterruptedGeneration } from "@/lib/canvas/canvas-project-generation";
 import { repairMissingCanvasAssets } from "@/services/canvas-asset-repair";
 import { listAddedSkills, type Skill } from "@/services/api/skills";
-import { createCanvasProjectWithRemoteSync, deleteCanvasProjectsWithRemoteSync, loadCanvasProjectForEditing, saveRemoteUserDataNow } from "@/services/user-data-sync";
+import { createCanvasProjectWithRemoteSync, deleteCanvasProjectsWithRemoteSync, loadCanvasProjectForEditing, localSavedRemotePendingMessage, saveRemoteUserDataNow } from "@/services/user-data-sync";
 import { flushCanvasStorePersistence, useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -250,8 +250,8 @@ export function useCanvasProjectLifecycle({
             await saveRemoteUserDataNow();
             message.success("画布布局和位置已保存");
         } catch (error) {
-            const detail = error instanceof Error ? error.message : "未知错误";
-            message.warning(`本地画布布局已保存，云端同步失败：${detail}`);
+            // 本地 IndexedDB 已写入；云端失败只排队重试，不能把导入方的画布状态回滚。
+            message.warning(localSavedRemotePendingMessage("本地画布布局已保存", error));
         }
         return true;
     }, [activeChatId, backgroundMode, canvasAppearance, chatSessions, connectionsRef, currentProject?.directorScenes, message, nodesRef, projectId, showImageInfo, updateProject, viewportRef]);

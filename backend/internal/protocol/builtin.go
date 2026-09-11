@@ -74,9 +74,8 @@ func Builtins() *Registry {
 	}
 	registry, err := NewRegistry(
 		openAIChatAdapter(), openAIResponsesAdapter(), claudeAdapter(),
-		openAIImagesAdapter(), grokImagesAdapter(), arkImagesAdapter(), jimengImagesAdapter(), geminiImagesAdapter(), senseNovaImagesAdapter(),
 		openAIVideosAdapter(), newAPIChannel1Adapter(), newAPIVideosAdapter(), xAIVideosAdapter(), arkVideosAdapter(), jimengVideosAdapter(), geminiVeoAdapter(), novitaVideosAdapter(), miniMaxVideosAdapter(),
-		openAIAudioAdapter(), grokAudioAdapter(), asyncAudioAdapter(), agnesAdapter(),
+		agnesAdapter(),
 	)
 	if err != nil {
 		panic(err)
