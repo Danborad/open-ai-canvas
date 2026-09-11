@@ -131,13 +131,18 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
         if (!useRichEditor) pendingScrollTopRef.current = null;
     }, [useRichEditor, value]);
 
+    const referenceSignature = useMemo(() => activeReferences.map((r) => `${r.id}:${r.label}:${r.previewUrl || ""}`).join("|"), [activeReferences]);
+    const lastReferenceSignatureRef = useRef(referenceSignature);
+
     useLayoutEffect(() => {
         if (!useRichEditor) return;
         const editor = editorRef.current;
         if (!editor || composingRef.current) return;
         const isFocused = document.activeElement === editor;
         const currentValue = serializeEditableValue(editor);
-        if (currentValue === value && lastRenderedValueRef.current === value) {
+        const refChanged = lastReferenceSignatureRef.current !== referenceSignature;
+        lastReferenceSignatureRef.current = referenceSignature;
+        if (!refChanged && currentValue === value && lastRenderedValueRef.current === value) {
             syncInlineMentionPreviews(editor, activeReferences);
             pendingSelectionRef.current = null;
             return;
@@ -151,7 +156,7 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
         reportContentSize(editor);
         if (scrollTop !== null) editor.scrollTop = scrollTop;
         pendingScrollTopRef.current = null;
-    }, [activeReferences, reportContentSize, useRichEditor, value]);
+    }, [activeReferences, referenceSignature, reportContentSize, useRichEditor, value]);
 
     useLayoutEffect(() => {
         const anchor = useRichEditor ? editorRef.current : textareaRef.current;
@@ -680,9 +685,15 @@ function createInlinePreview(reference: CanvasResourceReference) {
 /** Resource URLs resolve independently of prompt text; keep chips fresh without replacing the editable selection. */
 function syncInlineMentionPreviews(editor: HTMLElement, references: CanvasResourceReference[]) {
     const byId = new Map(references.map((reference) => [reference.id, reference]));
+    const byLabel = new Map(references.map((reference) => [reference.label, reference]));
     editor.querySelectorAll<HTMLElement>("[data-mention-reference-id]").forEach((chip) => {
-        const reference = byId.get(chip.dataset.mentionReferenceId || "");
+        let reference = byId.get(chip.dataset.mentionReferenceId || "");
+        if (!reference) {
+            const labelText = chip.querySelector(".canvas-resource-inline-label")?.textContent;
+            if (labelText) reference = byLabel.get(labelText);
+        }
         if (!reference) return;
+        chip.dataset.mentionReferenceId = reference.id;
         const preview = chip.querySelector(".canvas-resource-inline-preview");
         const hasImage = ["image", "video", "character"].includes(reference.kind) && Boolean(reference.previewUrl);
         const hasVideo = !hasImage && reference.kind === "video" && Boolean(reference.mediaUrl);

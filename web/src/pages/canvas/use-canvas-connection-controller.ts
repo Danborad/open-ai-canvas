@@ -34,6 +34,8 @@ type UseCanvasConnectionControllerOptions = {
     setContextMenu: Dispatch<SetStateAction<ContextMenuState | null>>;
     setDialogNodeId: Dispatch<SetStateAction<string | null>>;
     setDrawingNodeId: Dispatch<SetStateAction<string | null>>;
+    onReplaceReference?: (targetNodeId: string, oldReference: { id: string; nodeId?: string; label?: string; title?: string }, sourceNodeId: string) => void;
+    onReplaceNodeWithNode?: (targetNodeId: string, sourceNodeId: string) => void;
 };
 
 type ConnectionDropTarget = {
@@ -81,6 +83,8 @@ export function useCanvasConnectionController({
     setContextMenu,
     setDialogNodeId,
     setDrawingNodeId,
+    onReplaceReference,
+    onReplaceNodeWithNode,
 }: UseCanvasConnectionControllerOptions) {
     const { message } = App.useApp();
     const tldrawLicenseKey = useUserStore((state) => state.drawingEngine.tldrawLicenseKey);
@@ -101,6 +105,18 @@ export function useCanvasConnectionController({
     const batchConnectionPointerStartRef = useRef<Position | null>(null);
     const pointerMoveFrameRef = useRef<number | null>(null);
     const latestPointerMoveRef = useRef<PointerEvent | null>(null);
+    const hoveredReplaceElRef = useRef<HTMLElement | null>(null);
+
+    const updateConnectionReplaceHover = useCallback((element: HTMLElement | null) => {
+        if (hoveredReplaceElRef.current === element) return;
+        if (hoveredReplaceElRef.current) {
+            hoveredReplaceElRef.current.removeAttribute("data-connection-hover-replace");
+        }
+        hoveredReplaceElRef.current = element;
+        if (hoveredReplaceElRef.current) {
+            hoveredReplaceElRef.current.setAttribute("data-connection-hover-replace", "true");
+        }
+    }, []);
 
     useLayoutEffect(() => {
         connectingParamsRef.current = connectingParams;
@@ -545,9 +561,76 @@ export function useCanvasConnectionController({
     }, [finishBatchConnection, message]);
 
     const finishConnection = useCallback((clientX: number, clientY: number) => {
+        updateConnectionReplaceHover(null);
         if (pendingConnectionCreateRef.current) return;
         const currentConnection = connectingParamsRef.current;
         if (!currentConnection) return;
+
+        // 1. 如果是从输出端（source）拖出的连线，优先检查是否拖到了参考图卡片或另一个图片节点上进行替换
+        if (currentConnection.handleType === "source" && typeof document !== "undefined") {
+            const hitElement = document.elementFromPoint(clientX, clientY);
+            if (hitElement) {
+                // A) 直接释放在提示词面板的参考图卡片上
+                const refChip = hitElement.closest<HTMLElement>("[data-reference-chip]");
+                if (refChip) {
+                    const targetNodeId = refChip.getAttribute("data-target-node-id");
+                    const oldNodeId = refChip.getAttribute("data-reference-node-id");
+                    const oldLabel = refChip.getAttribute("data-reference-label") || "";
+                    const oldRefId = refChip.getAttribute("data-reference-id") || "";
+                    const oldTitle = refChip.getAttribute("data-reference-title") || oldLabel;
+                    if (targetNodeId && oldNodeId && targetNodeId !== currentConnection.nodeId && onReplaceReference) {
+                        onReplaceReference(targetNodeId, { id: oldRefId, nodeId: oldNodeId, label: oldLabel, title: oldTitle }, currentConnection.nodeId);
+                        setConnecting(null);
+                        return;
+                    }
+                }
+
+                // B) 释放在提示词参考架容器内（自动就近匹配最近的参考卡片）
+                const refShelf = hitElement.closest<HTMLElement>(".canvas-node-composer-references");
+                if (refShelf) {
+                    const chips = Array.from(refShelf.querySelectorAll<HTMLElement>("[data-reference-chip]"));
+                    let closestChip: HTMLElement | null = null;
+                    let minDistance = Number.POSITIVE_INFINITY;
+                    chips.forEach((chip) => {
+                        const rect = chip.getBoundingClientRect();
+                        const centerX = rect.left + rect.width / 2;
+                        const dist = Math.abs(clientX - centerX);
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            closestChip = chip;
+                        }
+                    });
+                    if (closestChip) {
+                        const targetNodeId = (closestChip as HTMLElement).getAttribute("data-target-node-id");
+                        const oldNodeId = (closestChip as HTMLElement).getAttribute("data-reference-node-id");
+                        const oldLabel = (closestChip as HTMLElement).getAttribute("data-reference-label") || "";
+                        const oldRefId = (closestChip as HTMLElement).getAttribute("data-reference-id") || "";
+                        const oldTitle = (closestChip as HTMLElement).getAttribute("data-reference-title") || oldLabel;
+                        if (targetNodeId && oldNodeId && targetNodeId !== currentConnection.nodeId && onReplaceReference) {
+                            onReplaceReference(targetNodeId, { id: oldRefId, nodeId: oldNodeId, label: oldLabel, title: oldTitle }, currentConnection.nodeId);
+                            setConnecting(null);
+                            return;
+                        }
+                    }
+                }
+
+                // C) 释放在画布另一个图片节点的卡片上（直接整图替换）
+                const targetNodeElement = hitElement.closest<HTMLElement>("[data-node-id]");
+                if (targetNodeElement) {
+                    const targetNodeId = targetNodeElement.getAttribute("data-node-id");
+                    if (targetNodeId && targetNodeId !== currentConnection.nodeId) {
+                        const targetNode = nodesRef.current.find((n) => n.id === targetNodeId);
+                        const sourceNode = nodesRef.current.find((n) => n.id === currentConnection.nodeId);
+                        if (targetNode?.type === CanvasNodeType.Image && sourceNode?.type === CanvasNodeType.Image && onReplaceNodeWithNode) {
+                            onReplaceNodeWithNode(targetNodeId, sourceNode.id);
+                            setConnecting(null);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
         const dropTarget = getConnectionDropTarget(clientX, clientY, currentConnection);
         if (dropTarget.nodeId) {
             connectNodes(currentConnection, dropTarget.nodeId, dropTarget.handleId, dropTarget.anchorRatio);
@@ -561,7 +644,7 @@ export function useCanvasConnectionController({
             pendingConnectionCreateRef.current = pending;
             setPendingConnectionCreate(pending);
         }
-    }, [connectNodes, getConnectionDropTarget, screenToCanvas, setConnecting]);
+    }, [connectNodes, getConnectionDropTarget, onReplaceNodeWithNode, onReplaceReference, screenToCanvas, setConnecting, updateConnectionReplaceHover]);
 
     const handleConnectStart = useCallback((event: ReactPointerEvent, nodeId: string, handleType: "source" | "target", handleId?: string, anchorRatio?: number) => {
         event.preventDefault();
@@ -606,6 +689,15 @@ export function useCanvasConnectionController({
             }
             const current = connectingParamsRef.current;
             if (!current || connectingPointerIdRef.current !== event.pointerId || pendingConnectionCreateRef.current) return;
+            if (current.handleType === "source" && typeof document !== "undefined") {
+                const el = document.elementFromPoint(event.clientX, event.clientY);
+                const chip = el?.closest<HTMLElement>("[data-reference-chip]");
+                const imgNode = !chip ? el?.closest<HTMLElement>("[data-node-id]") : null;
+                const replaceTarget = chip || (imgNode && imgNode.getAttribute("data-node-id") !== current.nodeId ? imgNode : null);
+                updateConnectionReplaceHover(replaceTarget);
+            } else {
+                updateConnectionReplaceHover(null);
+            }
             const dropTarget = getConnectionDropTarget(event.clientX, event.clientY, current);
             const point = screenToCanvas(event.clientX, event.clientY);
             setConnectionApproach((previous) => latchCanvasConnectionApproach(previous, dropTarget.nodeId, point));
@@ -662,6 +754,7 @@ export function useCanvasConnectionController({
         };
         const handlePointerCancel = (event: PointerEvent) => {
             cancelPendingPointerMove();
+            updateConnectionReplaceHover(null);
             if (batchConnectionPointerIdRef.current === event.pointerId) {
                 clearBatchConnection();
                 return;
@@ -670,6 +763,7 @@ export function useCanvasConnectionController({
         };
         const cancel = () => {
             cancelPendingPointerMove();
+            updateConnectionReplaceHover(null);
             if (connectingParamsRef.current) setConnecting(null);
             if (batchConnectionPreviewRef.current) clearBatchConnection();
         };

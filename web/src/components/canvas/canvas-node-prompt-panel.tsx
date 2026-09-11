@@ -446,6 +446,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
             <>
                 <div className="canvas-node-composer-editor" style={{ height }}>
                     <ConnectedReferenceShelf
+                        targetNodeId={node.id}
                         references={resolvedMentionReferences}
                         theme={theme}
                         onInsert={insertPromptReference}
@@ -677,6 +678,7 @@ function referenceShelfHeading(references: CanvasResourceReference[]) {
 }
 
 function ConnectedReferenceShelf({
+    targetNodeId,
     references,
     theme,
     onInsert,
@@ -685,6 +687,7 @@ function ConnectedReferenceShelf({
     onReplaceReference,
     onReplaceReferenceFiles,
 }: {
+    targetNodeId?: string;
     references: CanvasResourceReference[];
     theme: CanvasTheme;
     onInsert: (reference: CanvasResourceReference) => void;
@@ -728,6 +731,12 @@ function ConnectedReferenceShelf({
                             <span
                                 key={reference.id}
                                 className="canvas-node-reference-chip relative"
+                                data-reference-chip="true"
+                                data-reference-id={reference.id}
+                                data-reference-node-id={reference.nodeId}
+                                data-reference-label={reference.label}
+                                data-reference-title={reference.title || reference.label}
+                                data-target-node-id={targetNodeId}
                                 data-dragging={draggedReferenceId === reference.nodeId || undefined}
                                 data-drop-target={isDropTarget ? "true" : undefined}
                                 style={{
