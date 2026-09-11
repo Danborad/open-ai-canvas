@@ -9494,10 +9494,6 @@
         z-index: 50 !important;
     }
 
-    .canvas-node-reference-chip[data-connection-hover-replace="true"] .canvas-node-reference-replace-indicator {
-        display: flex !important;
-    }
-
     .canvas-node-reference-chip[data-dragging="true"] {
         opacity: 0.58;
     }

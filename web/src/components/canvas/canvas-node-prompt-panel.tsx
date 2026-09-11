@@ -794,16 +794,6 @@ function ConnectedReferenceShelf({
                                     }
                                 }}
                             >
-                                <span className="canvas-node-reference-replace-indicator pointer-events-none absolute -top-2.5 right-1 z-30 hidden items-center gap-1 rounded-full border border-blue-400/40 bg-black/85 px-1.5 py-0.5 text-[10px] font-medium text-blue-300 shadow-lg backdrop-blur-md">
-                                    <ArrowLeftRight className="size-2.5 text-blue-400" />
-                                    <span>替换</span>
-                                </span>
-                                {isDropTarget ? (
-                                    <span className="pointer-events-none absolute -top-2.5 right-1 z-30 flex items-center gap-1 rounded-full border border-blue-400/40 bg-black/85 px-1.5 py-0.5 text-[10px] font-medium text-blue-300 shadow-lg backdrop-blur-md">
-                                        <ArrowLeftRight className="size-2.5 text-blue-400" />
-                                        <span>替换</span>
-                                    </span>
-                                ) : null}
                                 {onReorder ? (
                                     <button
                                         type="button"
