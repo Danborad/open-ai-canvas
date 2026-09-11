@@ -596,6 +596,10 @@ export function useCanvasConnectionController({
                     const oldRefId = refChip.getAttribute("data-reference-id") || "";
                     const oldTitle = refChip.getAttribute("data-reference-title") || oldLabel;
                     if (targetNodeId && oldNodeId && targetNodeId !== currentConnection.nodeId && onReplaceReference) {
+                        if (oldNodeId === currentConnection.nodeId) {
+                            setConnecting(null);
+                            return;
+                        }
                         onReplaceReference(targetNodeId, { id: oldRefId, nodeId: oldNodeId, label: oldLabel, title: oldTitle }, currentConnection.nodeId);
                         setConnecting(null);
                         return;
@@ -624,6 +628,10 @@ export function useCanvasConnectionController({
                         const oldRefId = (closestChip as HTMLElement).getAttribute("data-reference-id") || "";
                         const oldTitle = (closestChip as HTMLElement).getAttribute("data-reference-title") || oldLabel;
                         if (targetNodeId && oldNodeId && targetNodeId !== currentConnection.nodeId && onReplaceReference) {
+                            if (oldNodeId === currentConnection.nodeId) {
+                                setConnecting(null);
+                                return;
+                            }
                             onReplaceReference(targetNodeId, { id: oldRefId, nodeId: oldNodeId, label: oldLabel, title: oldTitle }, currentConnection.nodeId);
                             setConnecting(null);
                             return;

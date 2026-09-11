@@ -253,15 +253,19 @@ export function replaceCanvasReferenceMentions(
     replacementTitle?: string,
 ): string {
     let result = prompt;
-    if (oldReference.label) {
-        result = replaceCanvasMentionToken(result, `@${oldReference.label}`, replacementToken);
+    const cleanToken = replacementToken.startsWith("@") ? replacementToken : `@${replacementToken}`;
+    const cleanOldLabel = oldReference.label?.replace(/^@/, "");
+    if (cleanOldLabel) {
+        result = replaceCanvasMentionToken(result, `@${cleanOldLabel}`, cleanToken);
     }
-    if (oldReference.title && oldReference.title !== oldReference.label) {
-        const targetTitleToken = replacementTitle ? `@${replacementTitle}` : replacementToken;
-        result = replaceCanvasMentionToken(result, `@${oldReference.title}`, targetTitleToken);
+    const cleanOldTitle = oldReference.title?.replace(/^@/, "");
+    if (cleanOldTitle && cleanOldTitle !== cleanOldLabel) {
+        const cleanRepTitle = replacementTitle?.replace(/^@/, "");
+        const targetTitleToken = cleanRepTitle ? `@${cleanRepTitle}` : cleanToken;
+        result = replaceCanvasMentionToken(result, `@${cleanOldTitle}`, targetTitleToken);
     }
     if (oldReference.nodeId) {
-        result = replaceCanvasMentionToken(result, canvasNodeMentionToken(oldReference.nodeId), replacementToken);
+        result = replaceCanvasMentionToken(result, canvasNodeMentionToken(oldReference.nodeId), cleanToken);
     }
     return result;
 }

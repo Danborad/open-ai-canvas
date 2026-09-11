@@ -412,4 +412,18 @@ describe("replace canvas reference mentions", () => {
         const replaced = replaceCanvasReferenceMentions(prompt, oldRef, "@图片9");
         expect(replaced).toBe("@图片9 和 @图片10 及 @图片11，不要改动 @图片10");
     });
+
+    test("自动规范化带有或缺失@前缀的参数", () => {
+        const oldRef: CanvasResourceReference = {
+            id: "node-old",
+            nodeId: "node-old",
+            kind: "image",
+            label: "@图片1",
+            title: "@画册",
+            active: true,
+        };
+        const prompt = "@图片1 的画风结合 @画册 的色调";
+        const replaced = replaceCanvasReferenceMentions(prompt, oldRef, "图片2", "新封面");
+        expect(replaced).toBe("@图片2 的画风结合 @新封面 的色调");
+    });
 });
