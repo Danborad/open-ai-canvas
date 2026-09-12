@@ -13,7 +13,8 @@ import { ChannelModelSettings } from "../src/pages/settings/channel-video-pricin
 import { fetchChannelModels } from "../src/services/api/image";
 import { apiClient } from "../src/services/api/request";
 import { createVideoGenerationTask } from "../src/services/api/video";
-import { createModelChannel, defaultConfig, modelDisplayName, normalizeConfigSnapshot, resolveModelRequestConfig, selectableModelsByCapability, type AiConfig } from "../src/stores/use-config-store";
+import { buildModelPickerOptionGroups } from "../src/components/model-picker";
+import { createModelChannel, defaultConfig, encodeChannelModel, modelDisplayName, normalizeConfigSnapshot, resolveModelRequestConfig, selectableModelsByCapability, type AiConfig } from "../src/stores/use-config-store";
 
 const originalAxiosRequest = axios.request;
 const originalApiRequest = apiClient.request;
@@ -410,5 +411,65 @@ describe("public channel model catalog", () => {
         expect(html).toContain("768P竖 · 16:9 · 8s");
         expect(panelHtml).toMatch(/aria-pressed="true"[^>]*>768P竖<\/button>/);
         expect(body.resolution_name).toBe("768p竖");
+    });
+
+    test("merges channels with same publicAlias into a single group while keeping unaliased channels separate", () => {
+        const ch1 = createModelChannel({
+            id: "ch-1",
+            name: "chat2api 1K",
+            publicAlias: "福利渠道",
+            scope: "system",
+            models: ["gpt-image-2", "gpt-image-2.5"],
+        });
+        const ch2 = createModelChannel({
+            id: "ch-2",
+            name: "flow2api",
+            publicAlias: "福利渠道",
+            scope: "system",
+            models: ["Nano Banana Pro", "Nano Banana 2"],
+        });
+        const ch3 = createModelChannel({
+            id: "ch-3",
+            name: "newapi",
+            publicAlias: "",
+            scope: "system",
+            models: ["gemini-pro"],
+        });
+
+        const testConfig: AiConfig = {
+            ...defaultConfig,
+            channels: [ch1, ch2, ch3],
+        };
+
+        const allOptions = [
+            encodeChannelModel("ch-1", "gpt-image-2"),
+            encodeChannelModel("ch-1", "gpt-image-2.5"),
+            encodeChannelModel("ch-2", "Nano Banana Pro"),
+            encodeChannelModel("ch-2", "Nano Banana 2"),
+            encodeChannelModel("ch-3", "gemini-pro"),
+        ];
+
+        // 1. 当开启分组合并时
+        const grouped = buildModelPickerOptionGroups(testConfig, allOptions, true);
+        expect(grouped.length).toBe(2); // 1个福利渠道合并组 + 1个newapi独立组
+
+        const fuliGroup = grouped.find((g) => g.label === "福利渠道");
+        expect(fuliGroup).toBeDefined();
+        // 福利渠道组内应包含来自 ch1 和 ch2 的全部 4 个模型
+        expect(fuliGroup?.models.flatMap((m) => m.models)).toEqual([
+            encodeChannelModel("ch-1", "gpt-image-2"),
+            encodeChannelModel("ch-1", "gpt-image-2.5"),
+            encodeChannelModel("ch-2", "Nano Banana Pro"),
+            encodeChannelModel("ch-2", "Nano Banana 2"),
+        ]);
+
+        const newapiGroup = grouped.find((g) => g.label === "newapi");
+        expect(newapiGroup).toBeDefined();
+        expect(newapiGroup?.models.flatMap((m) => m.models)).toEqual([encodeChannelModel("ch-3", "gemini-pro")]);
+
+        // 2. 当停用分组合并时，各渠道按原名独立展示
+        const unmerged = buildModelPickerOptionGroups(testConfig, allOptions, false);
+        expect(unmerged.length).toBe(3);
+        expect(unmerged.map((g) => g.label)).toEqual(["chat2api 1K", "flow2api", "newapi"]);
     });
 });

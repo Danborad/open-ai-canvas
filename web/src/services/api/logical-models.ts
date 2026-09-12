@@ -140,6 +140,7 @@ export type PublicChannelCatalog = {
     id: string;
     name: string;
     displayName: string;
+    publicAlias?: string;
     sortOrder?: number;
     models: PublicChannelModel[];
 };

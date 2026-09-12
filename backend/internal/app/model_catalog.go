@@ -32,6 +32,7 @@ type PublicChannelCatalog struct {
 	ID          string               `json:"id"`
 	Name        string               `json:"name"`
 	DisplayName string               `json:"displayName"`
+	PublicAlias string               `json:"publicAlias"`
 	SortOrder   int                  `json:"sortOrder"`
 	Models      []PublicChannelModel `json:"models"`
 }
@@ -144,8 +145,9 @@ func (s *Service) publicSystemChannelCatalog(intent *ModelRequestIntent) ([]Publ
 		if len(publicModels) > 0 {
 			result = append(result, PublicChannelCatalog{
 				ID:          channel.ID,
-				Name:        channel.PublicName(),
+				Name:        channel.Name,
 				DisplayName: channel.PublicName(),
+				PublicAlias: channel.PublicAlias,
 				SortOrder:   channel.SortOrder,
 				Models:      publicModels,
 			})
