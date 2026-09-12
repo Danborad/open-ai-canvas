@@ -64,6 +64,7 @@ function AgentWorkingElapsed() {
 
 export function AgentChatMessage({
     item,
+    model,
     theme,
     user,
     isStreaming = false,
@@ -74,6 +75,7 @@ export function AgentChatMessage({
     onRetry,
 }: {
     item: CanvasAgentChatMessage;
+    model?: string;
     theme: (typeof canvasThemes)[keyof typeof canvasThemes];
     user: LocalUser | null;
     isStreaming?: boolean;
@@ -105,7 +107,7 @@ export function AgentChatMessage({
     }
     return (
         <div className={`flex items-start gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}>
-            {!isUser ? <AgentAvatar theme={theme} /> : null}
+            {!isUser ? <AgentAvatar model={item.role === "assistant" ? model : undefined} theme={theme} /> : null}
             <div className={`min-w-0 max-w-[86%] text-sm leading-6 ${isUser ? "rounded-md px-3 py-2.5 text-right" : "text-left"}`} style={{ color, ...(isUser ? { background: theme.accent.primarySoft } : {}) }}>
                 {item.role === "assistant" ? (
                     <AIMessageMarkdown className="text-left" isStreaming={isStreaming}>
@@ -580,10 +582,37 @@ function AgentDetailBlock({ detail, theme }: { detail: unknown; theme: (typeof c
     );
 }
 
-function AgentAvatar({ theme }: { theme: (typeof canvasThemes)[keyof typeof canvasThemes] }) {
+function resolveAssistantIcon(model?: string): { kind: "color-svg"; url: string } | { kind: "mono-svg"; url: string } | { kind: "logo" } {
+    if (!model) return { kind: "logo" };
+    const m = model.toLowerCase();
+    if (m.includes("gemini")) return { kind: "color-svg", url: "/icons/gemini.svg" };
+    if (m.includes("claude")) return { kind: "color-svg", url: "/icons/claude.svg" };
+    if (m.includes("deepseek")) return { kind: "color-svg", url: "/icons/deepseek.svg" };
+    if (m.includes("grok") || m.includes("xai")) return { kind: "color-svg", url: "/icons/grok.svg" };
+    if (m.includes("glm") || m.includes("zhipu")) return { kind: "color-svg", url: "/icons/glm.svg" };
+    if (m.includes("gpt") || m.includes("openai")) return { kind: "mono-svg", url: "/icons/openai.svg" };
+    return { kind: "logo" };
+}
+
+function AgentAvatar({ model, theme }: { model?: string; theme: (typeof canvasThemes)[keyof typeof canvasThemes] }) {
+    const icon = resolveAssistantIcon(model);
+    if (icon.kind === "color-svg") {
+        return (
+            <span className="grid size-7 shrink-0 place-items-center rounded-full" style={{ background: theme.accent.primarySoft }} role="img" aria-label={model || "AI Assistant"}>
+                <img src={icon.url} alt="" className="size-4 object-contain" />
+            </span>
+        );
+    }
+    if (icon.kind === "mono-svg") {
+        return (
+            <span className="grid size-7 shrink-0 place-items-center" role="img" aria-label={model || "AI Assistant"}>
+                <span className="size-4 opacity-80" style={{ background: theme.node.text, WebkitMask: `url(${icon.url}) center / contain no-repeat`, mask: `url(${icon.url}) center / contain no-repeat` }} />
+            </span>
+        );
+    }
     return (
-        <span className="grid size-7 shrink-0 place-items-center" role="img" aria-label="OpenAI">
-            <span className="size-4 opacity-80" style={{ background: theme.node.text, WebkitMask: "url(/icons/openai.svg) center / contain no-repeat", mask: "url(/icons/openai.svg) center / contain no-repeat" }} />
+        <span className="grid size-7 shrink-0 place-items-center" role="img" aria-label={model || "AI Assistant"}>
+            <span className="size-4 opacity-80" style={{ background: theme.node.text, WebkitMask: "url(/logo.svg) center / contain no-repeat", mask: "url(/logo.svg) center / contain no-repeat" }} />
         </span>
     );
 }

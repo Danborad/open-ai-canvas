@@ -973,7 +973,7 @@ export function CanvasAssistantPanel({
                                 <Fragment key={message.id}>
                                 {agentBusy && index === messages.findLastIndex((item) => item.role === "user") + 1 ? <div className="creative-agent-thinking-wrap"><AgentWorkingMessage theme={theme} /></div> : null}
                                 <div className={message.role === "tool" ? "agent-tool-message" : "space-y-2"}>
-                                    <AgentChatMessage item={assistantMessageToChatMessage(message)} theme={theme} user={user} isStreaming={agentBusy && message.id === messages.at(-1)?.id && message.role === "assistant" && !canvasCreativeDetail(message)} onRejectTool={rejectOnlineTool} onApproveTool={approveOnlineTool} onQuickAction={submitQuickAction} />
+                                    <AgentChatMessage item={assistantMessageToChatMessage(message)} model={effectiveConfig.textModel || effectiveConfig.model} theme={theme} user={user} isStreaming={agentBusy && message.id === messages.at(-1)?.id && message.role === "assistant" && !canvasCreativeDetail(message)} onRejectTool={rejectOnlineTool} onApproveTool={approveOnlineTool} onQuickAction={submitQuickAction} />
                                     {canvasCreativeDetail(message) && <CanvasCreativeInteraction
                                         message={message} sessionId={activeSession!.id} active={message.id === activeCreativeId && !isRunning && agentMode === "online"} config={effectiveConfig}
                                         superseded={message.id !== activeCreativeId}

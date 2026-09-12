@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, Dropdown } from "antd";
+import { App, Button, Dropdown } from "antd";
 import localforage from "localforage";
 import type { CanvasAssistantMessage } from "@/types/canvas";
 import type { AiConfig } from "@/stores/use-config-store";
@@ -59,7 +59,19 @@ export function CanvasCreativeInteraction(props: Props) {
     const presentationAttempted = useRef(false);
     const hadControl = useRef(false);
     const scope = getActiveUserScope();
-    const invoke = (promise?: Promise<unknown>) => { if (promise) { setError(""); void promise.catch((cause) => { if (!(cause instanceof DOMException && cause.name === "AbortError")) setError(cause instanceof Error ? cause.message : "操作未完成"); }); } };
+    const { message } = App.useApp();
+    const invoke = (promise?: Promise<unknown>) => {
+        if (promise) {
+            setError("");
+            void promise.catch((cause) => {
+                if (!(cause instanceof DOMException && cause.name === "AbortError")) {
+                    const msg = cause instanceof Error ? cause.message : "操作未完成";
+                    setError(msg);
+                    message.error(msg);
+                }
+            });
+        }
+    };
 
     useEffect(() => {
         let live = true;
@@ -136,7 +148,7 @@ export function CanvasCreativeInteraction(props: Props) {
     const feedback = onlyFailedRemaining ? "部分作品生成失败。请在失败作品下方重新生成，先核对费用；已成功的作品会保留。" : rawError ? /恢复|连接|网络|接管|执行权|代次/.test(rawError) ? "状态读取未完成，可以继续处理重试。已有作品会保留。"
         : /报价|费用|价格|过期/.test(rawError) ? "生成费用需要重新确认，继续后会显示最新价格。"
         : /素材|参考|引用/.test(rawError) ? "参考素材还需要核对，助手会继续处理，必要时请你选择。"
-        : "这一步还没有完成。已有内容已保留，可以继续处理或修改要求。" : undefined;
+        : rawError : undefined;
     const submitAnswers = async (submitted: CreativeAnswers) => {
         await controller.current!.answer(submitted, false);
         await localforage.removeItem(answerKey).catch(() => undefined);
