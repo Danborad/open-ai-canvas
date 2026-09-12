@@ -19,6 +19,7 @@ const (
 	PluginCanvasCoverBlur      = "canvas-cover-blur"
 	PluginComposerImagePaste   = "composer-image-paste"
 	PluginWecomDailyReport     = "wecom-daily-report"
+	PluginChannelGrouping      = "channel-grouping"
 
 	PluginOriginOfficial = "official"
 	PluginOriginSystem   = "system"
@@ -109,6 +110,10 @@ var officialApplicationPolicies = map[string]PluginManagementView{
 	PluginWecomDailyReport: {
 		Origin: PluginOriginOfficial, Kind: PluginKindApplication,
 		ActivationScope: PluginScopeUser, ConfigurationScope: PluginConfigurationSystem,
+	},
+	PluginChannelGrouping: {
+		Origin: PluginOriginOfficial, Kind: PluginKindApplication,
+		ActivationScope: PluginScopeUser, ConfigurationScope: PluginConfigurationNone,
 	},
 }
 

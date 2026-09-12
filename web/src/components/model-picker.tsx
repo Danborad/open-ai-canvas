@@ -12,6 +12,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { ModelLogo } from "@/components/model-logo";
 import { quoteLogicalModel, type LogicalModelQuote } from "@/services/api/logical-models";
+import { useChannelGroupingEnabled } from "@/lib/plugins/builtin/channel-grouping";
 
 type ModelPickerProps = {
     config: AiConfig;
@@ -56,22 +57,54 @@ export function ModelPicker({
     const menuRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
     const options = useMemo(() => Array.from(new Set(selectableModelsByCapability(config, capability).filter(Boolean))), [capability, config]);
+    const channelGroupingEnabled = useChannelGroupingEnabled();
     const optionGroups = useMemo(() => {
-        const channelGroups = config.channels
-            .map((channel) => ({
-                key: channel.id,
-                label: channel.name || "未命名渠道",
-                scope: channel.id === PUBLIC_MODEL_CATALOG_ID ? "" : channel.scope === "system" ? "平台服务" : "我的模型",
-                models: groupModelsByDisplayName(
-                    config,
-                    options.filter((model) => resolveModelChannel(config, model).id === channel.id),
-                ),
-            }))
+        if (!channelGroupingEnabled) {
+            return config.channels
+                .map((channel) => ({
+                    key: channel.id,
+                    label: channel.publicAlias || channel.name || "未命名渠道",
+                    scope: channel.id === PUBLIC_MODEL_CATALOG_ID ? "" : channel.scope === "system" ? "平台服务" : "我的模型",
+                    models: groupModelsByDisplayName(
+                        config,
+                        options.filter((model) => resolveModelChannel(config, model).id === channel.id),
+                    ),
+                }))
+                .filter((group) => group.models.length);
+        }
+
+        // 启用渠道分组合并：将具有相同前台别名（或名称）与作用域的多个渠道聚合在同一个分组下展示
+        const mergedGroups = new Map<string, { key: string; label: string; scope: string; channelIds: string[] }>();
+        for (const channel of config.channels) {
+            const label = channel.publicAlias?.trim() || channel.name?.trim() || "未命名渠道";
+            const scope = channel.id === PUBLIC_MODEL_CATALOG_ID ? "" : channel.scope === "system" ? "平台服务" : "我的模型";
+            const groupKey = `${scope}\u0000${label}`;
+            const existing = mergedGroups.get(groupKey);
+            if (existing) {
+                existing.channelIds.push(channel.id);
+            } else {
+                mergedGroups.set(groupKey, {
+                    key: `group:${channel.id}`,
+                    label,
+                    scope,
+                    channelIds: [channel.id],
+                });
+            }
+        }
+
+        return Array.from(mergedGroups.values())
+            .map((group) => {
+                const channelIdSet = new Set(group.channelIds);
+                const channelModels = options.filter((model) => channelIdSet.has(resolveModelChannel(config, model).id));
+                return {
+                    key: group.key,
+                    label: group.label,
+                    scope: group.scope,
+                    models: groupModelsByDisplayName(config, channelModels),
+                };
+            })
             .filter((group) => group.models.length);
-        // options 已由当前有效渠道重建；任何无法解析渠道的旧值都直接丢弃，
-        // 不再显示“其他模型 / 未指定渠道”这种不可用入口。
-        return channelGroups;
-    }, [config, options]);
+    }, [channelGroupingEnabled, config, options]);
     const storedCurrent = value?.trim() || "";
     // 参数档位会在选中模型后由调用方归一到其能力配置，不能因为旧模型留下的参数而禁止切换。
     const selectionRequirements = requirements ? { ...requirements, videoSeconds: undefined, imageSize: undefined, options: undefined } : undefined;

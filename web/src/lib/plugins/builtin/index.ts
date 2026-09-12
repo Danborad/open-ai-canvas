@@ -10,3 +10,6 @@ import "./canvas-node-model-badge";
 import "./canvas-cover-blur";
 import "./composer-image-paste";
 import "./wecom-bot";
+import "./channel-grouping";
+
+export * from "./channel-grouping";
