@@ -73,18 +73,21 @@ export function ModelPicker({
                 .filter((group) => group.models.length);
         }
 
-        // 启用渠道分组合并：将具有相同前台别名（或名称）与作用域的多个渠道聚合在同一个分组下展示
+        // 启用渠道分组合并：
+        // 1. 设置了分组（publicAlias 非空）的渠道：具有相同分组名的渠道合并在同一个分组下展示
+        // 2. 未设置分组（publicAlias 为空）的渠道：按其自身渠道名称单独展示，互不干扰
         const mergedGroups = new Map<string, { key: string; label: string; scope: string; channelIds: string[] }>();
         for (const channel of config.channels) {
-            const label = channel.publicAlias?.trim() || channel.name?.trim() || "未命名渠道";
+            const groupName = channel.publicAlias?.trim();
             const scope = channel.id === PUBLIC_MODEL_CATALOG_ID ? "" : channel.scope === "system" ? "平台服务" : "我的模型";
-            const groupKey = `${scope}\u0000${label}`;
+            const groupKey = groupName ? `group:${scope}\u0000${groupName}` : `channel:${channel.id}`;
+            const label = groupName || channel.name || "未命名渠道";
             const existing = mergedGroups.get(groupKey);
             if (existing) {
                 existing.channelIds.push(channel.id);
             } else {
                 mergedGroups.set(groupKey, {
-                    key: `group:${channel.id}`,
+                    key: groupKey,
                     label,
                     scope,
                     channelIds: [channel.id],

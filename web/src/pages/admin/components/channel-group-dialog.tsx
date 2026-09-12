@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
-import { App, AutoComplete, Button, Modal, Switch, Table, Tag, Input } from "antd";
-import { FolderKanban, Pencil, Sparkles } from "lucide-react";
+import { App, Button, Modal, Switch, Table, Tag, Input, Select } from "antd";
+import { FolderKanban, Pencil, Plus, Sparkles, Trash2, Info } from "lucide-react";
 import type { ModelChannel } from "@/stores/use-config-store";
 import { updateAdminChannel } from "@/services/api/auth";
 import { setUserPluginEnabled } from "@/services/api/plugins";
@@ -22,13 +22,21 @@ export function ChannelGroupDialog({ channels, onSaved }: Props) {
 
     // 本地编辑状态：channelId -> publicAlias
     const [groupAssignments, setGroupAssignments] = useState<Record<string, string>>({});
+    // 允许单独新建的分组列表
+    const [createdGroups, setCreatedGroups] = useState<string[]>([]);
 
     const initAssignments = () => {
         const initial: Record<string, string> = {};
+        const discovered: string[] = [];
         channels.forEach((c) => {
-            initial[c.id] = (c.publicAlias || "").trim();
+            const alias = (c.publicAlias || "").trim();
+            initial[c.id] = alias;
+            if (alias && !discovered.includes(alias)) {
+                discovered.push(alias);
+            }
         });
         setGroupAssignments(initial);
+        setCreatedGroups(discovered);
     };
 
     const handleOpen = () => {
@@ -39,32 +47,36 @@ export function ChannelGroupDialog({ channels, onSaved }: Props) {
     // 统计当前分组情况
     const existingGroups = useMemo(() => {
         const groupMap = new Map<string, string[]>();
+        // 包含所有已创建的分组，即使暂无渠道
+        createdGroups.forEach((g) => {
+            if (!groupMap.has(g)) groupMap.set(g, []);
+        });
+
         channels.forEach((c) => {
             const alias = (groupAssignments[c.id] !== undefined ? groupAssignments[c.id] : c.publicAlias || "").trim();
-            const groupName = alias || "（未指定分组 · 默认渠道名）";
-            const list = groupMap.get(groupName) || [];
-            list.push(c.name);
-            groupMap.set(groupName, list);
+            if (alias) {
+                const list = groupMap.get(alias) || [];
+                list.push(c.name);
+                groupMap.set(alias, list);
+            }
         });
+
         return Array.from(groupMap.entries()).map(([name, chs]) => ({
             name,
             channels: chs,
             count: chs.length,
-            isDefault: name.startsWith("（未指定分组"),
         }));
-    }, [channels, groupAssignments]);
+    }, [channels, createdGroups, groupAssignments]);
 
-    const groupOptions = useMemo(() => {
-        const set = new Set<string>();
+    // 所有可用分组列表（用于下拉选择）
+    const allGroupNames = useMemo(() => {
+        const set = new Set<string>(createdGroups);
         channels.forEach((c) => {
             const val = (groupAssignments[c.id] ?? c.publicAlias ?? "").trim();
             if (val) set.add(val);
         });
-        return Array.from(set).map((g) => ({
-            label: `${g} (已有分组)`,
-            value: g,
-        }));
-    }, [channels, groupAssignments]);
+        return Array.from(set);
+    }, [channels, createdGroups, groupAssignments]);
 
     // 检测是否有未保存的改动
     const hasChanges = useMemo(() => {
@@ -92,9 +104,9 @@ export function ChannelGroupDialog({ channels, onSaved }: Props) {
             if (updates.length > 0) {
                 await Promise.all(updates);
                 await onSaved();
-                message.success(`已更新 ${updates.length} 个渠道的分组设置，画布将按新分组展示`);
+                message.success(`已保存分组设置，画布已实时同步并按分组聚合展示`);
             } else {
-                message.info("分组无改动");
+                message.info("分组设置无变更");
             }
             setOpen(false);
         } catch (err) {
@@ -104,7 +116,41 @@ export function ChannelGroupDialog({ channels, onSaved }: Props) {
         }
     };
 
-    // 一键重命名某个分组下的所有渠道
+    // 新建分组
+    const handleCreateNewGroup = () => {
+        let nameDraft = "";
+        modal.confirm({
+            title: "新建渠道展示分组",
+            content: (
+                <div className="mt-3">
+                    <p className="mb-2 text-xs text-foreground/60">
+                        分组名称仅用于前端画布与创作台聚合展示（例如“福利渠道”、“专业生图专线”）：
+                    </p>
+                    <Input
+                        placeholder="例如：福利渠道 / 绘图专线 / 高速集群"
+                        autoFocus
+                        onChange={(e) => { nameDraft = e.target.value.trim(); }}
+                    />
+                </div>
+            ),
+            okText: "创建",
+            cancelText: "取消",
+            onOk: () => {
+                if (!nameDraft) {
+                    message.warning("分组名称不能为空");
+                    return;
+                }
+                if (allGroupNames.includes(nameDraft)) {
+                    message.warning("该分组已存在");
+                    return;
+                }
+                setCreatedGroups((prev) => [...prev, nameDraft]);
+                message.success(`分组「${nameDraft}」已创建，请在下方为相应渠道分配此分组`);
+            },
+        });
+    };
+
+    // 重命名分组
     const handleRenameGroup = (oldGroupName: string) => {
         let newNameDraft = oldGroupName;
         modal.confirm({
@@ -112,7 +158,7 @@ export function ChannelGroupDialog({ channels, onSaved }: Props) {
             content: (
                 <div className="mt-3">
                     <p className="mb-2 text-xs text-foreground/60">
-                        将把该分组下的所有渠道的前台分组名称一键修改为：
+                        将把该分组下所有已绑定的渠道一并更新为新分组名：
                     </p>
                     <Input
                         defaultValue={oldGroupName}
@@ -125,6 +171,7 @@ export function ChannelGroupDialog({ channels, onSaved }: Props) {
             cancelText: "取消",
             onOk: () => {
                 if (!newNameDraft || newNameDraft === oldGroupName) return;
+                setCreatedGroups((prev) => prev.map((g) => (g === oldGroupName ? newNameDraft : g)));
                 setGroupAssignments((prev) => {
                     const next = { ...prev };
                     channels.forEach((c) => {
@@ -135,7 +182,32 @@ export function ChannelGroupDialog({ channels, onSaved }: Props) {
                     });
                     return next;
                 });
-                message.success(`已将分组「${oldGroupName}」改名为「${newNameDraft}」，请点击保存生效`);
+                message.success(`已将分组「${oldGroupName}」改名为「${newNameDraft}」，请点击底部保存生效`);
+            },
+        });
+    };
+
+    // 删除分组（解绑）
+    const handleDeleteGroup = (groupName: string) => {
+        modal.confirm({
+            title: `解散分组「${groupName}」？`,
+            content: `解散后，该分组下的所有渠道将恢复为【未设置分组】，在画布中恢复为按自身渠道名单独展示。`,
+            okText: "确认解散",
+            okButtonProps: { danger: true },
+            cancelText: "取消",
+            onOk: () => {
+                setCreatedGroups((prev) => prev.filter((g) => g !== groupName));
+                setGroupAssignments((prev) => {
+                    const next = { ...prev };
+                    channels.forEach((c) => {
+                        const current = (next[c.id] ?? c.publicAlias ?? "").trim();
+                        if (current === groupName) {
+                            next[c.id] = "";
+                        }
+                    });
+                    return next;
+                });
+                message.success(`已解散分组「${groupName}」，请点击保存生效`);
             },
         });
     };
@@ -155,7 +227,7 @@ export function ChannelGroupDialog({ channels, onSaved }: Props) {
                     </div>
                 }
                 open={open}
-                width={780}
+                width={820}
                 onCancel={() => setOpen(false)}
                 footer={[
                     <Button key="cancel" onClick={() => setOpen(false)}>
@@ -199,49 +271,87 @@ export function ChannelGroupDialog({ channels, onSaved }: Props) {
                         />
                     </div>
 
-                    {/* 分组概览面板 */}
+                    {/* 规则提示横幅 */}
+                    <div className="flex items-start gap-2 rounded-lg border border-blue-500/20 bg-blue-500/10 p-3 text-xs leading-5 text-blue-200">
+                        <Info className="mt-0.5 size-4 shrink-0 text-blue-400" />
+                        <div>
+                            <span className="font-semibold text-blue-300">分组与渠道名称互相独立：</span>
+                            <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-blue-200/85">
+                                <li>
+                                    <strong>设置了分组的渠道</strong>：具有相同分组名称的多个渠道将<strong>合并展示在同一个分组</strong>下（例如 3 个渠道都设为“福利渠道”，在画布中仅显示一个统一的“福利渠道 平台服务”）。
+                                </li>
+                                <li>
+                                    <strong>未设置分组的渠道</strong>：将继续<strong>按其自身渠道名称单独展示</strong>（和原来完全一样，互不干扰）。
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    {/* 分组概览与操作栏 */}
                     <div className="rounded-lg border border-border/40 p-3">
-                        <div className="mb-2 text-xs font-semibold text-foreground/70">当前前台展示分组概览：</div>
-                        <div className="flex flex-wrap gap-2">
-                            {existingGroups.map((grp) => (
-                                <div
-                                    key={grp.name}
-                                    className="flex items-center gap-1.5 rounded-md border border-border/60 bg-surface px-2.5 py-1 text-xs shadow-sm"
-                                >
-                                    <span className="font-medium text-foreground">{grp.name}</span>
-                                    <span className="rounded bg-muted px-1.5 py-0.2 text-[11px] text-foreground/60">
-                                        {grp.count} 个渠道
-                                    </span>
-                                    {!grp.isDefault ? (
+                        <div className="mb-2 flex items-center justify-between">
+                            <div className="text-xs font-semibold text-foreground/70">当前已定义的分组：</div>
+                            <Button
+                                size="small"
+                                type="dashed"
+                                icon={<Plus className="size-3" />}
+                                onClick={handleCreateNewGroup}
+                            >
+                                新建分组
+                            </Button>
+                        </div>
+                        {existingGroups.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {existingGroups.map((grp) => (
+                                    <div
+                                        key={grp.name}
+                                        className="flex items-center gap-1.5 rounded-md border border-border/60 bg-surface px-2.5 py-1 text-xs shadow-sm"
+                                    >
+                                        <span className="font-semibold text-foreground">{grp.name}</span>
+                                        <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-foreground/60">
+                                            {grp.count} 个渠道
+                                        </span>
                                         <button
                                             type="button"
                                             onClick={() => handleRenameGroup(grp.name)}
-                                            className="ml-1 cursor-pointer text-foreground/40 transition hover:text-blue-500"
-                                            title="一键重命名此分组"
+                                            className="ml-1 cursor-pointer text-foreground/40 transition hover:text-blue-400"
+                                            title="重命名此分组"
                                         >
                                             <Pencil className="size-3" />
                                         </button>
-                                    ) : null}
-                                </div>
-                            ))}
-                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDeleteGroup(grp.name)}
+                                            className="cursor-pointer text-foreground/40 transition hover:text-red-400"
+                                            title="解散此分组（所有渠道恢复未分组）"
+                                        >
+                                            <Trash2 className="size-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="py-2 text-xs text-foreground/40">
+                                暂无任何分组，所有渠道均按自身名称单独展示。点击右上角「新建分组」开始创建。
+                            </div>
+                        )}
                     </div>
 
                     {/* 渠道分组归属表格 */}
                     <div>
-                        <div className="mb-1.5 text-xs font-semibold text-foreground/70">各渠道分组设置：</div>
+                        <div className="mb-1.5 text-xs font-semibold text-foreground/70">为渠道指定展示分组：</div>
                         <Table
                             dataSource={channels}
                             rowKey="id"
                             size="small"
                             pagination={false}
-                            scroll={{ y: 320 }}
+                            scroll={{ y: 300 }}
                             columns={[
                                 {
                                     title: "渠道名称",
                                     dataIndex: "name",
                                     key: "name",
-                                    width: 220,
+                                    width: 240,
                                     render: (name, record) => (
                                         <div className="min-w-0">
                                             <div className="truncate font-medium text-foreground">{name}</div>
@@ -250,29 +360,22 @@ export function ChannelGroupDialog({ channels, onSaved }: Props) {
                                     ),
                                 },
                                 {
-                                    title: "协议类型",
-                                    dataIndex: "interfaceType",
-                                    key: "interfaceType",
-                                    width: 140,
-                                    render: (type) => (
-                                        <span className="text-xs text-foreground/60">{type || "openai"}</span>
-                                    ),
-                                },
-                                {
-                                    title: "所属展示分组（前台别名）",
+                                    title: "所属展示分组",
                                     key: "publicAlias",
                                     render: (_, record) => {
                                         const currentVal = groupAssignments[record.id] ?? record.publicAlias ?? "";
+                                        const selectOptions = [
+                                            { label: "（未设置分组 · 按渠道原名单独展示）", value: "" },
+                                            ...allGroupNames.map((g) => ({
+                                                label: `📁 分组：${g}`,
+                                                value: g,
+                                            })),
+                                        ];
                                         return (
-                                            <AutoComplete
+                                            <Select
                                                 className="w-full"
-                                                placeholder="输入分组名或从下拉选择；留空则按渠道名"
-                                                allowClear
                                                 value={currentVal}
-                                                options={groupOptions}
-                                                filterOption={(inputValue, option) =>
-                                                    String(option?.value || "").toLowerCase().includes(inputValue.toLowerCase())
-                                                }
+                                                options={selectOptions}
                                                 onChange={(val) => {
                                                     setGroupAssignments((prev) => ({
                                                         ...prev,
@@ -291,4 +394,3 @@ export function ChannelGroupDialog({ channels, onSaved }: Props) {
         </>
     );
 }
-

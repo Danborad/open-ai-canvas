@@ -891,10 +891,7 @@ func publicChannel(channel model.ModelChannel, admin bool, channelModels []model
 	} else if admin {
 		apiKey = channel.APIKey
 	}
-	name, alias := channel.PublicName(), ""
-	if admin {
-		name, alias = channel.Name, channel.PublicAlias
-	}
+	name, alias := channel.Name, channel.PublicAlias
 	return PublicModelChannel{
 		ID:                channel.ID,
 		UserID:            channel.UserID,
