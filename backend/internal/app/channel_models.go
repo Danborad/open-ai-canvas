@@ -392,7 +392,15 @@ func validateChannelModelTierCapabilities(tiers []model.ChannelModelPriceTier, r
 	}
 	resolutionSupported := make(map[string]bool, len(config.Video.Resolutions))
 	for _, resolution := range config.Video.Resolutions {
-		resolutionSupported[normalizeChannelModelTierResolution(resolution)] = true
+		resKey := normalizeChannelModelTierResolution(resolution)
+		resolutionSupported[resKey] = true
+		if num := extractResolutionDigits(resKey); num != "" {
+			resolutionSupported[num+"p"] = true
+			if num == "768" || num == "736" {
+				resolutionSupported["720p"] = true
+				resolutionSupported["768p"] = true
+			}
+		}
 	}
 	durationSupported := make(map[int]bool, len(config.Video.Duration.Values))
 	for _, seconds := range config.Video.Duration.Values {

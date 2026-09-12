@@ -833,12 +833,51 @@ func matchSKUSelector(tier map[string]string, requested map[string]string) (bool
 		if expected == "" || expected == "*" {
 			continue
 		}
-		if requested[key] != expected {
-			return false, 0
+		reqVal := requested[key]
+		if reqVal == expected {
+			score++
+			continue
 		}
-		score++
+		if key == "vquality" && matchVideoResolutionTier(expected, reqVal) {
+			score++
+			continue
+		}
+		return false, 0
 	}
 	return true, score
+}
+
+func matchVideoResolutionTier(expected string, requested string) bool {
+	exp := strings.ToLower(strings.TrimSpace(expected))
+	req := strings.ToLower(strings.TrimSpace(requested))
+	if exp == "" || exp == "*" || exp == "any" {
+		return true
+	}
+	if req == exp {
+		return true
+	}
+	expNum := extractResolutionDigits(exp)
+	reqNum := extractResolutionDigits(req)
+	if expNum != "" && expNum == reqNum {
+		return true
+	}
+	// 720p / 768p / 736p 档位互通
+	if (expNum == "720" || expNum == "768" || expNum == "736") && (reqNum == "720" || reqNum == "768" || reqNum == "736") {
+		return true
+	}
+	return false
+}
+
+func extractResolutionDigits(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		} else if b.Len() > 0 {
+			break
+		}
+	}
+	return b.String()
 }
 
 func (s *Service) logicalRouteBlocked(route cachedLogicalRoute) bool {

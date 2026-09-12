@@ -1,5 +1,5 @@
 import { modelRequestOptions, resolveVideoOperation, type ModelRequirements } from "@/lib/model-selection";
-import { videoResolutionComparisonKey } from "@/lib/video-generation-options";
+import { isVideoResolutionMatch, videoResolutionComparisonKey } from "@/lib/video-generation-options";
 import { buildImageResolutionOptions, imageResolutionOption } from "@/lib/image-resolution-tiers";
 import type { ModelRequestIntent } from "@/services/api/logical-models";
 import { modelOptionName, resolveModelChannel, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
@@ -40,7 +40,12 @@ export function priceTiersForCurrentSelection(tiers: ModelPriceTier[], capabilit
     for (const tier of tiers) {
         const selector = priceSelectorForTier(tier);
         const conditions = Object.entries(selector).filter(([, value]) => value && value !== "*");
-        if (conditions.some(([key, value]) => requested[key] !== value)) continue;
+        if (conditions.some(([key, value]) => {
+            if (key === "vquality" && isVideoResolutionMatch(requested[key], value)) {
+                return false;
+            }
+            return requested[key] !== value;
+        })) continue;
         const score = conditions.length;
         if (score > bestScore) {
             bestScore = score;

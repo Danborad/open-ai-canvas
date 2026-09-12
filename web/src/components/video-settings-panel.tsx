@@ -300,7 +300,10 @@ function hasPriceTierForVideoSelection(tiers: ReturnType<typeof modelPriceTiers>
 		const selector = tier.selector || {};
 		const tierResolution = selector.vquality || tier.resolution;
 		const tierSeconds = selector.videoSeconds ? Number(selector.videoSeconds) : tier.videoSeconds;
-		return (tierResolution === "*" || !tierResolution || normalizeTierResolution(tierResolution) === normalizedResolution) && (!tierSeconds || tierSeconds === seconds);
+		const resolutionMatches = tierResolution === "*" || !tierResolution 
+			|| normalizeTierResolution(tierResolution) === normalizedResolution
+			|| isVideoResolutionMatch(resolution, tierResolution);
+		return resolutionMatches && (!tierSeconds || tierSeconds === seconds);
 	});
 }
 

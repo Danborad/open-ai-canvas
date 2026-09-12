@@ -172,3 +172,46 @@ func TestSKUSelectorTreatsAnyImageReferenceCountAsImageToVideo(t *testing.T) {
 		t.Fatalf("matched tier = %#v", matched)
 	}
 }
+
+func TestVideoResolutionTierMatching(t *testing.T) {
+	cm := model.ChannelModel{
+		ID:         "cm-test",
+		Capability: "video",
+		PriceTiers: []model.ChannelModelPriceTier{
+			{ID: "tier-480", Resolution: "480p", SelectorJSON: `{"vquality":"480p"}`, UnitPriceMicrocredits: 10000000, Enabled: true, PriceConfigured: true},
+			{ID: "tier-768", Resolution: "768p", SelectorJSON: `{"vquality":"768p"}`, UnitPriceMicrocredits: 20000000, Enabled: true, PriceConfigured: true},
+			{ID: "tier-1080", Resolution: "1080p", SelectorJSON: `{"vquality":"1080p"}`, UnitPriceMicrocredits: 35000000, Enabled: true, PriceConfigured: true},
+		},
+	}
+
+	tests := []struct {
+		vquality string
+		wantTier string
+	}{
+		{"480p竖", "tier-480"},
+		{"480p横", "tier-480"},
+		{"480p(1:1)", "tier-480"},
+		{"480p", "tier-480"},
+		{"768p竖", "tier-768"},
+		{"768p横", "tier-768"},
+		{"768p(1:1)", "tier-768"},
+		{"768p", "tier-768"},
+		{"720p", "tier-768"},
+		{"736p竖", "tier-768"},
+		{"1080p竖", "tier-1080"},
+		{"1080p横", "tier-1080"},
+		{"1080p(1:1)", "tier-1080"},
+		{"1080p", "tier-1080"},
+	}
+
+	for _, tc := range tests {
+		intent := ModelRequestIntent{
+			Capability: "video",
+			Options:    map[string]any{"vquality": tc.vquality},
+		}
+		tier := channelModelPriceTierForIntent(cm, intent)
+		if tier == nil || tier.ID != tc.wantTier {
+			t.Fatalf("vquality=%q: got tier=%#v, want %s", tc.vquality, tier, tc.wantTier)
+		}
+	}
+}

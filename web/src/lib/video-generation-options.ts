@@ -39,6 +39,14 @@ export function isVideoResolutionMatch(selected: string | undefined, target: str
     if ((s === "1080" || s === "1080p") && (t === "1080" || t === "1080p")) return true;
     if ((s === "720" || s === "720p") && (t === "720" || t === "720p")) return true;
     if ((s === "480" || s === "480p") && (t === "480" || t === "480p")) return true;
+    const sNum = s.match(/^\d+/)?.[0];
+    const tNum = t.match(/^\d+/)?.[0];
+    if (sNum && tNum) {
+        if (sNum === tNum) return true;
+        if ((sNum === "720" || sNum === "768" || sNum === "736") && (tNum === "720" || tNum === "768" || tNum === "736")) {
+            return true;
+        }
+    }
     return false;
 }
 
