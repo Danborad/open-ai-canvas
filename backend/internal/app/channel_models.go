@@ -918,6 +918,10 @@ func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, it
 			item.ProviderModelKey = item.ModelKey
 			changed = true
 		}
+		if item.Icon == "" {
+			item.Icon = "Minimax"
+			changed = true
+		}
 		if item.ModelKey == "indextts2-v1" {
 			if item.Capability != "audio" || item.Protocol != "autodl-comfyui-audio" {
 				item.Capability = "audio"
