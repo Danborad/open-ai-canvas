@@ -329,6 +329,7 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		image.References.MaskSupported = false
 		// Gemini Images uses imageConfig.aspectRatio, not the OpenAI-style pixel size field.
 		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"auto", "1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"}, Default: "1:1", AllowCustom: false}
+		image.Quality = ImageQualityConfig{Supported: false, Values: []string{}, Default: "auto"}
 		image.TransparentBackground.Supported = false
 		image.ResponseFormat.Supported = false
 		image.OutputFormat.Supported = false

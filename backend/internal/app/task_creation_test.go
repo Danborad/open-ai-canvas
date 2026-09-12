@@ -319,3 +319,45 @@ func newSelectionPriceTier(id string, selector string, providerModelKey string, 
 		BillingMode: billingMode, UnitPriceMicrocredits: 10, PriceConfigured: true, Enabled: true,
 	}
 }
+
+func TestNanoBananaResolutionPricingOnSystemChannel(t *testing.T) {
+	profile := DefaultModelCapabilityConfigForModel(string(model.ChannelInterfaceGeminiImage), "nano-banana-pro")
+	svc, _, channel, channelModel := createSystemChannelSelectionFixture(t, "image", model.ChannelInterfaceGeminiImage, profile, []model.ChannelModelPriceTier{
+		newSelectionPriceTier("tier-1k", `{"quality":"1k"}`, "nano-banana-pro", "fixed_request"),
+		newSelectionPriceTier("tier-2k", `{"quality":"2k"}`, "nano-banana-pro", "fixed_request"),
+		newSelectionPriceTier("tier-4k", `{"quality":"4k"}`, "nano-banana-pro", "fixed_request"),
+	})
+
+	for _, tc := range []struct {
+		name     string
+		quality  string
+		size     string
+		wantTier string
+	}{
+		{"1k specified", "1k", "16:9", "tier-1k"},
+		{"2k specified", "2k", "16:9", "tier-2k"},
+		{"4k specified", "4k", "16:9", "tier-4k"},
+		{"auto specified", "auto", "16:9", "tier-1k"},
+		{"empty specified", "", "16:9", "tier-1k"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := map[string]any{
+				"mode": "image",
+				"config": map[string]any{
+					"channelId": channel.ID,
+					"model":     channelModel.ModelKey,
+					"size":      tc.size,
+					"quality":   tc.quality,
+				},
+			}
+			resolved, err := svc.resolveSystemChannelModelSelection(input, "canvas_image", "")
+			if err != nil {
+				t.Fatalf("resolve error: %v", err)
+			}
+			cfg := resolved["config"].(map[string]any)
+			if cfg["priceTierId"] != tc.wantTier {
+				t.Fatalf("priceTierId = %#v, want %s", cfg["priceTierId"], tc.wantTier)
+			}
+		})
+	}
+}
