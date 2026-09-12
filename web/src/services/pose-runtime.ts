@@ -74,14 +74,42 @@ async function sourceToDataUrl(sourceUrl: string, signal?: AbortSignal) {
 }
 
 async function requestJson<T = unknown>(path: string, init: RequestInit = {}) {
-    const { response, body: responseBody } = await requestRuntimeResponse(path, init);
-    const body = responseBody === undefined ? await parseJsonResponse(response) : responseBody;
-    if (!response.ok) {
-        const code = isRecord(body) && typeof body.code === "string" ? body.code : "pose_runtime_unavailable";
-        const message = isRecord(body) && typeof body.message === "string" ? body.message : "本机姿态运行时不可用";
-        throw new LocalRuntimeClientError(code, message, response.status);
+    const localConnected = useLocalRuntimeStore.getState().connection === "connected";
+    if (localConnected) {
+        try {
+            const { response, body: responseBody } = await requestRuntimeResponse(path, init);
+            const body = responseBody === undefined ? await parseJsonResponse(response) : responseBody;
+            if (response.ok) return body as T;
+            const code = isRecord(body) && typeof body.code === "string" ? body.code : "pose_runtime_unavailable";
+            const message = isRecord(body) && typeof body.message === "string" ? body.message : "姿态转换失败";
+            throw new LocalRuntimeClientError(code, message, response.status);
+        } catch (error) {
+            if (error instanceof LocalRuntimeClientError && (error.code === "pose_no_person" || error.code === "pose_input_invalid")) {
+                throw error;
+            }
+            // 本地连接异常时，回退到服务端统一转换处理
+        }
     }
-    return body as T;
+
+    try {
+        const response = await fetch(`/api/media-conversion${path}`, {
+            ...init,
+            headers: {
+                ...(init.headers || {}),
+                "content-type": "application/json",
+            },
+        });
+        const body = await parseJsonResponse(response);
+        if (!response.ok) {
+            const code = isRecord(body) && typeof body.code === "string" ? body.code : "pose_runtime_unavailable";
+            const message = isRecord(body) && typeof body.message === "string" ? body.message : "姿态转换服务不可用";
+            throw new LocalRuntimeClientError(code, message, response.status);
+        }
+        return body as T;
+    } catch (serverErr) {
+        if (serverErr instanceof LocalRuntimeClientError) throw serverErr;
+        throw new LocalRuntimeClientError("pose_runtime_unavailable", "姿态转换服务连接失败");
+    }
 }
 
 async function requestRuntimeResponse(path: string, init: RequestInit = {}) {

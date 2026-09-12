@@ -54,7 +54,23 @@ export function MediaConversionNodeContent({ node, theme }: MediaConversionNodeC
     const [resultUrl, setResultUrl] = useState("");
     const [showResult, setShowResult] = useState(status === "completed" || status === "stale");
     const [notice, setNotice] = useState("");
+    const [serverReady, setServerReady] = useState(true);
     const abortRef = useRef<AbortController | null>(null);
+
+    useEffect(() => {
+        let live = true;
+        fetch("/api/media-conversion/status", { method: "GET" })
+            .then((res) => { if (live) setServerReady(res.ok); })
+            .catch(() => { if (live) setServerReady(false); });
+        return () => { live = false; };
+    }, []);
+
+    useEffect(() => {
+        if (state.status === "unavailable" && serverReady) {
+            updateState({ status: "idle", errorCode: undefined, errorMessage: undefined, updatedAt: new Date().toISOString() });
+            setNotice("");
+        }
+    }, [serverReady, state.status]);
 
     useEffect(() => {
         let active = true;
@@ -238,13 +254,13 @@ export function MediaConversionNodeContent({ node, theme }: MediaConversionNodeC
                     setNotice("未检测到可用人物姿态，可更换含人物的图片或选择其他转换方式");
                     return;
                 }
-                const nextStatus = ["depth_model_missing", "depth_runtime_unavailable", "lineart_model_missing", "lineart_runtime_unavailable", "pose_model_missing", "pose_runtime_unavailable"].includes(error.code) ? "unavailable" : "error";
+                const nextStatus = ["depth_model_missing", "depth_runtime_unavailable", "lineart_model_missing", "lineart_runtime_unavailable", "pose_model_missing", "pose_runtime_unavailable"].includes(error.code) ? (serverReady ? "error" : "unavailable") : "error";
                 updateState({ status: nextStatus, errorCode: error.code, errorMessage: error.message, updatedAt: new Date().toISOString() });
-                setNotice(localRuntimeNotice(error, useLocalRuntimeStore.getState().connection));
+                setNotice(localRuntimeNotice(error, useLocalRuntimeStore.getState().connection, serverReady));
                 return;
             }
-            const conversionError = error instanceof LocalImageConversionError ? error : new LocalImageConversionError("source_unreadable", "本地图片转换失败");
-            const nextStatus = conversionError.code === "model_missing" ? "unavailable" : "error";
+            const conversionError = error instanceof LocalImageConversionError ? error : new LocalImageConversionError("source_unreadable", "图片转换失败");
+            const nextStatus = conversionError.code === "model_missing" ? (serverReady ? "error" : "unavailable") : "error";
             updateState({ status: nextStatus, errorCode: conversionError.code, errorMessage: conversionError.message, updatedAt: new Date().toISOString() });
             setNotice(conversionError.message);
         }
@@ -261,11 +277,11 @@ export function MediaConversionNodeContent({ node, theme }: MediaConversionNodeC
     const effectiveResult = Boolean(resultUrl && (status === "completed" || status === "stale"));
     const displayResult = showResult && effectiveResult;
     const buttonDisabled = !input || hasMultipleInputs || status === "processing";
-    const statusText = mediaConversionStatusLabel(status);
+    const statusText = mediaConversionStatusLabel(status, serverReady);
     const previewStatusText = state.operation === "pose" && status === "completed" && typeof state.detectedPeople === "number"
         ? `${statusText} · ${state.detectedPeople} 人`
         : statusText;
-    const showRuntimeRecovery = (state.operation === "depth" || state.operation === "lineart" || state.operation === "pose") && (localRuntimeConnection === "unreachable" || state.errorCode === "depth_runtime_unavailable" || state.errorCode === "lineart_runtime_unavailable" || state.errorCode === "pose_runtime_unavailable");
+    const showRuntimeRecovery = !serverReady && (state.operation === "depth" || state.operation === "lineart" || state.operation === "pose") && (localRuntimeConnection === "unreachable" || state.errorCode === "depth_runtime_unavailable" || state.errorCode === "lineart_runtime_unavailable" || state.errorCode === "pose_runtime_unavailable");
     const retryLocalRuntime = async () => {
         setNotice("");
         await reconnectLocalRuntime();
@@ -290,9 +306,11 @@ export function MediaConversionNodeContent({ node, theme }: MediaConversionNodeC
                 </span>
                 <div className="min-w-0 flex-1">
                     <div className="truncate text-[var(--fs-label)] font-semibold">{node.title || "转换"}</div>
-                    <div className="truncate text-[var(--fs-tiny)]" style={{ color: theme.node.muted }}>本地处理 · 单图优先</div>
+                    <div className="truncate text-[var(--fs-tiny)]" style={{ color: theme.node.muted }}>
+                        {localRuntimeConnection === "connected" ? "本地处理 · 单图优先" : "服务器处理 · 单图优先"}
+                    </div>
                 </div>
-                <StatusBadge status={status} />
+                <StatusBadge status={status} serverReady={serverReady} localConnected={localRuntimeConnection === "connected"} />
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col gap-2">
@@ -544,27 +562,40 @@ function OperationPicker({ theme, nodeId, value, disabled, onSelect }: { theme: 
     );
 }
 
-function StatusBadge({ status }: { status: MediaConversionNodeState["status"] | "stale" }) {
+function StatusBadge({ status, serverReady, localConnected }: { status: MediaConversionNodeState["status"] | "stale"; serverReady?: boolean; localConnected?: boolean }) {
     if (status === "processing") return <span className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[var(--fs-micro)] font-semibold" style={{ color: "var(--status-info)", background: "color-mix(in oklch, var(--status-info) 15%, transparent)" }}><LoaderCircle className="size-3 animate-spin" aria-hidden="true" />处理中</span>;
     if (status === "completed") return <span className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[var(--fs-micro)] font-semibold" style={{ color: "var(--status-success)", background: "color-mix(in oklch, var(--status-success) 15%, transparent)" }}><CheckCircle2 className="size-3" aria-hidden="true" />已完成</span>;
     if (status === "stale") return <span className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[var(--fs-micro)] font-semibold" style={{ color: "var(--status-warning)", background: "color-mix(in oklch, var(--status-warning) 15%, transparent)" }}><RefreshCw className="size-3" aria-hidden="true" />待更新</span>;
     if (status === "error") return <span className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[var(--fs-micro)] font-semibold" style={{ color: "var(--status-error)", background: "color-mix(in oklch, var(--status-error) 15%, transparent)" }}><CircleAlert className="size-3" aria-hidden="true" />失败</span>;
-    if (status === "unavailable") return <span className="inline-flex shrink-0 items-center rounded-full px-2 py-1 text-[var(--fs-micro)] font-semibold" style={{ color: "var(--status-warning)", background: "color-mix(in oklch, var(--status-warning) 15%, transparent)" }}>本地不可用</span>;
+    if (status === "unavailable") {
+        if (serverReady) {
+            return <span className="inline-flex shrink-0 items-center rounded-full px-2 py-1 text-[var(--fs-micro)] font-semibold" style={{ color: "var(--status-success)", background: "color-mix(in oklch, var(--status-success) 15%, transparent)" }}>服务已就绪</span>;
+        }
+        return <span className="inline-flex shrink-0 items-center rounded-full px-2 py-1 text-[var(--fs-micro)] font-semibold" style={{ color: "var(--status-warning)", background: "color-mix(in oklch, var(--status-warning) 15%, transparent)" }}>不可用</span>;
+    }
     if (status === "skipped") return <span className="inline-flex shrink-0 items-center rounded-full px-2 py-1 text-[var(--fs-micro)] font-semibold" style={{ color: "var(--status-warning)", background: "color-mix(in oklch, var(--status-warning) 15%, transparent)" }}>已跳过</span>;
+    if (localConnected || serverReady) return <span className="inline-flex shrink-0 items-center rounded-full px-2 py-1 text-[var(--fs-micro)] font-semibold" style={{ color: "var(--status-success)", background: "color-mix(in oklch, var(--status-success) 15%, transparent)" }}>已就绪</span>;
     return <span className="inline-flex shrink-0 items-center rounded-full px-2 py-1 text-[var(--fs-micro)] font-semibold" style={{ color: "var(--foreground-muted)", background: "color-mix(in oklch, var(--foreground-muted) 12%, transparent)" }}>未开始</span>;
 }
 
-function mediaConversionStatusLabel(status: MediaConversionNodeState["status"] | "stale") {
+function mediaConversionStatusLabel(status: MediaConversionNodeState["status"] | "stale", serverReady = false) {
     if (status === "processing") return "正在处理";
     if (status === "completed") return "已完成";
     if (status === "stale") return "输入已变化，结果待更新";
-    if (status === "unavailable") return "本地能力不可用";
+    if (status === "unavailable") return serverReady ? "就绪" : "本地能力不可用";
     if (status === "skipped") return "未检测到人物姿态";
     if (status === "error") return "处理失败";
     return "尚未转换";
 }
 
-function localRuntimeNotice(error: LocalRuntimeClientError, connection: ReturnType<typeof useLocalRuntimeStore.getState>["connection"]) {
+function localRuntimeNotice(error: LocalRuntimeClientError, connection: ReturnType<typeof useLocalRuntimeStore.getState>["connection"], serverReady = false) {
+    if (error.code === "pose_no_person") return "未检测到可用人物姿态，可更换含人物的图片或选择其他转换方式";
+    if (serverReady) {
+        if (error.code === "depth_model_missing") return "深度模型尚未就绪，请稍后重试";
+        if (error.code === "lineart_model_missing") return "AI 线稿模型尚未就绪，请稍后重试";
+        if (error.code === "pose_model_missing") return "姿态模型尚未就绪，请稍后重试";
+        return error.message;
+    }
     if (connection === "unreachable") return "本地模型服务未启动，请双击 start-yingce-local.cmd 后重试";
     if (error.code === "depth_model_missing") return "深度模型尚未安装，请先完成本地模型安装";
     if (error.code === "lineart_model_missing") return "AI 线稿依赖或模型尚未安装，请先完成本地线稿模型安装";
