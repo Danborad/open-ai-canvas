@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { preloadWorkspaceRoute } from "@/lib/workspace-route-modules";
 import { useUserStore, type FeatureAvailability } from "@/stores/use-user-store";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
+import { SidebarStorageWidget } from "./sidebar-storage-widget";
 
 export type WorkspaceNavItem = {
     id: string;
@@ -355,6 +356,7 @@ export function WorkspaceSidebarNav({ collapsed, onNavigate, onOpenSearch, onExp
             </div>
 
             <div className="app-workspace-sidebar-footer shrink-0 px-3 py-3">
+                <SidebarStorageWidget collapsed={collapsed} />
                 <div className="flex flex-col gap-0.5">
                     {footer.map((item) => (
                         <NavItem key={item.id} item={item} activeId={activeId} onSelect={onNavigate} onOpenSearch={onOpenSearch} onLogout={() => void handleLogout()} collapsed={collapsed} />
