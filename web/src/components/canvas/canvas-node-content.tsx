@@ -13,7 +13,7 @@ import { buildLibTVImagePreviewUrl, buildLibTVVideoSourceUrl } from "@/lib/canva
 import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
 import type { CanvasTheme } from "@/lib/canvas-theme";
 import { formatBytes } from "@/lib/image-utils";
-import { resourceIdFromStorageKey } from "@/services/api/resources";
+import { resourceFileUrl, resourceIdFromStorageKey } from "@/services/api/resources";
 import type { GenerationTask } from "@/services/api/task-center";
 import { cacheResourceObjectUrl, getCachedResourceObjectUrl, peekCachedResourceObjectUrl, scheduleResourceBlobCache } from "@/services/resource-blob-cache";
 import { resolveMediaUrl } from "@/services/file-storage";
@@ -685,16 +685,17 @@ function useNodeResourceUrl(node: CanvasNodeData, eager: boolean) {
         ? content
         : node.metadata?.previewContent
             || (node.type === CanvasNodeType.Image && node.metadata?.importSource?.provider === "libtv" ? buildLibTVImagePreviewUrl(content) : content);
-    const isRemoteResource = Boolean(resourceIdFromStorageKey(storageKey));
+    const resourceId = resourceIdFromStorageKey(storageKey);
+    const isRemoteResource = Boolean(resourceId);
+    // 图片内容随资源 ID 不可变且后端允许磁盘强缓存：视口内的远程图片首帧直接上直链，
+    // 走浏览器原生解码与磁盘缓存；Blob 缓存就绪后再平滑替换，避免刷新后满屏转圈。
+    const synchronousUrl = eager && isRemoteResource && node.type === CanvasNodeType.Image ? peekCachedResourceObjectUrl(storageKey) || resourceFileUrl(resourceId) : "";
     // Inline data URLs are already local, but decoding thousands of them is
     // still expensive. Images must wait for the same viewport gate as remote
     // resources; otherwise DOM virtualization does not reduce image work.
     const isLazyVisual = node.type === CanvasNodeType.Image;
-    const synchronousUrl = isRemoteResource ? peekCachedResourceObjectUrl(storageKey) : "";
     const isHttpUrl = Boolean(fallback && !fallback.startsWith("data:"));
-    // 优先使用内存中的有效 Blob URL；若已进入视口且有服务端的直接图片地址（非 data: base64），
-    // 立即作为初始图片呈现，利用浏览器原生 HTTP 磁盘缓存秒开，消除满屏转圈等待。
-    const initialUrl = synchronousUrl || (eager && isHttpUrl ? fallback : (isRemoteResource || isLazyVisual ? "" : fallback));
+    const initialUrl = synchronousUrl || (eager && isLazyVisual && isHttpUrl ? fallback : (isRemoteResource || isLazyVisual ? "" : fallback));
     const [url, setUrl] = useState(() => initialUrl);
     const [loading, setLoading] = useState(() => !initialUrl && isRemoteResource && eager);
 
@@ -723,7 +724,7 @@ function useNodeResourceUrl(node: CanvasNodeData, eager: boolean) {
             if (!cancelled && cached) setUrl(cached);
             else if (!cancelled && eager && fallback) setUrl(fallback);
         }).catch(() => {
-            if (!cancelled && eager) setUrl(fallback);
+            if (!cancelled && eager) setUrl(synchronousUrl || fallback);
         }).finally(() => {
             if (!cancelled) setLoading(false);
         });

@@ -325,9 +325,14 @@ func RegisterUserDataRoutes(r *gin.RouterGroup, svc *service.Service) {
 		if usePlayback {
 			serveETag = etag + ":pb"
 		}
-		// 媒体资源具备不可变资源 ID，允许浏览器在本地磁盘安全长期缓存；
-		// stale-while-revalidate 允许优先使用本地磁盘缓存秒开展现，并向服务端异步重验。
-		c.Header("Cache-Control", "private, max-age=2592000, stale-while-revalidate=86400")
+		// 资源 ID 内容不可变（上传永远生成新 ID，不会原地覆盖）：图片可以放心交给浏览器
+		// 磁盘强缓存 30 天，大画布二次打开零请求直读磁盘缓存。视频/音频涉及转码副本
+		// 就绪与 Range 语义，保持逐次条件请求（304）。
+		if strings.HasPrefix(resource.MimeType, "image/") {
+			c.Header("Cache-Control", "private, max-age=2592000, stale-while-revalidate=86400")
+		} else {
+			c.Header("Cache-Control", "private, no-cache")
+		}
 		c.Header("ETag", serveETag)
 		c.Header("Accept-Ranges", "bytes")
 		c.Header("X-Content-Type-Options", "nosniff")
