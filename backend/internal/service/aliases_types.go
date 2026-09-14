@@ -3,6 +3,10 @@ package service
 import "infinite-canvas/backend/internal/app"
 
 type (
+	CloudAgentRequest                      = app.CloudAgentRequest
+	CloudAgentCapabilitySet                = app.CloudAgentCapabilitySet
+	AgentProfileRequest                    = app.AgentProfileRequest
+	AgentProfileView                       = app.AgentProfileView
 	APICallLogPage                         = app.APICallLogPage
 	APICallLogQuery                        = app.APICallLogQuery
 	AccountFileStorageUsage                = app.AccountFileStorageUsage
@@ -90,10 +94,6 @@ type (
 	CharacterRepresentationInput           = app.CharacterRepresentationInput
 	CharacterRepresentationSummary         = app.CharacterRepresentationSummary
 	CharacterVoiceSummary                  = app.CharacterVoiceSummary
-	ComfyBridgeCompletion                  = app.ComfyBridgeCompletion
-	ComfyBridgeRegistration                = app.ComfyBridgeRegistration
-	ComfyBridgeRequest                     = app.ComfyBridgeRequest
-	ComfyBridgeSummary                     = app.ComfyBridgeSummary
 	CompiledPrompt                         = app.CompiledPrompt
 	ConfirmProjectAssetCandidateRequest    = app.ConfirmProjectAssetCandidateRequest
 	CreateAdminUserRequest                 = app.CreateAdminUserRequest
@@ -101,7 +101,6 @@ type (
 	CreateAssetCandidatesRequest           = app.CreateAssetCandidatesRequest
 	CreateAssetFolderRequest               = app.CreateAssetFolderRequest
 	CreateAssetVersionRequest              = app.CreateAssetVersionRequest
-	CreateComfyBridgeRequest               = app.CreateComfyBridgeRequest
 	CreatePaymentOrderRequest              = app.CreatePaymentOrderRequest
 	CreateProjectAssetFolderRequest        = app.CreateProjectAssetFolderRequest
 	CreateProjectCharacterRequest          = app.CreateProjectCharacterRequest
@@ -110,7 +109,6 @@ type (
 	CreateProjectUnitRequest               = app.CreateProjectUnitRequest
 	CreateRedeemBatchRequest               = app.CreateRedeemBatchRequest
 	CreateRedeemBatchResult                = app.CreateRedeemBatchResult
-	CreateSessionRequest                   = app.CreateSessionRequest
 	CreateTaskRequest                      = app.CreateTaskRequest
 	CreationCanvasOp                       = app.CreationCanvasOp
 	CreationDetail                         = app.CreationDetail
@@ -173,7 +171,6 @@ type (
 	OSSSettingRequest                      = app.OSSSettingRequest
 	OptionConstraint                       = app.OptionConstraint
 	OutboundHeader                         = app.OutboundHeader
-	OutboundPolicy                         = app.OutboundPolicy
 	ParameterSupport                       = app.ParameterSupport
 	PasswordResetRequest                   = app.PasswordResetRequest
 	PaymentCheckoutView                    = app.PaymentCheckoutView
@@ -249,13 +246,11 @@ type (
 	RoutedModel                            = app.RoutedModel
 	RunPaymentReconciliationRequest        = app.RunPaymentReconciliationRequest
 	RunningHubWorkflowFetchRequest         = app.RunningHubWorkflowFetchRequest
-	RuntimeCapabilities                    = app.RuntimeCapabilities
 	RuntimePolicySetting                   = app.RuntimePolicySetting
 	RuntimeRequestPolicy                   = app.RuntimeRequestPolicy
 	RuntimeResourcePolicy                  = app.RuntimeResourcePolicy
 	RuntimeTaskPolicy                      = app.RuntimeTaskPolicy
 	Service                                = app.Service
-	SessionDetail                          = app.SessionDetail
 	ShotRevisionInput                      = app.ShotRevisionInput
 	SkillCategory                          = app.SkillCategory
 	SkillEffectiveUser                     = app.SkillEffectiveUser
@@ -325,3 +320,11 @@ type (
 	ESASettingRequest                      = app.ESASettingRequest
 	WecomSettingRequest                    = app.WecomSettingRequest
 )
+
+func CloudAgentCapabilitySetInfo() CloudAgentCapabilitySet {
+	return app.CloudAgentCapabilitySetInfo()
+}
+
+func CloudAgentSupportedToolNames() []string {
+	return app.CloudAgentSupportedToolNames()
+}

@@ -19,7 +19,6 @@ func TestTaskInputUsesWorkflowProvider(t *testing.T) {
 		want  bool
 	}{
 		{name: "runninghub workflow", input: map[string]any{"config": map[string]any{"interfaceType": "runninghub-workflow-video"}}, want: true},
-		{name: "comfy bridge", input: map[string]any{"config": map[string]any{"interfaceType": "comfyui-bridge-image"}}, want: true},
 		{name: "case insensitive", input: map[string]any{"config": map[string]any{"interfaceType": "RunningHub-Workflow-Audio"}}, want: true},
 		{name: "ordinary model", input: map[string]any{"config": map[string]any{"interfaceType": "openai-image", "channelId": "system-1", "model": "image-model"}}, want: false},
 		{name: "missing config", input: map[string]any{}, want: false},
@@ -187,8 +186,16 @@ func TestResolveSystemChannelModelSelectionAppliesServerDefaults(t *testing.T) {
 		t.Fatalf("resolveSystemChannelModelSelection() error = %v", err)
 	}
 	config := resolved["config"].(map[string]any)
-	if config["size"] != "1:1" || config["quality"] != "2k" || config["count"] != 1 || config["transparentBackground"] != false {
+	if config["size"] != "1:1" || config["quality"] != "2k" || config["count"] != "1" || config["transparentBackground"] != "false" {
 		t.Fatalf("server defaults were not applied: %#v", config)
+	}
+	encoded, err := json.Marshal(resolved)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var executable canvasGenerationInput
+	if err := json.Unmarshal(encoded, &executable); err != nil {
+		t.Fatalf("server defaults cannot be decoded by provider: %v", err)
 	}
 	if config["priceTierId"] != "tier-default" || config["providerModelKey"] != "provider-image-default" {
 		t.Fatalf("server price selection was not persisted: %#v", config)
@@ -320,12 +327,24 @@ func newSelectionPriceTier(id string, selector string, providerModelKey string, 
 	}
 }
 
-func TestNanoBananaResolutionPricingOnSystemChannel(t *testing.T) {
-	profile := DefaultModelCapabilityConfigForModel(string(model.ChannelInterfaceGeminiImage), "nano-banana-pro")
+func TestImageResolutionPricingOnSystemChannel(t *testing.T) {
+	profile := DefaultModelCapabilityConfigForModel(string(model.ChannelInterfaceGeminiImage), "gemini-image-model")
+	profile.Image.Quality = ImageQualityConfig{Supported: false, Default: "auto"}
+	profile.Image.Size = ImageSizeConfig{
+		Parameter: "aspect_ratio",
+		Values:    []string{"1:1", "16:9"},
+		Default:   "1:1",
+		Presets: []ImageSizePreset{
+			{Tier: "1k", Ratio: "16:9", Size: "1824x1024", Width: 1824, Height: 1024},
+			{Tier: "2k", Ratio: "16:9", Size: "2752x1536", Width: 2752, Height: 1536},
+			{Tier: "4k", Ratio: "16:9", Size: "3840x2160", Width: 3840, Height: 2160},
+		},
+	}
 	svc, _, channel, channelModel := createSystemChannelSelectionFixture(t, "image", model.ChannelInterfaceGeminiImage, profile, []model.ChannelModelPriceTier{
-		newSelectionPriceTier("tier-1k", `{"quality":"1k"}`, "nano-banana-pro", "fixed_request"),
-		newSelectionPriceTier("tier-2k", `{"quality":"2k"}`, "nano-banana-pro", "fixed_request"),
-		newSelectionPriceTier("tier-4k", `{"quality":"4k"}`, "nano-banana-pro", "fixed_request"),
+		newSelectionPriceTier("tier-1k", `{"quality":"1k"}`, "provider-1k", "fixed_request"),
+		newSelectionPriceTier("tier-2k", `{"quality":"2k"}`, "provider-2k", "fixed_request"),
+		newSelectionPriceTier("tier-4k", `{"quality":"4k"}`, "provider-4k", "fixed_request"),
+	})
 	})
 
 	for _, tc := range []struct {
