@@ -16,6 +16,7 @@ import { AdminPageFrame } from "../components/admin-shell";
 import { AdminDataTable, AdminRowActions, AdminStatusBadge, AdminTableEmpty, configuredSecretText } from "../components/admin-ui";
 import { ChannelModelManager } from "../components/channel-model-manager";
 import { ChannelOrderDialog } from "../components/channel-order-dialog";
+import { ChannelGroupDialog } from "../components/channel-group-dialog";
 
 type ChannelFormValues = {
     name: string;
@@ -268,6 +269,13 @@ export default function ChannelsPage() {
             description="列表顺序就是用户端展示顺序，点击“设置排序”即可调整。"
             actions={
                 <div className="flex gap-2">
+                    <ChannelGroupDialog
+                        channels={channels}
+                        onSaved={async () => {
+                            await syncChannels();
+                            await reload();
+                        }}
+                    />
                     <ChannelOrderDialog
                         onSaved={async () => {
                             await syncChannels();

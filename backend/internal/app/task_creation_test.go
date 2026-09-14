@@ -345,7 +345,6 @@ func TestImageResolutionPricingOnSystemChannel(t *testing.T) {
 		newSelectionPriceTier("tier-2k", `{"quality":"2k"}`, "provider-2k", "fixed_request"),
 		newSelectionPriceTier("tier-4k", `{"quality":"4k"}`, "provider-4k", "fixed_request"),
 	})
-	})
 
 	for _, tc := range []struct {
 		name     string
