@@ -116,6 +116,75 @@ export function parseAssetRecordList(values: unknown): Asset[] {
     });
 }
 
+/**
+ * 读路径容错解析：为从服务端或外部读取的素材补齐非破坏性元数据，
+ * 并安全隔离无法解析的损坏记录，防止单个历史损坏素材崩溃整个画布。
+ */
+export function parseRemoteAssetRecordListRecovering(values: unknown): Asset[] {
+    if (!Array.isArray(values)) return [];
+    const assets: Asset[] = [];
+    for (let index = 0; index < values.length; index++) {
+        const item = values[index];
+        try {
+            assets.push(parseAssetRecord(sanitizeRemoteAssetRecord(item)));
+        } catch (error) {
+            const id = isRecord(item) && typeof item.id === "string" && item.id.trim() ? item.id : `#${index}`;
+            console.warn(`隔离损坏的素材记录 ${id}:`, error);
+        }
+    }
+    return assets;
+}
+
+/**
+ * 为从服务端或外部读取的素材草稿补齐非破坏性默认值（如 bytes、width、height、coverUrl、tags），
+ * 避免因历史数据或自动自愈记录略微缺少元数据导致整幅画布拒绝打开。
+ */
+export function sanitizeRemoteAssetRecord(raw: unknown): unknown {
+    if (!isRecord(raw)) return raw;
+    const kind = raw.kind;
+    const data = isRecord(raw.data) ? { ...raw.data } : null;
+    if (!data) return raw;
+
+    const patched: Record<string, unknown> = { ...raw };
+    if (typeof patched.title !== "string") {
+        patched.title = "未命名素材";
+    }
+    if (typeof patched.coverUrl !== "string") {
+        patched.coverUrl = typeof data.dataUrl === "string" ? data.dataUrl : typeof data.url === "string" ? data.url : "";
+    }
+    if (!Array.isArray(patched.tags)) {
+        patched.tags = [];
+    }
+    if (typeof patched.createdAt !== "string") {
+        patched.createdAt = new Date().toISOString();
+    }
+    if (typeof patched.updatedAt !== "string") {
+        patched.updatedAt = patched.createdAt;
+    }
+
+    if (kind === "image" || kind === "video" || kind === "audio" || kind === "model") {
+        if (typeof data.bytes !== "number" || !Number.isFinite(data.bytes) || data.bytes < 0) {
+            data.bytes = 0;
+        }
+        if (kind === "image" || kind === "video") {
+            if (typeof data.width !== "number" || !Number.isFinite(data.width) || data.width <= 0) {
+                data.width = 1024;
+            }
+            if (typeof data.height !== "number" || !Number.isFinite(data.height) || data.height <= 0) {
+                data.height = 1024;
+            }
+        }
+        if (typeof data.mimeType !== "string" || !data.mimeType.trim()) {
+            data.mimeType = kind === "video" ? "video/mp4" : kind === "audio" ? "audio/mpeg" : kind === "model" ? "application/octet-stream" : "image/png";
+        }
+        if (kind === "model" && typeof data.fileName !== "string") {
+            data.fileName = typeof patched.title === "string" && patched.title.trim() ? patched.title.trim() : "model.bin";
+        }
+        patched.data = data;
+    }
+    return patched;
+}
+
 function requireMediaLocator(primary: string, storageKey: string | undefined, label: string, primaryKey: string) {
     if (!primary.trim() && !storageKey?.trim()) {
         throw new Error(`${label}素材缺少 ${primaryKey} 或 storageKey`);

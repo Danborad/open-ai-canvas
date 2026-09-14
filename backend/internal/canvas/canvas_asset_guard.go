@@ -114,6 +114,42 @@ func (s *Service) ensureAssetRecordForResourceWithID(userID string, assetID stri
 	category := model.NormalizeAssetCategory(model.AssetCategoryMaterial, kind)
 	storageKey := "resource:" + resource.ID
 	fileURL := "/api/resources/" + resource.ID + "/file"
+	width := resource.Width
+	if width <= 0 {
+		width = 1024
+	}
+	height := resource.Height
+	if height <= 0 {
+		height = 1024
+	}
+	bytes := resource.Size
+	if bytes < 0 {
+		bytes = 0
+	}
+	mimeType := strings.TrimSpace(resource.MimeType)
+	if mimeType == "" {
+		if kind == "video" {
+			mimeType = "video/mp4"
+		} else if kind == "audio" {
+			mimeType = "audio/mpeg"
+		} else {
+			mimeType = "image/png"
+		}
+	}
+	data := map[string]any{
+		"storageKey": storageKey,
+		"url":        fileURL,
+		"dataUrl":    fileURL,
+		"width":      width,
+		"height":     height,
+		"bytes":      bytes,
+		"mimeType":   mimeType,
+	}
+	if kind == "video" || kind == "audio" {
+		if resource.DurationMs > 0 {
+			data["durationMs"] = resource.DurationMs
+		}
+	}
 	payload := map[string]any{
 		"id":        cleanAssetID,
 		"title":     title,
@@ -121,13 +157,11 @@ func (s *Service) ensureAssetRecordForResourceWithID(userID string, assetID stri
 		"category":  string(category),
 		"status":    string(model.AssetVersionStatusConfirmed),
 		"source":    "Canvas",
+		"coverUrl":  fileURL,
+		"tags":      []string{"画布"},
 		"createdAt": now.Format(time.RFC3339Nano),
 		"updatedAt": now.Format(time.RFC3339Nano),
-		"data": map[string]any{
-			"storageKey": storageKey,
-			"url":        fileURL,
-			"dataUrl":    fileURL,
-		},
+		"data":      data,
 	}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {

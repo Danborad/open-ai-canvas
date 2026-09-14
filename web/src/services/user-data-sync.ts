@@ -3,7 +3,7 @@ import { getImageBlob } from "@/services/image-storage";
 import { deleteRemoteAsset, deleteRemoteCanvasProject, getRemoteAsset, getRemoteAssetsByIds, getRemoteCanvasProject, getRemoteUserDataSnapshot, listRemoteAssetsPage, upsertRemoteAsset, upsertRemoteCanvasProject } from "@/services/api/user-data";
 import { appQueryClient } from "@/lib/query-client";
 import { resourceFileUrl, resourceIdFromStorageKey, resourceStorageKey, uploadResourceFile } from "@/services/api/resources";
-import { parseAssetRecordList } from "@/lib/asset-record";
+import { parseAssetRecordList, parseRemoteAssetRecordListRecovering } from "@/lib/asset-record";
 import { assetForRemoteSync } from "@/lib/asset-remote-sync";
 import type { Asset } from "@/stores/use-asset-store";
 import { flushAssetStorePersistence, useAssetStore } from "@/stores/use-asset-store";
@@ -135,11 +135,11 @@ export async function loadAssetLibraryPage(options: Parameters<typeof listRemote
         if (epoch !== sessionEpoch) throw new Error("账号已切换，请重新读取素材");
         acceptRemoteAssets(result.assets);
     });
-    return { ...result, assets: parseAssetRecordList(result.assets) };
+    return { ...result, assets: parseRemoteAssetRecordListRecovering(result.assets) };
 }
 
 function acceptRemoteAssets(remoteAssets: Asset[]) {
-    const assets = parseAssetRecordList(remoteAssets);
+    const assets = parseRemoteAssetRecordListRecovering(remoteAssets);
     const current = new Map(useAssetStore.getState().assets.map((asset) => [asset.id, asset]));
     for (const asset of assets) {
         const local = current.get(asset.id);
@@ -201,7 +201,7 @@ export async function syncRemoteUserData(userId?: string | null) {
             const snapshot = await getRemoteUserDataSnapshot();
             // 登录时服务端是实体真相。浏览器 IndexedDB 只作为首屏缓存，不能把服务端已删除的记录补回去。
             // 这里只替换结构化记录，不在登录阶段解析图片/视频/音频 URL；媒体由实际使用方按需解析。
-            const snapshotAssets = parseAssetRecordList(snapshot.assets);
+            const snapshotAssets = parseRemoteAssetRecordListRecovering(snapshot.assets);
             useCanvasStore.getState().replaceProjects(snapshot.projects);
             useAssetStore.getState().replaceAssets(snapshotAssets);
             const repair = repairMissingCanvasAssets();
