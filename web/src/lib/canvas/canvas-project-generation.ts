@@ -251,6 +251,19 @@ export function buildImageGenerationMetadata(type: CanvasImageGenerationType, co
 }
 
 export function nodeReferenceImage(node: CanvasNodeData): ReferenceImage | null {
+    if (node.type === CanvasNodeType.MediaConversion) {
+        const conversion = node.metadata?.mediaConversion;
+        if (conversion?.status === "completed" && conversion.resultStorageKey) {
+            return {
+                id: node.id,
+                name: `conversion-${node.id}.png`,
+                type: node.metadata?.mimeType || "image/png",
+                dataUrl: "",
+                storageKey: conversion.resultStorageKey,
+            };
+        }
+        return null;
+    }
     if (node.type !== CanvasNodeType.Image || (!node.metadata?.content && !node.metadata?.storageKey)) return null;
     return {
         id: node.id,

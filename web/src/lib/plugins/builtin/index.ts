@@ -6,6 +6,7 @@ import "./editor/editor-shell";
 import "./canvas-stats";
 import "./canvas-node-model-badge";
 import "./canvas-cover-blur";
+import "./media-conversion";
 import "./composer-image-paste";
 import "./wecom-bot";
 import "./channel-grouping";

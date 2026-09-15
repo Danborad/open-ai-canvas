@@ -1044,6 +1044,20 @@ function InfiniteCanvasPage() {
 
     const batchSourceNodeIds = useMemo(() => nodes.filter((node) => selectedNodeIds.has(node.id) && !batchSourceRestriction(node)).map((node) => node.id), [nodes, selectedNodeIds]);
 
+    const createConversionFromSource = useCallback((source: CanvasNodeData) => {
+        if (source.type !== CanvasNodeType.Image && source.type !== CanvasNodeType.Video) return;
+        const spec = getNodeSpec(CanvasNodeType.MediaConversion);
+        const pending: PendingConnectionCreate = {
+            connection: { nodeId: source.id, handleType: "source", anchorRatio: 0.5 },
+            position: {
+                x: source.position.x + source.width + 96 + spec.width / 2,
+                y: source.position.y + source.height / 2,
+            },
+            quick: true,
+        };
+        void createConnectedNode(CanvasNodeType.MediaConversion, pending);
+    }, [createConnectedNode]);
+
     const handleCanvasSelectionStart = useCallback(() => {
         setContextMenu(null);
     }, []);
@@ -1072,6 +1086,8 @@ function InfiniteCanvasPage() {
             } else if (node.type === ART_CRITIQUE_NODE_TYPE) {
                 setDialogNodeId(null);
                 setArtCritiqueNodeId(node.id);
+            } else if (node.type === CanvasNodeType.MediaConversion) {
+                setDialogNodeId(null);
             } else if (node.type === CanvasNodeType.Panorama) {
                 // 全景节点是纯查看器，没有可编辑提示词，不弹提示词面板。
                 setDialogNodeId(null);
@@ -2663,6 +2679,7 @@ function InfiniteCanvasPage() {
                             onUpload={(node) => handleUploadRequest(node.id)}
                             onDownload={downloadNodeImage}
                             onSaveAsset={(node) => void saveNodeAsset(node)}
+                            onCreateConversion={createConversionFromSource}
                             onAnnotate={(node) => setAnnotationNodeId(node.id)}
                             onMaskEdit={(node) => setMaskEditNodeId(node.id)}
                             onEmotion={(node) => {

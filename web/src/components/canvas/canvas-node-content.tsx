@@ -21,6 +21,7 @@ import { hydrateCanvasVideoPreview } from "@/services/canvas-video-preview";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
 import { getNodeDefinition } from "@/lib/canvas/node-registry";
 import { ART_CRITIQUE_NODE_TYPE } from "@/lib/art-critique/contracts";
+import { MediaConversionNodeContent } from "./nodes/media-conversion-node";
 import { createDefaultSubtitleStyle } from "@/types/timeline";
 import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
 import { CanvasAudioPlayer } from "./canvas-audio-player";
@@ -119,6 +120,7 @@ const nodeContentRenderers: Partial<Record<string, (props: CanvasNodeContentProp
     [CanvasNodeType.Compare]: CompareNodeContent,
     [CanvasNodeType.Chart]: ChartNodeContent,
     [CanvasNodeType.ColorGrade]: ColorGradeNodeContent,
+    [CanvasNodeType.MediaConversion]: (props) => <MediaConversionNodeContent node={props.node} theme={props.theme} />,
 };
 
 function DrawingContent({ node, theme, drawingProjectId }: CanvasNodeContentProps) {

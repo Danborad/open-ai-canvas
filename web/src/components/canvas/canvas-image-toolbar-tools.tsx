@@ -1,16 +1,17 @@
 import type { ReactNode } from "react";
-import { Brush, Camera, Copy, FileText, Globe2, Grid2x2, Lock, LockOpen, Maximize2, PencilLine, Crop, SlidersHorizontal, Smile, Sun, Upload, Scaling } from "lucide-react";
+import { Brush, Camera, Copy, FileText, Globe2, Grid2x2, Lock, LockOpen, Maximize2, PencilLine, Crop, SlidersHorizontal, Smile, Sun, Upload, Scaling, WandSparkles } from "lucide-react";
 
 import type { CanvasNodeData } from "@/types/canvas";
 import type { NodeToolbarGroup } from "@/lib/canvas/tool-registry";
 
-type ImageNodeActionToolId = "copyPrompt" | "reversePrompt" | "replace" | "resize" | "annotation" | "maskEdit" | "emotion" | "portraitTexture" | "crop" | "split" | "upscale" | "superResolve" | "angle" | "lighting" | "panorama" | "view";
+type ImageNodeActionToolId = "copyPrompt" | "reversePrompt" | "replace" | "resize" | "annotation" | "maskEdit" | "conversion" | "emotion" | "portraitTexture" | "crop" | "split" | "upscale" | "superResolve" | "angle" | "lighting" | "panorama" | "view";
 
 type ImageToolHandlers = {
     onUpload: (node: CanvasNodeData) => void;
     onToggleFreeResize: (node: CanvasNodeData) => void;
     onAnnotate: (node: CanvasNodeData) => void;
     onMaskEdit: (node: CanvasNodeData) => void;
+    onCreateConversion?: (node: CanvasNodeData) => void;
     onEmotion: (node: CanvasNodeData) => void;
     onPortraitTexture: (node: CanvasNodeData) => void;
     onCrop: (node: CanvasNodeData) => void;
@@ -92,6 +93,15 @@ const imageToolDefinitions: ImageToolDefinition[] = [
         group: "primary",
         order: 10,
         run: (node, handlers) => handlers.onMaskEdit(node),
+    },
+    {
+        id: "conversion",
+        label: "转换",
+        description: "提取姿态骨架、线稿、深度图等",
+        icon: () => <WandSparkles className="size-3.5" />,
+        group: "primary",
+        order: 15,
+        run: (node, handlers) => handlers.onCreateConversion?.(node),
     },
     {
         id: "emotion",
