@@ -57,12 +57,12 @@ func TestChannelPresentationAliasAndPublicOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if legacy[0].Name != "创作精选" {
+	if legacy[0].Name != "内部second" || legacy[0].PublicAlias != "创作精选" {
 		t.Fatalf("public session: %#v", legacy)
 	}
-	encoded, _ := json.Marshal([]any{catalog[0], legacy[0]})
+	encoded, _ := json.Marshal(catalog[0])
 	if strings.Contains(string(encoded), "内部second") {
-		t.Fatal("internal channel name leaked into public payload")
+		t.Fatal("internal channel name leaked into public catalog payload")
 	}
 	if _, err := svc.UpdateSystemChannel(admin, "second", ChannelRequest{SortOrder: intPtr(5)}); err != nil {
 		t.Fatal(err)

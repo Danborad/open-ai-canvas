@@ -36,6 +36,7 @@ export enum CanvasNodeType {
     Chart = "chart",
     ColorGrade = "colorgrade",
     MediaConversion = "media-conversion",
+    BatchTable = "batch-table",
 }
 
 /** Runtime IDs contributed by plugins share the persisted node type field. */
@@ -56,7 +57,11 @@ export type StoryboardShotDuration = "auto" | "5" | "10" | "15" | "30";
 export type StoryboardShotCount = "auto" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10";
 export type StoryboardVideoInputMode = "direct" | "keyframe";
 export type CanvasGenerationMode = "text" | "image" | "video" | "audio";
-export type CanvasGenerationBatchMode = "storyboard_image" | "storyboard_video" | "action_board";
+export type CanvasGenerationBatchMode = "storyboard_image" | "storyboard_video" | "action_board" | "batch_image";
+export type CanvasBatchOperation = "try_on" | "creative";
+export type CanvasBatchRow = { id: string; enabled: boolean; inputNodeIds: string[]; prompt: string; outputNodeId?: string };
+export type CanvasBatchReferenceColumn = { id: string; label: string };
+export type CanvasBatchTableData = { operation: CanvasBatchOperation; concurrency: number; referenceColumns?: CanvasBatchReferenceColumn[]; rows: CanvasBatchRow[] };
 export type CanvasGenerationBatchStatus = "queued" | "running" | "partial_failed" | "completed" | "cancelled";
 export type CanvasGenerationBatchItemStatus = "waiting" | "submitting" | "queued" | "running" | "succeeded" | "failed" | "cancelled";
 export type CanvasImageGenerationType = "generation" | "edit";
@@ -159,6 +164,7 @@ export type CanvasGenerationBatch = {
     items: CanvasGenerationBatchItem[];
     createdAt: string;
     updatedAt: string;
+    concurrency?: number;
 };
 
 export type CanvasSkillSnapshot = {
@@ -373,6 +379,8 @@ export type CanvasNodeMetadata = {
     storyboardVideoInputMode?: StoryboardVideoInputMode;
     storyboardComposerHeight?: number;
     generationBatches?: CanvasGenerationBatch[];
+    batchTable?: CanvasBatchTableData;
+    batchOperation?: CanvasBatchOperation;
     frame?: {
         collapsed: boolean;
         expandedWidth: number;
@@ -458,7 +466,7 @@ export type CanvasConnection = {
     toHandleId?: string;
     fromAnchorRatio?: number;
     toAnchorRatio?: number;
-    relation?: "storyboard-output" | "storyboard-asset-reference";
+    relation?: "storyboard-output" | "storyboard-asset-reference" | "batch-output";
     storyboardRowId?: string;
 };
 
