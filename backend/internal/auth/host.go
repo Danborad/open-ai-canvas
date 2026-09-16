@@ -23,6 +23,7 @@ type Host interface {
 	RecordActivity(userID string, event string, count int)
 	AllowRequest(ctx context.Context, key string, limit int, window time.Duration) (bool, error)
 	RequestRetryAfter(ctx context.Context, key string, window time.Duration) time.Duration
+	NotifyUserRegistered(user *model.User)
 }
 
 type nopHost struct{}
@@ -44,6 +45,7 @@ func (nopHost) AllowRequest(context.Context, string, int, time.Duration) (bool, 
 func (nopHost) RequestRetryAfter(context.Context, string, time.Duration) time.Duration {
 	return 0
 }
+func (nopHost) NotifyUserRegistered(*model.User) {}
 
 type Service struct {
 	repo           *repository.Repository

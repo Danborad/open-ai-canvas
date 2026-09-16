@@ -22,11 +22,12 @@ import (
 const wecomSettingKey = "wecom_notification"
 
 type WecomSettingRequest struct {
-	Enabled      bool   `json:"enabled"`
-	WebhookURL   string `json:"webhookUrl"`
-	ScheduleTime string `json:"scheduleTime"`
-	TargetDomain string `json:"targetDomain"`
-	MentionAll   bool   `json:"mentionAll"`
+	Enabled       bool   `json:"enabled"`
+	WebhookURL    string `json:"webhookUrl"`
+	ScheduleTime  string `json:"scheduleTime"`
+	TargetDomain  string `json:"targetDomain"`
+	MentionAll    bool   `json:"mentionAll"`
+	NotifyNewUser *bool  `json:"notifyNewUser"`
 }
 
 type PublicWecomSetting struct {
@@ -36,6 +37,7 @@ type PublicWecomSetting struct {
 	ScheduleTime   string    `json:"scheduleTime"`
 	TargetDomain   string    `json:"targetDomain"`
 	MentionAll     bool      `json:"mentionAll"`
+	NotifyNewUser  bool      `json:"notifyNewUser"`
 	LastSentAt     string    `json:"lastSentAt,omitempty"`
 	LastSentStatus string    `json:"lastSentStatus,omitempty"`
 	UpdatedAt      time.Time `json:"updatedAt"`
@@ -47,12 +49,14 @@ type wecomSettingValue struct {
 	ScheduleTime   string `json:"scheduleTime"`
 	TargetDomain   string `json:"targetDomain"`
 	MentionAll     bool   `json:"mentionAll"`
+	NotifyNewUser  bool   `json:"notifyNewUser"`
 	LastSentAt     string `json:"lastSentAt"`
 	LastSentStatus string `json:"lastSentStatus"`
 }
 
 type ModelUsageStat struct {
 	ModelName    string `json:"modelName"`
+	ChannelName  string `json:"channelName,omitempty"`
 	TaskCount    int64  `json:"taskCount"`
 	SuccessCount int64  `json:"successCount"`
 	FailedCount  int64  `json:"failedCount"`
@@ -96,11 +100,12 @@ var wecomSendMu sync.Mutex
 
 func defaultWecomSetting() wecomSettingValue {
 	return wecomSettingValue{
-		Enabled:      false,
-		WebhookURL:   "",
-		ScheduleTime: "22:00",
-		TargetDomain: "art.960916.xyz",
-		MentionAll:   false,
+		Enabled:       false,
+		WebhookURL:    "",
+		ScheduleTime:  "22:00",
+		TargetDomain:  "art.960916.xyz",
+		MentionAll:    false,
+		NotifyNewUser: true,
 	}
 }
 
@@ -114,8 +119,19 @@ func (s *Service) readWecomSetting() (*model.SystemSetting, wecomSettingValue, e
 	}
 	value := defaultWecomSetting()
 	if strings.TrimSpace(setting.ValueJSON) != "" {
+		var rawMap map[string]any
+		if err := json.Unmarshal([]byte(setting.ValueJSON), &rawMap); err == nil {
+			if _, exists := rawMap["notifyNewUser"]; !exists {
+				value.NotifyNewUser = true
+			}
+		}
 		if err := json.Unmarshal([]byte(setting.ValueJSON), &value); err != nil {
 			return nil, wecomSettingValue{}, errors.New("企业微信通知配置格式无效")
+		}
+		if rawMap != nil {
+			if _, exists := rawMap["notifyNewUser"]; !exists {
+				value.NotifyNewUser = true
+			}
 		}
 	}
 	if value.WebhookURL != "" {
@@ -186,6 +202,7 @@ func (s *Service) AdminWecomNotificationSetting(actor *model.User) (*PublicWecom
 		ScheduleTime:   value.ScheduleTime,
 		TargetDomain:   value.TargetDomain,
 		MentionAll:     value.MentionAll,
+		NotifyNewUser:  value.NotifyNewUser,
 		LastSentAt:     value.LastSentAt,
 		LastSentStatus: value.LastSentStatus,
 		UpdatedAt:      updatedAt,
@@ -212,8 +229,11 @@ func (s *Service) UpdateWecomNotificationSetting(actor *model.User, req WecomSet
 		next.TargetDomain = strings.TrimSpace(req.TargetDomain)
 	}
 	next.MentionAll = req.MentionAll
+	if req.NotifyNewUser != nil {
+		next.NotifyNewUser = *req.NotifyNewUser
+	}
 
-	if next.Enabled && next.WebhookURL == "" {
+	if (next.Enabled || next.NotifyNewUser) && next.WebhookURL == "" {
 		return nil, BadAuthRequest("启用企业微信通知必须配置 Webhook 地址")
 	}
 
@@ -260,42 +280,80 @@ func (s *Service) BuildDailyReportData(ctx context.Context, targetDomain string)
 		topCreators = []repository.CreatorStat{}
 	}
 
-	// 4. 今日调用模型统计（聚合 cleanModel 并只保留今天实际产生过任务的模型，未调用的不显示）
+	// 4. 今日调用模型统计（聚合 cleanModel 并关联所属渠道，只保留今天实际产生过任务的模型）
 	modelRows, _ := s.repo.DailyModelTaskStats(startOfDay, nowUTC)
 	displayNames, _ := s.repo.ChannelModelDisplayNames()
 	if displayNames == nil {
 		displayNames = map[string]string{}
+	}
+	channelMeta, _ := s.repo.ChannelMetaMap()
+	if channelMeta == nil {
+		channelMeta = map[string]repository.ChannelMetaInfo{}
 	}
 
 	modelMap := make(map[string]*ModelUsageStat)
 	var modelOrder []string
 
 	for _, row := range modelRows {
-		cleanKey := strings.TrimSpace(row.Model)
-		if cleanKey == "" {
+		rawKey := strings.TrimSpace(row.Model)
+		if rawKey == "" {
 			continue
 		}
-		if idx := strings.Index(cleanKey, "::"); idx >= 0 {
-			cleanKey = cleanKey[idx+2:]
-		}
-		displayName := displayNames[cleanKey]
-		if displayName == "" {
-			displayName = cleanKey
+		channelID := ""
+		modelKey := rawKey
+		if idx := strings.Index(rawKey, "::"); idx >= 0 {
+			channelID = strings.TrimSpace(rawKey[:idx])
+			modelKey = strings.TrimSpace(rawKey[idx+2:])
 		}
 
-		if stat, exists := modelMap[displayName]; exists {
+		// 优先从 channelId::modelKey 取特定展示名，其次取通用 modelKey 展示名
+		displayName := ""
+		if channelID != "" {
+			displayName = displayNames[channelID+"::"+modelKey]
+		}
+		if displayName == "" {
+			displayName = displayNames[modelKey]
+		}
+		if displayName == "" {
+			displayName = modelKey
+		}
+
+		// 解析渠道友好名称
+		channelName := ""
+		if ch, ok := channelMeta[channelID]; ok {
+			cName := strings.TrimSpace(ch.Name)
+			cAlias := strings.TrimSpace(ch.PublicAlias)
+			if cName != "" && cAlias != "" && cAlias != cName {
+				channelName = fmt.Sprintf("%s · %s", cName, cAlias)
+			} else if cName != "" {
+				channelName = cName
+			} else if cAlias != "" {
+				channelName = cAlias
+			}
+		}
+
+		// 聚合键：不同渠道的模型分开呈现
+		aggregateKey := displayName
+		if channelName != "" {
+			aggregateKey = channelName + "::" + displayName
+		} else if channelID != "" {
+			aggregateKey = channelID + "::" + displayName
+		}
+
+		if stat, exists := modelMap[aggregateKey]; exists {
 			stat.TaskCount += row.TaskCount
 			stat.SuccessCount += row.SuccessCount
 			stat.FailedCount += row.FailedCount
 		} else {
 			stat = &ModelUsageStat{
 				ModelName:    displayName,
+				ChannelName:  channelName,
 				TaskCount:    row.TaskCount,
 				SuccessCount: row.SuccessCount,
 				FailedCount:  row.FailedCount,
 			}
-			modelMap[displayName] = stat
-			modelOrder = append(modelOrder, displayName)
+			modelMap[aggregateKey] = stat
+			modelOrder = append(modelOrder, aggregateKey)
 		}
 	}
 
@@ -400,10 +458,14 @@ func FormatWecomDailyReportText(data *WecomDailyReportData) string {
 	if len(data.ModelStats) > 0 {
 		b.WriteString("🤖 调用模型统计\n")
 		for _, stat := range data.ModelStats {
+			channelTag := ""
+			if stat.ChannelName != "" {
+				channelTag = fmt.Sprintf(" [%s]", stat.ChannelName)
+			}
 			if stat.FailedCount > 0 {
-				b.WriteString(fmt.Sprintf("• %s：%d 次 (成功 %d / 失败 %d)\n", stat.ModelName, stat.TaskCount, stat.SuccessCount, stat.FailedCount))
+				b.WriteString(fmt.Sprintf("• %s%s：%d 次 (成功 %d / 失败 %d)\n", stat.ModelName, channelTag, stat.TaskCount, stat.SuccessCount, stat.FailedCount))
 			} else {
-				b.WriteString(fmt.Sprintf("• %s：%d 次 (全部成功)\n", stat.ModelName, stat.TaskCount))
+				b.WriteString(fmt.Sprintf("• %s%s：%d 次 (全部成功)\n", stat.ModelName, channelTag, stat.TaskCount))
 			}
 		}
 		b.WriteString("\n")
@@ -554,6 +616,106 @@ func (s *Service) PreviewWecomDailyReport(actor *model.User) (*WecomDailyReportD
 	}
 	content := FormatWecomDailyReportText(data)
 	return data, content, nil
+}
+
+func (s *Service) FormatWecomUserRegisteredText(user *model.User) string {
+	loc := chinaTimeZone()
+	now := user.CreatedAt.In(loc)
+	regTime := now.Format("2006-01-02 15:04:05")
+
+	username := strings.TrimSpace(user.Username)
+	if username == "" {
+		username = user.ID
+	}
+	displayName := strings.TrimSpace(user.DisplayName)
+	if displayName == "" {
+		displayName = username
+	}
+	email := strings.TrimSpace(user.Email)
+	if email == "" {
+		email = "未绑定"
+	}
+
+	totalUsers, err := s.repo.UserCount()
+	if err != nil || totalUsers == 0 {
+		totalUsers = 1
+	}
+
+	var b strings.Builder
+	b.WriteString("🎉 【影策创作台 · 新用户注册通知】\n")
+	b.WriteString("----------------------------------------\n")
+	b.WriteString(fmt.Sprintf("• 用户账号：%s\n", username))
+	b.WriteString(fmt.Sprintf("• 用户昵称：%s\n", displayName))
+	b.WriteString(fmt.Sprintf("• 绑定邮箱：%s\n", email))
+	b.WriteString(fmt.Sprintf("• 注册时间：%s\n", regTime))
+	b.WriteString(fmt.Sprintf("• 平台总用户：%d 人\n", totalUsers))
+	b.WriteString("----------------------------------------\n")
+	b.WriteString("※ 来自影策用户中心实时通知")
+	return b.String()
+}
+
+func (s *Service) NotifyWecomUserRegistered(user *model.User) {
+	if s == nil || user == nil {
+		return
+	}
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("[WeCom] panic in NotifyWecomUserRegistered: %v", r)
+			}
+		}()
+
+		_, setting, err := s.readWecomSetting()
+		if err != nil {
+			return
+		}
+		cleanURL := strings.TrimSpace(setting.WebhookURL)
+		if cleanURL == "" || !setting.NotifyNewUser {
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		content := s.FormatWecomUserRegisteredText(user)
+		if err := s.sendWecomTextMessage(ctx, cleanURL, content, false); err != nil {
+			log.Printf("[WeCom] 发送新用户注册通知失败: %v", err)
+		} else {
+			log.Printf("[WeCom] 成功推送新用户注册通知: %s (%s)", user.Username, user.Email)
+		}
+	}()
+}
+
+func (s *Service) TestWecomUserRegisterNotification(actor *model.User) (*WecomTestResult, error) {
+	if err := s.RequireAdmin(actor); err != nil {
+		return nil, err
+	}
+	_, setting, err := s.readWecomSetting()
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(setting.WebhookURL) == "" {
+		return nil, BadAuthRequest("请先配置企业微信 Webhook 地址")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	sampleUser := *actor
+	content := s.FormatWecomUserRegisteredText(&sampleUser)
+	if err := s.sendWecomTextMessage(ctx, setting.WebhookURL, content, false); err != nil {
+		return &WecomTestResult{
+			Sent:    false,
+			Content: content,
+			Message: err.Error(),
+		}, err
+	}
+
+	return &WecomTestResult{
+		Sent:    true,
+		Content: content,
+		Message: "发送成功",
+	}, nil
 }
 
 func (s *Service) startWecomNotificationWorker(ctx context.Context) {

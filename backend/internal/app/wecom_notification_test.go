@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"infinite-canvas/backend/internal/model"
 	"infinite-canvas/backend/internal/repository"
 )
 
@@ -96,6 +97,48 @@ func TestFormatWecomDailyReportText(t *testing.T) {
 	emptyText := FormatWecomDailyReportText(&emptyData)
 	if strings.Contains(emptyText, "调用模型统计") {
 		t.Errorf("expected no model section when empty, got:\n%s", emptyText)
+	}
+
+	// 验证包含渠道名称时的格式化
+	channelData := *data
+	channelData.ModelStats = []ModelUsageStat{
+		{ModelName: "gpt-image-2.5", ChannelName: "chat2api 1K · 福利渠道", TaskCount: 236, SuccessCount: 159, FailedCount: 77},
+		{ModelName: "minimax_h3_lightx2v_v5", ChannelName: "AutoDL.Art", TaskCount: 10, SuccessCount: 10, FailedCount: 0},
+	}
+	channelText := FormatWecomDailyReportText(&channelData)
+	if !strings.Contains(channelText, "gpt-image-2.5 [chat2api 1K · 福利渠道]：236 次 (成功 159 / 失败 77)") {
+		t.Errorf("expected channel formatting in model stats, got:\n%s", channelText)
+	}
+	if !strings.Contains(channelText, "minimax_h3_lightx2v_v5 [AutoDL.Art]：10 次 (全部成功)") {
+		t.Errorf("expected channel formatting in model stats, got:\n%s", channelText)
+	}
+}
+
+func TestFormatWecomUserRegisteredText(t *testing.T) {
+	svc, _, _ := newResourceDeletionTestService(t)
+	user := &model.User{
+		ID:          "user-123",
+		Username:    "luffy",
+		DisplayName: "草帽路飞",
+		Email:       "luffy@onepiece.com",
+		CreatedAt:   time.Date(2026, 9, 16, 15, 30, 0, 0, time.UTC),
+	}
+
+	text := svc.FormatWecomUserRegisteredText(user)
+
+	checks := []string{
+		"新用户注册通知",
+		"用户账号：luffy",
+		"用户昵称：草帽路飞",
+		"绑定邮箱：luffy@onepiece.com",
+		"注册时间：2026-09-16 23:30:00",
+		"平台总用户：",
+	}
+
+	for _, check := range checks {
+		if !strings.Contains(text, check) {
+			t.Errorf("FormatWecomUserRegisteredText missing %q\nFull text:\n%s", check, text)
+		}
 	}
 }
 

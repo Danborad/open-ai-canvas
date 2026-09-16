@@ -7,6 +7,7 @@ export interface WecomSetting {
     scheduleTime: string;
     targetDomain: string;
     mentionAll: boolean;
+    notifyNewUser: boolean;
     lastSentAt?: string;
     lastSentStatus?: string;
     updatedAt: string;
@@ -18,10 +19,12 @@ export interface WecomSettingRequest {
     scheduleTime?: string;
     targetDomain?: string;
     mentionAll?: boolean;
+    notifyNewUser?: boolean;
 }
 
 export interface ModelUsageStat {
     modelName: string;
+    channelName?: string;
     taskCount: number;
     successCount: number;
     failedCount: number;
@@ -79,6 +82,10 @@ export function updateWecomSetting(req: WecomSettingRequest) {
 
 export function testWecomNotification() {
     return request<WecomTestResult>(apiClient.post("/admin/wecom/test", {}));
+}
+
+export function testWecomRegisterNotification() {
+    return request<WecomTestResult>(apiClient.post("/admin/wecom/test-register-notice", {}));
 }
 
 export function previewWecomReport(signal?: AbortSignal) {

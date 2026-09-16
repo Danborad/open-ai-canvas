@@ -163,6 +163,7 @@ func (s *Service) Register(req RegisterRequest) (*AuthSessionResult, error) {
 	if err := s.host.EnsureSignupBonus(user.ID); err != nil {
 		return nil, err
 	}
+	s.host.NotifyUserRegistered(&user)
 	return s.createAuthSession(&user)
 }
 

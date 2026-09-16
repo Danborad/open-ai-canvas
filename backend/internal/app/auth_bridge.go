@@ -110,6 +110,13 @@ func (h authHost) RequestRetryAfter(ctx context.Context, key string, window time
 	return h.svc.RequestRetryAfter(ctx, key, window)
 }
 
+func (h authHost) NotifyUserRegistered(user *model.User) {
+	if h.svc == nil || user == nil {
+		return
+	}
+	h.svc.NotifyWecomUserRegistered(user)
+}
+
 func (s *Service) authDomain() *auth.Service {
 	if s == nil {
 		return auth.New(nil, nil, nil)

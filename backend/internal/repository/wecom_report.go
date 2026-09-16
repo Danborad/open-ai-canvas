@@ -111,23 +111,51 @@ func (r *Repository) DailyModelTaskStats(from, to time.Time) ([]ModelTaskRow, er
 
 func (r *Repository) ChannelModelDisplayNames() (map[string]string, error) {
 	var list []struct {
+		ChannelID   string `gorm:"column:channel_id"`
 		ModelKey    string `gorm:"column:model_key"`
 		DisplayName string `gorm:"column:display_name"`
 	}
 	err := r.db.Model(&model.ChannelModel{}).
-		Select("model_key, display_name").
+		Select("channel_id, model_key, display_name").
 		Where("display_name != ''").
 		Scan(&list).Error
 	if err != nil {
 		return nil, err
 	}
-	result := make(map[string]string, len(list))
+	result := make(map[string]string, len(list)*2)
 	for _, item := range list {
+		cid := strings.TrimSpace(item.ChannelID)
 		k := strings.TrimSpace(item.ModelKey)
 		v := strings.TrimSpace(item.DisplayName)
 		if k != "" && v != "" {
-			result[k] = v
+			if cid != "" {
+				result[cid+"::"+k] = v
+			}
+			if _, exists := result[k]; !exists {
+				result[k] = v
+			}
 		}
+	}
+	return result, nil
+}
+
+type ChannelMetaInfo struct {
+	ID          string `gorm:"column:id"`
+	Name        string `gorm:"column:name"`
+	PublicAlias string `gorm:"column:public_alias"`
+}
+
+func (r *Repository) ChannelMetaMap() (map[string]ChannelMetaInfo, error) {
+	var list []ChannelMetaInfo
+	err := r.db.Model(&model.ModelChannel{}).
+		Select("id, name, public_alias").
+		Scan(&list).Error
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]ChannelMetaInfo, len(list))
+	for _, item := range list {
+		result[strings.TrimSpace(item.ID)] = item
 	}
 	return result, nil
 }

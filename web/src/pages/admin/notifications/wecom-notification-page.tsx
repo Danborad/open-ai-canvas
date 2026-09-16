@@ -4,7 +4,7 @@ import { App, Button, Form, Input, Switch, Alert, Spin, Tag, Card, Row, Col, Typ
 import { Send, RefreshCw, CheckCircle2, AlertCircle, Clock3, Globe, Users, Image as ImageIcon, Video, HardDrive, Bell, Check, Copy } from "lucide-react";
 
 import { AdminPageFrame } from "@/pages/admin/components/admin-shell";
-import { getWecomSetting, updateWecomSetting, testWecomNotification, previewWecomReport, type WecomSettingRequest } from "@/services/api/wecom";
+import { getWecomSetting, updateWecomSetting, testWecomNotification, testWecomRegisterNotification, previewWecomReport, type WecomSettingRequest } from "@/services/api/wecom";
 import { cn } from "@/lib/utils";
 
 const { Text, Paragraph } = Typography;
@@ -14,6 +14,7 @@ export default function WecomNotificationPage() {
     const queryClient = useQueryClient();
     const [form] = Form.useForm<WecomSettingRequest>();
     const [testLoading, setTestLoading] = useState(false);
+    const [testRegisterLoading, setTestRegisterLoading] = useState(false);
     const [copied, setCopied] = useState(false);
 
     // 读取企微配置
@@ -39,6 +40,7 @@ export default function WecomNotificationPage() {
                 scheduleTime: setting.scheduleTime || "22:00",
                 targetDomain: setting.targetDomain || "art.960916.xyz",
                 mentionAll: setting.mentionAll || false,
+                notifyNewUser: setting.notifyNewUser !== false,
             });
         }
     }, [form, setting]);
@@ -76,6 +78,27 @@ export default function WecomNotificationPage() {
             message.error(err instanceof Error ? err.message : "发送异常，请检查 Webhook 地址与网络");
         } finally {
             setTestLoading(false);
+        }
+    };
+
+    // 测试发送新用户注册通知
+    const handleTestRegisterSend = async () => {
+        if (!setting?.hasWebhookUrl && !form.getFieldValue("webhookUrl")) {
+            message.warning("请先配置并保存 Webhook 地址");
+            return;
+        }
+        setTestRegisterLoading(true);
+        try {
+            const res = await testWecomRegisterNotification();
+            if (res.sent) {
+                message.success("测试新用户注册通知已成功发送至企业微信群！");
+            } else {
+                message.error(`发送失败：${res.message}`);
+            }
+        } catch (err) {
+            message.error(err instanceof Error ? err.message : "发送异常，请检查 Webhook 地址与网络");
+        } finally {
+            setTestRegisterLoading(false);
         }
     };
 
@@ -130,12 +153,19 @@ export default function WecomNotificationPage() {
                         刷新实时数据
                     </Button>
                     <Button
+                        icon={<Send className="size-3.5" />}
+                        onClick={handleTestRegisterSend}
+                        loading={testRegisterLoading}
+                    >
+                        测试注册通知
+                    </Button>
+                    <Button
                         type="primary"
                         icon={<Send className="size-3.5" />}
                         onClick={handleTestSend}
                         loading={testLoading}
                     >
-                        立即测试发送
+                        测试每日简报
                     </Button>
                 </div>
             }
@@ -206,13 +236,15 @@ export default function WecomNotificationPage() {
                     </div>
                 </div>
 
-                {/* 今日实际调用的模型标签栏（未调用的不显示） */}
+                {/* 今日实际调用的模型标签栏（包含所属渠道） */}
                 {preview?.data?.modelStats && preview.data.modelStats.length > 0 ? (
                     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3 shadow-sm text-xs">
                         <span className="font-semibold text-foreground">今日调用模型 ({preview.data.modelStats.length})：</span>
                         {preview.data.modelStats.map((m) => (
-                            <Tag key={m.modelName} color={m.failedCount > 0 ? "orange" : "blue"} className="px-2 py-0.5 text-xs">
-                                {m.modelName} · {m.taskCount} 次
+                            <Tag key={m.modelName + (m.channelName || "")} color={m.failedCount > 0 ? "orange" : "blue"} className="px-2 py-0.5 text-xs">
+                                {m.modelName}
+                                {m.channelName ? <span className="opacity-75 font-normal"> [{m.channelName}]</span> : ""}
+                                {" · "}{m.taskCount} 次
                                 {m.failedCount > 0 ? ` (成功 ${m.successCount} / 失败 ${m.failedCount})` : " (全成功)"}
                             </Tag>
                         ))}
@@ -325,6 +357,15 @@ export default function WecomNotificationPage() {
                                     valuePropName="checked"
                                 >
                                     <Switch checkedChildren="是" unCheckedChildren="否" />
+                                </Form.Item>
+
+                                <Form.Item
+                                    name="notifyNewUser"
+                                    label="新用户注册微信实时通知"
+                                    valuePropName="checked"
+                                    extra="开启后，每当有新用户完成注册（包括邮箱注册、Linux.do 或管理员添加），机器人会立即在微信群内发送注册提醒。"
+                                >
+                                    <Switch checkedChildren="开启" unCheckedChildren="关闭" />
                                 </Form.Item>
 
                                 <div className="pt-2 flex items-center justify-end gap-3">

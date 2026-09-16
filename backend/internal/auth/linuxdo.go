@@ -241,6 +241,7 @@ func (s *Service) CompleteLinuxDOLogin(stateValue string, code string) (*LinuxDO
 		if err := s.repo.CreateOAuthUser(user, identity); err != nil {
 			return nil, err
 		}
+		s.host.NotifyUserRegistered(user)
 	} else {
 		return nil, err
 	}
