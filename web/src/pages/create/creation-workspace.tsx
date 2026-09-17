@@ -705,14 +705,15 @@ function GenerationSettingsMenu(props: ComposerProps) {
         if (!referenceImageSizeValue) return;
         props.setRatio(referenceImageSizeValue);
     };
-    const videoResolutionSupported = props.mode === "video" && resolutions.length > 0;
+    const videoResolutionSupported = props.mode === "video" && resolutions.length > 1;
+    const defaultResolutionLabel = videoResolutionLabel(props.videoQuality || props.videoProfile.defaultResolution || (resolutions[0]?.value ? resolutions[0].value : "720p"));
     const imageSummary = [
         ...(mergedProfile.size.parameter !== "none" ? [referenceImageSizeSelected ? referenceImageSizeLabel : usesImageResolutionPicker ? formatImageResolutionSize(props.ratio, imageResolutionOptions) : props.ratio] : []),
         ...(props.imageProfile.quality.supported ? [qualityLabel] : []),
         ...(props.imageProfile.maxOutputs > 1 ? [props.count] : []),
     ].join(" · ");
     const videoRatioSupported = props.mode === "video" && ratios.length > 0;
-    const summary = props.mode === "video" ? [...(videoRatioSupported ? [props.ratio] : []), ...(videoResolutionSupported ? [videoResolutionLabel(props.videoQuality)] : [])].join(" · ") : imageSummary;
+    const summary = props.mode === "video" ? [...(videoRatioSupported ? [props.ratio] : []), ...(defaultResolutionLabel ? [defaultResolutionLabel] : [])].join(" · ") : imageSummary;
     const panel = <div className="creation-parameter-menu">
         {props.mode === "image" ? <ImageSizePicker profile={mergedProfile} size={props.ratio} quality={props.quality} onChange={(size, quality) => { props.setRatio(size); if (quality) props.setQuality(quality); }} /> : videoRatioSupported ? <SettingSection title="画幅" value={props.ratio}><div className="creation-choice-grid is-ratio">{ratios.map((value) => <button key={value} type="button" aria-pressed={value === props.ratio} className={value === props.ratio ? "is-selected" : ""} onClick={() => props.setRatio(value)}><span className="creation-ratio-preview"><span style={ratioPreviewStyle(value)} /></span><span>{value}</span></button>)}</div></SettingSection> : null}
         {props.mode === "image" && referenceImageSizeValue ? <button type="button" className="creation-custom-trigger" onClick={selectReferenceImageSize}>使用参考图尺寸 · {referenceImageSizeLabel}</button> : null}

@@ -555,7 +555,7 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
             video.duration = { selection: "enum", values: [], default: 0 };
             video.durationSupported = false;
             video.resolutions = [];
-            video.defaultResolution = "";
+            video.defaultResolution = "720p";
         }
     }
     if (protocol === "xai-video" || protocol === "grok2api-video" || protocol === "grok2api-new-video") {
@@ -619,6 +619,10 @@ export function modelCapabilityConfigFor(config: { channels: Array<{ id: string;
     const capabilityConfig = normalizeModelCapabilityConfig(cost.capabilityConfig);
     const text = capabilityConfig.text ? { ...fallback.text!, ...capabilityConfig.text, references: { ...fallback.text!.references, ...capabilityConfig.text.references } } : fallback.text;
     const video = capabilityConfig.video ? { ...fallback.video!, ...capabilityConfig.video, references: { ...fallback.video!.references, ...capabilityConfig.video.references } } : fallback.video;
+    if (cost?.protocol === "flow2api-video" && !modelName.toLowerCase().includes("quality") && video) {
+        video.resolutions = [];
+        video.defaultResolution = "720p";
+    }
     const configuredImage = capabilityConfig.image;
     const image = configuredImage
         ? (() => {

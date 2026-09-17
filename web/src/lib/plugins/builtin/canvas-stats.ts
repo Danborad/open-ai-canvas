@@ -1,5 +1,6 @@
 import { registerPlugin } from "../plugin-registry";
 import { PLUGIN_API_VERSION, type RegisteredPlugin } from "../plugin-types";
+import { usePluginStore } from "@/stores/use-plugin-store";
 
 export const CANVAS_STATS_PLUGIN_ID = "canvas-project-stats";
 
@@ -21,3 +22,20 @@ export const canvasStatsPlugin: RegisteredPlugin = {
 };
 
 registerPlugin(canvasStatsPlugin);
+
+export function useCanvasStatsEnabled(): boolean {
+    return usePluginStore((state) => {
+        const pluginState = state.pluginStates[CANVAS_STATS_PLUGIN_ID];
+        if (pluginState && typeof pluginState.effectiveEnabled === "boolean") {
+            return pluginState.effectiveEnabled;
+        }
+        if (CANVAS_STATS_PLUGIN_ID in state.runtimeStatuses) {
+            return state.runtimeStatuses[CANVAS_STATS_PLUGIN_ID] === "enabled";
+        }
+        const installation = state.installations.find((item) => item.manifest.id === CANVAS_STATS_PLUGIN_ID);
+        if (installation && typeof installation.enabled === "boolean") {
+            return installation.enabled;
+        }
+        return true;
+    });
+}

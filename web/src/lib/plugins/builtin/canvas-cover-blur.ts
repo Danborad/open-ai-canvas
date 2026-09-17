@@ -1,5 +1,6 @@
 import { registerPlugin } from "../plugin-registry";
 import { PLUGIN_API_VERSION, type RegisteredPlugin } from "../plugin-types";
+import { usePluginStore } from "@/stores/use-plugin-store";
 
 export const CANVAS_COVER_BLUR_PLUGIN_ID = "canvas-cover-blur";
 
@@ -21,3 +22,20 @@ export const canvasCoverBlurPlugin: RegisteredPlugin = {
 };
 
 registerPlugin(canvasCoverBlurPlugin);
+
+export function useCanvasCoverBlurEnabled(): boolean {
+    return usePluginStore((state) => {
+        const pluginState = state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID];
+        if (pluginState && typeof pluginState.effectiveEnabled === "boolean") {
+            return pluginState.effectiveEnabled;
+        }
+        if (CANVAS_COVER_BLUR_PLUGIN_ID in state.runtimeStatuses) {
+            return state.runtimeStatuses[CANVAS_COVER_BLUR_PLUGIN_ID] === "enabled";
+        }
+        const installation = state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID);
+        if (installation && typeof installation.enabled === "boolean") {
+            return installation.enabled;
+        }
+        return true;
+    });
+}

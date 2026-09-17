@@ -12,9 +12,8 @@ import { useCanvasUiStore } from "@/stores/canvas/use-canvas-ui-store";
 import { getCanvasProjectStats } from "@/services/api/user-data";
 import { formatCredits } from "@/constant/credits";
 import { cn } from "@/lib/utils";
-import { CANVAS_STATS_PLUGIN_ID } from "@/lib/plugins/builtin/canvas-stats";
-import { usePluginStore } from "@/stores/use-plugin-store";
-import { CANVAS_COVER_BLUR_PLUGIN_ID } from "@/lib/plugins/builtin/canvas-cover-blur";
+import { CANVAS_STATS_PLUGIN_ID, useCanvasStatsEnabled } from "@/lib/plugins/builtin/canvas-stats";
+import { CANVAS_COVER_BLUR_PLUGIN_ID, useCanvasCoverBlurEnabled } from "@/lib/plugins/builtin/canvas-cover-blur";
 import { useCanvasPrivacyStore } from "@/stores/use-canvas-privacy-store";
 
 type CanvasFolderCardProps = {
@@ -37,7 +36,7 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
     const stopEditing = useCanvasUiStore((state) => state.stopEditingProject);
     const toggleSelected = useCanvasUiStore((state) => state.toggleSelectedProjectId);
     const setDeleteIds = useCanvasUiStore((state) => state.setDeleteProjectIds);
-    const coverBlurPluginEnabled = usePluginStore((state) => state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled));
+    const coverBlurPluginEnabled = useCanvasCoverBlurEnabled();
     const isBlurred = Boolean(project.coverBlurred ?? useCanvasPrivacyStore.getState().isProjectBlurred(project.id));
     const toggleProjectBlur = (projectId: string) => {
         const nextBlurred = !isBlurred;
@@ -46,7 +45,7 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
     };
     const editing = editingId === project.id;
     const selected = selectedIds.includes(project.id);
-    const statsEnabled = usePluginStore((state) => state.pluginStates[CANVAS_STATS_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_STATS_PLUGIN_ID)?.enabled));
+    const statsEnabled = useCanvasStatsEnabled();
     const statsQuery = useQuery({
         queryKey: ["canvas-project-stats", project.id],
         queryFn: () => getCanvasProjectStats(project.id),
@@ -80,15 +79,29 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
     };
 
     return (
-        <article className={cn("product-collection-card canvas-collection-card", selected && "is-selected", editing && "is-editing", opening && "is-opening")} onPointerEnter={onPrefetch} onPointerDown={onPrefetch} onFocusCapture={onPrefetch}>
+        <article className={cn("product-collection-card canvas-collection-card canvas-folder-card", selected && "is-selected", editing && "is-editing", opening && "is-opening")} onPointerEnter={onPrefetch} onPointerDown={onPrefetch} onFocusCapture={onPrefetch}>
             <div className="canvas-collection-open" role="button" tabIndex={0} aria-label={`打开画布 ${project.title}`} aria-busy={opening} onClick={() => !editing && !opening && onClick()} onKeyDown={handleOpenKeyDown}>
-                <div className="canvas-collection-preview" aria-hidden="true">
+                <div className="canvas-collection-preview relative" aria-hidden="true">
                     <ProjectPreview project={{ id: project.id, nodes: project.previewNodes }} preferLatestImage isBlurred={coverBlurPluginEnabled && isBlurred} />
                     {opening ? (
                         <div className="canvas-collection-opening">
                             <LoaderCircle className="size-5 animate-spin" />
                             <span>正在打开</span>
                         </div>
+                    ) : null}
+                    {coverBlurPluginEnabled ? (
+                        <button
+                            type="button"
+                            className={cn("canvas-folder-blur-toggle", isBlurred && "is-active")}
+                            aria-label={isBlurred ? `取消 ${project.title} 封面隐私模糊` : `开启 ${project.title} 封面隐私模糊`}
+                            title={isBlurred ? "隐私模式已开启（点击取消模糊）" : "开启封面隐私模糊"}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                toggleProjectBlur(project.id);
+                            }}
+                        >
+                            {isBlurred ? <EyeOff /> : <Eye />}
+                        </button>
                     ) : null}
                 </div>
                 <div className="canvas-collection-body">
@@ -114,19 +127,24 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
                         <span className="canvas-collection-meta-item">{projectName ? `所属项目：${projectName}` : "自由画布"}</span>
                         <span className="canvas-collection-meta-separator" aria-hidden="true">·</span>
                         <span className="canvas-collection-meta-item">{project.nodeCount ?? project.previewNodes?.length ?? 0} 节点</span>
-                        {statsEnabled && statsQuery.data && (statsQuery.data.imageCount > 0 || statsQuery.data.videoCount > 0) ? (
-                            <>
-                                <span className="canvas-collection-meta-separator" aria-hidden="true">·</span>
-                                <span className="canvas-collection-meta-item flex items-center gap-1 font-medium text-foreground/80">
-                                    <ImageIcon className="size-3 text-foreground/45" /> {statsQuery.data.imageCount} · {formatCredits(statsQuery.data.imageCreditsMicros, 1)}分
-                                </span>
-                                <span className="canvas-collection-meta-separator" aria-hidden="true">·</span>
-                                <span className="canvas-collection-meta-item flex items-center gap-1 font-medium text-foreground/80">
-                                    <Video className="size-3 text-foreground/45" /> {statsQuery.data.videoCount} · {formatCredits(statsQuery.data.videoCreditsMicros, 1)}分
-                                </span>
-                            </>
-                        ) : null}
                     </div>
+                    {statsEnabled && statsQuery.data && (statsQuery.data.imageCount > 0 || statsQuery.data.videoCount > 0) ? (
+                        <div className="canvas-collection-stats flex items-center gap-1.5 text-xs text-foreground/80 font-medium my-0.5">
+                            {statsQuery.data.imageCount > 0 ? (
+                                <span className="inline-flex items-center gap-1">
+                                    <ImageIcon className="size-3 text-foreground/45" /> {statsQuery.data.imageCount}张 · {formatCredits(statsQuery.data.imageCreditsMicros, 1)}分
+                                </span>
+                            ) : null}
+                            {statsQuery.data.imageCount > 0 && statsQuery.data.videoCount > 0 ? (
+                                <span className="text-foreground/30">·</span>
+                            ) : null}
+                            {statsQuery.data.videoCount > 0 ? (
+                                <span className="inline-flex items-center gap-1">
+                                    <Video className="size-3 text-foreground/45" /> {statsQuery.data.videoCount}条 · {formatCredits(statsQuery.data.videoCreditsMicros, 1)}分
+                                </span>
+                            ) : null}
+                        </div>
+                    ) : null}
                     <time className="canvas-collection-updated" dateTime={project.updatedAt} title={`创建于 ${formatCanvasDate(project.createdAt)}`}>{formatCanvasDate(project.updatedAt)} 更新</time>
                 </div>
             </div>
@@ -139,21 +157,6 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
                     aria-label={`选择 ${project.title}`}
                 />
             </span>
-
-            {coverBlurPluginEnabled ? (
-                <button
-                    type="button"
-                    className={cn("canvas-folder-blur-toggle", isBlurred && "is-active")}
-                    aria-label={isBlurred ? `取消 ${project.title} 封面隐私模糊` : `开启 ${project.title} 封面隐私模糊`}
-                    title={isBlurred ? "隐私模式已开启（点击取消模糊）" : "开启封面隐私模糊"}
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        toggleProjectBlur(project.id);
-                    }}
-                >
-                    {isBlurred ? <EyeOff /> : <Eye />}
-                </button>
-            ) : null}
 
             <div className="canvas-collection-actions" onClick={(event) => event.stopPropagation()}>
                 {!editing ? (
