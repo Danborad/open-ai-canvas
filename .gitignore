@@ -71,3 +71,4 @@ backend/cmd/server/server
 __pycache__/
 *.pyc
 
+.data/
