@@ -6,6 +6,7 @@ import { saveAs } from "file-saver";
 import { buildAgentDebugExport } from "@/lib/canvas/agent-debug-export";
 import { agentPlanVisible, latestAgentPlanItems, pendingAgentQuestion } from "@/lib/canvas/cloud-agent-plan";
 import { nanoid } from "nanoid";
+import { createClientId } from "@/lib/client-id";
 
 import { ModelPicker } from "@/components/model-picker";
 import { FluidOrb } from "@/components/ui/fluid-orb";
@@ -354,7 +355,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
         const activeRun = run;
         if (!value || !activeRun?.id || busy || connectionStatus !== "connected" || currentScope.current !== conversationScope || !historyHydrated) return;
         const scope = conversationScope;
-        const messageId = `user-${crypto.randomUUID()}`;
+        const messageId = `user-${createClientId()}`;
         setBusy(true);
         try {
             await sendAgentInterjection(activeRun.id, { text: value, messageId });
@@ -409,7 +410,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, re
                 };
                 const fingerprint = JSON.stringify({ scope, parent: run?.id, input });
                 if (pending && pending.fingerprint !== fingerprint) throw new Error("上一条请求尚未确认，请恢复原消息与设置后核对，不能覆盖原幂等记录");
-                const key = pending?.key || crypto.randomUUID();
+                const key = pending?.key || createClientId();
                 const next = { fingerprint, key, request: { ...input, idempotencyKey: key }, parentRunId: run?.id, messageId: `user-${key}` };
                 // Persist before sending. A failed local save must not submit a request
                 // whose recovery identity will disappear on reload.

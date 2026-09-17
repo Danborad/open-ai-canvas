@@ -1,3 +1,4 @@
+import "@/lib/client-id";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import "antd/dist/reset.css";

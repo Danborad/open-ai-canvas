@@ -14,6 +14,7 @@ import { aceternityMotion } from "@/lib/aceternity-motion";
 import { checkinCredits, getWallet, redeemCredits, type CreditLedgerEntry, type WalletSummary } from "@/services/api/wallet";
 import { closePaymentOrder, createPaymentOrder, getPaymentOrder, listPaymentProviders, listTopupProducts, queryPaymentOrder, refreshPaymentCheckout, type PaymentOrder, type PaymentProvider, type TopupProduct } from "@/services/api/payments";
 import { modelDisplayName, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+import { createClientId } from "@/lib/client-id";
 
 type LedgerFilter = "all" | "income" | "consume" | "refund";
 
@@ -189,7 +190,7 @@ export default function WalletPage() {
         }
         setPaymentCreating(true);
         try {
-            if (!paymentIdempotencyKey.current) paymentIdempotencyKey.current = crypto.randomUUID();
+            if (!paymentIdempotencyKey.current) paymentIdempotencyKey.current = createClientId();
             const result = await createPaymentOrder({ productId: selectedProduct.id, providerId: selectedProvider.id, idempotencyKey: paymentIdempotencyKey.current });
             paymentIdempotencyKey.current = "";
             setPaymentOrder(result.order);
