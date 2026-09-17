@@ -15,6 +15,7 @@ const FeatureAvailabilityPanel = lazy(() => import("./components/feature-availab
 const StorageResourcesPanel = lazy(() => import("./components/storage-resources-panel"));
 const ESAMonitoringPanel = lazy(() => import("./esa/esa-monitoring-page"));
 const WecomNotificationPanel = lazy(() => import("./notifications/wecom-notification-page"));
+const AgentLessonsPanel = lazy(() => import("./components/agent-lessons-panel"));
 
 export function AnalyticsPage() {
     const { references } = useAdminContext();
@@ -115,4 +116,12 @@ export function ESAMonitoringPage() {
 
 export function WecomNotificationPage() {
     return <WecomNotificationPanel />;
+}
+
+export function AgentLessonsPage() {
+    return (
+        <AdminPageFrame title="Agent 记忆" description="按用户查看个人记忆；批准仍由用户自己处理" scroll>
+            <AgentLessonsPanel />
+        </AdminPageFrame>
+    );
 }

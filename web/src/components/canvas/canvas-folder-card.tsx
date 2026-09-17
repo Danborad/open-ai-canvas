@@ -75,27 +75,27 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
         if (event.target !== event.currentTarget) return;
         if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            if (!editing) onClick();
+            if (!editing && !opening) onClick();
         }
     };
 
     return (
-        <article className={cn("canvas-folder-card", selected && "is-selected", editing && "is-editing", opening && "is-opening")} onPointerEnter={onPrefetch} onPointerDown={onPrefetch} onFocusCapture={onPrefetch}>
-            <div className="canvas-folder-open" role="button" tabIndex={0} aria-label={`打开画布 ${project.title}`} aria-busy={opening} onClick={() => !editing && !opening && onClick()} onKeyDown={handleOpenKeyDown}>
-                <div className="canvas-folder-preview" aria-hidden="true">
+        <article className={cn("product-collection-card canvas-collection-card", selected && "is-selected", editing && "is-editing", opening && "is-opening")} onPointerEnter={onPrefetch} onPointerDown={onPrefetch} onFocusCapture={onPrefetch}>
+            <div className="canvas-collection-open" role="button" tabIndex={0} aria-label={`打开画布 ${project.title}`} aria-busy={opening} onClick={() => !editing && !opening && onClick()} onKeyDown={handleOpenKeyDown}>
+                <div className="canvas-collection-preview" aria-hidden="true">
                     <ProjectPreview project={{ id: project.id, nodes: project.previewNodes }} preferLatestImage isBlurred={coverBlurPluginEnabled && isBlurred} />
                     {opening ? (
-                        <div className="canvas-folder-opening">
+                        <div className="canvas-collection-opening">
                             <LoaderCircle className="size-5 animate-spin" />
                             <span>正在打开</span>
                         </div>
                     ) : null}
                 </div>
-                <div className="canvas-folder-body">
-                    <div className="canvas-folder-heading-row">
+                <div className="canvas-collection-body">
+                    <div className="canvas-collection-heading-row">
                         {editing ? (
                             <Input
-                                className="canvas-folder-title-input"
+                                className="canvas-collection-title-input"
                                 value={editingTitle}
                                 onChange={(event) => setEditingTitle(event.target.value)}
                                 onClick={(event) => event.stopPropagation()}
@@ -107,41 +107,37 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
                                 autoFocus
                             />
                         ) : (
-                            <span className="canvas-folder-title">{project.title}</span>
+                            <span className="canvas-collection-title">{project.title}</span>
                         )}
                     </div>
-                    <div className="canvas-folder-meta">
-                        <span className="canvas-folder-meta-item">{projectName ? `所属项目：${projectName}` : "自由画布"}</span>
-                        <span className="canvas-folder-meta-separator" aria-hidden="true">·</span>
-                        <span className="canvas-folder-meta-item">{project.nodeCount ?? project.previewNodes?.length ?? 0} 节点</span>
+                    <div className="canvas-collection-meta">
+                        <span className="canvas-collection-meta-item">{projectName ? `所属项目：${projectName}` : "自由画布"}</span>
+                        <span className="canvas-collection-meta-separator" aria-hidden="true">·</span>
+                        <span className="canvas-collection-meta-item">{project.nodeCount ?? project.previewNodes?.length ?? 0} 节点</span>
                         {statsEnabled && statsQuery.data && (statsQuery.data.imageCount > 0 || statsQuery.data.videoCount > 0) ? (
                             <>
-                                <span className="canvas-folder-meta-separator" aria-hidden="true">·</span>
-                                <span className="canvas-folder-meta-item flex items-center gap-1 font-medium text-foreground/80">
+                                <span className="canvas-collection-meta-separator" aria-hidden="true">·</span>
+                                <span className="canvas-collection-meta-item flex items-center gap-1 font-medium text-foreground/80">
                                     <ImageIcon className="size-3 text-foreground/45" /> {statsQuery.data.imageCount} · {formatCredits(statsQuery.data.imageCreditsMicros, 1)}分
                                 </span>
-                                <span className="canvas-folder-meta-separator" aria-hidden="true">·</span>
-                                <span className="canvas-folder-meta-item flex items-center gap-1 font-medium text-foreground/80">
+                                <span className="canvas-collection-meta-separator" aria-hidden="true">·</span>
+                                <span className="canvas-collection-meta-item flex items-center gap-1 font-medium text-foreground/80">
                                     <Video className="size-3 text-foreground/45" /> {statsQuery.data.videoCount} · {formatCredits(statsQuery.data.videoCreditsMicros, 1)}分
                                 </span>
                             </>
                         ) : null}
                     </div>
-                    <div className="canvas-folder-dates">
-                        <span>
-                            <small>创建时间</small>
-                            <time dateTime={project.createdAt}>{formatCanvasDate(project.createdAt)}</time>
-                        </span>
-                        <span>
-                            <small>最后更新</small>
-                            <time dateTime={project.updatedAt}>{formatCanvasDate(project.updatedAt)}</time>
-                        </span>
-                    </div>
+                    <time className="canvas-collection-updated" dateTime={project.updatedAt} title={`创建于 ${formatCanvasDate(project.createdAt)}`}>{formatCanvasDate(project.updatedAt)} 更新</time>
                 </div>
             </div>
 
-            <span className={cn("canvas-folder-select", selected && "is-visible")} onClick={(event) => event.stopPropagation()}>
-                <input type="checkbox" checked={selected} onChange={(event) => toggleSelected(project.id, event.target.checked)} aria-label={`选择 ${project.title}`} />
+            <span className={cn("canvas-collection-select", selected && "is-visible")} onClick={(event) => event.stopPropagation()}>
+                <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={(event) => toggleSelected(project.id, event.target.checked)}
+                    aria-label={`选择 ${project.title}`}
+                />
             </span>
 
             {coverBlurPluginEnabled ? (
@@ -159,11 +155,11 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
                 </button>
             ) : null}
 
-            <div className="canvas-folder-actions" onClick={(event) => event.stopPropagation()}>
+            <div className="canvas-collection-actions" onClick={(event) => event.stopPropagation()}>
                 {!editing ? (
                     <button
                         type="button"
-                        className="canvas-folder-rename"
+                        className="product-icon-button canvas-collection-rename"
                         aria-label={`重命名 ${project.title}`}
                         title="重命名"
                         onClick={(event) => {
@@ -187,7 +183,7 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
                         ],
                     }}
                 >
-                    <button type="button" className="canvas-folder-more" aria-label={`${project.title} 画布操作`} title="更多操作" onClick={(event) => event.stopPropagation()}>
+                    <button type="button" className="product-icon-button canvas-collection-more" aria-label={`${project.title} 画布操作`} title="更多操作" onClick={(event) => event.stopPropagation()}>
                         <MoreHorizontal />
                     </button>
                 </Dropdown>
