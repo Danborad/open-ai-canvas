@@ -1,7 +1,7 @@
 import { Check, Clapperboard, CloudUpload, Download, Eye, EyeOff, FileText, Frame, Image as ImageIcon, LoaderCircle, MoreHorizontal, Music2, Pencil, Plus, Settings2, Sparkles, Trash2, Video, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Dropdown, Input } from "antd";
+import { App, Dropdown, Input } from "antd";
 import { useQuery } from "@tanstack/react-query";
 
 import { useCanvasStore, type CanvasProject } from "@/stores/canvas/use-canvas-store";
@@ -20,6 +20,10 @@ import { useCanvasPrivacyStore } from "@/stores/use-canvas-privacy-store";
 import { useSyncProgressStore } from "@/stores/use-sync-progress-store";
 import { getCanvasProjectStats } from "@/services/api/user-data";
 import { formatCredits } from "@/constant/credits";
+import { hasRemoteUserDataSyncSession, loadCanvasProjectForEditing, saveRemoteUserDataNow } from "@/services/user-data-sync";
+
+type ProjectPreviewMedia = { node: CanvasNodeData; url: string; storageKey?: string };
+const projectPreviewMediaCache = new WeakMap<CanvasNodeData[], { first?: ProjectPreviewMedia; latest?: ProjectPreviewMedia }>();
 
 export function CanvasCreateCard({ disabled, onClick }: { disabled?: boolean; onClick: () => void }) {
     return (
@@ -50,6 +54,7 @@ export function CanvasProjectCard({
     onPrefetch?: () => void;
     footer?: ReactNode;
 }) {
+    const { message } = App.useApp();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const renameProject = useCanvasStore((state) => state.renameProject);
@@ -78,9 +83,19 @@ export function CanvasProjectCard({
         enabled: statsEnabled,
     });
     const open = () => navigate(`/canvas/${project.id}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`);
-    const saveTitle = () => {
-        renameProject(project.id, editingTitle);
+    const saveTitle = async () => {
         stopEditing();
+        if (!hasRemoteUserDataSyncSession()) {
+            renameProject(project.id, editingTitle);
+            return;
+        }
+        try {
+            await loadCanvasProjectForEditing(project.id);
+            renameProject(project.id, editingTitle);
+            await saveRemoteUserDataNow(project.id);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "重命名失败");
+        }
     };
 
     const compact = variant === "recent";
