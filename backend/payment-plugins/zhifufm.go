@@ -171,7 +171,7 @@ func (p *ZhiFuFMProvider) CloseOrder(ctx context.Context, config Config, request
 	}, nil
 }
 
-func (p *ZhiFuFMProvider) VerifyNotification(_ context.Context, config Config, _ http.Header, rawBody []byte) (Notification, error) {
+func (p *ZhiFuFMProvider) VerifyNotification(_ context.Context, config Config, headers http.Header, rawBody []byte) (Notification, error) {
 	if err := p.ValidateConfig(config); err != nil {
 		return Notification{}, err
 	}
@@ -198,9 +198,18 @@ func (p *ZhiFuFMProvider) VerifyNotification(_ context.Context, config Config, _
 		return Notification{}, fmt.Errorf("支付FM异步通知签名不匹配: got %s, want %s", sign, expectedSign)
 	}
 
-	amountFen, err := parseYuanToFen(amountStr)
+	actualAmountStr := strings.TrimSpace(params.Get("actualPayAmount"))
+	targetAmountStr := amountStr
+	if actualAmountStr != "" {
+		targetAmountStr = actualAmountStr
+	}
+
+	amountFen, err := parseYuanToFen(targetAmountStr)
 	if err != nil {
-		return Notification{}, fmt.Errorf("支付FM异步通知金额格式错误: %s", amountStr)
+		amountFen, err = parseYuanToFen(amountStr)
+		if err != nil {
+			return Notification{}, fmt.Errorf("支付FM异步通知金额格式错误: %s", amountStr)
+		}
 	}
 
 	paid := state == "1"
