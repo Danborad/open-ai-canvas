@@ -58,10 +58,6 @@ export type StoryboardShotCount = "auto" | "1" | "2" | "3" | "4" | "5" | "6" | "
 export type StoryboardVideoInputMode = "direct" | "keyframe";
 export type CanvasGenerationMode = "text" | "image" | "video" | "audio";
 export type CanvasGenerationBatchMode = "storyboard_image" | "storyboard_video" | "action_board" | "batch_image";
-export type CanvasBatchOperation = "try_on" | "creative";
-export type CanvasBatchRow = { id: string; enabled: boolean; inputNodeIds: string[]; prompt: string; outputNodeId?: string };
-export type CanvasBatchReferenceColumn = { id: string; label: string };
-export type CanvasBatchTableData = { operation: CanvasBatchOperation; concurrency: number; referenceColumns?: CanvasBatchReferenceColumn[]; rows: CanvasBatchRow[] };
 export type CanvasGenerationBatchStatus = "queued" | "running" | "partial_failed" | "completed" | "cancelled";
 export type CanvasGenerationBatchItemStatus = "waiting" | "submitting" | "queued" | "running" | "succeeded" | "failed" | "cancelled";
 export type CanvasImageGenerationType = "generation" | "edit";
@@ -167,6 +163,10 @@ export type CanvasGenerationBatch = {
     concurrency?: number;
 };
 
+export type CanvasBatchOperation = "try_on" | "creative";
+export type CanvasBatchRow = { id: string; enabled: boolean; inputNodeIds: string[]; prompt: string; outputNodeId?: string };
+export type CanvasBatchReferenceColumn = { id: string; label: string };
+export type CanvasBatchTableData = { operation: CanvasBatchOperation; concurrency: number; globalPrompt?: string; referenceColumns?: CanvasBatchReferenceColumn[]; rows: CanvasBatchRow[] };
 export type CanvasSkillSnapshot = {
     id: string;
     name: string;

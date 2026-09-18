@@ -10,6 +10,7 @@ export type RemoteUserDataSummary = {
     title: string;
     createdAt: string;
     updatedAt: string;
+    revision?: number;
 };
 
 export type AssetFolder = {
@@ -36,7 +37,7 @@ export type RemoteUserDataSnapshot = {
     projects: CanvasProject[];
 };
 
-export type CanvasLibrarySummary = Pick<CanvasProject, "id" | "projectId" | "title" | "createdAt" | "updatedAt" | "coverBlurred"> & {
+export type CanvasLibrarySummary = Pick<CanvasProject, "id" | "projectId" | "title" | "revision" | "createdAt" | "updatedAt" | "coverBlurred"> & {
     nodeCount: number;
     previewNodes: CanvasProject["nodes"];
 };
@@ -117,7 +118,8 @@ export function getRemoteCanvasProject(id: string) {
 }
 
 export function upsertRemoteCanvasProject(project: CanvasProject) {
-    return http.put<{ project: RemoteUserDataSummary }>(`/canvas-projects/${encodeURIComponent(project.id)}`, { project });
+    const { viewport: _viewport, remoteContentHash: _hash, ...content } = project;
+    return http.put<{ project: RemoteUserDataSummary & { revision: number } }>(`/canvas-projects/${encodeURIComponent(project.id)}`, { project: content });
 }
 
 export function deleteRemoteCanvasProject(id: string) {
@@ -136,4 +138,29 @@ export type CanvasProjectStats = {
 export async function getCanvasProjectStats(projectId: string) {
     const list = await http.get<CanvasProjectStats[]>("/canvas-project-stats", { params: { ids: projectId } });
     return list?.[0] || { projectId, imageCount: 0, videoCount: 0, imageCreditsMicros: 0, videoCreditsMicros: 0, totalCreditsMicros: 0 };
+}
+
+export type CanvasHistoryEntry = {
+    id: string;
+    canvasId: string;
+    revision: number;
+    title: string;
+    nodeCount: number;
+    connectionCount: number;
+    payloadBytes: number;
+    reason: "automatic" | "before_restore";
+    createdAt: string;
+    contentUpdatedAt: string;
+};
+
+export function listCanvasHistory(id: string, signal?: AbortSignal) {
+    return http.get<{ snapshots: CanvasHistoryEntry[]; currentRevision: number }>(`/canvas-projects/${encodeURIComponent(id)}/history`, { signal });
+}
+
+export function getCanvasHistoryEntry(id: string, snapshotId: string, signal?: AbortSignal) {
+    return http.get<{ snapshot: CanvasHistoryEntry; project: CanvasProject }>(`/canvas-projects/${encodeURIComponent(id)}/history/${encodeURIComponent(snapshotId)}`, { signal });
+}
+
+export function restoreRemoteCanvasHistory(id: string, snapshotId: string, revision: number) {
+    return http.post<{ project: RemoteUserDataSummary & { revision: number } }>(`/canvas-projects/${encodeURIComponent(id)}/history/${encodeURIComponent(snapshotId)}/restore`, { revision });
 }
