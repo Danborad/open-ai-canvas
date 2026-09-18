@@ -5,6 +5,7 @@ import { App } from "antd";
 import { buildNodeGenerationContext, hydrateNodeGenerationContext } from "@/components/canvas/canvas-node-generation";
 import type { CanvasNodeGenerationMode } from "@/components/canvas/canvas-node-prompt-panel";
 import { buildGenerationConfig, isGenerationCanceled } from "@/lib/canvas/canvas-project-generation";
+import { canGenerateMediaInPlace } from "@/lib/canvas/canvas-generation-layout";
 import { canvasGenerationPromptMetadata, canvasGenerationRequestFingerprint, runCanvasGenerationSubmissionOnce } from "@/lib/canvas/canvas-generation-submission";
 import { isGenerationTaskCapacityError } from "@/lib/canvas/canvas-generation-batch";
 import { buildPortraitTexturePrompt } from "@/lib/canvas/canvas-portrait-texture";
@@ -275,8 +276,11 @@ export function useCanvasGenerationExecutor({
                         );
                     }
 
-                    // 已有内容节点只是本次生成的来源；任务状态归新目标所有，不能覆盖已成功结果。
-                    const markSourceStatus = !sourceNode?.metadata?.content && !editingTextNode;
+                    // 原地替换生成（如副本节点生成、版本覆盖）或空节点初始生成时，源节点就是生成的目标节点；
+                    // 只有在从已有内容的常规节点分叉出新节点时，源节点才仅作为输入来源。
+                    const isMediaInPlace = mode !== "text" && canGenerateMediaInPlace(sourceNode, mode as typeof CanvasNodeType.Image | typeof CanvasNodeType.Video | typeof CanvasNodeType.Audio);
+                    const isSourceAsTarget = isMediaInPlace || !sourceNode?.metadata?.content;
+                    const markSourceStatus = isSourceAsTarget && !editingTextNode;
                     const statusPrompt = sourceNode?.type === CanvasNodeType.Config ? effectivePrompt : prompt;
                     if (markSourceStatus)
                         setNodes((current) =>
@@ -359,7 +363,11 @@ export function useCanvasGenerationExecutor({
                         }
                         message.error(failure.errorDetails);
                         setNodes((current) =>
-                            current.map((node) => (node.id === nodeId || pendingNodeIds.includes(node.id) ? (node.id === nodeId && !markSourceStatus ? node : { ...node, metadata: { ...node.metadata, status: NODE_STATUS_ERROR, ...failure } }) : node)),
+                            current.map((node) => {
+                                if (node.id !== nodeId && !pendingNodeIds.includes(node.id)) return node;
+                                if (node.id === nodeId && !isSourceAsTarget) return node;
+                                return { ...node, metadata: { ...node.metadata, status: NODE_STATUS_ERROR, ...failure } };
+                            }),
                         );
                     } finally {
                         finishGenerationRequest(nodeId, controller);

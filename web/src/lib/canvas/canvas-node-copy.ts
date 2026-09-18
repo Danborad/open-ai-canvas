@@ -61,6 +61,11 @@ export function isolateCopiedNodeMetadata(node: CanvasNodeData, idMap: ReadonlyM
     delete metadata.versionLabel;
     delete metadata.versionPrimary;
     delete metadata.generationEffectKeys;
+    delete metadata.lastGenerationRequestFingerprint;
+    delete metadata.errorDetails;
+    delete metadata.generationErrorCode;
+    delete metadata.failedPromptFingerprint;
+    delete metadata.resourceReloadAvailable;
 
     metadata.copiedFromNodeId = node.id;
     if (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video || node.type === CanvasNodeType.Audio) {
