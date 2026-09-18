@@ -353,8 +353,8 @@ function PluginBrandIcon({ pluginId }: { pluginId: string }) {
     }
     if (pluginId === "official-payment-zhifufm") {
         return (
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#2D1B69] p-1.5 shadow-sm overflow-hidden">
-                <img src={ZHIFUFM_LOGO_SRC} alt="支付FM" className="size-full object-contain select-none pointer-events-none" />
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg overflow-hidden border border-border/40 bg-card shadow-xs">
+                <img src={ZHIFUFM_LOGO_SRC} alt="支付FM" className="size-full object-contain select-none pointer-events-none rounded-lg" />
             </span>
         );
     }
