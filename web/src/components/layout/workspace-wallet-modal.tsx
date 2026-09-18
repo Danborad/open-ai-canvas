@@ -1,3 +1,4 @@
+import { AlipayCircleFilled, WechatFilled } from "@ant-design/icons";
 import { App, Button, Input, Skeleton } from "antd";
 import { Check, ChevronLeft, ChevronRight, CircleAlert, Coins, CreditCard, History, RefreshCw, TicketCheck, WalletCards } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -298,7 +299,17 @@ export function WorkspaceWalletModal({
                                     </div>
                                     <div className="workspace-wallet-provider-row">
                                         <div className="workspace-wallet-providers" role="radiogroup" aria-label="支付方式">
-                                            {providers.map((provider) => <button key={provider.id} type="button" role="radio" aria-checked={selectedProviderId === provider.id} className={selectedProviderId === provider.id ? "is-selected" : ""} onClick={() => setSelectedProviderId(provider.id)}><CreditCard />{provider.name}</button>)}
+                                            {providers.map((provider) => {
+                                                const isAlipay = provider.id === "alipay-page-pay" || provider.id === "zhifufm-pay" || provider.name.includes("支付宝");
+                                                const isWechat = provider.id === "wechat-native" || provider.name.includes("微信");
+                                                const displayName = provider.id === "zhifufm-pay" ? "支付宝支付" : provider.name;
+                                                return (
+                                                    <button key={provider.id} type="button" role="radio" aria-checked={selectedProviderId === provider.id} className={cn(selectedProviderId === provider.id && "is-selected")} onClick={() => setSelectedProviderId(provider.id)}>
+                                                        {isAlipay ? <AlipayCircleFilled className="text-[#1677ff] text-base" /> : isWechat ? <WechatFilled className="text-[#07c160] text-base" /> : <CreditCard />}
+                                                        <span>{displayName}</span>
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                         <Button type="primary" size="large" loading={paymentCreating} disabled={!selectedProduct || !selectedProvider} onClick={() => void startPayment()}>立即充值</Button>
                                     </div>
