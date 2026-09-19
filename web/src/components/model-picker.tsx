@@ -503,14 +503,13 @@ function modelMenuPrice(config: AiConfig, model: string, capability?: ModelCapab
 }
 
 function pickerModelDisplayName(config: AiConfig, model: string, showConfiguredModelName: boolean) {
-    const name = showConfiguredModelName ? configuredModelDisplayName(config, model) : modelDisplayName(config, model);
-    return isDirectSystemModel(config, model) ? `${name} · ${modelChannelLabel(config, model)}` : name;
+    return showConfiguredModelName ? configuredModelDisplayName(config, model) : modelDisplayName(config, model);
 }
 
 function pickerModelOptionLabel(config: AiConfig, model: string, showConfiguredModelName: boolean) {
     const displayName = showConfiguredModelName ? configuredModelDisplayName(config, model) : modelDisplayName(config, model);
     const channel = resolveModelChannel(config, model);
-    return channel.scope === "system" ? pickerModelDisplayName(config, model, showConfiguredModelName) : `${displayName}（${channel.name}）`;
+    return channel.scope === "system" ? displayName : `${displayName}（${channel.name}）`;
 }
 
 function channelTierPriceSummary(

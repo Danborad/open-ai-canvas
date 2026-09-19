@@ -156,13 +156,13 @@ export function CanvasNodeContextMenu({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: aceternityMotion.duration.instant, ease: aceternityMotion.easing.enter }}
-                className="aceternity-floating-panel fixed z-[var(--z-popover)] flex w-[224px] max-h-[calc(100vh-56px)] origin-top-left flex-col overflow-hidden rounded-xl border p-1.5 backdrop-blur-2xl"
+                className="aceternity-floating-panel fixed z-[var(--z-popover)] flex w-[248px] max-h-[calc(100vh-56px)] origin-top-left flex-col overflow-hidden rounded-xl border p-1.5 backdrop-blur-2xl"
                 style={{ left: position.left, top: position.top, background: theme.spatial.elevated, borderColor: theme.toolbar.border, color: theme.node.text }}
                 onContextMenu={(event) => event.preventDefault()}
                 onPointerDown={(event) => event.stopPropagation()}
             >
                 <div className="absolute inset-x-8 top-0 h-px" style={{ background: `linear-gradient(90deg, transparent, ${theme.toolbar.border}, transparent)` }} />
-                <div className="thin-scrollbar min-h-0 overflow-y-auto">
+                <div className="thin-scrollbar min-h-0 overflow-y-auto space-y-0.5 pb-1">
                     {menu.type === "node" && isMedia && categoryOpen ? (
                         <>
                             <MenuHeader title="设置资产分类" description={node?.title || nodeTypeLabel(node)} onBack={() => setCategoryOpen(false)} />
@@ -348,7 +348,7 @@ function MenuHeader({ title, description, onBack }: { title: string; description
 }
 
 function MenuSection({ label }: { label: string }) {
-    return <div className="px-2 pb-1 pt-1.5 text-[var(--fs-micro)] font-medium opacity-45">{label}</div>;
+    return <div className="px-2 pb-1 pt-2 text-[var(--fs-micro)] font-medium opacity-50">{label}</div>;
 }
 
 function MenuButton({ icon, label, detail, shortcut, badge, chevron = false, active = false, disabled = false, danger = false, onClick }: { icon: ReactNode; label: string; detail?: string; shortcut?: string; badge?: string; chevron?: boolean; active?: boolean; disabled?: boolean; danger?: boolean; onClick?: () => void }) {
@@ -357,14 +357,14 @@ function MenuButton({ icon, label, detail, shortcut, badge, chevron = false, act
     return (
         <button
             type="button"
-            className="canvas-menu-item group flex min-h-9 w-full items-center gap-2 rounded-lg border border-transparent px-1.5 py-1 text-left outline-none enabled:hover:border-black/10 enabled:hover:bg-black/5 focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-35 dark:enabled:hover:border-white/10 dark:enabled:hover:bg-white/8"
+            className="canvas-menu-item group flex min-h-9 w-full items-center gap-2 rounded-lg border border-transparent px-2 py-1 text-left outline-none enabled:hover:border-black/10 enabled:hover:bg-black/5 focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-35 dark:enabled:hover:border-white/10 dark:enabled:hover:bg-white/8"
             style={{ color, background: active ? theme.toolbar.activeBg : undefined, "--tw-ring-color": theme.node.muted } as CSSProperties}
             disabled={disabled}
             onClick={onClick}
         >
             <span className="canvas-menu-item-icon grid size-7 shrink-0 place-items-center rounded-md border opacity-75 group-hover:opacity-100 [&_svg]:size-3.5" style={{ background: danger ? `${theme.accent.danger}12` : theme.spatial.surface, borderColor: danger ? `${theme.accent.danger}33` : theme.toolbar.border, color: danger ? theme.accent.danger : theme.node.text }}>{icon}</span>
             <span className="min-w-0 flex-1"><span className="flex items-center gap-1 text-xs font-medium"><span className="truncate">{label}</span>{badge ? <span className="rounded-full border px-1 py-0.5 text-[var(--fs-nano)] font-bold" style={{ background: theme.toolbar.activeBg, borderColor: theme.toolbar.border, color: theme.node.muted }}>{badge}</span> : null}</span>{detail ? <span className="mt-0.5 block truncate text-[var(--fs-micro)]" style={{ color: theme.node.muted }}>{detail}</span> : null}</span>
-            {shortcut ? <span className="shrink-0 text-[var(--fs-micro)] opacity-38">{shortcut}</span> : null}
+            {shortcut ? <span className="shrink-0 pl-1 text-[var(--fs-micro)] opacity-40">{shortcut}</span> : null}
             {chevron ? <ChevronRight className="size-3 shrink-0 opacity-45" /> : null}
         </button>
     );
@@ -377,8 +377,8 @@ function MenuDivider() {
 
 function getContextMenuPosition(menu: ContextMenuState, hasMultiSelection = false) {
     if (typeof window === "undefined") return { left: menu.x, top: menu.y };
-    const width = 224;
-    const estimatedHeight = menu.type === "node" ? Math.min(hasMultiSelection ? 240 : 360, window.innerHeight - 72) : menu.type === "canvas" ? (hasMultiSelection ? 300 : 250) : 84;
+    const width = 248;
+    const estimatedHeight = menu.type === "node" ? Math.min(hasMultiSelection ? 260 : 400, window.innerHeight - 72) : menu.type === "canvas" ? (hasMultiSelection ? 320 : 340) : 84;
     return {
         left: clamp(menu.x, 12, Math.max(12, window.innerWidth - width - 12)),
         top: clamp(menu.y, 68, Math.max(68, window.innerHeight - estimatedHeight - 12)),
@@ -387,7 +387,7 @@ function getContextMenuPosition(menu: ContextMenuState, hasMultiSelection = fals
 
 function getSubmenuLeft(parentLeft: number) {
     if (typeof window === "undefined") return parentLeft + 192;
-    return parentLeft + 224 + 8 + 360 <= window.innerWidth - 12 ? parentLeft + 232 : Math.max(12, parentLeft - 368);
+    return parentLeft + 248 + 8 + 360 <= window.innerWidth - 12 ? parentLeft + 256 : Math.max(12, parentLeft - 368);
 }
 
 function clamp(value: number, min: number, max: number) {
