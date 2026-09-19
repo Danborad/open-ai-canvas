@@ -43,11 +43,14 @@
 
 ## 响应映射
 
-- `task_id` / `data.task_id` 映射为统一任务 ID。
-- `status` / `data.status` 映射为 `pending/processing/succeeded/failed/cancelled`。
-- `file_id`、`video_url` 及其 `data` 嵌套形式映射为统一视频结果。
-- `message` / `base_resp.status_msg` 映射为统一错误消息。
+- `task.id` / `task_id` / `id` 映射为统一任务 ID；查询响应缺省时保留已有任务 ID。
+- `task.status` / `status` 映射为 `pending/processing/succeeded/failed/cancelled`。
+- `task.content.url` / `content.url` / `video_url` / `file.url` 映射为统一视频结果。
+- 创建和查询响应优先读取 `task.error.message`，再读取 `task.message` / `base_resp.status_msg` / `message` / `error.message`；具体失败原因通过任务错误返回给用户。
+- `task.error.code` / `base_resp.status_code` / `error.code` 非成功值均判定为失败，即使响应 HTTP 状态为 200 或未提供任务状态。
 - 完成后的临时媒体地址由宿主立即下载并持久化。
+
+例如，参考图片尺寸不符合要求时，上游返回 `task.error.code: "2013"` 和 `task.error.message: "content[1].image_url: media dimensions must be between 256 and 5760 pixels"`。任务应展示这条具体消息；只有上游未提供可读取的错误原因时，才使用通用失败提示。
 
 <!-- YINGCE_MANIFEST_CONTRACT_START -->
 ## Manifest 完整接口定义
@@ -59,7 +62,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "minimax-hailuo-video-v2",
   "name": "MiniMax Hailuo Video V2 / H3",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "author": "MiniMax / 影策",
   "description": "MiniMax / Hailuo V2 视频生成协议，保留首帧、尾帧、参考图、视频和音频角色语义。",
   "documentation": "<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>",
@@ -522,77 +525,12 @@
               "$ref": "request.duration"
             },
             "resolution": {
-              "$switch": {
-                "cases": [
-                  {
-                    "when": {
-                      "$in": [
-                        {
-                          "$lower": {
-                            "$ref": "request.resolution"
-                          }
-                        },
-                        [
-                          "1080",
-                          "1080p"
-                        ]
-                      ]
-                    },
-                    "then": "1080P"
-                  },
-                  {
-                    "when": {
-                      "$in": [
-                        {
-                          "$lower": {
-                            "$ref": "request.resolution"
-                          }
-                        },
-                        [
-                          "2k",
-                          "4k",
-                          "1440p",
-                          "2160p"
-                        ]
-                      ]
-                    },
-                    "then": "2K"
-                  },
-                  {
-                    "when": {
-                      "$in": [
-                        {
-                          "$lower": {
-                            "$ref": "request.resolution"
-                          }
-                        },
-                        [
-                          "480",
-                          "480p"
-                        ]
-                      ]
-                    },
-                    "then": "480p"
-                  },
-                  {
-                    "when": {
-                      "$in": [
-                        {
-                          "$lower": {
-                            "$ref": "request.resolution"
-                          }
-                        },
-                        [
-                          "512",
-                          "512p"
-                        ]
-                      ]
-                    },
-                    "then": "512p"
-                  }
-                ],
-                "default": "768P"
-              }
+              "$coalesce": [
+                {
+                  "$ref": "request.resolution"
+                },
+                "768P"
+              ]
             },
             "ratio": {
               "$if": {
@@ -686,6 +624,9 @@
           "message": {
             "$coalesce": [
               {
+                "$ref": "response.task.error.message"
+              },
+              {
                 "$ref": "response.task.message"
               },
               {
@@ -716,6 +657,7 @@
             ]
           },
           "errorPaths": [
+            "task.error.code",
             "base_resp.status_code",
             "error.code"
           ],

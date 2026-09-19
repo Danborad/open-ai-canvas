@@ -13,6 +13,7 @@ import { batchReferenceHandleY } from "@/lib/canvas/canvas-batch-table";
 import { reconcileImageBatchRoot } from "@/lib/canvas/canvas-image-batch-retry";
 import { scopedLocalStorage } from "@/lib/user-scope";
 import type { GenerationTask } from "@/services/api/task-center";
+import { synchronizeGenerationSpec } from "@/lib/canvas/generation-contract";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type CanvasNodeMetadata, type CanvasNodeTypeId, type ConnectionHandle, type Position, type StoryboardColumn, type StoryboardRow } from "@/types/canvas";
 
 export function createCanvasNode(type: CanvasNodeTypeId, position: Position, metadata?: CanvasNodeMetadata): CanvasNodeData {
@@ -183,7 +184,7 @@ const NODE_MODEL_GENERATION_PARAMS: ReadonlyArray<keyof CanvasNodeMetadata> = [
 export function applyNodeConfigPatch(node: CanvasNodeData, patch: Partial<CanvasNodeMetadata>) {
     const safePatch = patch || {};
     const nextPatch = resetGenerationParamsOnModelSwitch(node, safePatch);
-    const next = { ...node, metadata: { ...node.metadata, ...nextPatch } };
+    const next = synchronizeGenerationSpec(node, nextPatch);
     const spec = node.type === CanvasNodeType.Video ? NODE_DEFAULT_SIZE[CanvasNodeType.Video] : NODE_DEFAULT_SIZE[CanvasNodeType.Image];
     const rawParam = typeof safePatch.vquality === "string" ? safePatch.vquality : typeof safePatch.size === "string" ? safePatch.size : "";
     const sizeParam = rawParam.includes("竖") ? "9:16" : rawParam.includes("横") ? "16:9" : rawParam.includes("(1:1)") || rawParam.includes("1:1") ? "1:1" : typeof safePatch.size === "string" ? safePatch.size : typeof safePatch.vquality === "string" ? safePatch.vquality : "";

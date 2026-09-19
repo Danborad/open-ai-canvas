@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ImgHTMLAttributes, type ReactNode } from "react";
 
-import { resolveResourceUrl, resourceIdFromStorageKey } from "@/services/api/resources";
-import { cacheResourceObjectUrl, peekCachedResourceObjectUrl } from "@/services/resource-blob-cache";
+import { resourceFileUrl, resourceIdFromStorageKey } from "@/services/api/resources";
 import { resolveImageUrl } from "@/services/image-storage";
 
 type CachedResourceImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> & {
@@ -13,17 +12,17 @@ type CachedResourceImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src">
 };
 
 /**
- * 资源图片优先使用浏览器原生 HTTP 30 天磁盘强缓存，直接以有效 URL 首屏秒开；
- * 同时自动读取按用户隔离的本地 Blob 缓存，离线或跨会话时无缝兜底。
+ * 远程资源图片统一使用稳定的资源文件地址。
+ * Blob 缓存仍可用于导出、抽帧等字节处理，但不作为媒体展示 src，避免把
+ * `blob:http(s)://...` 泄露到节点、素材库和浏览器媒体链路中。
  */
 export function CachedResourceImage({ storageKey, src = "", fallback = null, loadingFallback = fallback, eager = false, onError, ...props }: CachedResourceImageProps) {
-    const remoteResource = Boolean(resourceIdFromStorageKey(storageKey));
+    const resourceId = resourceIdFromStorageKey(storageKey);
+    const remoteResource = Boolean(resourceId);
     const localImageResource = Boolean(storageKey && storageKey.startsWith("image:"));
     const targetRef = useRef<HTMLSpanElement>(null);
     const [nearViewport, setNearViewport] = useState(eager || !remoteResource);
-    const synchronousUrl = remoteResource && storageKey ? peekCachedResourceObjectUrl(storageKey) : "";
-    const directUrl = remoteResource && storageKey ? resolveResourceUrl(storageKey, src) : src;
-    const [cachedSrc, setCachedSrc] = useState(synchronousUrl || directUrl);
+    const [cachedSrc, setCachedSrc] = useState(remoteResource ? "" : src);
     const [cacheFailed, setCacheFailed] = useState(false);
 
     useEffect(() => {
@@ -53,33 +52,14 @@ export function CachedResourceImage({ storageKey, src = "", fallback = null, loa
         let cancelled = false;
         setCacheFailed(false);
 
-        if (remoteResource && storageKey) {
-            const fallbackSrc = resolveResourceUrl(storageKey, src);
+        if (remoteResource && resourceId) {
             if (!nearViewport) {
-                setCachedSrc(fallbackSrc);
+                setCachedSrc("");
                 return () => {
                     cancelled = true;
                 };
             }
-            const sync = peekCachedResourceObjectUrl(storageKey);
-            if (sync) {
-                setCachedSrc(sync);
-                return () => {
-                    cancelled = true;
-                };
-            }
-            if (!cachedSrc) setCachedSrc(fallbackSrc);
-            const resolve = cacheResourceObjectUrl(storageKey);
-            void resolve
-                .then((url) => {
-                    if (!cancelled && url) setCachedSrc(url);
-                })
-                .catch(() => {
-                    if (!cancelled) {
-                        setCacheFailed(true);
-                        setCachedSrc(fallbackSrc);
-                    }
-                });
+            setCachedSrc(resourceFileUrl(resourceId));
             return () => {
                 cancelled = true;
             };
@@ -102,7 +82,7 @@ export function CachedResourceImage({ storageKey, src = "", fallback = null, loa
         return () => {
             cancelled = true;
         };
-    }, [localImageResource, nearViewport, remoteResource, src, storageKey]);
+    }, [localImageResource, nearViewport, remoteResource, resourceId, src, storageKey]);
 
     const handleImgError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
         if (localImageResource && storageKey && cachedSrc.startsWith("blob:")) {
@@ -121,21 +101,17 @@ export function CachedResourceImage({ storageKey, src = "", fallback = null, loa
                 });
             return;
         }
-        if (remoteResource && storageKey && cachedSrc.startsWith("blob:")) {
-            // Blob URL 失效时自动回退至直连 URL，避免黑屏
-            const fallbackUrl = resolveResourceUrl(storageKey, src);
-            if (fallbackUrl && fallbackUrl !== cachedSrc) {
-                setCachedSrc(fallbackUrl);
-                return;
-            }
-        }
         setCacheFailed(true);
         onError?.(e);
     };
 
+    if (!remoteResource) {
+        if (cacheFailed && fallback) return <>{fallback}</>;
+        return <img {...props} src={cachedSrc} onError={handleImgError} />;
+    }
     return (
-        <span ref={targetRef} className="cached-resource-image-shell inline-flex min-h-0 min-w-0">
-            {cachedSrc && !cacheFailed ? <img alt={props.alt || ""} {...props} src={cachedSrc} onError={handleImgError} /> : cacheFailed ? fallback : loadingFallback}
+        <span ref={targetRef} className="cached-resource-image-shell">
+            {cachedSrc && !cacheFailed ? <img {...props} src={cachedSrc} onError={handleImgError} /> : cacheFailed ? fallback : loadingFallback}
         </span>
     );
 }
