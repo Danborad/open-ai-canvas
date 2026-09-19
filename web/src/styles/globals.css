@@ -9652,14 +9652,17 @@ html:not(.dark) .canvas-generation-settings-trigger.ant-btn[aria-expanded="true"
         width: var(--space-12);
         height: var(--space-1);
         border-radius: var(--r-full);
-        background: color-mix(in srgb, var(--foreground) 22%, transparent);
-        transition: background-color var(--motion-instant) ease-out;
+        background: color-mix(in srgb, var(--foreground) 18%, transparent);
+        opacity: 0.35;
+        transition: opacity var(--motion-instant) ease-out, background-color var(--motion-instant) ease-out;
     }
 
+    .canvas-node-prompt-panel:hover .canvas-node-composer-resize-handle > span,
     .canvas-node-composer-resize-handle:hover > span,
     .canvas-node-composer-resize-handle:active > span,
     .canvas-node-composer-resize-handle:focus-visible > span {
-        background: color-mix(in srgb, var(--foreground) 42%, transparent);
+        background: color-mix(in srgb, var(--foreground) 38%, transparent);
+        opacity: 1;
     }
 
     .canvas-node-composer-resize-handle:focus-visible {

@@ -76,7 +76,8 @@ export function AuthScene() {
     return (
         <main className="auth-scene h-dvh min-h-0 overflow-y-auto text-white lg:overflow-hidden">
             <div className="grid min-h-full lg:h-full lg:grid-cols-[minmax(0,1.32fr)_minmax(520px,1fr)]">
-                <section className="relative min-h-[250px] overflow-hidden bg-[#0a0b10] bg-[radial-gradient(ellipse_80%_80%_at_20%_-20%,rgba(99,102,241,0.2),rgba(0,0,0,0))] sm:min-h-[320px] lg:min-h-0" aria-label={`${appearance.brandName}品牌影片`}>
+                <section className="relative min-h-[250px] overflow-hidden bg-[#0a0b10] sm:min-h-[320px] lg:min-h-0" aria-label={`${appearance.brandName}品牌影片`}>
+                    <img className="absolute inset-0 size-full object-cover opacity-25 select-none pointer-events-none filter blur-[1px]" src="/short-drama-styles/future-tech.jpg" alt="" />
                     {videoActive && appearance.authVideoUrl ? <video ref={videoRef} className="absolute inset-0 size-full object-cover" src={appearance.authVideoUrl} poster={appearance.authVideoPosterUrl || undefined} autoPlay muted loop playsInline preload="metadata" onPlay={() => setVideoPlaying(true)} onPause={() => setVideoPlaying(false)} /> : appearance.authVideoPosterUrl && failedPosterURL !== appearance.authVideoPosterUrl ? <img className="absolute inset-0 size-full object-cover" src={appearance.authVideoPosterUrl} alt="" decoding="async" onError={() => setFailedPosterURL(appearance.authVideoPosterUrl)} /> : null}
                     <div aria-hidden className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,5,8,.48),transparent_42%,rgba(4,5,8,.74))]" />
                     <div aria-hidden className="auth-scene-video-blend absolute inset-y-0 right-0 hidden w-[clamp(120px,14vw,240px)] lg:block" />
