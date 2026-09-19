@@ -109,7 +109,6 @@ const imageToolDefinitions: ImageToolDefinition[] = [
         run: (node, handlers) => handlers.onMaskEdit(node),
     },
     {
-    {
         id: "conversion",
         label: "转换",
         description: "提取姿态骨架、线稿、深度图等",
@@ -144,7 +143,6 @@ const imageToolDefinitions: ImageToolDefinition[] = [
         group: "process",
         order: 55,
         run: (node, handlers) => handlers.onLayerDecomposition(node),
-    },
     },
     {
         id: "emotion",
