@@ -168,7 +168,6 @@ export async function buildGenerationTaskNodeResult(node: CanvasNodeData, task: 
         const video = result.video.storageKey
             ? await cacheGeneratedRemoteVideo({ ...result.video, storageKey: result.video.storageKey })
             : await storeGeneratedVideo({ url: result.video.dataUrl, mimeType: result.video.mimeType || "video/mp4" });
-            : await storeGeneratedVideo({ url: result.video.dataUrl, mimeType: result.video.mimeType || "video/mp4" });
         const videoWidth = video.width || targetSpec?.width || node.width || VIDEO_NODE_MAX_SIZE.width;
         const videoHeight = video.height || targetSpec?.height || node.height || VIDEO_NODE_MAX_SIZE.height;
         const videoSize = fitNodeSize(videoWidth, videoHeight, VIDEO_NODE_MAX_SIZE.width, VIDEO_NODE_MAX_SIZE.height);
