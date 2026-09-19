@@ -85,6 +85,8 @@ export type ToolbarHandlers = {
     /** 从已有图片或视频创建并自动连接一个转换节点。 */
     onNodeCreateConversion?: (node: CanvasNodeData) => void;
     onNodeMaskEdit: (node: CanvasNodeData) => void;
+    onNodeImageEdit: (node: CanvasNodeData) => void;
+    onNodeRemoveBackground: (node: CanvasNodeData) => void;
     onNodeEmotion: (node: CanvasNodeData) => void;
     onNodePortraitTexture: (node: CanvasNodeData) => void;
     onNodeCrop: (node: CanvasNodeData) => void;
