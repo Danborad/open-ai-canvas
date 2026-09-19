@@ -76,9 +76,9 @@ export function AuthScene() {
     return (
         <main className="auth-scene h-dvh min-h-0 overflow-y-auto text-white lg:overflow-hidden">
             <div className="grid min-h-full lg:h-full lg:grid-cols-[minmax(0,1.32fr)_minmax(520px,1fr)]">
-                <section className="relative min-h-[250px] overflow-hidden sm:min-h-[320px] lg:min-h-0" aria-label={`${appearance.brandName}品牌影片`}>
+                <section className="relative min-h-[250px] overflow-hidden bg-[#0a0b10] bg-[radial-gradient(ellipse_80%_80%_at_20%_-20%,rgba(99,102,241,0.2),rgba(0,0,0,0))] sm:min-h-[320px] lg:min-h-0" aria-label={`${appearance.brandName}品牌影片`}>
                     {videoActive && appearance.authVideoUrl ? <video ref={videoRef} className="absolute inset-0 size-full object-cover" src={appearance.authVideoUrl} poster={appearance.authVideoPosterUrl || undefined} autoPlay muted loop playsInline preload="metadata" onPlay={() => setVideoPlaying(true)} onPause={() => setVideoPlaying(false)} /> : appearance.authVideoPosterUrl && failedPosterURL !== appearance.authVideoPosterUrl ? <img className="absolute inset-0 size-full object-cover" src={appearance.authVideoPosterUrl} alt="" decoding="async" onError={() => setFailedPosterURL(appearance.authVideoPosterUrl)} /> : null}
-                    <div aria-hidden className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,5,8,.58),transparent_42%,rgba(4,5,8,.74))]" />
+                    <div aria-hidden className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,5,8,.48),transparent_42%,rgba(4,5,8,.74))]" />
                     <div aria-hidden className="auth-scene-video-blend absolute inset-y-0 right-0 hidden w-[clamp(120px,14vw,240px)] lg:block" />
                     <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-4 p-5 sm:p-7 lg:p-9">
                         <Link to="/" className="inline-flex items-center gap-2.5 text-sm font-semibold text-white drop-shadow-sm transition-opacity hover:opacity-80">
@@ -102,7 +102,7 @@ export function AuthScene() {
                     </motion.div>
                 </section>
 
-                <section className="auth-scene-form-pane relative flex min-h-[660px] items-start justify-center overflow-y-auto px-4 pb-24 pt-20 sm:px-8 lg:min-h-0 lg:px-10 lg:pb-24 lg:pt-20">
+                <section className="auth-scene-form-pane relative flex min-h-[520px] items-center justify-center overflow-y-auto px-4 pb-16 pt-16 sm:px-8 lg:px-10">
                     <Link to="/" className="auth-scene-return absolute right-5 top-5 z-20 inline-flex h-9 items-center gap-2 rounded-full px-4 text-xs backdrop-blur-xl transition lg:right-8 lg:top-8">
                         <ArrowLeft className="size-3.5" />
                         返回首页
@@ -116,9 +116,9 @@ export function AuthScene() {
                         className="my-auto w-full max-w-[460px]"
                     >
                         <ConfigProvider theme={getAntThemeConfig(true, appearance.activeSkin)}>
-                            <div className="auth-card-dark auth-scene-card h-auto overflow-hidden rounded-lg backdrop-blur-2xl">
-                                <section aria-label={copy.title} className={`flex flex-col ${recovery ? "min-h-[600px]" : activeTab === "login" ? "min-h-[500px]" : "min-h-[620px] sm:min-h-[640px]"}`}>
-                                    <header className="px-6 pb-5 pt-6 sm:px-8 sm:pt-7">
+                            <div className="auth-card-dark auth-scene-card h-auto overflow-hidden rounded-2xl border border-white/10 shadow-2xl backdrop-blur-2xl">
+                                <section aria-label={copy.title} className="flex flex-col">
+                                    <header className="px-6 pb-4 pt-6 sm:px-8 sm:pt-7">
                                         <p className="auth-scene-eyebrow text-xs font-semibold tracking-[0.18em]">{copy.eyebrow}</p>
                                         <h2 className="mt-2 text-3xl font-semibold">{copy.title}</h2>
                                         <p className="auth-scene-muted mt-2 text-sm leading-6">{copy.description}</p>
@@ -128,7 +128,7 @@ export function AuthScene() {
                                             <Tabs className="auth-card-tabs" activeKey={activeTab} items={AUTH_TABS} onChange={(key) => navigate({ pathname: key === "register" ? "/register" : "/login", search: location.search })} />
                                         </div>
                                     ) : null}
-                                    <div key={location.pathname} className="flex-1 px-6 py-6 sm:px-8 sm:py-7">
+                                    <div key={location.pathname} className="px-6 py-6 sm:px-8 sm:pb-8 sm:pt-6">
                                         <Outlet />
                                     </div>
                                 </section>
