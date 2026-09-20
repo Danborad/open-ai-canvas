@@ -143,99 +143,6 @@ func videoDurationSupported(value *VideoCapabilityConfig) bool {
 	return value == nil || value.DurationSupported == nil || *value.DurationSupported
 }
 
-func DefaultAutoDLVideoCapability(workflow string) *ModelCapabilityConfig {
-	profile := DefaultModelCapabilityConfigForModel(string(model.ChannelInterfaceNewAPIChannel2), workflow)
-	profile.Video.Duration = VideoDurationConfig{Selection: "range", Min: 1, Max: 15, Step: 1, Default: 5}
-	if strings.Contains(workflow, "_v2") && !strings.Contains(workflow, "15s") {
-		profile.Video.Duration.Max = 10
-	}
-	if strings.Contains(workflow, "_12s") {
-		profile.Video.Duration.Max = 12
-	}
-	if workflow == "wan2.2animate-v4-motion_retargeting" {
-		profile.Video.DurationSupported = boolPointer(false)
-		profile.Video.Duration = VideoDurationConfig{Selection: "none"}
-		profile.Video.Resolutions = []string{"464*832px(竖版)", "832*464px(横版)"}
-		profile.Video.DefaultResolution = "464*832px(竖版)"
-		profile.Video.Ratios = []string{"9:16", "16:9"}
-		profile.Video.DefaultRatio = "9:16"
-	} else if strings.HasPrefix(workflow, "minimax_h3_b99_") {
-		profile.Video.Resolutions = []string{"736p竖", "736p横", "736p(1:1)"}
-		profile.Video.DefaultResolution = "736p竖"
-		profile.Video.Ratios = []string{"9:16", "16:9", "1:1"}
-		profile.Video.DefaultRatio = "9:16"
-	} else if workflow == "minimax_h3_lightx2v_v5" {
-		profile.Video.Resolutions = []string{"480p竖", "768p竖", "1080p竖", "480p横", "768p横", "1080p横", "480p(1:1)", "768p(1:1)", "1080p(1:1)"}
-		profile.Video.DefaultResolution = "768p竖"
-		profile.Video.Ratios = []string{"9:16", "16:9", "1:1"}
-		profile.Video.DefaultRatio = "9:16"
-	} else if workflow == "minimax_h3_image_audio_to_video_v2" || workflow == "minimax_h3_image_audio_to_video" {
-		profile.Video.Resolutions = []string{"480p竖", "768p竖", "1080p竖", "480p横", "768p横", "1080p横"}
-		profile.Video.DefaultResolution = "768p竖"
-		profile.Video.Ratios = []string{"9:16", "16:9"}
-		profile.Video.DefaultRatio = "9:16"
-	} else if workflow == "minimax_h3_image_audio_to_video_v2_15s" {
-		profile.Video.Resolutions = []string{"480p竖", "768p竖", "480p横", "768p横"}
-		profile.Video.DefaultResolution = "768p竖"
-		profile.Video.Ratios = []string{"9:16", "16:9"}
-		profile.Video.DefaultRatio = "9:16"
-	} else {
-		profile.Video.Resolutions = []string{"480p竖", "768p竖", "480p横", "768p横", "480p(1:1)", "768p(1:1)"}
-		profile.Video.DefaultResolution = "768p竖"
-		profile.Video.Ratios = []string{"9:16", "16:9", "1:1"}
-		profile.Video.DefaultRatio = "9:16"
-	}
-
-	switch workflow {
-	case "wan2.2animate-v4-motion_retargeting":
-		profile.Video.References.MaxImages = 1
-		profile.Video.References.MinImages = 1
-		profile.Video.References.MaxVideos = 1
-		profile.Video.References.MaxAudios = 0
-		profile.Video.Operations = []string{"video_to_video", "image_to_video"}
-		profile.Video.DefaultOperation = "video_to_video"
-	case "minimax_h3_lightx2v_no_pic", "minimax_h3_b99_001":
-		profile.Video.References.MaxImages = 0
-		profile.Video.References.MaxAudios = 0
-		profile.Video.Operations = []string{"text_to_video"}
-		profile.Video.DefaultOperation = "text_to_video"
-	case "minimax_h3_lightx2v", "minimax_h3_b99_002":
-		profile.Video.References.MaxImages = 2
-		profile.Video.References.MinImages = 2
-		profile.Video.References.MaxAudios = 0
-		profile.Video.Operations = []string{"image_to_video"}
-		profile.Video.DefaultOperation = "image_to_video"
-	case "minimax_h3_image_audio_to_video":
-		profile.Video.References.MaxImages = 1
-		profile.Video.References.MinImages = 1
-		profile.Video.References.MinAudios = 1
-		profile.Video.References.MaxAudios = 1
-		profile.Video.Operations = []string{"image_to_video", "audio_to_video", "reference_to_video"}
-		profile.Video.DefaultOperation = "image_to_video"
-	case "minimax_h3_lightx2v_v5", "minimax_h3_lightx2v_v5_15s", "minimax_h3_b99_003_12s":
-		profile.Video.References.MaxImages = 9
-		profile.Video.References.MinImages = 1
-		profile.Video.References.MaxAudios = 0
-		profile.Video.Operations = []string{"image_to_video", "reference_to_video"}
-		profile.Video.DefaultOperation = "image_to_video"
-	case "minimax_h3_zm_u24", "minimax_h3_zm_u08":
-		profile.Video.References.MaxImages = 9
-		profile.Video.References.MinImages = 1
-		profile.Video.References.MaxAudios = 3
-		profile.Video.Operations = []string{"image_to_video", "reference_to_video", "audio_to_video"}
-		profile.Video.DefaultOperation = "image_to_video"
-	case "minimax_h3_image_audio_to_video_v2", "minimax_h3_image_audio_to_video_v2_15s":
-		fallthrough
-	default:
-		profile.Video.References.MaxImages = 9
-		profile.Video.References.MaxAudios = 3
-		profile.Video.Operations = []string{"text_to_video", "image_to_video", "reference_to_video", "audio_to_video"}
-		profile.Video.DefaultOperation = "image_to_video"
-	}
-
-	return profile
-}
-
 func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapabilityConfig {
 	image := &ImageCapabilityConfig{
 		References:            ImageReferenceConfig{PromptMaxChars: 32000, MaxImages: 16, MaxImageBytes: 30 * 1024 * 1024, MaskSupported: true},
@@ -500,8 +407,6 @@ func DefaultModelCapabilityConfigForModel(protocol string, modelName string) *Mo
 		video.Watermark = VideoBooleanConfig{Supported: true, Default: false}
 	case model.ChannelInterfaceAgnesVideo:
 		video = applyModelSpecificVideoCapability(video, protocol, modelName)
-	case "autodl-comfyui", "autodl-comfyui-video":
-		return DefaultAutoDLVideoCapability(modelName)
 	}
 	return &ModelCapabilityConfig{Version: 1, Text: text, Image: DefaultImageCapabilityConfig(protocol, modelName), Video: video}
 }

@@ -416,15 +416,7 @@ func validateChannelModelTierCapabilities(tiers []model.ChannelModelPriceTier, r
 	}
 	resolutionSupported := make(map[string]bool, len(config.Video.Resolutions))
 	for _, resolution := range config.Video.Resolutions {
-		resKey := normalizeChannelModelTierResolution(resolution)
-		resolutionSupported[resKey] = true
-		if num := extractResolutionDigits(resKey); num != "" {
-			resolutionSupported[num+"p"] = true
-			if num == "768" || num == "736" {
-				resolutionSupported["720p"] = true
-				resolutionSupported["768p"] = true
-			}
-		}
+		resolutionSupported[normalizeChannelModelTierResolution(resolution)] = true
 	}
 	durationSupported := make(map[int]bool, len(config.Video.Duration.Values))
 	for _, seconds := range config.Video.Duration.Values {
@@ -950,55 +942,6 @@ func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, it
 	}
 	changed := false
 	switch preset {
-	case "autodl":
-		if item.DisplayName != autoDLWorkflowDisplayName(item.ModelKey) {
-			item.DisplayName = autoDLWorkflowDisplayName(item.ModelKey)
-			changed = true
-		}
-		if item.ProviderModelKey == "" {
-			item.ProviderModelKey = item.ModelKey
-			changed = true
-		}
-		if item.Icon == "" {
-			item.Icon = "Minimax"
-			changed = true
-		}
-		if item.ModelKey == "indextts2-v1" {
-			if item.Capability != "audio" || item.Protocol != "autodl-comfyui-audio" {
-				item.Capability = "audio"
-				item.Protocol = "autodl-comfyui-audio"
-				changed = true
-			}
-		} else {
-			if item.Capability != "video" || item.Protocol != "autodl-comfyui" {
-				item.Capability = "video"
-				item.Protocol = "autodl-comfyui"
-				changed = true
-			}
-		}
-		defaultConfig := DefaultAutoDLVideoCapability(item.ModelKey)
-		if strings.TrimSpace(item.CapabilityConfigJSON) == "" {
-			if encoded, err := json.Marshal(defaultConfig); err == nil {
-				item.CapabilityConfigJSON = string(encoded)
-				changed = true
-			}
-		} else if currentProfile, err := DecodeModelCapabilityConfig(item.CapabilityConfigJSON); err == nil && currentProfile != nil && currentProfile.Video != nil {
-			if !containsCapabilityString(currentProfile.Video.Operations, currentProfile.Video.DefaultOperation) || len(currentProfile.Video.Operations) == 0 || !sameCapabilityStrings(currentProfile.Video.Resolutions, defaultConfig.Video.Resolutions) {
-				currentProfile.Video.Operations = defaultConfig.Video.Operations
-				currentProfile.Video.DefaultOperation = defaultConfig.Video.DefaultOperation
-				currentProfile.Video.References = defaultConfig.Video.References
-				currentProfile.Video.Resolutions = defaultConfig.Video.Resolutions
-				currentProfile.Video.DefaultResolution = defaultConfig.Video.DefaultResolution
-				currentProfile.Video.Duration = defaultConfig.Video.Duration
-				currentProfile.Video.DurationSupported = defaultConfig.Video.DurationSupported
-				currentProfile.Video.Ratios = defaultConfig.Video.Ratios
-				currentProfile.Video.DefaultRatio = defaultConfig.Video.DefaultRatio
-				if encoded, err := json.Marshal(currentProfile); err == nil {
-					item.CapabilityConfigJSON = string(encoded)
-					changed = true
-				}
-			}
-		}
 	case "flow2api":
 		if strings.Contains(strings.ToLower(item.ModelKey), "omni") || strings.HasPrefix(item.ModelKey, "Veo 3.1") {
 			if item.Capability != "video" || item.Protocol != "flow2api-video" {

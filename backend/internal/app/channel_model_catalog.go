@@ -120,16 +120,12 @@ func (s *Service) FetchChannelModelCatalog(ctx context.Context, actor *model.Use
 		catalog := make([]ChannelModelCatalogItem, 0, len(models))
 		for _, name := range models {
 			displayName := name
-			if preset == "autodl" {
-				displayName = autoDLWorkflowDisplayName(name)
-			} else if preset == "sensenova" {
+			if preset == "sensenova" {
 				displayName = senseNovaDisplayName(name)
 			}
 			modelType := "image"
-			if strings.Contains(strings.ToLower(name), "video") || strings.Contains(strings.ToLower(name), "omni") || strings.HasPrefix(name, "Veo 3.1") || (preset == "autodl" && name != "indextts2-v1") || (preset == "zarklab" && (name == "Happy Horse" || name == "Kling 3.0 Lite" || name == "MiniMax H3" || strings.HasPrefix(name, "Seedance"))) {
+			if strings.Contains(strings.ToLower(name), "video") || strings.Contains(strings.ToLower(name), "omni") || strings.HasPrefix(name, "Veo 3.1") || (preset == "zarklab" && (name == "Happy Horse" || name == "Kling 3.0 Lite" || name == "MiniMax H3" || strings.HasPrefix(name, "Seedance"))) {
 				modelType = "video"
-			} else if name == "indextts2-v1" {
-				modelType = "audio"
 			} else if name == "sensenova-6.8-flash-lite" {
 				modelType = "text"
 			}
@@ -336,22 +332,6 @@ var (
 		"Seedance 2 Mini",
 		"Seedance 2.5",
 	}
-	autoDLPresetModels = []string{
-		"minimax_h3_zm_u24",
-		"minimax_h3_zm_u08",
-		"minimax_h3_b99_002",
-		"minimax_h3_b99_001",
-		"minimax_h3_b99_003_12s",
-		"wan2.2animate-v4-motion_retargeting",
-		"minimax_h3_image_audio_to_video_v2_15s",
-		"minimax_h3_lightx2v_v5_15s",
-		"minimax_h3_image_audio_to_video_v2",
-		"minimax_h3_image_audio_to_video",
-		"minimax_h3_lightx2v_v5",
-		"minimax_h3_lightx2v_no_pic",
-		"minimax_h3_lightx2v",
-		"indextts2-v1",
-	}
 	senseNovaPresetModels = []string{
 		"sensenova-6.8-flash-lite",
 		"sensenova-u1.5-lite",
@@ -365,9 +345,6 @@ func isPresetChannel(channel *model.ModelChannel) string {
 	}
 	url := strings.ToLower(channel.BaseURL)
 	name := strings.ToLower(channel.Name)
-	if strings.Contains(url, "autodl.art") || strings.Contains(name, "autodl") {
-		return "autodl"
-	}
 	if strings.Contains(url, "flow2api") || strings.Contains(name, "flow2api") {
 		return "flow2api"
 	}
@@ -385,8 +362,6 @@ func isPresetChannel(channel *model.ModelChannel) string {
 
 func presetChannelModels(preset string) []string {
 	switch preset {
-	case "autodl":
-		return autoDLPresetModels
 	case "flow2api":
 		return flow2APIPresetModels
 	case "grok2api":
@@ -436,27 +411,4 @@ func senseNovaDisplayName(model string) string {
 		return name
 	}
 	return model
-}
-
-func autoDLWorkflowDisplayName(workflow string) string {
-	names := map[string]string{
-		"minimax_h3_zm_u24":                     "H3 多图多音频生视频 (升级版)",
-		"minimax_h3_zm_u08":                     "H3 多图多音频生视频 (高速版)",
-		"minimax_h3_b99_002":                     "H3 首尾帧生成视频 (b99_002)",
-		"minimax_h3_b99_001":                     "H3 文生视频 (b99_001)",
-		"minimax_h3_b99_003_12s":                 "H3 多图生视频 12 秒",
-		"wan2.2animate-v4-motion_retargeting":    "动作迁移 (Wan2.2)",
-		"minimax_h3_image_audio_to_video_v2_15s": "H3 多图多音频生视频 15 秒",
-		"minimax_h3_lightx2v_v5_15s":             "H3 多图生视频 15 秒",
-		"minimax_h3_image_audio_to_video_v2":     "H3 多图多音频生视频",
-		"minimax_h3_image_audio_to_video":        "H3 图生视频音频同步",
-		"minimax_h3_lightx2v_v5":                 "H3 多图参考生视频",
-		"minimax_h3_lightx2v_no_pic":             "H3 文生视频",
-		"minimax_h3_lightx2v":                    "H3 首尾帧生成视频",
-		"indextts2-v1":                           "IndexTTS2 语音",
-	}
-	if name := names[workflow]; name != "" {
-		return name
-	}
-	return workflow
 }

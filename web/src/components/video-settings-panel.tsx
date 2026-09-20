@@ -37,9 +37,6 @@ export function VideoSettingsPanel({ config, onConfigChange, theme, showTitle = 
     if (interfaceType === "flow2api-video") {
         return <Flow2APIVideoSettingsPanel config={config} profile={profile} priceTiers={priceTiers} onConfigChange={onConfigChange} theme={theme} showTitle={showTitle} className={className} />;
     }
-    if (interfaceType === "autodl-comfyui" || interfaceType === "autodl-comfyui-video") {
-        return <AutoDLVideoSettingsPanel config={config} profile={profile} priceTiers={priceTiers} onConfigChange={onConfigChange} theme={theme} showTitle={showTitle} className={className} />;
-    }
     if (interfaceType === "grok2api-video" || interfaceType === "grok2api-new-video" || interfaceType === "xai-video" || modelName.includes("grok-imagine-video")) {
         return <Grok2APIVideoSettingsPanel config={config} profile={profile} priceTiers={priceTiers} onConfigChange={onConfigChange} theme={theme} showTitle={showTitle} className={className} />;
     }
@@ -388,69 +385,6 @@ function normalizeRatioValue(value: string) {
     const match = String(value || "").match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/);
     if (!match) return value;
     return `${match[1]}:${match[2]}`;
-}
-
-function AutoDLVideoSettingsPanel({ config, profile, priceTiers, onConfigChange, theme, showTitle, className }: VideoSettingsPanelProps & { profile: VideoCapabilityConfig; priceTiers: ReturnType<typeof modelPriceTiers> }) {
-    const seconds = normalizeVideoDuration(config.videoSeconds || String(profile.duration?.default || 5));
-    const resolution = String(config.vquality || profile.defaultResolution || "768p竖");
-    return (
-        <ImageSettingsTheme theme={theme}>
-            <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
-                {showTitle ? <div className="text-sm font-semibold">AutoDL.Art 视频设置</div> : null}
-                <SettingGroup title="分辨率 / 比例" color={theme.node.muted}>
-                    <div className="grid grid-cols-3 gap-1.5">
-                        {profile.resolutions.map((value) => {
-                            const ratio = autoDLResolutionRatio(value);
-                            return (
-                                <AutoDLResolutionOption
-                                    key={value}
-                                    value={value}
-                                    ratio={ratio}
-                                    selected={resolution === value}
-                                    disabled={!hasPriceTierForVideoSelection(priceTiers, value, Number(seconds))}
-                                    theme={theme}
-                                    onClick={() => {
-                                        onConfigChange("vquality", value);
-                                        onConfigChange("size", ratio);
-                                    }}
-                                />
-                            );
-                        })}
-                    </div>
-                </SettingGroup>
-                <SettingGroup title="秒数" color={theme.node.muted}>
-                    <VideoDurationControl profile={profile} value={Number(seconds)} theme={theme} onChange={(value) => onConfigChange("videoSeconds", String(value))} />
-                </SettingGroup>
-            </div>
-        </ImageSettingsTheme>
-    );
-}
-
-function AutoDLResolutionOption({ value, ratio, selected, disabled, theme, onClick }: { value: string; ratio: string; selected: boolean; disabled?: boolean; theme: CanvasTheme; onClick: () => void }) {
-    const preview = ratioPreview(ratio);
-    return (
-        <button
-            type="button"
-            disabled={disabled}
-            className="flex h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-md px-1 text-xs font-medium transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
-            style={{ background: selected ? theme.toolbar.activeBg : "transparent", color: theme.node.text, outlineColor: theme.node.muted }}
-            onMouseDown={(event) => event.stopPropagation()}
-            onClick={onClick}
-        >
-            <span className="flex items-center gap-1">
-                <SizePreview width={preview.width} height={preview.height} color={theme.node.text} />
-                <span>{ratio}</span>
-            </span>
-            <span className="whitespace-nowrap text-[var(--fs-tiny)]">{value}</span>
-        </button>
-    );
-}
-
-function autoDLResolutionRatio(value: string) {
-    if (value.includes("竖")) return "9:16";
-    if (value.includes("横")) return "16:9";
-    if (value.includes("(1:1)") || value.includes("1:1")) return "1:1";
-    return "9:16";
 }
 
 function Flow2APIVideoSettingsPanel({ config, profile, priceTiers, onConfigChange, theme, showTitle, className }: VideoSettingsPanelProps & { profile: VideoCapabilityConfig; priceTiers?: ReturnType<typeof modelPriceTiers> }) {
