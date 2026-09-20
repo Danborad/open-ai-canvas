@@ -5,10 +5,10 @@ import { Popover } from "antd";
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
 import { modelCapabilityConfigFor, videoDurationOptions } from "@/lib/model-capabilities";
 import { formatPriceRange, modelQuoteDescription, modelQuoteRequest, normalizeTierResolution, priceTierSummaryLabel, priceTiersForCurrentSelection } from "@/lib/model-pricing";
-import { compatibleModelInGroup, configuredModelDisplayName, groupModelsByDisplayName, modelCompatibilityError, resolveCompatibleModel, type ModelRequirements } from "@/lib/model-selection";
+import { compatibleModelInGroup, configuredModelDisplayName, modelCompatibilityError, resolveCompatibleModel, type ModelRequirements } from "@/lib/model-selection";
 import { groupModelsForPicker, isDirectSystemModel, modelChannelLabel } from "@/lib/model-picker-groups";
 import { cn } from "@/lib/utils";
-import { modelDisplayName, modelIcon, modelOptionName, PUBLIC_MODEL_CATALOG_ID, resolveModelChannel, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
+import { modelDisplayName, modelIcon, modelOptionName, resolveModelChannel, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { ModelLogo } from "@/components/model-logo";
@@ -30,54 +30,6 @@ type ModelPickerProps = {
     requirements?: ModelRequirements;
     showConfiguredModelName?: boolean;
 };
-
-export function buildModelPickerOptionGroups(config: AiConfig, options: string[], channelGroupingEnabled = true) {
-    if (!channelGroupingEnabled) {
-        return config.channels
-            .map((channel) => ({
-                key: channel.id,
-                label: channel.name || "未命名渠道",
-                scope: channel.id === PUBLIC_MODEL_CATALOG_ID ? "" : channel.scope === "system" ? "平台服务" : "我的模型",
-                models: groupModelsByDisplayName(
-                    config,
-                    options.filter((model) => resolveModelChannel(config, model).id === channel.id),
-                ),
-            }))
-            .filter((group) => group.models.length);
-    }
-
-    const mergedGroups = new Map<string, { key: string; label: string; scope: string; channelIds: string[] }>();
-    for (const channel of config.channels) {
-        const groupName = channel.publicAlias?.trim();
-        const scope = channel.id === PUBLIC_MODEL_CATALOG_ID ? "" : channel.scope === "system" ? "平台服务" : "我的模型";
-        const groupKey = groupName ? `group:${scope}\u0000${groupName}` : `channel:${channel.id}`;
-        const label = groupName || channel.name || "未命名渠道";
-        const existing = mergedGroups.get(groupKey);
-        if (existing) {
-            existing.channelIds.push(channel.id);
-        } else {
-            mergedGroups.set(groupKey, {
-                key: groupKey,
-                label,
-                scope,
-                channelIds: [channel.id],
-            });
-        }
-    }
-
-    return Array.from(mergedGroups.values())
-        .map((group) => {
-            const channelIdSet = new Set(group.channelIds);
-            const channelModels = options.filter((model) => channelIdSet.has(resolveModelChannel(config, model).id));
-            return {
-                key: group.key,
-                label: group.label,
-                scope: group.scope,
-                models: groupModelsByDisplayName(config, channelModels),
-            };
-        })
-        .filter((group) => group.models.length);
-}
 
 export function ModelPicker({
     config,

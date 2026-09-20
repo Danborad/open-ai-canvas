@@ -20,7 +20,6 @@ const (
 	PluginCanvasCoverBlur      = "canvas-cover-blur"
 	PluginComposerImagePaste   = "composer-image-paste"
 	PluginWecomDailyReport     = "wecom-daily-report"
-	PluginChannelGrouping      = "channel-grouping"
 	PluginUserStorageStatus    = "user-storage-status"
 
 	PluginOriginOfficial = "official"
@@ -108,10 +107,6 @@ var officialApplicationPolicies = map[string]PluginManagementView{
 	PluginWecomDailyReport: {
 		Origin: PluginOriginOfficial, Kind: PluginKindApplication,
 		ActivationScope: PluginScopeUser, ConfigurationScope: PluginConfigurationSystem,
-	},
-	PluginChannelGrouping: {
-		Origin: PluginOriginOfficial, Kind: PluginKindApplication,
-		ActivationScope: PluginScopeUser, ConfigurationScope: PluginConfigurationNone,
 	},
 	PluginUserStorageStatus: {
 		Origin: PluginOriginOfficial, Kind: PluginKindApplication,
@@ -273,7 +268,7 @@ func (s *Service) pluginStateForUser(actor *model.User, pluginID string, items [
 		// explicitly saves a personal choice. Other official applications were
 		// already controlled by each user's local installation state.
 		if !userConfigured {
-			if pluginID == PluginMediaConversion || pluginID == PluginChannelGrouping || pluginID == PluginUserStorageStatus {
+			if pluginID == PluginMediaConversion || pluginID == PluginUserStorageStatus {
 				userEnabled = true
 			} else if hasRuntime && pluginID == WorkflowPluginRunningHub {
 				userEnabled = runtimePlugin.Status == "enabled"

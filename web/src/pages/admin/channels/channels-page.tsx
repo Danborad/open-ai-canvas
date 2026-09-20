@@ -12,7 +12,6 @@ import { AdminPageFrame } from "../components/admin-shell";
 import { AdminRowActions, AdminStatusBadge, AdminTableEmpty, configuredSecretText } from "../components/admin-ui";
 import { ChannelModelManager } from "../components/channel-model-manager";
 import { ChannelOrderDialog } from "../components/channel-order-dialog";
-import { ChannelGroupDialog } from "../components/channel-group-dialog";
 import { selectChannelWorkspace } from "./channel-workspace-state";
 import "./channels-page.css";
 
@@ -307,14 +306,7 @@ export default function ChannelsPage() {
                             <AdminTableEmpty filtered={hasFilters} title={hasFilters ? undefined : "还没有系统渠道"} action={hasFilters ? <Button onClick={() => updateUrl({ filter: "", status: "all" })}>清除筛选</Button> : undefined} />
                         ) : null}
                     </div>
-                    <div className="admin-channel-sidebar-footer flex flex-col gap-2">
-                        <ChannelGroupDialog
-                            channels={channels}
-                            onSaved={async () => {
-                                await syncChannels();
-                                await reload();
-                            }}
-                        />
+                    <div className="admin-channel-sidebar-footer">
                         <ChannelOrderDialog
                             onSaved={async () => {
                                 await syncChannels();

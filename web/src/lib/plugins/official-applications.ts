@@ -20,7 +20,6 @@ export const OFFICIAL_APPLICATION_PLUGIN_IDS = [
     "media-conversion",
     "composer-image-paste",
     "wecom-daily-report",
-    "channel-grouping",
     "user-storage-status",
 ] as const;
 

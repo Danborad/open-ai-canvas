@@ -10,8 +10,6 @@ import "./canvas-cover-blur";
 import "./media-conversion";
 import "./composer-image-paste";
 import "./wecom-bot";
-import "./channel-grouping";
 import "./user-storage-status";
 
-export * from "./channel-grouping";
 export * from "./user-storage-status";
