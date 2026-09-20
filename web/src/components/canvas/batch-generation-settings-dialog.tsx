@@ -35,8 +35,11 @@ export function BatchGenerationSettingsDialog({ open, config, rowCount, concurre
         }
     }, [config, open]);
 
-    const handleConfigChange = (key: "quality" | "size" | "transparentBackground" | "count", value: string) => {
-        setGenerationConfig((current) => ({ ...current, [key]: value }));
+    const handleConfigChange = (key: "quality" | "size" | "transparentBackground" | "count" | "watermark", value: string) => {
+        setGenerationConfig((current) => ({
+            ...current,
+            ...(key === "watermark" ? { videoWatermark: value } : { [key]: value }),
+        }));
     };
 
     const handleModelChange = (model: string) => {
