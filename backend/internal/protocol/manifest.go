@@ -1120,9 +1120,10 @@ func manifestRequestValues(request GenerationRequest) map[string]any {
 	output.GenerateAudio = output.GenerateAudio || request.GenerateAudio
 	output.Watermark = output.Watermark || request.Watermark
 	outputValue, _ := requestAsManifestValue(output)
-
-	providerOptions, _ := requestAsManifestValue(request.ProviderOptions)
-	extra, _ := requestAsManifestValue(request.Extra)
+	providerOptionsValue, _ := requestAsManifestValue(request.ProviderOptions)
+	if providerOptionsValue == nil {
+		providerOptionsValue = map[string]any{}
+	}
 
 	return map[string]any{
 		"capability":      request.Capability,
@@ -1143,8 +1144,8 @@ func manifestRequestValues(request GenerationRequest) map[string]any {
 		"watermark":       request.Watermark,
 		"operation":       request.Operation,
 		"output":          outputValue,
-		"providerOptions": providerOptions,
-		"extra":           extra,
+		"providerOptions": providerOptionsValue,
+		"extra":           request.Extra,
 	}
 }
 
