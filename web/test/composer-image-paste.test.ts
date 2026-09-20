@@ -12,15 +12,15 @@ describe("composer image paste plugin", () => {
     });
 
     test("plugin is registered in official backend policy and frontend registry", () => {
-        const backendPolicy = readFileSync(resolve(import.meta.dir, "../../backend/internal/service/plugin_management.go"), "utf8");
+        const backendPolicy = readFileSync(resolve(import.meta.dir, "../../backend/internal/app/plugin_management.go"), "utf8");
         expect(backendPolicy).toContain('PluginComposerImagePaste   = "composer-image-paste"');
         expect(backendPolicy).toContain('PluginComposerImagePaste: {');
 
         const builtinIndex = readFileSync(resolve(import.meta.dir, "../src/lib/plugins/builtin/index.ts"), "utf8");
         expect(builtinIndex).toContain('import "./composer-image-paste";');
 
-        const pluginListPage = readFileSync(resolve(import.meta.dir, "../src/pages/plugins/index.tsx"), "utf8");
-        expect(pluginListPage).toContain('"composer-image-paste"');
+        const officialApps = readFileSync(resolve(import.meta.dir, "../src/lib/plugins/official-applications.ts"), "utf8");
+        expect(officialApps).toContain('"composer-image-paste"');
     });
 
     test("extractImageFilesFromClipboardData parses images from dataTransfer", () => {
@@ -42,7 +42,7 @@ describe("composer image paste plugin", () => {
     });
 
     test("creation composer integrates paste capture and delegates to onAddFiles", () => {
-        const composerSource = readFileSync(resolve(import.meta.dir, "../src/pages/create/index.tsx"), "utf8");
+        const composerSource = readFileSync(resolve(import.meta.dir, "../src/pages/create/creation-workspace.tsx"), "utf8");
         expect(composerSource).toContain("useComposerImagePasteEnabled");
         expect(composerSource).toContain("handleComposerPasteCapture");
         expect(composerSource).toContain("onPasteFiles={composerPastePluginEnabled ? props.onAddFiles : undefined}");

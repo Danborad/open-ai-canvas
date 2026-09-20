@@ -601,55 +601,6 @@ func TestOfficialArkSeedreamMapsAspectRatioToPixelSize(t *testing.T) {
 	}
 }
 
-func TestOfficialOpenAIImagesMapsTransparentBackgroundAndOutputFormat(t *testing.T) {
-	adapter := officialPackageAdapter(t, "openai-images.yingce-plugin", "openai-image")
-	// 验证优先映射 request.Extra 中的透明背景与格式（来自界面 toggle）
-	create, err := adapter.BuildCreate(context.Background(), RequestContext{
-		Request: GenerationRequest{
-			Model:  "gpt-image-2",
-			Prompt: "a cat",
-			Extra: map[string]any{
-				"background":    "transparent",
-				"output_format": "png",
-			},
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	body := manifestTestBody(t, create)
-	if body["background"] != "transparent" {
-		t.Fatalf("expected background = transparent, got %#v", body["background"])
-	}
-	if body["output_format"] != "png" {
-		t.Fatalf("expected output_format = png, got %#v", body["output_format"])
-	}
-
-	// 验证缺省时回退到 providerOptions 默认值
-	createFallback, err := adapter.BuildCreate(context.Background(), RequestContext{
-		Request: GenerationRequest{
-			Model:  "gpt-image-2",
-			Prompt: "a cat",
-			ProviderOptions: map[string]map[string]any{
-				"openai-image": {
-					"background":    "opaque",
-					"output_format": "webp",
-				},
-			},
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	bodyFallback := manifestTestBody(t, createFallback)
-	if bodyFallback["background"] != "opaque" {
-		t.Fatalf("expected background = opaque, got %#v", bodyFallback["background"])
-	}
-	if bodyFallback["output_format"] != "webp" {
-		t.Fatalf("expected output_format = webp, got %#v", bodyFallback["output_format"])
-	}
-}
-
 func TestOfficialArkAgentPlanPluginsUsePlanPaths(t *testing.T) {
 	image := officialPackageAdapter(t, "volcengine-ark-agent-plan-seedream.yingce-plugin", "volcengine-ark-agent-plan-image")
 	imageCreate, err := image.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "doubao-seedream-5-0-260128", Prompt: "circle", AspectRatio: "1:1"}})

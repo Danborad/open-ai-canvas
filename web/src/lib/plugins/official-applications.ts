@@ -17,6 +17,9 @@ export const OFFICIAL_APPLICATION_PLUGIN_IDS = [
     PROMPT_OPTIMIZER_PLUGIN_ID,
     ART_CRITIQUE_PLUGIN_ID,
     EDITOR_SHELL_PLUGIN_ID,
+] as const;
+
+export const EXTENDED_APPLICATION_PLUGIN_IDS = [
     "media-conversion",
     "composer-image-paste",
     "wecom-daily-report",
@@ -24,8 +27,14 @@ export const OFFICIAL_APPLICATION_PLUGIN_IDS = [
 ] as const;
 
 const officialApplicationIdSet = new Set<string>(OFFICIAL_APPLICATION_PLUGIN_IDS);
+const extendedApplicationIdSet = new Set<string>(EXTENDED_APPLICATION_PLUGIN_IDS);
 
-/** 判断插件是否为官方应用型插件（用户可在插件页自主启停）。 */
+/** 判断插件是否为官方原生应用型插件。 */
 export function isOfficialApplicationPluginId(pluginId: string) {
     return officialApplicationIdSet.has(pluginId);
+}
+
+/** 判断插件是否为扩展应用型插件（含官方与本地内置扩展）。 */
+export function isApplicationPluginLike(pluginId: string) {
+    return officialApplicationIdSet.has(pluginId) || extendedApplicationIdSet.has(pluginId);
 }

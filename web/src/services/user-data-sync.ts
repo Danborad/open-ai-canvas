@@ -7,7 +7,7 @@ import { getActiveUserScope } from "@/lib/user-scope";
 import { preserveCanvasSyncDraft, readCanvasSyncDrafts } from "@/services/canvas-sync-drafts";
 import { appQueryClient } from "@/lib/query-client";
 import { resourceFileUrl, resourceIdFromStorageKey, resourceStorageKey, uploadResourceFile } from "@/services/api/resources";
-import { parseAssetRecordList, parseRemoteAssetRecordListRecovering } from "@/lib/asset-record";
+import { parseAssetRecordList } from "@/lib/asset-record";
 import { assetForRemoteSync } from "@/lib/asset-remote-sync";
 import type { Asset } from "@/stores/use-asset-store";
 import { flushAssetStorePersistence, useAssetStore } from "@/stores/use-asset-store";
@@ -248,11 +248,11 @@ export async function loadAssetLibraryPage(options: Parameters<typeof listRemote
         if (epoch !== sessionEpoch) throw new Error("账号已切换，请重新读取素材");
         acceptRemoteAssets(result.assets);
     });
-    return { ...result, assets: parseRemoteAssetRecordListRecovering(result.assets) };
+    return { ...result, assets: parseAssetRecordList(result.assets) };
 }
 
 function acceptRemoteAssets(remoteAssets: Asset[]) {
-    const assets = parseRemoteAssetRecordListRecovering(remoteAssets);
+    const assets = parseAssetRecordList(remoteAssets);
     const current = new Map(useAssetStore.getState().assets.map((asset) => [asset.id, asset]));
     for (const asset of assets) {
         const local = current.get(asset.id);
@@ -325,10 +325,8 @@ export async function syncRemoteUserData(userId?: string | null) {
                 return { ...project, viewport: local?.viewport || project.viewport || { x: 0, y: 0, k: 1 }, remoteContentHash: await canvasContentHash(project) };
             }));
             if (useCanvasStore.getState().projects !== localProjects) throw new Error("本地画布仍在更新，已保留本地内容，请重新同步");
-            const snapshotAssets = parseRemoteAssetRecordListRecovering(snapshot.assets);
             useCanvasStore.getState().replaceProjects(projects);
-            useAssetStore.getState().replaceAssets(snapshotAssets);
-            repairMissingCanvasAssets();
+            useAssetStore.getState().replaceAssets(parseAssetRecordList(snapshot.assets));
             await Promise.all([flushCanvasStorePersistence(), flushAssetStorePersistence()]);
             acknowledgedProjects = new Map(projects.map((project) => [project.id, project]));
             acknowledgedAssets = new Map(parseAssetRecordList(snapshot.assets).map((asset) => [asset.id, asset]));

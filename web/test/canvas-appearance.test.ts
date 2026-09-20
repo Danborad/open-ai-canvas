@@ -174,6 +174,6 @@ describe("canvas custom appearance", () => {
 
         const lifecycleSource = await Bun.file(new URL("../src/pages/canvas/use-canvas-project-lifecycle.ts", import.meta.url)).text();
         expect(lifecycleSource).not.toContain('useThemeStore.getState().setTheme(canvasAppearanceBaseTheme');
-        expect(lifecycleSource).toContain('project.backgroundMode === "dots" || project.backgroundMode === "blank"');
+        expect(lifecycleSource).toContain('targetProject.backgroundMode === "dots" || targetProject.backgroundMode === "blank"');
     });
 });

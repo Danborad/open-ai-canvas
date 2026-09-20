@@ -145,18 +145,13 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
         if (!useRichEditor) pendingScrollTopRef.current = null;
     }, [useRichEditor, value]);
 
-    const referenceSignature = useMemo(() => activeReferences.map((r) => `${r.id}:${r.label}:${r.previewUrl || ""}`).join("|"), [activeReferences]);
-    const lastReferenceSignatureRef = useRef(referenceSignature);
-
     useLayoutEffect(() => {
         if (!useRichEditor) return;
         const editor = editorRef.current;
         if (!editor || composingRef.current) return;
         const isFocused = document.activeElement === editor;
         const currentValue = serializeEditableValue(editor);
-        const refChanged = lastReferenceSignatureRef.current !== referenceSignature;
-        lastReferenceSignatureRef.current = referenceSignature;
-        if (!refChanged && currentValue === value && lastRenderedValueRef.current === value) {
+        if (currentValue === value && lastRenderedValueRef.current === value) {
             syncInlineMentionPreviews(editor, activeReferences);
             pendingSelectionRef.current = null;
             return;
@@ -170,7 +165,7 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
         reportContentSize(editor);
         if (scrollTop !== null) editor.scrollTop = scrollTop;
         pendingScrollTopRef.current = null;
-    }, [activeReferences, referenceSignature, reportContentSize, useRichEditor, value]);
+    }, [activeReferences, reportContentSize, useRichEditor, value]);
 
     useLayoutEffect(() => {
         const anchor = useRichEditor ? editorRef.current : textareaRef.current;

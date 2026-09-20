@@ -1,4 +1,4 @@
-import { apiClient, request } from "./request";
+import { http } from "./request";
 
 export interface ESASetting {
     enabled: boolean;
@@ -55,19 +55,19 @@ export interface ESATestConnectionResult {
 }
 
 export function getESASetting(signal?: AbortSignal) {
-    return request<{ setting: ESASetting }>(apiClient.get("/admin/esa/settings", { signal }));
+    return http.get<{ setting: ESASetting }>("/admin/esa/settings", { signal });
 }
 
 export function updateESASetting(req: ESASettingRequest) {
-    return request<{ setting: ESASetting }>(apiClient.patch("/admin/esa/settings", req));
+    return http.patch<{ setting: ESASetting }>("/admin/esa/settings", req);
 }
 
 export function testESAConnection(req?: ESASettingRequest) {
-    return request<ESATestConnectionResult>(apiClient.post("/admin/esa/test-connection", req || {}));
+    return http.post<ESATestConnectionResult>("/admin/esa/test-connection", req || {});
 }
 
 export function getESASites(signal?: AbortSignal) {
-    return request<{ sites: ESASiteInfo[] }>(apiClient.get("/admin/esa/sites", { signal }));
+    return http.get<{ sites: ESASiteInfo[] }>("/admin/esa/sites", { signal });
 }
 
 export function getESAOverview(rangeKey = "today", siteId = "all", refresh = false, signal?: AbortSignal) {
@@ -75,5 +75,5 @@ export function getESAOverview(rangeKey = "today", siteId = "all", refresh = fal
     params.set("range", rangeKey);
     params.set("siteId", siteId);
     if (refresh) params.set("refresh", "true");
-    return request<ESAOverview>(apiClient.get(`/admin/esa/overview?${params.toString()}`, { signal }));
+    return http.get<ESAOverview>(`/admin/esa/overview?${params.toString()}`, { signal });
 }

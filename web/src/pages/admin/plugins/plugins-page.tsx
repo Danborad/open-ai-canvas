@@ -10,7 +10,7 @@ import { PaginationBar } from "@/pages/admin/components/admin-ui";
 import "@/lib/plugins/builtin";
 import { EAGLE_PLUGIN_ID } from "@/lib/plugins/builtin/eagle";
 import { RUNNINGHUB_PLUGIN_ID } from "@/lib/plugins/builtin/workflows";
-import { isOfficialApplicationPluginId } from "@/lib/plugins/official-applications";
+import { isOfficialApplicationPluginId, isApplicationPluginLike } from "@/lib/plugins/official-applications";
 import { listRegisteredPlugins } from "@/lib/plugins/plugin-registry";
 import type { PluginManifest, PluginManifestV2 } from "@/lib/plugins/plugin-types";
 import { fetchAdminPlugins, setPluginPlatformAvailability, uninstallPlugin, uploadPlugin, type AdminPluginState, type BackendPlugin, type PluginManagement } from "@/services/api/plugins";
@@ -368,7 +368,7 @@ function PluginBrandIcon({ pluginId }: { pluginId: string }) {
 function mergePlugins(remote: BackendPlugin[]): AdminPluginItem[] {
     const byId = new Map<string, AdminPluginItem>();
     for (const plugin of listRegisteredPlugins()) {
-        const application = isOfficialApplicationPluginId(plugin.manifest.id);
+        const application = isOfficialApplicationPluginId(plugin.manifest.id) || isApplicationPluginLike(plugin.manifest.id);
         byId.set(plugin.manifest.id, {
             manifest: plugin.manifest,
             source: plugin.source || "bundled",

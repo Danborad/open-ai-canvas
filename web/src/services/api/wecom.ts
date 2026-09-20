@@ -1,4 +1,4 @@
-import { apiClient, request } from "./request";
+import { http } from "./request";
 
 export interface WecomSetting {
     enabled: boolean;
@@ -73,21 +73,21 @@ export interface WecomPreviewResult {
 }
 
 export function getWecomSetting(signal?: AbortSignal) {
-    return request<{ setting: WecomSetting }>(apiClient.get("/admin/wecom/settings", { signal }));
+    return http.get<{ setting: WecomSetting }>("/admin/wecom/settings", { signal });
 }
 
 export function updateWecomSetting(req: WecomSettingRequest) {
-    return request<{ setting: WecomSetting }>(apiClient.patch("/admin/wecom/settings", req));
+    return http.patch<{ setting: WecomSetting }>("/admin/wecom/settings", req);
 }
 
 export function testWecomNotification() {
-    return request<WecomTestResult>(apiClient.post("/admin/wecom/test", {}));
+    return http.post<WecomTestResult>("/admin/wecom/test", {});
 }
 
 export function testWecomRegisterNotification() {
-    return request<WecomTestResult>(apiClient.post("/admin/wecom/test-register-notice", {}));
+    return http.post<WecomTestResult>("/admin/wecom/test-register-notice", {});
 }
 
 export function previewWecomReport(signal?: AbortSignal) {
-    return request<WecomPreviewResult>(apiClient.get("/admin/wecom/preview", { signal }));
+    return http.get<WecomPreviewResult>("/admin/wecom/preview", { signal });
 }
