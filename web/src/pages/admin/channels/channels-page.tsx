@@ -359,16 +359,6 @@ export default function ChannelsPage() {
                     )}
                 </section>
             </div>
-                            />
-                        </>
-                    ) : (
-                        <AdminTableEmpty
-                            title={loading ? "正在加载渠道" : loadError ? "暂时无法读取渠道" : hasFilters ? "没有匹配的渠道" : "添加渠道，开始管理模型"}
-                            description={loading ? "加载完成后将在此显示渠道模型。" : loadError ? "请在左侧重试加载。" : hasFilters ? "调整左侧搜索或状态筛选。" : "在左侧新增渠道，配置连接信息后即可拉取或新增模型。"}
-                        />
-                    )}
-                </section>
-            </div>
             <Modal
                 className="workspace-modal workspace-modal-wide admin-channel-modal"
                 rootClassName="admin-channel-modal-root"

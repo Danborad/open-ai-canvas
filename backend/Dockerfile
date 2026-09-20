@@ -2,7 +2,7 @@
 
 FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS payment-package-build
 
-ARG GOPROXY=https://goproxy.cn,direct
+ARG GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
 ENV GOPROXY=$GOPROXY
 
 RUN apk add --no-cache nodejs unzip zip
@@ -13,7 +13,8 @@ COPY backend ./backend
 COPY plugin-packages ./plugin-packages
 ARG TARGETOS
 ARG TARGETARCH
-RUN --mount=type=cache,target=/root/.cache/go-build set -eu; \
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod set -eu; \
     test -n "$TARGETOS"; \
     test -n "$TARGETARCH"; \
     PAYMENT_PLUGIN_GOOS="$TARGETOS" \
@@ -33,7 +34,7 @@ RUN PAYMENT_PLUGIN_SMOKE_TEST=1 \
 
 FROM golang:1.25-alpine AS backend-build
 
-ARG GOPROXY=https://goproxy.cn,direct
+ARG GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
 ENV GOPROXY=$GOPROXY
 
 RUN apk add --no-cache build-base
@@ -41,13 +42,14 @@ RUN apk add --no-cache build-base
 WORKDIR /src/backend
 COPY backend/go.mod backend/go.sum ./
 # 模块保留在普通镜像层中，供后续编译及跨 Runner 的 GHA 层缓存复用。
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY backend ./
 COPY VERSION /src/VERSION
 ARG BUILD_VERSION
 ARG BUILD_COMMIT=unknown
 ARG BUILD_TIME=unknown
-RUN --mount=type=cache,target=/root/.cache/go-build set -eu; \
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod set -eu; \
     version="${BUILD_VERSION:-$(tr -d '\r\n' </src/VERSION)}"; \
     ldflags="-s -w -X infinite-canvas/backend/internal/buildinfo.Version=${version} -X infinite-canvas/backend/internal/buildinfo.Commit=${BUILD_COMMIT} -X infinite-canvas/backend/internal/buildinfo.BuildTime=${BUILD_TIME}"; \
     CGO_ENABLED=1 GOOS=linux go build -trimpath -ldflags="$ldflags" -o /out/infinite-canvas-backend ./cmd/server; \
