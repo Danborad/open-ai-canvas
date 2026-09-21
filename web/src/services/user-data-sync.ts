@@ -23,7 +23,7 @@ let activeRemoteUserId = "";
 type RemoteUserDataPhase = "inactive" | "hydrating" | "ready" | "failed";
 
 let remoteUserDataPhase: RemoteUserDataPhase = "inactive";
-let syncTimer: number | null = null;
+let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let syncPromise: Promise<void> | null = null;
 let syncQueued = false;
 let remoteOperationTail: Promise<void> = Promise.resolve();
@@ -371,7 +371,7 @@ export function resetRemoteUserDataSync() {
     acknowledgedAssets.clear();
     acknowledgedProjects.clear();
     if (syncTimer) {
-        window.clearTimeout(syncTimer);
+        clearTimeout(syncTimer);
         syncTimer = null;
     }
     syncQueued = false;
@@ -403,8 +403,8 @@ export function scheduleRemoteUserDataSync() {
         syncQueued = true;
         return;
     }
-    if (syncTimer) window.clearTimeout(syncTimer);
-    syncTimer = window.setTimeout(() => {
+    if (syncTimer) clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => {
         syncTimer = null;
         void saveRemoteUserDataNow().catch((error) => console.warn("云端自动同步失败", error));
     }, 1200);

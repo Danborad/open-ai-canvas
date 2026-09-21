@@ -50,7 +50,6 @@ func RegisterUserDataRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		ok(c, gin.H{"ids": ids})
 	})
-	})
 	r.POST("/assets/batch", func(c *gin.Context) {
 		user, err := currentUser(c, svc)
 		if err != nil {
