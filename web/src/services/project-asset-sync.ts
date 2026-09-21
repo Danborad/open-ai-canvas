@@ -115,7 +115,7 @@ async function persistCanvasNodeAsset(options: EnsureCanvasNodeAssetOptions): Pr
     }
     if (!options.domainProjectId) {
         // 个人画布也必须在返回成功前把素材提交到服务端，不能只依赖延迟自动同步。
-        await saveRemoteUserDataNow();
+        await saveRemoteUserDataNow(options.canvasId);
         throwIfAborted(options.signal);
         return { assetId: asset.id, created, linkedToProject: false };
     }

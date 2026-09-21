@@ -5,7 +5,7 @@ import { VideoPlayer } from "@/components/video-player";
 import { CONTENT_MODERATION_ERROR_CODE, generationErrorMessage, isContentModerationError } from "@/lib/generation-error";
 import { generationTaskShowsProgress, generationTaskStageLabel, generationTaskStatusLabel, isGenerationTaskSubmissionUncertain } from "@/lib/generation-task-display";
 import { canvasRichTextHTML } from "@/lib/canvas/canvas-rich-text";
-import { fitNodeSize, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
+import { fitNodeSize, nodeSizeFromRatio, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
 import { canvasTextFontSize } from "@/lib/canvas/canvas-text-scale";
 import { loadCanvasDrawingPreview } from "@/lib/canvas/canvas-drawing-storage";
 import { canvasNodeVideoPreviewUrl } from "@/lib/canvas/canvas-media-preview";
@@ -551,11 +551,22 @@ function InactiveVideoPreview({ node, theme, onPlay }: Pick<CanvasNodeContentPro
         if (!naturalWidth || !naturalHeight) return;
         updateMediaNodeRef.current?.(node.id, (current) => {
             const metadata = current.metadata;
-            const needsMetadata = metadata?.naturalWidth !== naturalWidth || metadata?.naturalHeight !== naturalHeight;
+            // 静态预览图是视频首帧的缩略图（通常限制在 400px 以内），
+            // 不能将其缩小后的尺寸作为视频真实原始分辨率覆盖已有元数据，
+            // 更不能因加载了 400px 缩略图而把已经按标准比例（如 720x405）布局的视频节点缩小为 420x236。
+            const hasValidVideoDimensions = Boolean(metadata?.naturalWidth && metadata?.naturalHeight && metadata.naturalWidth > 400);
+            const needsMetadata = !hasValidVideoDimensions && (metadata?.naturalWidth !== naturalWidth || metadata?.naturalHeight !== naturalHeight);
             if (current.metadata?.freeResize || current.metadata?.manualSize) {
                 return needsMetadata ? { ...current, metadata: { ...metadata, naturalWidth, naturalHeight } } : current;
             }
-            const size = fitNodeSize(naturalWidth, naturalHeight, VIDEO_NODE_MAX_SIZE.width, VIDEO_NODE_MAX_SIZE.height);
+            const previewRatio = naturalWidth / naturalHeight;
+            const currentRatio = current.width / current.height;
+            const ratioMatches = Math.abs(previewRatio - currentRatio) < 0.05;
+            if (ratioMatches && current.width >= 420 && current.height >= 236) {
+                return needsMetadata ? { ...current, metadata: { ...metadata, naturalWidth, naturalHeight } } : current;
+            }
+            const targetSpec = nodeSizeFromRatio(`${naturalWidth}:${naturalHeight}`, VIDEO_NODE_MAX_SIZE.width, VIDEO_NODE_MAX_SIZE.height);
+            const size = targetSpec || fitNodeSize(naturalWidth, naturalHeight, VIDEO_NODE_MAX_SIZE.width, VIDEO_NODE_MAX_SIZE.height);
             const needsResize = Math.abs(size.width - current.width) >= 1 || Math.abs(size.height - current.height) >= 1;
             if (!needsMetadata && !needsResize) return current;
             return {

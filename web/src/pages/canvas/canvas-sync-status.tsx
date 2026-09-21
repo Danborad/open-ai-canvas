@@ -7,7 +7,7 @@ import { getActiveUserScope } from "@/lib/user-scope";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useSyncProgressStore } from "@/stores/use-sync-progress-store";
 
-export function CanvasSyncStatus({ projectId, onLoadLatest, onOpenVersions }: { projectId: string; onLoadLatest: () => Promise<void>; onOpenVersions?: () => void }) {
+export function CanvasSyncStatus({ projectId, onLoadLatest, onForceSave, onOpenVersions }: { projectId: string; onLoadLatest: () => Promise<void>; onForceSave?: () => Promise<unknown>; onOpenVersions?: () => void }) {
     const { message } = App.useApp();
     const progress = useSyncProgressStore((state) => state.syncingProjects[projectId]);
     const [busy, setBusy] = useState(false);
@@ -42,6 +42,11 @@ export function CanvasSyncStatus({ projectId, onLoadLatest, onOpenVersions }: { 
                         </p>
                         {conflict ? <p className="text-xs text-muted-foreground">此画布的自动提交已暂停。加载最新版前会保留本地草稿，可下载后从画布列表导入为副本。</p> : null}
                         <div className="flex flex-wrap gap-2">
+                            {conflict && onForceSave ? (
+                                <Button size="small" type="primary" loading={busy} onClick={() => void run(onForceSave)}>
+                                    以本地内容更新云端
+                                </Button>
+                            ) : null}
                             <Button size="small" loading={busy} onClick={() => void run(onLoadLatest)}>
                                 加载云端最新版本
                             </Button>

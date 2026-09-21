@@ -3,6 +3,8 @@ import { getImageBlob } from "@/services/image-storage";
 import { deleteRemoteAssets, deleteRemoteCanvasProject, getRemoteAsset, getRemoteAssetsByIds, getRemoteCanvasProject, getRemoteUserDataSnapshot, listRemoteAssetsPage, restoreRemoteCanvasHistory, upsertRemoteAsset, upsertRemoteCanvasProject } from "@/services/api/user-data";
 import { ApiError } from "@/services/api/request";
 import { canvasContentHash, sameCanvasContent } from "@/lib/canvas/canvas-content";
+import { canvasAppearanceForTheme, DEFAULT_CANVAS_BACKGROUND_MODE, normalizeCanvasAppearance, readCanvasAppearanceDefault } from "@/lib/canvas/canvas-appearance";
+import { useCanvasThemeStore } from "@/stores/canvas/use-canvas-theme-store";
 import { getActiveUserScope } from "@/lib/user-scope";
 import { preserveCanvasSyncDraft, readCanvasSyncDrafts } from "@/services/canvas-sync-drafts";
 import { appQueryClient } from "@/lib/query-client";
@@ -590,6 +592,7 @@ export async function saveRemoteUserDataNow(input?: string | readonly string[] |
     if (!activeRemoteUserId) throw new Error("尚未建立云端同步会话，本地内容尚未保存到云端");
     requireRemoteUserDataBaseline();
     const assertNoConflict = () => {
+        if (options.force) return;
         const ids = projectId === undefined ? useCanvasStore.getState().projects.map((project) => project.id)
             : typeof projectId === "string" ? [projectId] : projectId;
         if (ids.some((id) => useSyncProgressStore.getState().syncingProjects[id]?.phase === "conflict")) {
@@ -663,7 +666,7 @@ async function saveRemoteUserDataBatch(uploaded: Map<string, string>, options: {
     repairMissingCanvasAssets(changedProjectIds, incrementalSession);
     const currentProjects = useCanvasStore.getState().projects;
     const currentAssets = useAssetStore.getState().assets;
-    const dirtyProjects = currentProjects.filter((project) => !sameCanvasContent(acknowledgedProjects.get(project.id), project) && useSyncProgressStore.getState().syncingProjects[project.id]?.phase !== "conflict");
+    const dirtyProjects = currentProjects.filter((project) => !sameCanvasContent(acknowledgedProjects.get(project.id), project) && (options.force || useSyncProgressStore.getState().syncingProjects[project.id]?.phase !== "conflict"));
     const dirtyAssets = currentAssets.filter((asset) => !sameEntitySnapshot(acknowledgedAssets.get(asset.id), asset));
     if (!dirtyProjects.length && !dirtyAssets.length) return;
 
@@ -708,6 +711,16 @@ async function saveRemoteUserDataBatch(uploaded: Map<string, string>, options: {
             }
         };
         try {
+            if (options.force) {
+                try {
+                    const { project: remote } = await getRemoteCanvasProject(source.id);
+                    if (remote && typeof remote.revision === "number" && remote.revision >= (source.revision || 0)) {
+                        source.revision = remote.revision;
+                    }
+                } catch {
+                    // ignore
+                }
+            }
             if (!Number.isSafeInteger(source.revision) || source.revision! < 0) {
                 throw new ApiError("缺少画布版本，请保留草稿并加载云端最新版本", { status: 428 });
             }
@@ -724,16 +737,17 @@ async function saveRemoteUserDataBatch(uploaded: Map<string, string>, options: {
                 throw new ApiError("服务端未返回有效画布版本，请加载云端最新版本", { status: 409 });
             }
             const current = useCanvasStore.getState().openProject(source.id);
-            if (current && current.revision !== source.revision) {
+            if (current && !options.force && current.revision !== source.revision) {
                 throw new ApiError("画布基线已变化，请加载云端最新版本", { status: 409 });
             }
             const acknowledged = { ...source, revision: saved.revision, remoteContentHash: hash };
             acknowledgedProjects.set(source.id, acknowledged);
             verifiedProjects.add(source.id);
-            if (current) {
-                useCanvasStore.setState((state) => ({ projects: state.projects.map((project) => project === current
-                    ? { ...project, revision: saved.revision, remoteContentHash: hash } : project) }));
-            }
+            useCanvasStore.setState((state) => ({
+                projects: state.projects.map((project) => project.id === source.id
+                    ? { ...project, revision: saved.revision, remoteContentHash: hash }
+                    : project),
+            }));
             await flushCanvasStorePersistence();
             const pending = !sameCanvasContent(source, useCanvasStore.getState().openProject(source.id) || undefined);
             useSyncProgressStore.getState().setProjectProgress(source.id, { phase: pending ? "pending" : "done", message: pending ? "有新修改等待保存" : "已保存到云端" });
