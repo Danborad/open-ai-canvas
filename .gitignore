@@ -78,6 +78,5 @@ __pycache__/
 
 .data/
 
-# Deployment-owned proprietary Live2D Core; never redistribute in this repository.
-/web/public/live2d/live2dcubismcore.min.js
+# Keep the runtime in source control; its optional debug map is not deployed.
 /web/public/live2d/live2dcubismcore.min.js.map
