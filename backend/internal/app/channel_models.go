@@ -948,6 +948,39 @@ func (s *Service) populatePresetChannelModelInfo(channel *model.ModelChannel, it
 	}
 	changed := false
 	switch preset {
+	case "autodl":
+		if item.DisplayName != autoDLWorkflowDisplayName(item.ModelKey) {
+			item.DisplayName = autoDLWorkflowDisplayName(item.ModelKey)
+			changed = true
+		}
+		if item.ProviderModelKey == "" {
+			item.ProviderModelKey = item.ModelKey
+			changed = true
+		}
+		if item.Icon == "" {
+			item.Icon = "Minimax"
+			changed = true
+		}
+		if item.ModelKey == "indextts2-v1" {
+			if item.Capability != "audio" || item.Protocol != "autodl-comfyui-audio" {
+				item.Capability = "audio"
+				item.Protocol = "autodl-comfyui-audio"
+				changed = true
+			}
+		} else {
+			if item.Capability != "video" || item.Protocol != "autodl-comfyui" {
+				item.Capability = "video"
+				item.Protocol = "autodl-comfyui"
+				changed = true
+			}
+		}
+		defaultConfig := DefaultModelCapabilityConfigForModel(string(item.Protocol), item.ModelKey)
+		if strings.TrimSpace(item.CapabilityConfigJSON) == "" {
+			if encoded, err := json.Marshal(defaultConfig); err == nil {
+				item.CapabilityConfigJSON = string(encoded)
+				changed = true
+			}
+		}
 	case "flow2api":
 		if strings.Contains(strings.ToLower(item.ModelKey), "omni") || strings.HasPrefix(item.ModelKey, "Veo 3.1") {
 			if item.Capability != "video" || item.Protocol != "flow2api-video" {
