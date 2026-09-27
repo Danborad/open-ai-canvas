@@ -25,7 +25,7 @@ let activeRemoteUserId = "";
 type RemoteUserDataPhase = "inactive" | "hydrating" | "ready" | "failed";
 
 let remoteUserDataPhase: RemoteUserDataPhase = "inactive";
-let syncTimer: ReturnType<typeof setTimeout> | null = null;
+let syncTimer: ReturnType<typeof setTimeout> | number | null = null;
 let syncPromise: Promise<void> | null = null;
 let syncQueued = false;
 let syncRetryAttempt = 0;
@@ -407,11 +407,19 @@ export function scheduleRemoteUserDataSync() {
         syncQueued = true;
         return;
     }
-    if (syncTimer) clearTimeout(syncTimer);
-    syncTimer = setTimeout(() => {
-        syncTimer = null;
-        void saveRemoteUserDataNow().catch((error) => console.warn("云端自动同步失败", error));
-    }, 1200);
+    if (typeof window !== "undefined") {
+        if (syncTimer) window.clearTimeout(syncTimer);
+        syncTimer = window.setTimeout(() => {
+            syncTimer = null;
+            void saveRemoteUserDataNow().catch((error) => console.warn("云端自动同步失败", error));
+        }, 1200);
+    } else {
+        if (syncTimer) clearTimeout(syncTimer);
+        syncTimer = setTimeout(() => {
+            syncTimer = null;
+            void saveRemoteUserDataNow().catch((error) => console.warn("云端自动同步失败", error));
+        }, 1200);
+    }
 }
 
 function isRetryableRemoteSyncError(error: unknown) {

@@ -760,7 +760,6 @@ function InactiveVideoPreview({ node, theme, onPlay }: Pick<CanvasNodeContentPro
             </div>
         );
     }
-    }
     return (
         <div ref={previewRef} className="group/video-preview relative size-full">
             <InactiveMediaCard icon={<Video className="size-7" />} title={node.title || "视频"} hint={hydrating ? "正在生成首帧" : nearViewport ? "点击播放视频" : "进入视口后加载首帧"} theme={theme} />
@@ -849,7 +848,6 @@ function EmptyMediaContent({ icon, label, color, background }: { icon: ReactNode
             <span className="text-sm">{label}</span>
         </div>
     );
-}
 }
 
 function ImageContent({

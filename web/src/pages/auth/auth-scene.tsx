@@ -128,8 +128,6 @@ export function AuthScene() {
                                         <Tabs className="auth-card-tabs" activeKey={activeTab} items={AUTH_TABS} onChange={(key) => navigate({ pathname: key === "register" ? "/register" : "/login", search: location.search })} />
                                     </div>
                                 ) : null}
-                                    </div>
-                                ) : null}
                                 <div key={location.pathname} className={`${!recovery && activeTab === "login" ? "" : "flex-1"} px-6 py-6 sm:px-8 sm:py-7`}>
                                     <Outlet />
                                 </div>

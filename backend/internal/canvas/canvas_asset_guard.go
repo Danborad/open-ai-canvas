@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -212,7 +213,6 @@ func (s *Service) ensureAssetRecordForResourceWithID(userID string, assetID stri
 		UpdatedAt:   now,
 	}
 	return s.repo.UpsertAsset(&newAsset)
-}
 }
 
 // validateAssetCanvasReferences prevents an Asset update from changing the
