@@ -61,13 +61,13 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=1 GOOS=linux go build -trimpath -ldflags="$ldflags" -o /out/migrate-schema ./cmd/migrate-schema; \
     CGO_ENABLED=1 GOOS=linux go build -trimpath -ldflags="$ldflags" -o /out/migrate-sqlite-postgres ./cmd/migrate-sqlite-postgres
 
-FROM node:22.19-alpine AS pi-runtime-deps
+FROM node:22-alpine AS pi-runtime-deps
 
 WORKDIR /app/backend/agent-runtime/pi
 COPY backend/agent-runtime/pi/package.json backend/agent-runtime/pi/package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts
+RUN npm config set registry https://registry.npmmirror.com && npm ci --omit=dev --ignore-scripts
 
-FROM node:22.19-alpine
+FROM node:22-alpine
 
 RUN apk add --no-cache ca-certificates tzdata wget \
     && addgroup -S app \
