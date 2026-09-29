@@ -108,3 +108,66 @@ func TestKemeiWan3VideoCreatePollAndBuiltin(t *testing.T) {
 		t.Fatalf("builtin body = %#v", builtinCreate.Body)
 	}
 }
+
+func TestKemeiSeedreamImageCreateAndParse(t *testing.T) {
+	// 1. 验证插件包
+	adapter := officialPackageAdapter(t, "km-kemei-seedream-image.yingce-plugin", "km-kemei-seedream-image")
+	createPro, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{
+		Model: "doubao-seedream-5-0-pro-260628", Prompt: "一只柴犬，透明背景", Resolution: "2K",
+		Images: []MediaReference{{URL: "https://example.com/ref1.png", Order: 1}, {URL: "https://example.com/ref2.png", Order: 2}},
+		ImageCount: 4, // Pro 模型应当忽略 >1 的数量
+		Watermark:  false,
+		ProviderOptions: map[string]map[string]any{"km-kemei-seedream-image": {
+			"background": "transparent",
+			"layer_decomposition": false,
+		}},
+	}})
+	if err != nil {
+		t.Fatalf("BuildCreate error: %v", err)
+	}
+	if createPro.Method != "POST" || createPro.Path != "/v1/images/generations" {
+		t.Fatalf("createPro = %#v", createPro)
+	}
+	bodyPro := manifestTestBody(t, createPro)
+	if bodyPro["model"] != "doubao-seedream-5-0-pro-260628" {
+		t.Fatalf("model = %v", bodyPro["model"])
+	}
+	if bodyPro["n"] != nil {
+		t.Fatalf("Pro model must not have 'n' > 1, got %v", bodyPro["n"])
+	}
+	if bodyPro["size"] != "2K" {
+		t.Fatalf("size = %v", bodyPro["size"])
+	}
+	if bodyPro["background"] != "transparent" || bodyPro["output_format"] != "png" {
+		t.Fatalf("background=%v output_format=%v", bodyPro["background"], bodyPro["output_format"])
+	}
+	imgUrls, _ := bodyPro["image_urls"].([]any)
+	if len(imgUrls) != 2 || imgUrls[0] != "https://example.com/ref1.png" {
+		t.Fatalf("image_urls = %#v", imgUrls)
+	}
+
+	// 2. 验证解析响应
+	res, err := adapter.ParseCreate(context.Background(), []byte(`{
+		"created": 1719441600,
+		"data": [{"url": "https://example.com/output/result.png", "size": "2048x2048"}]
+	}`))
+	if err != nil || res.Status != StatusSucceeded || len(res.Result.Images) != 1 || res.Result.Images[0].URL != "https://example.com/output/result.png" {
+		t.Fatalf("ParseCreate err=%v res=%#v", err, res)
+	}
+
+	// 3. 验证内置协议
+	builtinAdapter, ok := Builtins().Resolve("km-kemei-seedream-image")
+	if !ok {
+		t.Fatal("Builtin km-kemei-seedream-image not found")
+	}
+	builtinCreate, err := builtinAdapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{
+		Model: "doubao-seedream-5-0-260128", Prompt: "多格漫画", Resolution: "2K", ImageCount: 4,
+	}})
+	if err != nil {
+		t.Fatalf("builtin buildCreate err: %v", err)
+	}
+	builtinBody, ok := builtinCreate.Body.(map[string]any)
+	if !ok || builtinBody["n"] != 4 || builtinBody["model"] != "doubao-seedream-5-0-260128" {
+		t.Fatalf("builtin body = %#v", builtinCreate.Body)
+	}
+}

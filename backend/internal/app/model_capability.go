@@ -254,6 +254,51 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		image.ResponseFormat.Supported = false
 		image.OutputFormat.Supported = false
 		image.MaxOutputs = 4
+	case "km-kemei-seedream-image", "km-seedream-image", "km-seedream", "doubao-seedream-image", "seedream-image":
+		image.References.MaxImages = 14
+		image.References.MaskSupported = true
+		image.Size = ImageSizeConfig{
+			Parameter: "size",
+			Values: []string{
+				"2K", "1K", "1.5K", "3K", "4K", "1:1", "16:9", "9:16", "4:3", "3:4",
+				"2048x2048", "2560x1440", "1440x2560", "2304x1728", "1728x2304",
+			},
+			Default:     "2K",
+			AllowCustom: true,
+		}
+		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1K", "2K", "4K"}, Default: "2K"}
+		image.TransparentBackground = VideoBooleanConfig{Supported: true, Default: false}
+		image.Watermark = VideoBooleanConfig{Supported: true, Default: false}
+		image.ResponseFormat = ParameterSupport{Supported: true}
+		image.OutputFormat = ParameterSupport{Supported: true}
+		if strings.Contains(strings.ToLower(modelName), "pro") {
+			image.MaxOutputs = 1
+		} else {
+			image.MaxOutputs = 15
+		}
+	}
+	if strings.Contains(strings.ToLower(strings.TrimSpace(modelName)), "seedream") && !strings.Contains(protocol, "ark") {
+		image.References.MaxImages = 14
+		image.References.MaskSupported = true
+		image.Size = ImageSizeConfig{
+			Parameter: "size",
+			Values: []string{
+				"2K", "1K", "1.5K", "3K", "4K", "1:1", "16:9", "9:16", "4:3", "3:4",
+				"2048x2048", "2560x1440", "1440x2560", "2304x1728", "1728x2304",
+			},
+			Default:     "2K",
+			AllowCustom: true,
+		}
+		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1K", "2K", "4K"}, Default: "2K"}
+		image.TransparentBackground = VideoBooleanConfig{Supported: true, Default: false}
+		image.Watermark = VideoBooleanConfig{Supported: true, Default: false}
+		image.ResponseFormat = ParameterSupport{Supported: true}
+		image.OutputFormat = ParameterSupport{Supported: true}
+		if strings.Contains(strings.ToLower(modelName), "pro") {
+			image.MaxOutputs = 1
+		} else {
+			image.MaxOutputs = 15
+		}
 	}
 	if model.ChannelInterfaceType(protocol) != model.ChannelInterfaceGrokImage && protocol != "grok2api-image" && strings.HasPrefix(strings.ToLower(strings.TrimSpace(modelName)), "grok-imagine-image") {
 		image.References.MaxImages = 1

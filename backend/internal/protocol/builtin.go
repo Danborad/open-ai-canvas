@@ -75,7 +75,7 @@ func Builtins() *Registry {
 	registry, err := NewRegistry(
 		openAIChatAdapter(), openAIResponsesAdapter(), claudeAdapter(),
 		openAIVideosAdapter(), newAPIChannel1Adapter(), newAPIVideosAdapter(), xAIVideosAdapter(), arkVideosAdapter(), jimengVideosAdapter(), geminiVeoAdapter(), novitaVideosAdapter(), miniMaxVideosAdapter(),
-		kmKemeiWan3VideoAdapter(), agnesAdapter(),
+		kmKemeiWan3VideoAdapter(), kmKemeiSeedreamImagesAdapter(), agnesAdapter(),
 	)
 	if err != nil {
 		panic(err)
@@ -404,6 +404,57 @@ func kmKemeiWan3VideoAdapter() Adapter {
 		}
 		return jsonSpec(http.MethodPost, "/v1/video/generations", body), nil
 	})
+}
+
+func kmKemeiSeedreamImagesAdapter() Adapter {
+	info := metadata("km-kemei-seedream-image", "KM 可美 Seedream 图片", "KM 可美 / 影策", CapabilityImage, "POST /v1/images/generations", "", "application/json")
+	info.LegacyAliases = []string{"km-seedream-image", "km-seedream", "seedream-image", "doubao-seedream-image", "doubao-seedream"}
+	info.Parameters = mediaParams()
+	return builtinAdapter{
+		info: info,
+		create: func(r GenerationRequest) (RequestSpec, error) {
+			modelName := defaultValue(r.Model, "doubao-seedream-5-0-pro-260628")
+			body := map[string]any{
+				"model":           modelName,
+				"prompt":          r.Prompt,
+				"response_format": "url",
+			}
+			isPro := strings.Contains(strings.ToLower(modelName), "pro")
+			if !isPro && r.ImageCount > 1 {
+				body["n"] = r.ImageCount
+			}
+			size := defaultValue(r.Resolution, r.AspectRatio)
+			if strings.TrimSpace(size) == "" {
+				size = "2K"
+			}
+			body["size"] = size
+			if r.Watermark {
+				body["watermark"] = true
+			} else {
+				body["watermark"] = false
+			}
+			if len(r.Images) > 0 {
+				body["image_urls"] = mediaValues(r.Images)
+			}
+			for _, optKey := range []string{"km-kemei-seedream-image", "km-seedream-image", "km-kemei-image", "seedream"} {
+				if opt := r.ProviderOptions[optKey]; opt != nil {
+					for k, v := range opt {
+						if isPro && (k == "sequential_image_generation" || k == "n") {
+							continue
+						}
+						body[k] = v
+					}
+				}
+			}
+			if bg, ok := body["background"].(string); ok && strings.EqualFold(bg, "transparent") {
+				if _, hasFormat := body["output_format"]; !hasFormat {
+					body["output_format"] = "png"
+				}
+			}
+			return jsonSpec(http.MethodPost, "/v1/images/generations", body), nil
+		},
+		parseCreate: parseImageResponse,
+	}
 }
 
 func newAPIChannel1Adapter() Adapter {

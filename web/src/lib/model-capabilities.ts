@@ -365,6 +365,27 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         image.outputFormat = { supported: false };
         image.maxOutputs = 1;
     }
+    const cleanLower = model.trim().toLowerCase();
+    if (protocol === "km-kemei-seedream-image" || protocol === "km-seedream-image" || (cleanLower.includes("seedream") && !protocol?.includes("ark"))) {
+        image.references.maxImages = 14;
+        image.references.maskSupported = true;
+        image.size = {
+            parameter: "size",
+            values: [
+                "2K", "1K", "1.5K", "3K", "4K",
+                "1:1", "16:9", "9:16", "4:3", "3:4",
+                "2048x2048", "2560x1440", "1440x2560", "2304x1728", "1728x2304",
+            ],
+            default: "2K",
+            allowCustom: true,
+        };
+        image.quality = { supported: true, values: ["1K", "2K", "4K"], default: "2K" };
+        image.transparentBackground = { supported: true, default: false };
+        image.watermark = { supported: true, default: false };
+        image.responseFormat = { supported: true };
+        image.outputFormat = { supported: true };
+        image.maxOutputs = cleanLower.includes("pro") ? 1 : 15;
+    }
     return image;
 }
 
