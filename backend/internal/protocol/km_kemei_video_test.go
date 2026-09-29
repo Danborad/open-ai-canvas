@@ -49,3 +49,62 @@ func TestKemeiVideoCreatePollAndCancel(t *testing.T) {
 		t.Fatalf("cancel = %#v err=%v", cancel, err)
 	}
 }
+
+func TestKemeiWan3VideoCreatePollAndBuiltin(t *testing.T) {
+	for _, providerID := range []string{"km-kemei-wan3-video", "km-kemei-video"} {
+		adapter := officialPackageAdapter(t, "km-kemei-video.yingce-plugin", providerID)
+		create, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{
+			Model: "wan3.0-video", Prompt: "一只金毛寻回犬在金色秋叶中奔跑，电影感慢镜头，阳光穿透树林", Duration: 5,
+			AspectRatio: "16:9", Resolution: "720p", GenerateAudio: false, Watermark: false,
+			Images: []MediaReference{
+				{URL: "https://example.com/first.png", Role: "first_frame", Order: 1},
+				{URL: "https://example.com/last.png", Role: "last_frame", Order: 2},
+			},
+			Videos: []MediaReference{{URL: "https://example.com/motion_ref.mp4", Role: "reference_video", Order: 1}},
+			Audios: []MediaReference{{URL: "https://example.com/voice_ref.mp3", Role: "reference_audio", Order: 1}},
+			ProviderOptions: map[string]map[string]any{"km-kemei-video": {
+				"negative_prompt": "低画质, 杂乱",
+				"files":           []any{"https://example.com/brief.pdf"},
+				"links":           []any{"https://example.com/product-page"},
+			}},
+		}})
+		if err != nil {
+			t.Fatalf("%s BuildCreate error: %v", providerID, err)
+		}
+		body := manifestTestBody(t, create)
+		if body["model"] != "wan3.0-video" {
+			t.Fatalf("%s model = %v, want wan3.0-video", providerID, body["model"])
+		}
+		if body["resolution"] != "720P" {
+			t.Fatalf("%s resolution = %v, want 720P (uppercase)", providerID, body["resolution"])
+		}
+		if body["duration"] != float64(5) {
+			t.Fatalf("%s duration = %v, want 5", providerID, body["duration"])
+		}
+		images, _ := body["images"].([]any)
+		if len(images) != 2 || images[0].(map[string]any)["role"] != "first_frame" {
+			t.Fatalf("%s images = %#v", providerID, images)
+		}
+
+		succeeded, err := adapter.ParsePoll(context.Background(), PollContext{TaskID: "task_wan3_01"}, []byte(`{"id":"task_wan3_01","status":"completed","data":[{"url":"https://example.com/output/wan_video.mp4"}]}`))
+		if err != nil || succeeded.Status != StatusSucceeded || len(succeeded.Result.Videos) != 1 || succeeded.Result.Videos[0].URL != "https://example.com/output/wan_video.mp4" {
+			t.Fatalf("%s succeeded = %#v err=%v", providerID, succeeded, err)
+		}
+	}
+
+	builtinAdapter, ok := Builtins().Resolve("km-kemei-wan3-video")
+	if !ok {
+		t.Fatal("Builtin km-kemei-wan3-video not found")
+	}
+	builtinCreate, err := builtinAdapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{
+		Model: "wan3.0-video", Prompt: "秋日金毛犬奔跑", Resolution: "1080p", Duration: 5, AspectRatio: "16:9",
+		Images: []MediaReference{{URL: "https://example.com/ref.png", Role: "first_frame"}},
+	}})
+	if err != nil {
+		t.Fatalf("builtin buildCreate err: %v", err)
+	}
+	builtinBody, ok := builtinCreate.Body.(map[string]any)
+	if !ok || builtinBody["resolution"] != "1080P" || builtinBody["model"] != "wan3.0-video" {
+		t.Fatalf("builtin body = %#v", builtinCreate.Body)
+	}
+}

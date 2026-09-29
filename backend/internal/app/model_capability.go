@@ -594,10 +594,32 @@ func normalizeVideoCapabilityDefaults(value *VideoCapabilityConfig) {
 }
 
 func applyModelSpecificVideoCapability(profile *VideoCapabilityConfig, protocol string, modelName string) *VideoCapabilityConfig {
-	if profile == nil || model.ChannelInterfaceType(strings.TrimSpace(protocol)) != model.ChannelInterfaceAgnesVideo {
+	if profile == nil {
 		return profile
 	}
-	normalizedModel := strings.ToLower(strings.TrimSpace(modelName))
+	cleanProto := strings.TrimSpace(protocol)
+	cleanModel := strings.ToLower(strings.TrimSpace(modelName))
+	if cleanProto == "km-kemei-wan3-video" || cleanProto == "km-kemei-video" || strings.Contains(cleanModel, "wan3") {
+		value := *profile
+		value.References = profile.References
+		value.References.MaxImages = 9
+		value.References.MaxVideos = 1
+		value.References.MaxAudios = 1
+		value.Duration = VideoDurationConfig{Selection: "enum", Values: []int{5}, Default: 5}
+		value.Ratios = []string{"16:9", "9:16", "1:1"}
+		value.DefaultRatio = "16:9"
+		value.Resolutions = []string{"720P", "1080P"}
+		value.DefaultResolution = "720P"
+		value.GenerateAudio = VideoBooleanConfig{Supported: true, Default: false}
+		value.Watermark = VideoBooleanConfig{Supported: true, Default: false}
+		value.Operations = []string{"text_to_video", "image_to_video", "reference_to_video"}
+		value.DefaultOperation = "text_to_video"
+		return &value
+	}
+	if model.ChannelInterfaceType(cleanProto) != model.ChannelInterfaceAgnesVideo {
+		return profile
+	}
+	normalizedModel := cleanModel
 	if normalizedModel != "agnes-video-2.5" && normalizedModel != "agnes-video-2.5-flash" {
 		return profile
 	}

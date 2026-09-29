@@ -512,6 +512,21 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.defaultResolution = "720P";
         video.operations.push("reference_to_video", "audio_to_video");
     }
+    if (protocol === "km-kemei-wan3-video" || protocol === "km-kemei-video" || cleanModel.includes("wan3")) {
+        video.duration = { selection: "enum", values: [5], default: 5 };
+        video.durationSupported = true;
+        video.resolutions = ["720P", "1080P"];
+        video.defaultResolution = "720P";
+        video.ratios = ["16:9", "9:16", "1:1"];
+        video.defaultRatio = "16:9";
+        video.references.maxImages = 9;
+        video.references.maxVideos = 1;
+        video.references.maxAudios = 1;
+        video.operations = ["text_to_video", "image_to_video", "reference_to_video"];
+        video.defaultOperation = "text_to_video";
+        video.generateAudio = { supported: true, default: false };
+        video.watermark = { supported: true, default: false };
+    }
     return { version: 1, text, image: defaultImageCapabilityConfig(protocol, model), video };
 }
 

@@ -54,10 +54,10 @@
 {
   "apiVersion": "yingce.plugin/v2",
   "id": "km-kemei-video",
-  "name": "KM 可美视频",
-  "version": "1.0.0",
+  "name": "KM 可美 Wan 3.0 视频",
+  "version": "1.0.1",
   "author": "KM 可美 / 影策",
-  "description": "KM 可美视频 OpenAI 兼容异步视频生成协议插件。",
+  "description": "KM 可美万相 Wan 3.0 视频生成协议插件，兼容 OpenAI 规范，支持文生视频、首尾帧与多图多模态参考。",
   "permissions": [
     "generation.run",
     "media.read"
@@ -74,6 +74,456 @@
   },
   "contributes": {
     "providers": [
+      {
+        "id": "km-kemei-wan3-video",
+        "label": "KM 可美 Wan 3.0 视频",
+        "capabilities": [
+          "video"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation",
+          "agent"
+        ],
+        "baseUrl": "https://token.xinhankr.com",
+        "requiresPublicMediaUrls": false,
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey"
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "视频生成模型名称，如 wan3.0-video。"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt",
+            "description": "描述视频 motion 与画面的提示词。"
+          },
+          {
+            "name": "negative_prompt",
+            "type": "string",
+            "required": false,
+            "mapping": "providerOptions.km-kemei-video.negative_prompt",
+            "description": "负向提示词。"
+          },
+          {
+            "name": "images",
+            "type": "media[]",
+            "required": false,
+            "mapping": "images",
+            "description": "首帧、尾帧或参考图片，支持 URL 与 Base64。"
+          },
+          {
+            "name": "image_urls",
+            "type": "media[]",
+            "required": false,
+            "mapping": "images",
+            "description": "images 的别名。"
+          },
+          {
+            "name": "videos",
+            "type": "media[]",
+            "required": false,
+            "mapping": "videos",
+            "description": "参考视频链接数组。"
+          },
+          {
+            "name": "audios",
+            "type": "media[]",
+            "required": false,
+            "mapping": "audios",
+            "description": "参考音频链接数组。"
+          },
+          {
+            "name": "files",
+            "type": "string[]",
+            "required": false,
+            "mapping": "providerOptions.km-kemei-video.files",
+            "description": "参考文件 URL 数组。"
+          },
+          {
+            "name": "links",
+            "type": "string[]",
+            "required": false,
+            "mapping": "providerOptions.km-kemei-video.links",
+            "description": "参考网页 URL 数组。"
+          },
+          {
+            "name": "resolution",
+            "type": "string",
+            "required": false,
+            "mapping": "resolution",
+            "description": "目标分辨率，如 720P、1080P。"
+          },
+          {
+            "name": "ratio",
+            "type": "string",
+            "required": false,
+            "mapping": "providerOptions.km-kemei-video.ratio/aspectRatio",
+            "description": "宽高比，如 16:9、9:16、1:1。"
+          },
+          {
+            "name": "duration",
+            "type": "integer",
+            "required": false,
+            "mapping": "duration",
+            "description": "视频时长，单位为秒，默认 5。"
+          },
+          {
+            "name": "generate_audio",
+            "type": "boolean",
+            "required": false,
+            "mapping": "generateAudio",
+            "description": "是否同步生成匹配音频。"
+          },
+          {
+            "name": "watermark",
+            "type": "boolean",
+            "required": false,
+            "mapping": "watermark",
+            "description": "是否添加水印。"
+          },
+          {
+            "name": "web_search",
+            "type": "boolean",
+            "required": false,
+            "mapping": "providerOptions.km-kemei-video.web_search",
+            "description": "是否启用联网搜索。"
+          },
+          {
+            "name": "seed",
+            "type": "integer",
+            "required": false,
+            "mapping": "providerOptions.km-kemei-video.seed",
+            "description": "随机数种子。"
+          },
+          {
+            "name": "providerOptions",
+            "type": "object",
+            "required": false,
+            "mapping": "provider-specific fields",
+            "description": "KM 可美协议扩展字段。"
+          }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/v1/video/generations",
+          "contentType": "application/json",
+          "body": {
+            "model": {
+              "$coalesce": [
+                {
+                  "$ref": "request.model"
+                },
+                "wan3.0-video"
+              ]
+            },
+            "prompt": {
+              "$ref": "request.prompt"
+            },
+            "negative_prompt": {
+              "$omitEmpty": {
+                "$coalesce": [
+                  {
+                    "$ref": "request.providerOptions.km-kemei-wan3-video.negative_prompt"
+                  },
+                  {
+                    "$ref": "request.providerOptions.km-kemei-video.negative_prompt"
+                  }
+                ]
+              }
+            },
+            "images": {
+              "$omitEmpty": {
+                "$map": {
+                  "from": {
+                    "$sortByOrder": {
+                      "$ref": "request.images"
+                    }
+                  },
+                  "as": "media",
+                  "in": {
+                    "$if": {
+                      "condition": {
+                        "$ne": [
+                          {
+                            "$ref": "media.role"
+                          },
+                          ""
+                        ]
+                      },
+                      "then": {
+                        "url": {
+                          "$ref": "media.value"
+                        },
+                        "role": {
+                          "$ref": "media.role"
+                        }
+                      },
+                      "else": {
+                        "$ref": "media.value"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "videos": {
+              "$omitEmpty": {
+                "$map": {
+                  "from": {
+                    "$sortByOrder": {
+                      "$ref": "request.videos"
+                    }
+                  },
+                  "as": "media",
+                  "in": {
+                    "$ref": "media.value"
+                  }
+                }
+              }
+            },
+            "audios": {
+              "$omitEmpty": {
+                "$map": {
+                  "from": {
+                    "$sortByOrder": {
+                      "$ref": "request.audios"
+                    }
+                  },
+                  "as": "media",
+                  "in": {
+                    "$ref": "media.value"
+                  }
+                }
+              }
+            },
+            "files": {
+              "$omitEmpty": {
+                "$coalesce": [
+                  {
+                    "$ref": "request.providerOptions.km-kemei-wan3-video.files"
+                  },
+                  {
+                    "$ref": "request.providerOptions.km-kemei-video.files"
+                  }
+                ]
+              }
+            },
+            "links": {
+              "$omitEmpty": {
+                "$coalesce": [
+                  {
+                    "$ref": "request.providerOptions.km-kemei-wan3-video.links"
+                  },
+                  {
+                    "$ref": "request.providerOptions.km-kemei-video.links"
+                  }
+                ]
+              }
+            },
+            "resolution": {
+              "$omitEmpty": {
+                "$upper": {
+                  "$ref": "request.resolution"
+                }
+              }
+            },
+            "ratio": {
+              "$omitEmpty": {
+                "$coalesce": [
+                  {
+                    "$ref": "request.providerOptions.km-kemei-wan3-video.ratio"
+                  },
+                  {
+                    "$ref": "request.providerOptions.km-kemei-video.ratio"
+                  },
+                  {
+                    "$ref": "request.aspectRatio"
+                  }
+                ]
+              }
+            },
+            "duration": {
+              "$omitEmpty": {
+                "$ref": "request.duration"
+              }
+            },
+            "generate_audio": {
+              "$ref": "request.generateAudio"
+            },
+            "watermark": {
+              "$ref": "request.watermark"
+            },
+            "web_search": {
+              "$omitEmpty": {
+                "$coalesce": [
+                  {
+                    "$ref": "request.providerOptions.km-kemei-wan3-video.web_search"
+                  },
+                  {
+                    "$ref": "request.providerOptions.km-kemei-video.web_search"
+                  }
+                ]
+              }
+            },
+            "seed": {
+              "$omitEmpty": {
+                "$coalesce": [
+                  {
+                    "$ref": "request.providerOptions.km-kemei-wan3-video.seed"
+                  },
+                  {
+                    "$ref": "request.providerOptions.km-kemei-video.seed"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "poll": {
+          "method": "GET",
+          "path": "/v1/video/generations/{{taskId}}",
+          "contentType": "application/json"
+        },
+        "cancel": {
+          "method": "DELETE",
+          "path": "/v1/video/generations/{{taskId}}",
+          "contentType": "application/json"
+        },
+        "response": {
+          "taskId": {
+            "$coalesce": [
+              {
+                "$ref": "response.task_id"
+              },
+              {
+                "$ref": "response.taskId"
+              },
+              {
+                "$ref": "response.id"
+              },
+              {
+                "$ref": "response.data.task_id"
+              },
+              {
+                "$ref": "response.data.taskId"
+              },
+              {
+                "$ref": "response.data.id"
+              },
+              {
+                "$ref": "taskId"
+              }
+            ]
+          },
+          "status": {
+            "$coalesce": [
+              {
+                "$ref": "response.status"
+              },
+              {
+                "$ref": "response.state"
+              },
+              {
+                "$ref": "response.data.status"
+              },
+              "pending"
+            ]
+          },
+          "message": {
+            "$coalesce": [
+              {
+                "$ref": "response.error.message"
+              },
+              {
+                "$ref": "response.data.error.message"
+              },
+              {
+                "$ref": "response.message"
+              },
+              {
+                "$ref": "response.detail"
+              }
+            ]
+          },
+          "videos": {
+            "$coalesce": [
+              {
+                "$map": {
+                  "from": {
+                    "$ref": "response.data"
+                  },
+                  "as": "item",
+                  "in": {
+                    "$coalesce": [
+                      {
+                        "$ref": "item.url"
+                      },
+                      {
+                        "$ref": "item.video_url"
+                      },
+                      {
+                        "$ref": "item.videoUrl"
+                      },
+                      {
+                        "$ref": "item.output_url"
+                      },
+                      {
+                        "$ref": "item.outputUrl"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "$ref": "response.data.url"
+              },
+              {
+                "$ref": "response.data.video_url"
+              },
+              {
+                "$ref": "response.data.videoUrl"
+              },
+              {
+                "$ref": "response.data.output_url"
+              },
+              {
+                "$ref": "response.data.result_url"
+              },
+              {
+                "$ref": "response.url"
+              },
+              {
+                "$ref": "response.video_url"
+              },
+              {
+                "$ref": "response.videoUrl"
+              },
+              {
+                "$ref": "response.output_url"
+              },
+              {
+                "$ref": "response.result_url"
+              }
+            ]
+          },
+          "errorPaths": [
+            "error.code",
+            "data.error.code"
+          ],
+          "resultEphemeral": true
+        }
+      },
       {
         "id": "km-kemei-video",
         "label": "KM 可美视频",
@@ -162,7 +612,7 @@
             "type": "string",
             "required": false,
             "mapping": "resolution",
-            "description": "目标分辨率，如 1080p、720p、480p。"
+            "description": "目标分辨率，如 1080P、720P。"
           },
           {
             "name": "ratio",
@@ -307,7 +757,9 @@
             },
             "resolution": {
               "$omitEmpty": {
-                "$ref": "request.resolution"
+                "$upper": {
+                  "$ref": "request.resolution"
+                }
               }
             },
             "ratio": {

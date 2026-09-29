@@ -75,7 +75,7 @@ func Builtins() *Registry {
 	registry, err := NewRegistry(
 		openAIChatAdapter(), openAIResponsesAdapter(), claudeAdapter(),
 		openAIVideosAdapter(), newAPIChannel1Adapter(), newAPIVideosAdapter(), xAIVideosAdapter(), arkVideosAdapter(), jimengVideosAdapter(), geminiVeoAdapter(), novitaVideosAdapter(), miniMaxVideosAdapter(),
-		agnesAdapter(),
+		kmKemeiWan3VideoAdapter(), agnesAdapter(),
 	)
 	if err != nil {
 		panic(err)
@@ -335,6 +335,72 @@ func newAPIVideosAdapter() Adapter {
 		}
 		if len(r.Audios) > 0 {
 			body["audio_urls"] = mediaValues(r.Audios)
+		}
+		return jsonSpec(http.MethodPost, "/v1/video/generations", body), nil
+	})
+}
+
+func kmKemeiWan3VideoAdapter() Adapter {
+	info := metadata("km-kemei-wan3-video", "KM 可美 Wan 3.0 视频", "KM 可美 / 影策", CapabilityVideo, "POST /v1/video/generations", "GET /v1/video/generations/{task_id}", "application/json")
+	info.LegacyAliases = []string{"km-kemei-video", "km-wan3-video", "kemei-video"}
+	info.Parameters = videoParams()
+	return videoAdapter(info, func(r GenerationRequest) (RequestSpec, error) {
+		body := map[string]any{
+			"model":    defaultValue(r.Model, "wan3.0-video"),
+			"prompt":   r.Prompt,
+			"duration": defaultInt(r.Duration, 5),
+			"ratio":    defaultValue(r.AspectRatio, "16:9"),
+		}
+		if r.Resolution != "" {
+			body["resolution"] = strings.ToUpper(r.Resolution)
+		} else {
+			body["resolution"] = "720P"
+		}
+		if r.GenerateAudio {
+			body["generate_audio"] = true
+		}
+		if r.Watermark {
+			body["watermark"] = true
+		}
+		if len(r.Images) > 0 {
+			images := make([]any, 0, len(r.Images))
+			for _, img := range r.Images {
+				if img.Role != "" {
+					images = append(images, map[string]string{"url": img.URL, "role": img.Role})
+				} else {
+					images = append(images, img.URL)
+				}
+			}
+			body["images"] = images
+		}
+		if len(r.Videos) > 0 {
+			videos := make([]string, 0, len(r.Videos))
+			for _, v := range r.Videos {
+				if v.URL != "" {
+					videos = append(videos, v.URL)
+				}
+			}
+			if len(videos) > 0 {
+				body["videos"] = videos
+			}
+		}
+		if len(r.Audios) > 0 {
+			audios := make([]string, 0, len(r.Audios))
+			for _, a := range r.Audios {
+				if a.URL != "" {
+					audios = append(audios, a.URL)
+				}
+			}
+			if len(audios) > 0 {
+				body["audios"] = audios
+			}
+		}
+		for _, optKey := range []string{"km-kemei-video", "km-kemei-wan3-video"} {
+			if opt := r.ProviderOptions[optKey]; opt != nil {
+				for k, v := range opt {
+					body[k] = v
+				}
+			}
 		}
 		return jsonSpec(http.MethodPost, "/v1/video/generations", body), nil
 	})
