@@ -163,17 +163,21 @@ export function normalizeModelCapabilityConfig(config: ModelCapabilityConfig): M
 
 // Keep explicit pixel presets for each resolution tier so the settings panel can
 // switch between 1K, 2K and 4K without silently converting the requested ratio.
-const defaultImageSizes = [
+export const defaultImageSizes = [
     "auto",
     "1:1",
-    "3:2",
-    "2:3",
+    "16:9",
+    "9:16",
     "4:3",
     "3:4",
-    "16:9",
+    "3:2",
+    "2:3",
+    "4:5",
+    "5:4",
     "21:9",
-    "9:16",
     "1024x1024",
+    "1824x1024",
+    "1024x1824",
     "1360x1024",
     "1024x1360",
     "1536x1024",
@@ -181,8 +185,50 @@ const defaultImageSizes = [
     "1024x1280",
     "1280x1024",
     "1938x812",
+    "2048x2048",
+    "2560x1440",
+    "1440x2560",
+    "2304x1728",
+    "1728x2304",
+    "2496x1664",
+    "1664x2496",
+    "1792x2240",
+    "2240x1792",
+    "3136x1344",
+    "2880x2880",
+    "3840x2160",
+    "2160x3840",
+    "3264x2448",
+    "2448x3264",
+    "3504x2336",
+    "2336x3504",
+    "2560x3200",
+    "3200x2560",
+    "3808x1632",
+];
+
+export const seedreamProImageSizes = [
+    "auto",
+    "1:1",
+    "16:9",
+    "9:16",
+    "4:3",
+    "3:4",
+    "3:2",
+    "2:3",
+    "4:5",
+    "5:4",
+    "21:9",
+    "1024x1024",
     "1824x1024",
     "1024x1824",
+    "1360x1024",
+    "1024x1360",
+    "1536x1024",
+    "1024x1536",
+    "1024x1280",
+    "1280x1024",
+    "1938x812",
     "1536x1536",
     "2048x1152",
     "1152x2048",
@@ -194,6 +240,8 @@ const defaultImageSizes = [
     "1720x1376",
     "2352x1008",
     "2048x2048",
+    "2560x1440",
+    "1440x2560",
     "2304x1728",
     "1728x2304",
     "2496x1664",
@@ -201,18 +249,6 @@ const defaultImageSizes = [
     "1792x2240",
     "2240x1792",
     "3136x1344",
-    "2752x1536",
-    "1536x2752",
-    "2880x2880",
-    "3264x2448",
-    "2448x3264",
-    "3504x2336",
-    "2336x3504",
-    "2560x3200",
-    "3200x2560",
-    "3808x1632",
-    "3840x2160",
-    "2160x3840",
 ];
 
 export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = ""): ImageCapabilityConfig {
@@ -377,19 +413,12 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
     }
     const cleanLower = model.trim().toLowerCase();
     if (protocol === "km-kemei-seedream-image" || protocol === "km-seedream-image" || (cleanLower.includes("seedream") && !protocol?.includes("ark"))) {
-        const isPro = cleanLower.includes("pro");
-        const supportedSizes = isPro
-            ? defaultImageSizes.filter((val) => {
-                const match = val.match(/^(\d+)x(\d+)$/);
-                if (!match) return true;
-                return Number(match[1]) * Number(match[2]) <= 4_624_220;
-            })
-            : [...defaultImageSizes];
+        const isPro = cleanLower.includes("pro") || cleanLower.includes("flash");
         image.references.maxImages = isPro ? 10 : 14;
         image.references.maskSupported = true;
         image.size = {
             parameter: "size",
-            values: supportedSizes,
+            values: isPro ? [...seedreamProImageSizes] : [...defaultImageSizes],
             default: "2048x2048",
             allowCustom: true,
         };
