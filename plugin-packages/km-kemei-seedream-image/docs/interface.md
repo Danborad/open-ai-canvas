@@ -273,6 +273,113 @@
                         ]
                       },
                       "then": "3024x1296"
+                    },
+                    {
+                      "when": {
+                        "$and": [
+                          {
+                            "$contains": [
+                              {
+                                "$lower": {
+                                  "$ref": "request.model"
+                                }
+                              },
+                              "pro"
+                            ]
+                          },
+                          {
+                            "$or": [
+                              {
+                                "$eq": [
+                                  {
+                                    "$ref": "request.aspectRatio"
+                                  },
+                                  "4k"
+                                ]
+                              },
+                              {
+                                "$eq": [
+                                  {
+                                    "$ref": "request.aspectRatio"
+                                  },
+                                  "4K"
+                                ]
+                              },
+                              {
+                                "$eq": [
+                                  {
+                                    "$ref": "request.aspectRatio"
+                                  },
+                                  "3840x2160"
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      "then": "2560x1440"
+                    },
+                    {
+                      "when": {
+                        "$and": [
+                          {
+                            "$contains": [
+                              {
+                                "$lower": {
+                                  "$ref": "request.model"
+                                }
+                              },
+                              "pro"
+                            ]
+                          },
+                          {
+                            "$eq": [
+                              {
+                                "$ref": "request.aspectRatio"
+                              },
+                              "2160x3840"
+                            ]
+                          }
+                        ]
+                      },
+                      "then": "1440x2560"
+                    },
+                    {
+                      "when": {
+                        "$and": [
+                          {
+                            "$contains": [
+                              {
+                                "$lower": {
+                                  "$ref": "request.model"
+                                }
+                              },
+                              "pro"
+                            ]
+                          },
+                          {
+                            "$or": [
+                              {
+                                "$eq": [
+                                  {
+                                    "$ref": "request.aspectRatio"
+                                  },
+                                  "2880x2880"
+                                ]
+                              },
+                              {
+                                "$eq": [
+                                  {
+                                    "$ref": "request.aspectRatio"
+                                  },
+                                  "4096x4096"
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      "then": "2048x2048"
                     }
                   ],
                   "default": {

@@ -1,19 +1,19 @@
 import { buildImageResolutionOptions, type ImageResolutionOption, type ImageResolutionTier } from "./image-resolution-tiers";
 import type { ImageCapabilityConfig } from "./model-capabilities";
 
-export const IMAGE_RESOLUTIONS: ImageResolutionTier[] = ["1k", "2k", "4k"];
+export const IMAGE_RESOLUTIONS: ImageResolutionTier[] = ["1k", "1.5k", "2k", "4k"];
 export const IMAGE_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9"];
 const standardSizes: Record<string, string[]> = {
-    "1:1": ["1024x1024", "2048x2048", "2880x2880"],
-    "16:9": ["1824x1024", "2752x1536", "3840x2160"],
-    "9:16": ["1024x1824", "1536x2752", "2160x3840"],
-    "4:3": ["1360x1024", "2304x1728", "3264x2448"],
-    "3:4": ["1024x1360", "1728x2304", "2448x3264"],
-    "3:2": ["1536x1024", "2496x1664", "3504x2336"],
-    "2:3": ["1024x1536", "1664x2496", "2336x3504"],
-    "4:5": ["1024x1280", "1792x2240", "2560x3200"],
-    "5:4": ["1280x1024", "2240x1792", "3200x2560"],
-    "21:9": ["1938x812", "3136x1344", "3808x1632"],
+    "1:1": ["1024x1024", "1536x1536", "2048x2048", "2880x2880"],
+    "16:9": ["1824x1024", "2048x1152", "2752x1536", "3840x2160"],
+    "9:16": ["1024x1824", "1152x2048", "1536x2752", "2160x3840"],
+    "4:3": ["1360x1024", "1792x1344", "2304x1728", "3264x2448"],
+    "3:4": ["1024x1360", "1344x1792", "1728x2304", "2448x3264"],
+    "3:2": ["1536x1024", "1872x1248", "2496x1664", "3504x2336"],
+    "2:3": ["1024x1536", "1248x1872", "1664x2496", "2336x3504"],
+    "4:5": ["1024x1280", "1376x1720", "1792x2240", "2560x3200"],
+    "5:4": ["1280x1024", "1720x1376", "2240x1792", "3200x2560"],
+    "21:9": ["1938x812", "2352x1008", "3136x1344", "3808x1632"],
 };
 
 export function imagePresetForRatio(tier: ImageResolutionTier, input: string): ImageResolutionOption {
@@ -40,9 +40,9 @@ export function imagePresetForRatio(tier: ImageResolutionTier, input: string): I
             return width * h === height * w;
         }) || `${w}:${h}`;
     const index = IMAGE_RESOLUTIONS.indexOf(tier);
-    if (index < 0) throw new Error("分辨率仅支持 1K、2K、4K");
+    if (index < 0) throw new Error("分辨率仅支持 1K、1.5K、2K、4K");
     const standard = standardSizes[ratio]?.[index];
-    const pixels = [1_048_576, 4_194_304, 8_294_400][index];
+    const pixels = [1_048_576, 2_359_296, 4_194_304, 8_294_400][index];
     let width = Math.round(Math.sqrt((pixels * w) / h) / 16) * 16;
     let height = Math.round((width * h) / w / 16) * 16;
     while (width * height > pixels || Math.max(width, height) > 3840) {
@@ -59,8 +59,8 @@ export function imagePresetForRatio(tier: ImageResolutionTier, input: string): I
 }
 
 export function imageQualityForTier(profile: ImageCapabilityConfig, tier: ImageResolutionTier) {
-    const aliases = { "1k": ["1k", "low"], "2k": ["2k", "medium"], "4k": ["4k", "high"] }[tier];
-    return profile.quality.supported ? profile.quality.values.find((value) => aliases.includes(value.toLowerCase())) : undefined;
+    const aliases: Record<ImageResolutionTier, string[]> = { "1k": ["1k", "low"], "1.5k": ["1.5k"], "2k": ["2k", "medium"], "4k": ["4k", "high"] };
+    return profile.quality.supported ? profile.quality.values.find((value) => aliases[tier].includes(value.toLowerCase())) : undefined;
 }
 
 export function imageResolutionUsesQuality(profile: ImageCapabilityConfig) {

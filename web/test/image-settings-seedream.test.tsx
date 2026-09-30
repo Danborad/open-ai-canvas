@@ -5,38 +5,57 @@ import { canvasThemes } from "../src/lib/canvas-theme";
 import type { AiConfig } from "../src/stores/use-config-store";
 
 describe("ImageSettingsPanel with km-kemei-seedream-image", () => {
-    test("does not duplicate resolution or quality section", () => {
-        const config = {
+    test("does not duplicate resolution and Pro models show 1K / 1.5K / 2K tiers (no 4K)", () => {
+        const proConfig = {
             interfaceType: "km-kemei-seedream-image",
             model: "doubao-seedream-5-0-pro-260628",
             size: "2560x1440",
-            quality: "2K",
             transparentBackground: "false",
             channels: [],
             models: [],
         } as unknown as AiConfig;
 
-        const html = renderToStaticMarkup(
+        const proHtml = renderToStaticMarkup(
             <ImageSettingsPanel
-                config={config}
+                config={proConfig}
                 onConfigChange={() => {}}
                 theme={canvasThemes.dark}
             />
         );
 
-        // 统计“分辨率”在页面中出现的次数
-        const occurrences = (html.match(/分辨率/g) || []).length;
-        console.log("Count of '分辨率' in html:", occurrences);
+        // 1. 统计“分辨率”在页面中出现的次数，只有尺寸选择器中的标题，出现且仅出现 1 次
+        const proOccurrences = (proHtml.match(/分辨率/g) || []).length;
+        expect(proOccurrences).toBe(1);
 
-        // 之前因为 quality 被误判为 isGrokResolutionQuality，上面出现了一个“分辨率”，下面 ImageSizePicker 又有一个“分辨率”，共出现 2 次！
-        // 修正后，Seedream 的 quality.supported 为 false，顶部不渲染多余的“分辨率”，只有尺寸选择器中的“分辨率”档位，出现且仅出现 1 次！
-        expect(occurrences).toBe(1);
+        // 2. Pro 模型最大支持 2K (≤4,624,220 像素)，必须包含 1K / 1.5K / 2K，不能包含 4K
+        expect(proHtml).toContain("1K");
+        expect(proHtml).toContain("1.5K");
+        expect(proHtml).toContain("2K");
+        expect(proHtml).not.toContain("4K");
+        expect(proHtml).toContain("宽高比");
+        expect(proHtml).toContain("透明背景");
 
-        // 并且包含 1K / 2K / 4K 与 16:9 / 1:1
-        expect(html).toContain("1K");
-        expect(html).toContain("2K");
-        expect(html).toContain("4K");
-        expect(html).toContain("宽高比");
-        expect(html).toContain("透明背景");
+        // 3. Lite 模型支持 4K
+        const liteConfig = {
+            interfaceType: "km-kemei-seedream-image",
+            model: "doubao-seedream-5-0-260128",
+            size: "2560x1440",
+            transparentBackground: "false",
+            channels: [],
+            models: [],
+        } as unknown as AiConfig;
+
+        const liteHtml = renderToStaticMarkup(
+            <ImageSettingsPanel
+                config={liteConfig}
+                onConfigChange={() => {}}
+                theme={canvasThemes.dark}
+            />
+        );
+
+        expect(liteHtml).toContain("1K");
+        expect(liteHtml).toContain("1.5K");
+        expect(liteHtml).toContain("2K");
+        expect(liteHtml).toContain("4K");
     });
 });

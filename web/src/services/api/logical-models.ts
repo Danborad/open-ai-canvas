@@ -5,7 +5,7 @@ export type InputConstraint = { min: number; max: number };
 export type OptionConstraint = { values?: unknown[]; min?: number; max?: number; step?: number };
 export type CapabilityImageSizePreset = {
     size: string;
-    tier: "1k" | "2k" | "4k";
+    tier: "1k" | "1.5k" | "2k" | "4k";
     ratio: string;
     width: number;
     height: number;

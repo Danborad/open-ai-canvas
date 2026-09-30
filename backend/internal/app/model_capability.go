@@ -257,9 +257,15 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 	case "km-kemei-seedream-image", "km-seedream-image", "km-seedream", "doubao-seedream-image", "seedream-image":
 		image.References.MaxImages = 14
 		image.References.MaskSupported = true
+		isPro := strings.Contains(strings.ToLower(modelName), "pro")
+		sizes := defaultImageSizeValues()
+		if isPro {
+			sizes = seedreamProImageSizeValues()
+			image.References.MaxImages = 10
+		}
 		image.Size = ImageSizeConfig{
 			Parameter:   "size",
-			Values:      defaultImageSizeValues(),
+			Values:      sizes,
 			Default:     "2048x2048",
 			AllowCustom: true,
 		}
@@ -268,7 +274,7 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		image.Watermark = VideoBooleanConfig{Supported: true, Default: false}
 		image.ResponseFormat = ParameterSupport{Supported: true}
 		image.OutputFormat = ParameterSupport{Supported: true}
-		if strings.Contains(strings.ToLower(modelName), "pro") {
+		if isPro {
 			image.MaxOutputs = 1
 		} else {
 			image.MaxOutputs = 15
@@ -277,9 +283,15 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 	if strings.Contains(strings.ToLower(strings.TrimSpace(modelName)), "seedream") && !strings.Contains(protocol, "ark") {
 		image.References.MaxImages = 14
 		image.References.MaskSupported = true
+		isPro := strings.Contains(strings.ToLower(modelName), "pro")
+		sizes := defaultImageSizeValues()
+		if isPro {
+			sizes = seedreamProImageSizeValues()
+			image.References.MaxImages = 10
+		}
 		image.Size = ImageSizeConfig{
 			Parameter:   "size",
-			Values:      defaultImageSizeValues(),
+			Values:      sizes,
 			Default:     "2048x2048",
 			AllowCustom: true,
 		}
@@ -288,7 +300,7 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		image.Watermark = VideoBooleanConfig{Supported: true, Default: false}
 		image.ResponseFormat = ParameterSupport{Supported: true}
 		image.OutputFormat = ParameterSupport{Supported: true}
-		if strings.Contains(strings.ToLower(modelName), "pro") {
+		if isPro {
 			image.MaxOutputs = 1
 		} else {
 			image.MaxOutputs = 15
@@ -307,10 +319,20 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 	return image
 }
 
+func seedreamProImageSizeValues() []string {
+	return []string{
+		"auto", "1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "21:9", "9:16",
+		"1024x1024", "1360x1024", "1024x1360", "1536x1024", "1024x1536", "1024x1280", "1280x1024", "1938x812", "1824x1024", "1024x1824",
+		"1536x1536", "2048x1152", "1152x2048", "1792x1344", "1344x1792", "1872x1248", "1248x1872", "1376x1720", "1720x1376", "2352x1008",
+		"2048x2048", "2304x1728", "1728x2304", "2496x1664", "1664x2496", "1792x2240", "2240x1792", "3136x1344", "2752x1536", "1536x2752",
+	}
+}
+
 func defaultImageSizeValues() []string {
 	return []string{
 		"auto", "1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "21:9", "9:16",
 		"1024x1024", "1360x1024", "1024x1360", "1536x1024", "1024x1536", "1024x1280", "1280x1024", "1938x812", "1824x1024", "1024x1824",
+		"1536x1536", "2048x1152", "1152x2048", "1792x1344", "1344x1792", "1872x1248", "1248x1872", "1376x1720", "1720x1376", "2352x1008",
 		"2048x2048", "2304x1728", "1728x2304", "2496x1664", "1664x2496", "1792x2240", "2240x1792", "3136x1344", "2752x1536", "1536x2752",
 		"2880x2880", "3264x2448", "2448x3264", "3504x2336", "2336x3504", "2560x3200", "3200x2560", "3808x1632", "3840x2160", "2160x3840",
 	}

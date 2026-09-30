@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -445,6 +446,39 @@ func kmKemeiSeedreamImagesAdapter() Adapter {
 					size = "1664x2496"
 				case "21:9":
 					size = "3024x1296"
+				}
+			}
+			if isPro {
+				switch strings.ToLower(size) {
+				case "4k":
+					size = "2K"
+				case "3840x2160":
+					size = "2560x1440"
+				case "2160x3840":
+					size = "1440x2560"
+				case "2880x2880", "4096x4096":
+					size = "2048x2048"
+				case "3264x2448":
+					size = "2304x1728"
+				case "2448x3264":
+					size = "1728x2304"
+				case "3504x2336":
+					size = "2496x1664"
+				case "2336x3504":
+					size = "1664x2496"
+				case "3808x1632":
+					size = "3024x1296"
+				default:
+					if parts := strings.Split(strings.ToLower(size), "x"); len(parts) == 2 {
+						w, _ := strconv.Atoi(parts[0])
+						h, _ := strconv.Atoi(parts[1])
+						if w > 0 && h > 0 && w*h > 4624220 {
+							scale := math.Sqrt(4200000.0 / float64(w*h))
+							nw := int(math.Round(float64(w)*scale/16.0)) * 16
+							nh := int(math.Round(float64(h)*scale/16.0)) * 16
+							size = fmt.Sprintf("%dx%d", nw, nh)
+						}
+					}
 				}
 			}
 			body["size"] = size

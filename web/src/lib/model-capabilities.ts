@@ -183,6 +183,16 @@ const defaultImageSizes = [
     "1938x812",
     "1824x1024",
     "1024x1824",
+    "1536x1536",
+    "2048x1152",
+    "1152x2048",
+    "1792x1344",
+    "1344x1792",
+    "1872x1248",
+    "1248x1872",
+    "1376x1720",
+    "1720x1376",
+    "2352x1008",
     "2048x2048",
     "2304x1728",
     "1728x2304",
@@ -367,11 +377,19 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
     }
     const cleanLower = model.trim().toLowerCase();
     if (protocol === "km-kemei-seedream-image" || protocol === "km-seedream-image" || (cleanLower.includes("seedream") && !protocol?.includes("ark"))) {
-        image.references.maxImages = 14;
+        const isPro = cleanLower.includes("pro");
+        const supportedSizes = isPro
+            ? defaultImageSizes.filter((val) => {
+                const match = val.match(/^(\d+)x(\d+)$/);
+                if (!match) return true;
+                return Number(match[1]) * Number(match[2]) <= 4_624_220;
+            })
+            : [...defaultImageSizes];
+        image.references.maxImages = isPro ? 10 : 14;
         image.references.maskSupported = true;
         image.size = {
             parameter: "size",
-            values: [...defaultImageSizes],
+            values: supportedSizes,
             default: "2048x2048",
             allowCustom: true,
         };
@@ -380,7 +398,7 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         image.watermark = { supported: true, default: false };
         image.responseFormat = { supported: true };
         image.outputFormat = { supported: true };
-        image.maxOutputs = cleanLower.includes("pro") ? 1 : 15;
+        image.maxOutputs = isPro ? 1 : 15;
     }
     return image;
 }
