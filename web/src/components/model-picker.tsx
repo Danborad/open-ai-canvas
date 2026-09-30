@@ -203,6 +203,24 @@ export function ModelPicker({
                         })}
                     </div>
                     {optionGroups.filter((group) => group.key === activeGroupKey).map((group) => <section key={group.key} className="canvas-model-picker-group canvas-model-picker-model-pane min-w-0 overflow-hidden">
+                        <div className="canvas-model-picker-secondary-head">
+                            <button
+                                type="button"
+                                className="canvas-model-picker-back"
+                                aria-label="返回模型列表"
+                                title="返回模型列表"
+                                onClick={() => {
+                                    setActiveGroupKey(null);
+                                    focusMenuOption();
+                                }}
+                            >
+                                <ChevronDown className="canvas-model-picker-brand-arrow" style={{ transform: "rotate(90deg)" }} aria-hidden="true" />
+                            </button>
+                            <span className="min-w-0 flex-1">
+                                <strong className="truncate block">{group.label}</strong>
+                                <small>{group.models.length} 个{group.kind === "product" ? "渠道" : "模型"}{group.scope ? ` · ${group.scope}` : ""}</small>
+                            </span>
+                        </div>
                         <div className="grid min-w-0 gap-1">
                             {group.models.map((modelGroup) => {
                                 const selected = modelGroup.models.includes(current);

@@ -677,6 +677,8 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
 @media (max-width: 720px) {
     .canvas-model-picker-menu:is(.is-brand-list, .is-model-list) {
         width: calc(100vw - 24px) !important;
+        max-height: min(480px, calc(100dvh - 120px)) !important;
+        overflow-y: auto !important;
     }
     .canvas-model-picker-two-pane {
         grid-template-columns: minmax(0, 1fr);
@@ -684,9 +686,17 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     .canvas-model-picker-menu.is-model-list .canvas-model-picker-brand-rail {
         display: none;
     }
+    .canvas-model-picker-secondary-head {
+        display: flex !important;
+    }
+    .app-user-workspace .creation-model-picker-menu.is-brand-list,
+    .creation-model-picker-surface .creation-model-picker-menu.is-brand-list {
+        max-height: min(480px, calc(100dvh - 120px)) !important;
+        overflow-y: auto !important;
+    }
 }
 .canvas-model-picker-secondary-head {
-    display: flex;
+    display: none;
     min-width: 0;
     align-items: center;
     gap: 8px;
