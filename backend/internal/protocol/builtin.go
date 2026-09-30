@@ -423,9 +423,29 @@ func kmKemeiSeedreamImagesAdapter() Adapter {
 			if !isPro && r.ImageCount > 1 {
 				body["n"] = r.ImageCount
 			}
-			size := defaultValue(r.Resolution, r.AspectRatio)
-			if strings.TrimSpace(size) == "" {
+			size := defaultValue(r.AspectRatio, r.Resolution)
+			cleanSize := strings.ToLower(strings.TrimSpace(size))
+			if cleanSize == "" || cleanSize == "auto" || cleanSize == "720" || cleanSize == "720p" {
 				size = "2K"
+			} else {
+				switch cleanSize {
+				case "1:1":
+					size = "2048x2048"
+				case "16:9":
+					size = "2560x1440"
+				case "9:16":
+					size = "1440x2560"
+				case "4:3":
+					size = "2304x1728"
+				case "3:4":
+					size = "1728x2304"
+				case "3:2":
+					size = "2496x1664"
+				case "2:3":
+					size = "1664x2496"
+				case "21:9":
+					size = "3024x1296"
+				}
 			}
 			body["size"] = size
 			if r.Watermark {

@@ -258,15 +258,12 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		image.References.MaxImages = 14
 		image.References.MaskSupported = true
 		image.Size = ImageSizeConfig{
-			Parameter: "size",
-			Values: []string{
-				"2K", "1K", "1.5K", "3K", "4K", "1:1", "16:9", "9:16", "4:3", "3:4",
-				"2048x2048", "2560x1440", "1440x2560", "2304x1728", "1728x2304",
-			},
-			Default:     "2K",
+			Parameter:   "size",
+			Values:      defaultImageSizeValues(),
+			Default:     "2048x2048",
 			AllowCustom: true,
 		}
-		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1K", "2K", "4K"}, Default: "2K"}
+		image.Quality = ImageQualityConfig{Supported: false, Values: []string{}, Default: ""}
 		image.TransparentBackground = VideoBooleanConfig{Supported: true, Default: false}
 		image.Watermark = VideoBooleanConfig{Supported: true, Default: false}
 		image.ResponseFormat = ParameterSupport{Supported: true}
@@ -281,15 +278,12 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		image.References.MaxImages = 14
 		image.References.MaskSupported = true
 		image.Size = ImageSizeConfig{
-			Parameter: "size",
-			Values: []string{
-				"2K", "1K", "1.5K", "3K", "4K", "1:1", "16:9", "9:16", "4:3", "3:4",
-				"2048x2048", "2560x1440", "1440x2560", "2304x1728", "1728x2304",
-			},
-			Default:     "2K",
+			Parameter:   "size",
+			Values:      defaultImageSizeValues(),
+			Default:     "2048x2048",
 			AllowCustom: true,
 		}
-		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1K", "2K", "4K"}, Default: "2K"}
+		image.Quality = ImageQualityConfig{Supported: false, Values: []string{}, Default: ""}
 		image.TransparentBackground = VideoBooleanConfig{Supported: true, Default: false}
 		image.Watermark = VideoBooleanConfig{Supported: true, Default: false}
 		image.ResponseFormat = ParameterSupport{Supported: true}

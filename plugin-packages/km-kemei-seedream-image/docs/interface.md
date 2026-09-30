@@ -172,15 +172,144 @@
             },
             "response_format": "url",
             "size": {
-              "$coalesce": [
-                {
-                  "$ref": "request.resolution"
-                },
-                {
-                  "$ref": "request.aspectRatio"
-                },
-                "2K"
-              ]
+              "$omitEmpty": {
+                "$switch": {
+                  "cases": [
+                    {
+                      "when": {
+                        "$eq": [
+                          {
+                            "$ref": "request.aspectRatio"
+                          },
+                          "auto"
+                        ]
+                      },
+                      "then": "2K"
+                    },
+                    {
+                      "when": {
+                        "$eq": [
+                          {
+                            "$ref": "request.aspectRatio"
+                          },
+                          "1:1"
+                        ]
+                      },
+                      "then": "2048x2048"
+                    },
+                    {
+                      "when": {
+                        "$eq": [
+                          {
+                            "$ref": "request.aspectRatio"
+                          },
+                          "4:3"
+                        ]
+                      },
+                      "then": "2304x1728"
+                    },
+                    {
+                      "when": {
+                        "$eq": [
+                          {
+                            "$ref": "request.aspectRatio"
+                          },
+                          "3:4"
+                        ]
+                      },
+                      "then": "1728x2304"
+                    },
+                    {
+                      "when": {
+                        "$eq": [
+                          {
+                            "$ref": "request.aspectRatio"
+                          },
+                          "16:9"
+                        ]
+                      },
+                      "then": "2560x1440"
+                    },
+                    {
+                      "when": {
+                        "$eq": [
+                          {
+                            "$ref": "request.aspectRatio"
+                          },
+                          "9:16"
+                        ]
+                      },
+                      "then": "1440x2560"
+                    },
+                    {
+                      "when": {
+                        "$eq": [
+                          {
+                            "$ref": "request.aspectRatio"
+                          },
+                          "3:2"
+                        ]
+                      },
+                      "then": "2496x1664"
+                    },
+                    {
+                      "when": {
+                        "$eq": [
+                          {
+                            "$ref": "request.aspectRatio"
+                          },
+                          "2:3"
+                        ]
+                      },
+                      "then": "1664x2496"
+                    },
+                    {
+                      "when": {
+                        "$eq": [
+                          {
+                            "$ref": "request.aspectRatio"
+                          },
+                          "21:9"
+                        ]
+                      },
+                      "then": "3024x1296"
+                    }
+                  ],
+                  "default": {
+                    "$coalesce": [
+                      {
+                        "$if": {
+                          "condition": {
+                            "$or": [
+                              {
+                                "$eq": [
+                                  {
+                                    "$ref": "request.aspectRatio"
+                                  },
+                                  "720"
+                                ]
+                              },
+                              {
+                                "$eq": [
+                                  {
+                                    "$ref": "request.aspectRatio"
+                                  },
+                                  "720p"
+                                ]
+                              }
+                            ]
+                          },
+                          "then": "2K",
+                          "else": {
+                            "$ref": "request.aspectRatio"
+                          }
+                        }
+                      },
+                      "2K"
+                    ]
+                  }
+                }
+              }
             },
             "n": {
               "$omitEmpty": {

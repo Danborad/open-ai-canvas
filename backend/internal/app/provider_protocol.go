@@ -185,8 +185,9 @@ func queryProtocolAdapterVideoTask(ctx context.Context, input canvasGenerationIn
 }
 
 func protocolRequestFromInput(input canvasGenerationInput) protocol.GenerationRequest {
-	resolution := strings.TrimSpace(input.Config.VQuality)
+	resolution := ""
 	if input.Mode == "video" {
+		resolution = strings.TrimSpace(input.Config.VQuality)
 		if declared := videoResolutionNameRequest(input.VideoCapability, resolution); declared != "" {
 			resolution = declared
 		}

@@ -371,15 +371,11 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         image.references.maskSupported = true;
         image.size = {
             parameter: "size",
-            values: [
-                "2K", "1K", "1.5K", "3K", "4K",
-                "1:1", "16:9", "9:16", "4:3", "3:4",
-                "2048x2048", "2560x1440", "1440x2560", "2304x1728", "1728x2304",
-            ],
-            default: "2K",
+            values: [...defaultImageSizes],
+            default: "2048x2048",
             allowCustom: true,
         };
-        image.quality = { supported: true, values: ["1K", "2K", "4K"], default: "2K" };
+        image.quality = { supported: false, values: [], default: "" };
         image.transparentBackground = { supported: true, default: false };
         image.watermark = { supported: true, default: false };
         image.responseFormat = { supported: true };
