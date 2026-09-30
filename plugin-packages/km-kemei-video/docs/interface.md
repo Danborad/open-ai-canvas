@@ -612,7 +612,7 @@
             "type": "string",
             "required": false,
             "mapping": "resolution",
-            "description": "目标分辨率，如 1080P、720P。"
+            "description": "目标分辨率，如 480P、720P、1080P。"
           },
           {
             "name": "ratio",

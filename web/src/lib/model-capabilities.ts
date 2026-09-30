@@ -534,9 +534,9 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.operations.push("reference_to_video", "audio_to_video");
     }
     if (protocol === "km-kemei-wan3-video" || protocol === "km-kemei-video" || cleanModel.includes("wan3")) {
-        video.duration = { selection: "enum", values: [5], default: 5 };
+        video.duration = { selection: "range", min: 1, max: 30, step: 1, default: 5 };
         video.durationSupported = true;
-        video.resolutions = ["720P", "1080P"];
+        video.resolutions = ["480P", "720P", "1080P"];
         video.defaultResolution = "720P";
         video.ratios = ["16:9", "9:16", "1:1"];
         video.defaultRatio = "16:9";

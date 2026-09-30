@@ -450,6 +450,20 @@ func DefaultModelCapabilityConfigForModel(protocol string, modelName string) *Mo
 		video.Resolutions = []string{"768P", "2K"}
 		video.DefaultResolution = "768P"
 		video.Watermark = VideoBooleanConfig{Supported: true, Default: false}
+	case "km-kemei-wan3-video", "km-kemei-video":
+		video.References.MaxImages = 9
+		video.References.MaxVideos = 1
+		video.References.MaxAudios = 1
+		video.Duration = VideoDurationConfig{Selection: "range", Min: 1, Max: 30, Step: 1, Default: 5}
+		video.DurationSupported = boolPointer(true)
+		video.Ratios = []string{"16:9", "9:16", "1:1"}
+		video.DefaultRatio = "16:9"
+		video.Resolutions = []string{"480P", "720P", "1080P"}
+		video.DefaultResolution = "720P"
+		video.GenerateAudio = VideoBooleanConfig{Supported: true, Default: false}
+		video.Watermark = VideoBooleanConfig{Supported: true, Default: false}
+		video.Operations = []string{"text_to_video", "image_to_video", "reference_to_video"}
+		video.DefaultOperation = "text_to_video"
 	case model.ChannelInterfaceAgnesVideo:
 		video = applyModelSpecificVideoCapability(video, protocol, modelName)
 	case "autodl-comfyui", "autodl-comfyui-video":
@@ -650,15 +664,34 @@ func applyModelSpecificVideoCapability(profile *VideoCapabilityConfig, protocol 
 		value.References.MaxImages = 9
 		value.References.MaxVideos = 1
 		value.References.MaxAudios = 1
-		value.Duration = VideoDurationConfig{Selection: "enum", Values: []int{5}, Default: 5}
-		value.Ratios = []string{"16:9", "9:16", "1:1"}
-		value.DefaultRatio = "16:9"
-		value.Resolutions = []string{"720P", "1080P"}
-		value.DefaultResolution = "720P"
+		if value.Duration.Selection == "" || (value.Duration.Selection == "range" && value.Duration.Max < 30) {
+			value.Duration = VideoDurationConfig{Selection: "range", Min: 1, Max: 30, Step: 1, Default: 5}
+		}
+		if len(value.Ratios) == 0 {
+			value.Ratios = []string{"16:9", "9:16", "1:1"}
+			value.DefaultRatio = "16:9"
+		}
+		if len(value.Resolutions) == 0 {
+			value.Resolutions = []string{"480P", "720P", "1080P"}
+			value.DefaultResolution = "720P"
+		} else {
+			has480 := false
+			for _, r := range value.Resolutions {
+				if strings.EqualFold(r, "480p") || strings.EqualFold(r, "480") {
+					has480 = true
+					break
+				}
+			}
+			if !has480 {
+				value.Resolutions = append([]string{"480P"}, value.Resolutions...)
+			}
+		}
 		value.GenerateAudio = VideoBooleanConfig{Supported: true, Default: false}
 		value.Watermark = VideoBooleanConfig{Supported: true, Default: false}
-		value.Operations = []string{"text_to_video", "image_to_video", "reference_to_video"}
-		value.DefaultOperation = "text_to_video"
+		if len(value.Operations) == 0 {
+			value.Operations = []string{"text_to_video", "image_to_video", "reference_to_video"}
+			value.DefaultOperation = "text_to_video"
+		}
 		return &value
 	}
 	if model.ChannelInterfaceType(cleanProto) != model.ChannelInterfaceAgnesVideo {
