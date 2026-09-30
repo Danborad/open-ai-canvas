@@ -675,8 +675,27 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     min-width: 0;
 }
 @media (max-width: 720px) {
-    .canvas-model-picker-menu:is(.is-brand-list, .is-model-list) {
+    .canvas-model-picker-popover.ant-popover,
+    .creation-model-picker-popover.ant-popover {
+        left: 12px !important;
+        right: 12px !important;
         width: calc(100vw - 24px) !important;
+        max-width: calc(100vw - 24px) !important;
+        box-sizing: border-box !important;
+    }
+    .canvas-model-picker-popover .ant-popover-content,
+    .canvas-model-picker-popover .ant-popover-inner,
+    .creation-model-picker-popover .ant-popover-content,
+    .creation-model-picker-popover .ant-popover-inner {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .canvas-model-picker-menu:is(.is-brand-list, .is-model-list),
+    .creation-model-picker-surface .creation-model-picker-menu:is(.is-brand-list, .is-model-list) {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
         max-height: min(480px, calc(100dvh - 120px)) !important;
         overflow-y: auto !important;
     }
