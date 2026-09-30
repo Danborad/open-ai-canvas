@@ -257,7 +257,7 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 	case "km-kemei-seedream-image", "km-seedream-image", "km-seedream", "doubao-seedream-image", "seedream-image":
 		image.References.MaxImages = 14
 		image.References.MaskSupported = true
-		isPro := strings.Contains(strings.ToLower(modelName), "pro")
+		isPro := strings.Contains(strings.ToLower(modelName), "pro") || strings.Contains(strings.ToLower(modelName), "flash")
 		sizes := defaultImageSizeValues()
 		if isPro {
 			sizes = seedreamProImageSizeValues()
@@ -283,7 +283,7 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 	if strings.Contains(strings.ToLower(strings.TrimSpace(modelName)), "seedream") && !strings.Contains(protocol, "ark") {
 		image.References.MaxImages = 14
 		image.References.MaskSupported = true
-		isPro := strings.Contains(strings.ToLower(modelName), "pro")
+		isPro := strings.Contains(strings.ToLower(modelName), "pro") || strings.Contains(strings.ToLower(modelName), "flash")
 		sizes := defaultImageSizeValues()
 		if isPro {
 			sizes = seedreamProImageSizeValues()
@@ -938,8 +938,8 @@ func validateImageCapabilityConfig(value *ImageCapabilityConfig) error {
 	}
 	seenPresets := make(map[string]bool)
 	for _, preset := range value.Size.Presets {
-		if preset.Tier != "1k" && preset.Tier != "2k" && preset.Tier != "4k" {
-			return BadAuthRequest("图片分辨率档位仅支持 1K、2K、4K")
+		if preset.Tier != "1k" && preset.Tier != "1.5k" && preset.Tier != "2k" && preset.Tier != "4k" {
+			return BadAuthRequest("图片分辨率档位仅支持 1K、1.5K、2K、4K")
 		}
 		parts := strings.Split(preset.Ratio, ":")
 		if len(parts) != 2 {

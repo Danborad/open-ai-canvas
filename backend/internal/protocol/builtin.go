@@ -420,7 +420,7 @@ func kmKemeiSeedreamImagesAdapter() Adapter {
 				"prompt":          r.Prompt,
 				"response_format": "url",
 			}
-			isPro := strings.Contains(strings.ToLower(modelName), "pro")
+			isPro := strings.Contains(strings.ToLower(modelName), "pro") || strings.Contains(strings.ToLower(modelName), "flash")
 			if !isPro && r.ImageCount > 1 {
 				body["n"] = r.ImageCount
 			}

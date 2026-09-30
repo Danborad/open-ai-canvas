@@ -276,15 +276,52 @@
                     },
                     {
                       "when": {
+                        "$or": [
+                          {
+                            "$eq": [
+                              {
+                                "$ref": "request.aspectRatio"
+                              },
+                              "1.5k"
+                            ]
+                          },
+                          {
+                            "$eq": [
+                              {
+                                "$ref": "request.aspectRatio"
+                              },
+                              "1.5K"
+                            ]
+                          }
+                        ]
+                      },
+                      "then": "1.5K"
+                    },
+                    {
+                      "when": {
                         "$and": [
                           {
-                            "$contains": [
+                            "$or": [
                               {
-                                "$lower": {
-                                  "$ref": "request.model"
-                                }
+                                "$contains": [
+                                  {
+                                    "$lower": {
+                                      "$ref": "request.model"
+                                    }
+                                  },
+                                  "pro"
+                                ]
                               },
-                              "pro"
+                              {
+                                "$contains": [
+                                  {
+                                    "$lower": {
+                                      "$ref": "request.model"
+                                    }
+                                  },
+                                  "flash"
+                                ]
+                              }
                             ]
                           },
                           {
@@ -323,13 +360,27 @@
                       "when": {
                         "$and": [
                           {
-                            "$contains": [
+                            "$or": [
                               {
-                                "$lower": {
-                                  "$ref": "request.model"
-                                }
+                                "$contains": [
+                                  {
+                                    "$lower": {
+                                      "$ref": "request.model"
+                                    }
+                                  },
+                                  "pro"
+                                ]
                               },
-                              "pro"
+                              {
+                                "$contains": [
+                                  {
+                                    "$lower": {
+                                      "$ref": "request.model"
+                                    }
+                                  },
+                                  "flash"
+                                ]
+                              }
                             ]
                           },
                           {
@@ -348,13 +399,27 @@
                       "when": {
                         "$and": [
                           {
-                            "$contains": [
+                            "$or": [
                               {
-                                "$lower": {
-                                  "$ref": "request.model"
-                                }
+                                "$contains": [
+                                  {
+                                    "$lower": {
+                                      "$ref": "request.model"
+                                    }
+                                  },
+                                  "pro"
+                                ]
                               },
-                              "pro"
+                              {
+                                "$contains": [
+                                  {
+                                    "$lower": {
+                                      "$ref": "request.model"
+                                    }
+                                  },
+                                  "flash"
+                                ]
+                              }
                             ]
                           },
                           {
@@ -422,13 +487,27 @@
               "$omitEmpty": {
                 "$if": {
                   "condition": {
-                    "$contains": [
+                    "$or": [
                       {
-                        "$lower": {
-                          "$ref": "request.model"
-                        }
+                        "$contains": [
+                          {
+                            "$lower": {
+                              "$ref": "request.model"
+                            }
+                          },
+                          "pro"
+                        ]
                       },
-                      "pro"
+                      {
+                        "$contains": [
+                          {
+                            "$lower": {
+                              "$ref": "request.model"
+                            }
+                          },
+                          "flash"
+                        ]
+                      }
                     ]
                   },
                   "then": null,
