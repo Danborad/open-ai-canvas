@@ -483,7 +483,6 @@ export function applyBatchPrimaryImage(root: CanvasNodeData, primary: CanvasNode
             characterAssetId: primary.metadata?.characterAssetId,
             content: primary.metadata?.content,
             storageKey: primary.metadata?.storageKey,
-            assetId: primary.metadata?.assetId,
             status: primary.metadata?.status,
             naturalWidth: primary.metadata?.naturalWidth,
             naturalHeight: primary.metadata?.naturalHeight,

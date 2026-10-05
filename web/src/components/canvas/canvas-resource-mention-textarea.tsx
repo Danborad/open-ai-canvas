@@ -50,7 +50,32 @@ type Props = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange" | "val
     activeDropReferenceId?: string | null;
     onReferenceFilesDrop?: (reference: CanvasResourceReference, files: File[]) => void;
     autoLinkEnabled?: boolean;
+    onPasteFiles?: (files: File[]) => void;
 };
+
+export function extractImageFilesFromClipboardData(clipboardData: DataTransfer | null): File[] {
+    if (!clipboardData) return [];
+    const files: File[] = [];
+    const items = clipboardData.items;
+    if (items) {
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.kind === "file" && item.type.startsWith("image/")) {
+                const file = item.getAsFile();
+                if (file) files.push(file);
+            }
+        }
+    }
+    if (!files.length && clipboardData.files) {
+        for (let i = 0; i < clipboardData.files.length; i++) {
+            const file = clipboardData.files[i];
+            if (file.type.startsWith("image/")) {
+                files.push(file);
+            }
+        }
+    }
+    return files;
+}
 
 // 回车提交语义由调用方决定：false 只在 ⌘/Ctrl+Enter 提交，"both" 两种都提交；Shift+Enter 始终换行。
 function shouldSubmitOnEnter(event: { key: string; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }, sendOnEnter: boolean | "both") {
@@ -62,7 +87,7 @@ function shouldSubmitOnEnter(event: { key: string; ctrlKey: boolean; metaKey: bo
 }
 
 export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function CanvasResourceMentionTextarea(
-    { value, references, onSelectReference, onChange, onSubmit, onKeyDown, className, containerClassName, style, highlightLabels = true, mentionMenuWidth = 320, sendOnEnter = true, onContentSizeChange, includeAssetLibrary = false, activeDropReferenceId, onReferenceFilesDrop, autoLinkEnabled = false, ...props },
+    { value, references, onSelectReference, onChange, onSubmit, onKeyDown, className, containerClassName, style, highlightLabels = true, mentionMenuWidth = 320, sendOnEnter = true, onContentSizeChange, includeAssetLibrary = false, activeDropReferenceId, onReferenceFilesDrop, autoLinkEnabled = false, onPasteFiles, ...props },
     forwardedRef,
 ) {
     const rawTheme = useActiveTheme();
@@ -384,6 +409,12 @@ export const CanvasResourceMentionTextarea = forwardRef<HTMLTextAreaElement, Pro
                         props.onCompositionEnd?.(event as unknown as React.CompositionEvent<HTMLTextAreaElement>);
                     }}
                     onPaste={(event: ClipboardEvent<HTMLDivElement>) => {
+                        const imageFiles = extractImageFilesFromClipboardData(event.clipboardData);
+                        if (imageFiles.length && onPasteFiles) {
+                            event.preventDefault();
+                            onPasteFiles(imageFiles);
+                            return;
+                        }
                         event.preventDefault();
                         replaceEditableSelection(event.clipboardData.getData("text/plain"));
                     }}
@@ -531,6 +562,15 @@ if (event.key === "Enter" && (event.nativeEvent.isComposing || composingRef.curr
                     const textarea = event.currentTarget;
                     setAutoLinkCursor(textarea.selectionStart === textarea.selectionEnd ? textarea.selectionStart : null);
                     props.onSelect?.(event);
+                }}
+                onPaste={(event) => {
+                    const imageFiles = extractImageFilesFromClipboardData(event.clipboardData);
+                    if (imageFiles.length && onPasteFiles) {
+                        event.preventDefault();
+                        onPasteFiles(imageFiles);
+                        return;
+                    }
+                    props.onPaste?.(event);
                 }}
                 onKeyDown={(event) => {
 if (event.key === "Enter" && (event.nativeEvent.isComposing || composingRef.current || event.keyCode === 229)) return;

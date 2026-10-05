@@ -1,4 +1,5 @@
 import { CanvasWorkspacePanel } from "@/components/canvas/canvas-workspace-panel";
+import type { PendingConnectionCreate } from "@/components/canvas/canvas-workspace-overlays";
 import { isCanvasNodeGenerating } from "@/lib/canvas/canvas-node-task-state";
 import { createCanvasStateWriter } from "@/lib/canvas/canvas-editor-state";
 import { canCancelGenerationTask } from "@/lib/generation-task-display";
