@@ -2,6 +2,7 @@ import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { App } from "antd";
 
 import { buildNodeGenerationContext, hydrateNodeGenerationContext } from "@/components/canvas/canvas-node-generation";
+import { nodeGenerationPrompt } from "@/lib/canvas/generation-contract";
 import { producedModelCandidateForGeneration } from "@/lib/canvas/produced-model";
 import type { CanvasNodeGenerationMode } from "@/components/canvas/canvas-node-prompt-panel";
 import { buildEmotionImageArtifacts, emotionGenerationSize, emotionProviderMask, normalizeEmotionPromptForProvider, resolveEmotionEditPlan } from "@/lib/canvas/canvas-emotion";
@@ -110,9 +111,8 @@ export function useCanvasGenerationRetry({
                 message.warning("当前节点不能使用通用生成重试");
                 return;
             }
+            const sourceNode = findRetrySourceNode(node.id, nodesRef.current, connectionsRef.current) || node;
             const batchRoot = node.metadata?.batchRootId ? nodesRef.current.find((item) => item.id === node.metadata?.batchRootId) : null;
-            const retryContextNode = batchRoot || node;
-            const sourceNode = findRetrySourceNode(retryContextNode.id, nodesRef.current, connectionsRef.current) || retryContextNode;
             const savedImageMetadata = node.type === CanvasNodeType.Image ? { ...batchRoot?.metadata, ...node.metadata } : undefined;
             const hasSavedImageMetadata = Boolean(savedImageMetadata?.generationType);
             const generationSourceNode = node.type === CanvasNodeType.Config && isCanvasWorkflowProvider(node.metadata) || node.metadata?.workflowProvider === "model" ? node : sourceNode;
@@ -133,7 +133,7 @@ export function useCanvasGenerationRetry({
                 return;
             }
 
-            const retryPromptSource = node.metadata?.composerContent || node.metadata?.prompt || sourceNode.metadata?.composerContent || sourceNode.metadata?.prompt || "";
+            const retryPromptSource = nodeGenerationPrompt(sourceNode) || nodeGenerationPrompt(node);
             const retryContextPrompt = retryMode === "image" && sourceNode.metadata?.portraitTexture ? buildPortraitTexturePrompt(retryPromptSource, sourceNode.metadata.portraitTexture) : retryPromptSource;
             if (unchangedModeratedPrompt(node.metadata, retryPromptSource)) {
                 message.warning("该提示词未通过内容审核，请先修改提示词再重新生成");

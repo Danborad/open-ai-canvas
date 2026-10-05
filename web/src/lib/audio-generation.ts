@@ -1,28 +1,73 @@
-export interface AudioVoiceOption {
-    value: string;
-    label: string;
-    zh: string;
-    en: string;
-    description: string;
-}
+import { doubaoAudioVoiceOptions, doubaoDefaultAudioVoice } from "@/lib/doubao-audio-voices";
+import { resolveModelRequestConfig } from "@/stores/use-config-store";
+import type { AiConfig } from "@/stores/use-config-store";
 
-export const audioVoiceOptions: AudioVoiceOption[] = [
-    { value: "alloy", label: "合金 (alloy)", zh: "合金", en: "alloy", description: "中性均衡，泛用亲和" },
-    { value: "ash", label: "烟灰 (ash)", zh: "烟灰", en: "ash", description: "低沉沉稳，纪实质感" },
-    { value: "ballad", label: "歌谣 (ballad)", zh: "歌谣", en: "ballad", description: "温暖抒情，故事叙事" },
-    { value: "coral", label: "珊瑚 (coral)", zh: "珊瑚", en: "coral", description: "温和亲切，自然柔和" },
-    { value: "echo", label: "回声 (echo)", zh: "回声", en: "echo", description: "浑厚磁性，演讲播音" },
-    { value: "fable", label: "寓言 (fable)", zh: "寓言", en: "fable", description: "生动活泼，剧情童话" },
-    { value: "nova", label: "新星 (nova)", zh: "新星", en: "nova", description: "热情明朗，活力感染" },
-    { value: "onyx", label: "玛瑙 (onyx)", zh: "玛瑙", en: "onyx", description: "深沉严谨，专业稳重" },
-    { value: "sage", label: "贤者 (sage)", zh: "贤者", en: "sage", description: "睿智知性，从容学者" },
-    { value: "shimmer", label: "微光 (shimmer)", zh: "微光", en: "shimmer", description: "清澈空灵，柔美抒情" },
-    { value: "verse", label: "诗韵 (verse)", zh: "诗韵", en: "verse", description: "诗意韵律，动态表现" },
-    { value: "marin", label: "海滨 (marin)", zh: "海滨", en: "marin", description: "自然随和，现代清新" },
-    { value: "cedar", label: "雪松 (cedar)", zh: "雪松", en: "cedar", description: "温厚大气，稳重深邃" },
+export { doubaoAudioVoiceOptions, doubaoDefaultAudioVoice };
+
+export const openAIAudioVoiceOptions = [
+    { value: "alloy", label: "Alloy" },
+    { value: "ash", label: "Ash" },
+    { value: "ballad", label: "Ballad" },
+    { value: "coral", label: "Coral" },
+    { value: "echo", label: "Echo" },
+    { value: "fable", label: "Fable" },
+    { value: "nova", label: "Nova" },
+    { value: "onyx", label: "Onyx" },
+    { value: "sage", label: "Sage" },
+    { value: "shimmer", label: "Shimmer" },
+    { value: "verse", label: "Verse" },
+    { value: "marin", label: "Marin" },
+    { value: "cedar", label: "Cedar" },
 ];
 
-export const audioFormatOptions = [
+export const doubaoAudioLanguageOptions = [
+    { value: "", label: "自动识别" },
+    { value: "zh-cn", label: "中文（普通话）" },
+    { value: "en", label: "英语" },
+    { value: "ja", label: "日语" },
+    { value: "es-mx", label: "西班牙语（墨西哥）" },
+    { value: "id", label: "印尼语" },
+    { value: "pt-br", label: "葡萄牙语（巴西）" },
+    { value: "pt", label: "葡萄牙语" },
+    { value: "ko", label: "韩语" },
+    { value: "it", label: "意大利语" },
+    { value: "de", label: "德语" },
+    { value: "fr", label: "法语" },
+    { value: "th", label: "泰语" },
+    { value: "vi", label: "越南语" },
+    { value: "ru", label: "俄语" },
+    { value: "fil", label: "菲律宾语" },
+    { value: "ms", label: "马来语" },
+    { value: "ar", label: "阿拉伯语" },
+    { value: "pl", label: "波兰语" },
+    { value: "tr", label: "土耳其语" },
+    { value: "sv", label: "瑞典语" },
+    { value: "nl", label: "荷兰语" },
+    { value: "no", label: "挪威语" },
+    { value: "uk", label: "乌克兰语" },
+    { value: "fi", label: "芬兰语" },
+    { value: "da", label: "丹麦语" },
+    { value: "cs", label: "捷克语" },
+    { value: "hu", label: "匈牙利语" },
+    { value: "el", label: "希腊语" },
+    { value: "ro", label: "罗马尼亚语" },
+    { value: "hi", label: "印地语" },
+    { value: "es-es", label: "西班牙语（西班牙）" },
+];
+
+export const doubaoAudioDialectOptions = [
+    { value: "", label: "自动" },
+    { value: "beijing", label: "北京话" },
+    { value: "dongbei", label: "东北话" },
+    { value: "henan", label: "河南话" },
+    { value: "shaanxi", label: "陕西话" },
+    { value: "shanghai", label: "上海话" },
+    { value: "sichuan", label: "四川话" },
+    { value: "tianjin", label: "天津话" },
+    { value: "yue", label: "粤语" },
+];
+
+export const openAIAudioFormatOptions = [
     { value: "mp3", label: "MP3" },
     { value: "wav", label: "WAV" },
     { value: "opus", label: "Opus" },
@@ -31,12 +76,60 @@ export const audioFormatOptions = [
     { value: "pcm", label: "PCM" },
 ];
 
+export const doubaoAudioFormatOptions = [
+    { value: "mp3", label: "MP3" },
+    { value: "wav", label: "WAV" },
+    { value: "ogg_opus", label: "OGG Opus" },
+    { value: "pcm", label: "PCM" },
+];
+
+export function isDoubaoAudioConfig(config: AiConfig) {
+    return resolveModelRequestConfig(config, config.model || config.audioModel).interfaceType === "doubao-streaming-tts";
+}
+
+export function audioVoiceOptionsForConfig(config: AiConfig) {
+    return isDoubaoAudioConfig(config) ? doubaoAudioVoiceOptions : openAIAudioVoiceOptions;
+}
+
+export function audioFormatOptionsForConfig(config: AiConfig) {
+    return isDoubaoAudioConfig(config) ? doubaoAudioFormatOptions : openAIAudioFormatOptions;
+}
+
+export function normalizeAudioVoiceForConfig(config: AiConfig, value: string) {
+    const options = audioVoiceOptionsForConfig(config);
+    const normalized = String(value || "").trim();
+    if (isDoubaoAudioConfig(config)) {
+        if (!normalized || normalized === "alloy") return "";
+        return normalized;
+    }
+    if (options.some((item) => item.value === normalized)) return normalized;
+    return normalized || "alloy";
+}
+
+export function normalizeAudioFormatForConfig(config: AiConfig, value: string) {
+    const options = audioFormatOptionsForConfig(config);
+    return options.some((item) => item.value === value) ? value : "mp3";
+}
+
+export function audioVoiceLabelForConfig(config: AiConfig, value: string) {
+    const normalized = normalizeAudioVoiceForConfig(config, value);
+    const options = audioVoiceOptionsForConfig(config);
+    return options.find((item) => item.value === normalized)?.label || normalized;
+}
+
+export function audioFormatLabelForConfig(config: AiConfig, value: string) {
+    const normalized = normalizeAudioFormatForConfig(config, value);
+    const options = audioFormatOptionsForConfig(config);
+    return options.find((item) => item.value === normalized)?.label || normalized;
+}
+
 export function normalizeAudioVoiceValue(value: string) {
-    return audioVoiceOptions.some((item) => item.value === value) ? value : "alloy";
+    const normalized = String(value || "").trim();
+    return normalized || "alloy";
 }
 
 export function normalizeAudioFormatValue(value: string) {
-    return audioFormatOptions.some((item) => item.value === value) ? value : "mp3";
+    return openAIAudioFormatOptions.some((item) => item.value === value) ? value : "mp3";
 }
 
 export function normalizeAudioSpeedValue(value: string) {
@@ -47,12 +140,12 @@ export function normalizeAudioSpeedValue(value: string) {
 
 export function audioVoiceLabel(value: string) {
     const voice = normalizeAudioVoiceValue(value);
-    return audioVoiceOptions.find((item) => item.value === voice)?.label || voice;
+    return openAIAudioVoiceOptions.find((item) => item.value === voice)?.label || voice;
 }
 
 export function audioFormatLabel(value: string) {
     const format = normalizeAudioFormatValue(value);
-    return audioFormatOptions.find((item) => item.value === format)?.label || format;
+    return openAIAudioFormatOptions.find((item) => item.value === format)?.label || format;
 }
 
 export function audioSpeedLabel(value: string) {
