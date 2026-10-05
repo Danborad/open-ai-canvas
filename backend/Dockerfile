@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.7
-
 FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS payment-package-build
 
 ARG GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
