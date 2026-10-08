@@ -1,9 +1,10 @@
 import { App, Button, InputNumber } from "antd";
 import { SettingsRow } from "@/components/ui/product/settings-row";
-import { ArrowLeft, Boxes, Brain, Bug, Cloud, MessageSquareText, RadioTower, SlidersHorizontal, Workflow } from "lucide-react";
+import { ArrowLeft, Boxes, Brain, Bug, Cloud, Mail, MessageSquareText, RadioTower, SlidersHorizontal, Workflow } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
+import { UserAvatar } from "@/components/layout/user-avatar";
 import { UserOSSSettingsForm } from "@/components/layout/user-oss-settings-form";
 import { refreshSystemChannels } from "@/lib/user-session";
 import { defaultConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
@@ -49,7 +50,8 @@ export default function SettingsPage() {
     const effectiveConfig = useEffectiveConfig();
     const updateConfig = useConfigStore((state) => state.updateConfig);
     const shouldPromptContinue = searchParams.get("continue") === "1";
-    const userId = useUserStore((state) => state.user?.id);
+    const user = useUserStore((state) => state.user);
+    const userId = user?.id;
     const userChannels = config.channels.filter((channel) => channel.scope !== "system");
     const visibleConfigSections = useMemo(() => (customChannelsEnabled ? configSections : configSections.filter((section) => section.key !== "channels"))
         .filter((section) => section.key !== "runninghub" || runningHubPluginEnabled), [customChannelsEnabled, runningHubPluginEnabled]);
@@ -184,7 +186,22 @@ export default function SettingsPage() {
                 </div>
             ) : null}
             <div className="settings-library-frame flex min-h-0 flex-1 flex-col md:flex-row">
-                <aside className="settings-nav-panel w-full shrink-0 md:w-[200px]">
+                <aside className="settings-nav-panel w-full shrink-0 md:w-[220px]">
+                    {user ? (
+                        <div className="border-b border-border/60 p-3 pb-3.5">
+                            <div className="flex items-center gap-2.5">
+                                <UserAvatar user={user} className="size-8 shrink-0 rounded-lg" />
+                                <div className="min-w-0 flex-1">
+                                    <div className="truncate text-sm font-semibold text-foreground">{user.displayName || user.username}</div>
+                                    <div className="truncate text-xs text-foreground/55">@{user.username}</div>
+                                </div>
+                            </div>
+                            <div className="mt-2.5 flex items-center gap-1.5 text-xs text-foreground/65" title={user.email ? `关联邮箱：${user.email}` : "未关联邮箱"}>
+                                <Mail className="size-3.5 shrink-0 opacity-70" />
+                                <span className="truncate">{user.email || "未关联邮箱"}</span>
+                            </div>
+                        </div>
+                    ) : null}
                     <nav className="thin-scrollbar flex gap-1 overflow-x-auto p-2 md:block md:space-y-1 md:p-2.5" aria-label="配置分类">
                         {visibleConfigSections.map((item) => {
                             const selected = item.key === activeTab;

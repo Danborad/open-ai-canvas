@@ -1,5 +1,5 @@
 import { Button } from "antd";
-import { ArrowUpRight, Coins, LogOut, RefreshCw, Settings, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, Coins, LogOut, Mail, RefreshCw, Settings, ShieldCheck } from "lucide-react";
 import { Link } from "react-router";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { useWorkspaceLogout } from "@/hooks/use-workspace-logout";
@@ -17,7 +17,14 @@ export function WorkspaceAccountCard({ onWallet, onNavigate }: { onWallet: () =>
     return <section className="workspace-account-card" aria-label="我的账户">
         <header className="workspace-account-card-identity">
             <UserAvatar user={user} className="workspace-account-card-avatar" />
-            <div><strong>{user.displayName || user.username}</strong><span>@{user.username}</span></div>
+            <div>
+                <strong>{user.displayName || user.username}</strong>
+                <span>@{user.username}</span>
+                <span className="workspace-account-card-email" title={user.email ? `关联邮箱：${user.email}` : "未关联邮箱"}>
+                    <Mail aria-hidden="true" />
+                    <span>{user.email || "未关联邮箱"}</span>
+                </span>
+            </div>
             <em>{user.role === "admin" ? "管理员" : "创作者"}</em>
         </header>
         {creditsEnabled ? <div className="workspace-account-card-wallet">
