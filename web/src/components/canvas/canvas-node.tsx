@@ -20,7 +20,8 @@ import { useCanvasNodeResize } from "./use-canvas-node-resize";
 import { CanvasNodeContent, CanvasNodeImageInfo, CanvasNodeProducedModel } from "./canvas-node-content";
 import { usePluginStore } from "@/stores/use-plugin-store";
 import { CANVAS_NODE_MODEL_BADGE_PLUGIN_ID } from "@/lib/plugins/builtin/canvas-node-model-badge";
-import { modelOptionName } from "@/stores/use-config-store";
+import { useConfigStore, type AiConfig } from "@/stores/use-config-store";
+import { producedModelLabel } from "@/lib/canvas/produced-model";
 
 type CanvasTheme = (typeof canvasThemes)[keyof typeof canvasThemes];
 
@@ -595,7 +596,8 @@ function NodeExternalHeader({ node, scale, dimensionLabel, active, editable, edi
         state.pluginStates[CANVAS_NODE_MODEL_BADGE_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_NODE_MODEL_BADGE_PLUGIN_ID)?.enabled)
     );
     const nodeModel = node.metadata?.model || (node.metadata as any)?.generationConfig?.model;
-    const modelLabel = nodeModel ? formatModelBadgeLabel(nodeModel) : "";
+    const modelChannels = useConfigStore((state) => state.config.channels);
+    const modelLabel = nodeModel ? formatModelBadgeLabel(modelChannels, nodeModel) : "";
     const hasHeaderTag = Boolean(dimensionLabel || (modelBadgeEnabled && modelLabel));
 
     return (
@@ -655,10 +657,11 @@ function NodeExternalHeader({ node, scale, dimensionLabel, active, editable, edi
     );
 }
 
-function formatModelBadgeLabel(rawModel: string): string {
+function formatModelBadgeLabel(channels: AiConfig["channels"], rawModel: string): string {
     const trimmed = rawModel.trim();
     if (!trimmed) return "";
-    const name = modelOptionName(trimmed);
+    // 画布角标展示渠道模型的可读展示名，而不是“渠道ID::模型ID”这类后台标识。
+    const name = producedModelLabel({ channels }, trimmed);
     return name.replace(/^minimax_h3_/i, "h3_");
 }
 
