@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+
+      <defs>
+        <linearGradient id="ai-t-grad" x1="20" y1="20" x2="108" y2="108" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#0284C7"/>
+          <stop offset="100%" stop-color="#38BDF8"/>
+        </linearGradient>
+      </defs>
+      <path d="M24 24C24 21.8 25.8 20 28 20H100C102.2 20 104 21.8 104 24V36C104 38.2 102.2 40 100 40H73V104C73 106.2 71.2 108 69 108H59C56.8 108 55 106.2 55 104V40H28C25.8 40 24 38.2 24 36V24Z" fill="url(#ai-t-grad)"/>
+    
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+
+      <defs>
+        <linearGradient id="ai-d-grad" x1="24" y1="20" x2="104" y2="108" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#0284C7"/>
+          <stop offset="100%" stop-color="#2563EB"/>
+        </linearGradient>
+      </defs>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M28 20H62C83.5 20 101 37.5 101 64C101 90.5 83.5 108 62 108H28C25.8 108 24 106.2 24 104V24C24 21.8 25.8 20 28 20ZM44 37V91H61C74.8 91 84 80.2 84 64C84 47.8 74.8 37 61 37H44Z" fill="url(#ai-d-grad)"/>
+    
+</svg>

@@ -4,79 +4,51 @@ import { ImageSettingsPanel } from "../src/components/image-settings-panel";
 import { canvasThemes } from "../src/lib/canvas-theme";
 import type { AiConfig } from "../src/stores/use-config-store";
 
+function seedreamConfig(model: string): AiConfig {
+    return {
+        imageModel: model,
+        model,
+        size: "2048x2048",
+        transparentBackground: "false",
+        channels: [
+            {
+                id: "ch-seedream",
+                scope: "system",
+                enabled: true,
+                name: "可美",
+                baseUrl: "/api/ai/system/CHANNEL_000007",
+                apiFormat: "openai",
+                concurrencyLimit: 0,
+                models: [model],
+                modelCosts: [{ model, protocol: "km-kemei-seedream-image", capability: "image", priceConfigured: true }],
+                hasApiKey: true,
+                hasSecretKey: false,
+                createdAt: "",
+                updatedAt: "",
+            },
+        ],
+    } as unknown as AiConfig;
+}
+
 describe("ImageSettingsPanel with km-kemei-seedream-image", () => {
-    test("does not duplicate resolution, Pro/Flash show 1K / 1.5K / 2K, while other models show standard 1K / 2K / 4K (no 1.5K)", () => {
-        // 1. Pro 模型（只显示 1K / 1.5K / 2K，不显示 4K）
-        const proConfig = {
-            interfaceType: "km-kemei-seedream-image",
-            model: "doubao-seedream-5-0-pro-260628",
-            size: "2560x1440",
-            transparentBackground: "false",
-            channels: [],
-            models: [],
-        } as unknown as AiConfig;
+    test("Pro/Flash 只显示 1K / 1.5K / 2K，不显示 4K，且分辨率分段只有一处", () => {
+        for (const model of ["doubao-seedream-5-0-pro-260628", "doubao-seedream-5-0-flash-260915"]) {
+            const html = renderToStaticMarkup(<ImageSettingsPanel config={seedreamConfig(model)} onConfigChange={() => {}} theme={canvasThemes.dark} />);
+            expect((html.match(/分辨率/g) || []).length).toBe(1);
+            expect(html).toContain("1K");
+            expect(html).toContain("1.5K");
+            expect(html).toContain("2K");
+            expect(html).not.toContain("4K");
+            expect(html).toContain("宽高比");
+        }
+    });
 
-        const proHtml = renderToStaticMarkup(
-            <ImageSettingsPanel
-                config={proConfig}
-                onConfigChange={() => {}}
-                theme={canvasThemes.dark}
-            />
-        );
-
-        const proOccurrences = (proHtml.match(/分辨率/g) || []).length;
-        expect(proOccurrences).toBe(1);
-        expect(proHtml).toContain("1K");
-        expect(proHtml).toContain("1.5K");
-        expect(proHtml).toContain("2K");
-        expect(proHtml).not.toContain("4K");
-        expect(proHtml).toContain("宽高比");
-        expect(proHtml).toContain("透明背景");
-
-        // 2. Flash 模型（和 Pro 一样，只显示 1K / 1.5K / 2K，不显示 4K）
-        const flashConfig = {
-            interfaceType: "km-kemei-seedream-image",
-            model: "doubao-seedream-5-0-flash-260915",
-            size: "2560x1440",
-            transparentBackground: "false",
-            channels: [],
-            models: [],
-        } as unknown as AiConfig;
-
-        const flashHtml = renderToStaticMarkup(
-            <ImageSettingsPanel
-                config={flashConfig}
-                onConfigChange={() => {}}
-                theme={canvasThemes.dark}
-            />
-        );
-
-        expect(flashHtml).toContain("1K");
-        expect(flashHtml).toContain("1.5K");
-        expect(flashHtml).toContain("2K");
-        expect(flashHtml).not.toContain("4K");
-
-        // 3. 其他通用/Lite 模型（显示标准的 1K / 2K / 4K，不显示 1.5K）
-        const liteConfig = {
-            interfaceType: "km-kemei-seedream-image",
-            model: "doubao-seedream-5-0-260128",
-            size: "2560x1440",
-            transparentBackground: "false",
-            channels: [],
-            models: [],
-        } as unknown as AiConfig;
-
-        const liteHtml = renderToStaticMarkup(
-            <ImageSettingsPanel
-                config={liteConfig}
-                onConfigChange={() => {}}
-                theme={canvasThemes.dark}
-            />
-        );
-
-        expect(liteHtml).toContain("1K");
-        expect(liteHtml).not.toContain("1.5K");
-        expect(liteHtml).toContain("2K");
-        expect(liteHtml).toContain("4K");
+    test("Pro/Flash 各档位比例种类与顺序统一，且没有 4K 像素", () => {
+        const html = renderToStaticMarkup(<ImageSettingsPanel config={seedreamConfig("doubao-seedream-5-0-pro-260628")} onConfigChange={() => {}} theme={canvasThemes.dark} />);
+        for (const ratio of ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"]) {
+            expect(html).toContain(`>${ratio}<`);
+        }
+        expect(html).not.toContain("3840");
+        expect(html).not.toContain("2880");
     });
 });

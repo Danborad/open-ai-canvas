@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+
+      <defs>
+        <linearGradient id="ai-x-grad" x1="20" y1="20" x2="108" y2="108" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#D97706"/>
+          <stop offset="100%" stop-color="#EF4444"/>
+        </linearGradient>
+      </defs>
+      <path d="M26 26C27.5 24.5 30 24.5 31.5 26L64 58.5L96.5 26C98 24.5 100.5 24.5 102 26L106 30C107.5 31.5 107.5 34 106 35.5L73.5 68L106 100.5C107.5 102 107.5 104.5 106 106L102 110C100.5 111.5 98 111.5 96.5 110L64 77.5L31.5 110C30 111.5 27.5 111.5 26 110L22 106C20.5 104.5 20.5 102 22 100.5L54.5 68L22 35.5C20.5 34 20.5 31.5 22 30L26 26Z" fill="url(#ai-x-grad)"/>
+    
+</svg>

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <!-- Kinetic Emerald & Cyan Gradient -->
+    <linearGradient id="n-pulse-left" x1="24" y1="20" x2="70" y2="80" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <linearGradient id="n-pulse-right" x1="60" y1="48" x2="104" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#06B6D4"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Left Dynamic Shard (Sharp Tech Blade) -->
+  <path d="M26 26C26 22.7 28.7 20 32 20H42C45.5 20 48.6 22 50.1 25.2L74 76V26C74 22.7 76.7 20 80 20C83.3 20 86 22.7 86 26V50L44 21C40 18.5 35 21.5 35 26V82L26 64V26Z" fill="url(#n-pulse-left)" opacity="0"/>
+
+  <!-- Optimized Precision Poly Blades for N -->
+  <!-- Wing A (Left to center descent) -->
+  <path d="M28 24C28 21.8 29.8 20 32 20H44C47.2 20 50.1 22.1 51.1 25.1L75 97H57L41.9 48.5L42 104C42 106.2 40.2 108 38 108H32C29.8 108 28 106.2 28 104V24Z" fill="url(#n-pulse-left)"/>
+
+  <!-- Wing B (Center to right ascent) -->
+  <path d="M100 104C100 106.2 98.2 108 96 108H84C80.8 108 77.9 105.9 76.9 102.9L53 31H71L86.1 79.5L86 24C86 21.8 87.8 20 90 20H96C98.2 20 100 21.8 100 24V104Z" fill="url(#n-pulse-right)"/>
+
+  <!-- Tech Intersection Node -->
+  <circle cx="64" cy="64" r="3.5" fill="#FFFFFF"/>
+</svg>

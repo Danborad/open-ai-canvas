@@ -1,6 +1,7 @@
 import { modelRequestOptions, resolveVideoOperation, type ModelRequirements } from "@/lib/model-selection";
-import { isVideoResolutionMatch, videoResolutionComparisonKey } from "@/lib/video-generation-options";
-import { buildImageResolutionOptions, imageResolutionOption } from "@/lib/image-resolution-tiers";
+import { videoResolutionComparisonKey } from "@/lib/video-generation-options";
+import { imagePriceSelector, normalizeImagePriceSelector } from "@/lib/image-pricing";
+import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
 import type { LogicalModelQuote, ModelQuoteRequest, ModelRequestIntent } from "@/services/api/logical-models";
 import { modelOptionName, resolveModelChannel, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
 
@@ -40,12 +41,7 @@ export function priceTiersForCurrentSelection(tiers: ModelPriceTier[], capabilit
     for (const tier of tiers) {
         const selector = priceSelectorForTier(tier);
         const conditions = Object.entries(selector).filter(([, value]) => value && value !== "*");
-        if (conditions.some(([key, value]) => {
-            if (key === "vquality" && isVideoResolutionMatch(requested[key], value)) {
-                return false;
-            }
-            return requested[key] !== value;
-        })) continue;
+        if (conditions.some(([key, value]) => requested[key] !== value)) continue;
         const score = conditions.length;
         if (score > bestScore) {
             bestScore = score;
@@ -146,14 +142,7 @@ function priceSelectorForRequest(capability: ModelCapability | undefined, config
         const options = { ...modelRequestOptions(config, "image"), ...requirements?.options, ...(requirements?.imageSize ? { size: requirements.imageSize } : {}) };
         const imageQuality = String(options.quality ?? "").trim().toLowerCase();
         const imageSize = String(options.size ?? "").trim();
-        if ((imageQuality === "" || imageQuality === "auto" || imageQuality === "any") && imageSize) {
-            const resolution = imageResolutionOption(buildImageResolutionOptions([imageSize]), imageSize)?.tier;
-            if (resolution) requested.quality = resolution;
-        }
-        for (const key of ["quality", "size"] as const) {
-            const value = String(options[key] ?? "").trim().toLowerCase();
-            if (value && value !== "auto" && value !== "any" && !requested[key]) requested[key] = value;
-        }
+        Object.assign(requested, imagePriceSelector(imageQuality, imageSize, modelCapabilityConfigFor(config, config.model || config.imageModel)?.image));
     }
     return requested;
 }
@@ -164,7 +153,7 @@ function imagePriceOperation(requirements?: ModelRequirements) {
 }
 
 function priceSelectorForTier(tier: ModelPriceTier) {
-    const selector = { ...(tier.selector || {}) };
+    const selector = normalizeImagePriceSelector({ ...(tier.selector || {}) });
     if (!Object.keys(selector).length) {
         const resolution = normalizeTierResolution(tier.resolution);
         if (resolution !== "*") selector.vquality = resolution;

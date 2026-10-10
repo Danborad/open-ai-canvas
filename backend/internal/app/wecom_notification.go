@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"infinite-canvas/backend/internal/model"
-	"infinite-canvas/backend/internal/repository"
 	"gorm.io/gorm"
+	"yingce/backend/internal/model"
+	"yingce/backend/internal/repository"
 )
 
 const wecomSettingKey = "wecom_notification"
@@ -63,30 +63,30 @@ type ModelUsageStat struct {
 }
 
 type WecomDailyReportData struct {
-	ReportTime       time.Time                     `json:"reportTime"`
-	TotalUsers       int64                         `json:"totalUsers"`
-	ActiveUsersToday int64                         `json:"activeUsersToday"`
-	TotalTasksToday  int64                         `json:"totalTasksToday"`
-	SuccessTasks     int64                         `json:"successTasks"`
-	FailedTasks      int64                         `json:"failedTasks"`
-	TotalImagesToday int64                         `json:"totalImagesToday"`
-	ImageSuccess     int64                         `json:"imageSuccess"`
-	ImageFailed      int64                         `json:"imageFailed"`
-	TotalVideosToday int64                         `json:"totalVideosToday"`
-	VideoSuccess     int64                         `json:"videoSuccess"`
-	VideoFailed      int64                         `json:"videoFailed"`
-	TopCreators      []repository.CreatorStat      `json:"topCreators"`
-	ModelStats       []ModelUsageStat              `json:"modelStats"`
-	SystemImages     int64                         `json:"systemImages"`
-	SystemImageBytes int64                         `json:"systemImageBytes"`
-	SystemVideos     int64                         `json:"systemVideos"`
-	SystemVideoBytes int64                         `json:"systemVideoBytes"`
-	SystemTotalBytes int64                         `json:"systemTotalBytes"`
-	ESADomain        string                        `json:"esaDomain"`
-	ESATrafficBytes  int64                         `json:"esaTrafficBytes"`
-	ESARequestCount  int64                         `json:"esaRequestCount"`
-	ESAEnabled       bool                          `json:"esaEnabled"`
-	ESAError         string                        `json:"esaError,omitempty"`
+	ReportTime       time.Time                `json:"reportTime"`
+	TotalUsers       int64                    `json:"totalUsers"`
+	ActiveUsersToday int64                    `json:"activeUsersToday"`
+	TotalTasksToday  int64                    `json:"totalTasksToday"`
+	SuccessTasks     int64                    `json:"successTasks"`
+	FailedTasks      int64                    `json:"failedTasks"`
+	TotalImagesToday int64                    `json:"totalImagesToday"`
+	ImageSuccess     int64                    `json:"imageSuccess"`
+	ImageFailed      int64                    `json:"imageFailed"`
+	TotalVideosToday int64                    `json:"totalVideosToday"`
+	VideoSuccess     int64                    `json:"videoSuccess"`
+	VideoFailed      int64                    `json:"videoFailed"`
+	TopCreators      []repository.CreatorStat `json:"topCreators"`
+	ModelStats       []ModelUsageStat         `json:"modelStats"`
+	SystemImages     int64                    `json:"systemImages"`
+	SystemImageBytes int64                    `json:"systemImageBytes"`
+	SystemVideos     int64                    `json:"systemVideos"`
+	SystemVideoBytes int64                    `json:"systemVideoBytes"`
+	SystemTotalBytes int64                    `json:"systemTotalBytes"`
+	ESADomain        string                   `json:"esaDomain"`
+	ESATrafficBytes  int64                    `json:"esaTrafficBytes"`
+	ESARequestCount  int64                    `json:"esaRequestCount"`
+	ESAEnabled       bool                     `json:"esaEnabled"`
+	ESAError         string                   `json:"esaError,omitempty"`
 }
 
 type WecomTestResult struct {

@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"infinite-canvas/backend/internal/model"
+	"yingce/backend/internal/model"
 )
 
 type ChannelModelsRequest struct {
@@ -407,20 +407,20 @@ func grok2APIDisplayName(model string) string {
 		"Web/grok-imagine-image-2.0":         "Grok Imagine 2.0 (极速出图)",
 		"Web/grok-imagine-image-quality-2.0": "Grok Imagine 2.0 (高质量)",
 		"Web/grok-imagine-image":             "Grok Imagine (标准生图)",
-		"Console/grok-imagine-image-2.0": "Grok Imagine 2.0 (Console)",
-		"Console/grok-imagine-image":     "Grok Imagine (Console)",
-		"Web/grok-imagine-video":         "Grok Video (Web)",
-		"Console/grok-imagine-video-1.5": "Grok Video 1.5 (Console 1080p)",
-		"Console/grok-imagine-video":     "Grok Video (Console 720p)",
-		"grok-voice-latest":              "Grok Voice Latest (多语言TTS)",
-		"grok-voice-think-fast-2.0":      "Grok Voice Think Fast 2.0",
-		"grok-voice-think-fast-1.0":      "Grok Voice Think Fast 1.0",
-		"grok-stt":                       "Grok STT (语音识别)",
-		"Build/grok-4.6":                 "Grok 4.6 (500k/推理)",
-		"Build/grok-4.5":                 "Grok 4.5 (500k/推理)",
-		"Build/grok-composer-2.5-fast":   "Grok Composer 2.5 Fast",
-		"Web/grok-chat-fast":             "Grok Chat Fast (128k)",
-		"Console/grok-4.5":               "Grok 4.5 (1000k/Console)",
+		"Console/grok-imagine-image-2.0":     "Grok Imagine 2.0 (Console)",
+		"Console/grok-imagine-image":         "Grok Imagine (Console)",
+		"Web/grok-imagine-video":             "Grok Video (Web)",
+		"Console/grok-imagine-video-1.5":     "Grok Video 1.5 (Console 1080p)",
+		"Console/grok-imagine-video":         "Grok Video (Console 720p)",
+		"grok-voice-latest":                  "Grok Voice Latest (多语言TTS)",
+		"grok-voice-think-fast-2.0":          "Grok Voice Think Fast 2.0",
+		"grok-voice-think-fast-1.0":          "Grok Voice Think Fast 1.0",
+		"grok-stt":                           "Grok STT (语音识别)",
+		"Build/grok-4.6":                     "Grok 4.6 (500k/推理)",
+		"Build/grok-4.5":                     "Grok 4.5 (500k/推理)",
+		"Build/grok-composer-2.5-fast":       "Grok Composer 2.5 Fast",
+		"Web/grok-chat-fast":                 "Grok Chat Fast (128k)",
+		"Console/grok-4.5":                   "Grok 4.5 (1000k/Console)",
 	}
 	if name := names[model]; name != "" {
 		return name
@@ -442,22 +442,22 @@ func senseNovaDisplayName(model string) string {
 
 func autoDLWorkflowDisplayName(workflow string) string {
 	names := map[string]string{
-		"minimax_h3_z0901":                     "H3 文生视频 (高质量直出)",
-		"minimax_h3_z0902":                     "H3 六图生视频 (多图一致性创作)",
-		"minimax_h3_z0903":                     "H3 六图三音频生视频 (高质量音画融合)",
-		"minimax_h3_zm_u24":                    "H3 多图多音频生视频 (升级版)",
-		"minimax_h3_zm_u08":                    "H3 多图多音频生视频 (高速版)",
-		"minimax_h3_b99_002":                    "H3 首尾帧生成视频 (b99_002)",
-		"minimax_h3_b99_001":                    "H3 文生视频 (b99_001)",
-		"minimax_h3_b99_003_12s":                "H3 多图生视频 12 秒",
+		"minimax_h3_z0901":                       "H3 文生视频 (高质量直出)",
+		"minimax_h3_z0902":                       "H3 六图生视频 (多图一致性创作)",
+		"minimax_h3_z0903":                       "H3 六图三音频生视频 (高质量音画融合)",
+		"minimax_h3_zm_u24":                      "H3 多图多音频生视频 (升级版)",
+		"minimax_h3_zm_u08":                      "H3 多图多音频生视频 (高速版)",
+		"minimax_h3_b99_002":                     "H3 首尾帧生成视频 (b99_002)",
+		"minimax_h3_b99_001":                     "H3 文生视频 (b99_001)",
+		"minimax_h3_b99_003_12s":                 "H3 多图生视频 12 秒",
 		"minimax_h3_image_audio_to_video_v2_15s": "H3 多图多音频生视频 15 秒",
-		"minimax_h3_lightx2v_v5_15s":            "H3 多图生视频 15 秒",
-		"minimax_h3_image_audio_to_video_v2":    "H3 多图多音频生视频",
-		"minimax_h3_image_audio_to_video":       "H3 图生视频音频同步",
-		"minimax_h3_lightx2v_v5":                "H3 多图参考生视频",
-		"minimax_h3_lightx2v_no_pic":            "H3 文生视频",
-		"minimax_h3_lightx2v":                   "H3 首尾帧生成视频",
-		"indextts2-v1":                          "IndexTTS2 语音",
+		"minimax_h3_lightx2v_v5_15s":             "H3 多图生视频 15 秒",
+		"minimax_h3_image_audio_to_video_v2":     "H3 多图多音频生视频",
+		"minimax_h3_image_audio_to_video":        "H3 图生视频音频同步",
+		"minimax_h3_lightx2v_v5":                 "H3 多图参考生视频",
+		"minimax_h3_lightx2v_no_pic":             "H3 文生视频",
+		"minimax_h3_lightx2v":                    "H3 首尾帧生成视频",
+		"indextts2-v1":                           "IndexTTS2 语音",
 	}
 	if name := names[workflow]; name != "" {
 		return name

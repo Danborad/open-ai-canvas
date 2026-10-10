@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+
+      <defs>
+        <linearGradient id="ai-g-top" x1="90" y1="24" x2="20" y2="76" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#00F2FE"/>
+          <stop offset="50%" stop-color="#38BDF8"/>
+          <stop offset="100%" stop-color="#2563EB"/>
+        </linearGradient>
+        <linearGradient id="ai-g-btm" x1="24" y1="76" x2="106" y2="74" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#2563EB"/>
+          <stop offset="60%" stop-color="#4F46E5"/>
+          <stop offset="100%" stop-color="#06B6D4"/>
+        </linearGradient>
+        <linearGradient id="ai-g-bar" x1="56" y1="64" x2="102" y2="64" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#38BDF8"/>
+          <stop offset="100%" stop-color="#2563EB"/>
+        </linearGradient>
+      </defs>
+      <path d="M96 42C90.2 30.5 78.4 22 64 22C40.8 22 22 40.8 22 64C22 75.8 26.9 86.4 34.8 94L46.2 82.6C41.2 77.8 38 71.3 38 64C38 49.6 49.6 38 64 38C73.2 38 81.3 43.1 85.5 50.8L96 42Z" fill="url(#ai-g-top)"/>
+      <path d="M34.8 94C42.4 101.5 52.7 106 64 106C87.2 106 106 87.2 106 64C106 60.5 105.6 57.1 104.8 53.8L89.4 57.8C89.8 59.8 90 61.9 90 64C90 78.4 78.4 90 64 90C57.2 90 51 87.4 46.2 82.6L34.8 94Z" fill="url(#ai-g-btm)"/>
+      <path d="M58 56C55.8 56 54 57.8 54 60V68C54 70.2 55.8 72 58 72H96C99.3 72 102 69.3 102 66V62C102 58.7 99.3 56 96 56H58Z" fill="url(#ai-g-bar)"/>
+      <circle cx="68" cy="64" r="3.2" fill="#FFFFFF"/>
+    
+</svg>

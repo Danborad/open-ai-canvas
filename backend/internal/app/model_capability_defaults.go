@@ -5,7 +5,7 @@ package app
 import (
 	"strings"
 
-	"infinite-canvas/backend/internal/model"
+	"yingce/backend/internal/model"
 )
 
 func DefaultModelCapabilityConfig(protocol string) *ModelCapabilityConfig {
@@ -31,6 +31,19 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		MaxOutputs:            15,
 	}
 	switch model.ChannelInterfaceType(protocol) {
+	case "km-kemei-seedream", "km-kemei-seedream-image", "km-seedream-image":
+		image.References.MaxImages = 10
+		image.References.MaskSupported = false
+		presets := kemeiSeedreamImagePresets()
+		values := make([]string, 0, len(presets))
+		for _, preset := range presets {
+			values = append(values, preset.Size)
+		}
+		image.Size = ImageSizeConfig{Parameter: "size", Values: values, Default: "2048x2048", AllowCustom: true, Presets: presets}
+		image.Quality = ImageQualityConfig{Supported: false, Values: []string{}, Default: "auto"}
+		// 透明背景需要带 alpha 的单张参考图，通过插件命名空间显式配置。
+		image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
+		image.MaxOutputs = 1
 	case model.ChannelInterfaceGrokImage:
 		image.References.MaxImages = 1
 		image.References.MaskSupported = false
@@ -62,7 +75,7 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		image.ResponseFormat.Supported = false
 		image.OutputFormat.Supported = false
 		image.MaxOutputs = 4
-	case "km-kemei-seedream-image", "km-seedream-image", "km-seedream", "doubao-seedream-image", "seedream-image":
+	case "doubao-seedream-image", "seedream-image", "km-seedream":
 		image.References.MaxImages = 14
 		image.References.MaskSupported = true
 		isPro := strings.Contains(strings.ToLower(modelName), "pro") || strings.Contains(strings.ToLower(modelName), "flash")
@@ -87,7 +100,7 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 			image.MaxOutputs = 15
 		}
 	}
-	if strings.Contains(strings.ToLower(strings.TrimSpace(modelName)), "seedream") && !strings.Contains(protocol, "ark") {
+	if strings.Contains(strings.ToLower(strings.TrimSpace(modelName)), "seedream") && !strings.Contains(protocol, "ark") && !strings.HasPrefix(protocol, "km-kemei") && !strings.HasPrefix(protocol, "km-") {
 		image.References.MaxImages = 14
 		image.References.MaskSupported = true
 		isPro := strings.Contains(strings.ToLower(modelName), "pro") || strings.Contains(strings.ToLower(modelName), "flash")

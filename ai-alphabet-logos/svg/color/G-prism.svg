@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <!-- Claude / Anthropic Warm AI Fusion Gradient -->
+    <linearGradient id="g-prism-glow" x1="20" y1="20" x2="108" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF4538"/>
+      <stop offset="60%" stop-color="#FF8A00"/>
+      <stop offset="100%" stop-color="#FFC107"/>
+    </linearGradient>
+    <linearGradient id="g-bar-grad" x1="60" y1="64" x2="104" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFAE19"/>
+      <stop offset="100%" stop-color="#FF5E36"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Hex-Chamber C-Frame Outer -->
+  <path d="M96 38L84 26C78.5 20.5 70.8 18 63 18C44.2 18 26 33.2 26 52V76C26 94.8 44.2 110 63 110C75 110 85.5 104.5 92.5 95.5L80.5 83.5C76 89.5 69.5 93 63 93C52.5 93 43 83.5 43 73V55C43 44.5 52.5 35 63 35C67.5 35 71.8 36.5 75 39.5L84.5 49L96 38Z" fill="url(#g-prism-glow)"/>
+
+  <!-- Precision Kinetic Crossbar (Solid Floating Core) -->
+  <path d="M60 55C57.2 55 55 57.2 55 60V68C55 70.8 57.2 73 60 73H98C101.3 73 104 70.3 104 67V61C104 57.7 101.3 55 98 55H60Z" fill="url(#g-bar-grad)"/>
+
+  <!-- Laser Cut Negative Notch Accent -->
+  <polygon points="98,82 106,74 106,90 98,90" fill="#FF8A00"/>
+</svg>

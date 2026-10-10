@@ -1,51 +1,41 @@
 import { buildImageResolutionOptions } from "../src/lib/image-resolution-tiers";
-import { defaultImageSizes, seedreamProImageSizes } from "../src/lib/model-capabilities";
+import { defaultImageCapabilityConfig, defaultImageSizes } from "../src/lib/model-capabilities";
+import { kemeiSeedreamPresets } from "../src/lib/kemei-image-presets";
+import { imageResolutionTiers } from "../src/lib/image-size-presets";
 import { expect, test } from "bun:test";
 
-test("Default models have 1K, 2K, 4K only (NO 1.5K) and have ALL 10 ratios in consistent order", () => {
+test("Default models have 1K, 2K, 4K only (NO 1.5K) and have all 10 ratios in consistent order", () => {
     const options = buildImageResolutionOptions(defaultImageSizes);
     const expectedRatios = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9"];
 
     // 1. 确保绝对没有 1.5k
-    const has15k = options.some(o => o.tier === "1.5k");
-    expect(has15k).toBe(false);
+    expect(options.some((o) => o.tier === "1.5k")).toBe(false);
 
-    // 2. 检查 1K
-    const k1 = options.filter(o => o.tier === "1k");
-    const k1Ratios = k1.map(o => o.ratio);
-    console.log("1K Ratios:", k1Ratios);
-    expect(k1Ratios).toEqual(expectedRatios);
-
-    // 3. 检查 2K
-    const k2 = options.filter(o => o.tier === "2k");
-    const k2Ratios = k2.map(o => o.ratio);
-    console.log("2K Ratios:", k2Ratios);
-    expect(k2Ratios).toEqual(expectedRatios);
-
-    // 4. 检查 4K
-    const k4 = options.filter(o => o.tier === "4k");
-    const k4Ratios = k4.map(o => o.ratio);
-    console.log("4K Ratios:", k4Ratios);
-    expect(k4Ratios).toEqual(expectedRatios);
+    // 2. 各分辨率档位都完整包含 10 个比例，且顺序一致
+    for (const tier of ["1k", "2k", "4k"]) {
+        expect(options.filter((o) => o.tier === tier).map((o) => o.ratio)).toEqual(expectedRatios);
+    }
 });
 
-test("Seedream Pro/Flash has 1K, 1.5K, 2K only (NO 4K) and has ALL 10 ratios in consistent order", () => {
-    const options = buildImageResolutionOptions(seedreamProImageSizes);
-    const expectedRatios = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9"];
+test("Seedream 5.0 Pro/Flash has 1K, 1.5K, 2K only (NO 4K) with a unified ratio order", () => {
+    const presets = kemeiSeedreamPresets();
+    const expectedRatios = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"];
 
-    // 1. 确保绝对没有 4k
-    const has4k = options.some(o => o.tier === "4k");
-    expect(has4k).toBe(false);
+    // 1. 绝对没有 4K，且三档各 8 个比例
+    expect(presets.some((preset) => preset.tier === "4k")).toBe(false);
+    expect(presets).toHaveLength(24);
 
-    // 2. 检查 1K
-    const k1 = options.filter(o => o.tier === "1k");
-    expect(k1.map(o => o.ratio)).toEqual(expectedRatios);
+    // 2. 三档比例种类与顺序完全一致
+    for (const tier of ["1k", "1.5k", "2k"] as const) {
+        expect(presets.filter((preset) => preset.tier === tier).map((preset) => preset.ratio)).toEqual(expectedRatios);
+    }
+});
 
-    // 3. 检查 1.5K
-    const k15 = options.filter(o => o.tier === "1.5k");
-    expect(k15.map(o => o.ratio)).toEqual(expectedRatios);
-
-    // 4. 检查 2K
-    const k2 = options.filter(o => o.tier === "2k");
-    expect(k2.map(o => o.ratio)).toEqual(expectedRatios);
+test("Seedream profile surfaces 1K/1.5K/2K and never 4K", () => {
+    const profile = defaultImageCapabilityConfig("km-kemei-seedream", "doubao-seedream-5-0-pro-260628");
+    const tiers = imageResolutionTiers(profile);
+    expect(tiers).toEqual(["1k", "1.5k", "2k", "4k"]);
+    expect(profile.size.presets?.some((preset) => preset.tier === "4k")).toBe(false);
+    expect(profile.quality.supported).toBe(false);
+    expect(profile.maxOutputs).toBe(1);
 });

@@ -1,6 +1,7 @@
 import type { ModelProtocol, ModelProtocolWorkflow } from "@/lib/model-protocols";
 import type { ImageResolutionOption, ImageResolutionTier } from "@/lib/image-resolution-tiers";
 import { imagePresetForRatio } from "./image-size-presets";
+import { kemeiSeedreamPresets } from "./kemei-image-presets";
 import { type WorkflowVideoFieldLike, workflowImageCapabilityConfig, workflowVideoCapabilityConfig } from "./model-capabilities-workflow";
 import { resolveWorkflowVideoScreenSpec } from "./video-screen-specs";
 
@@ -270,6 +271,19 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         outputFormat: { supported: true },
         maxOutputs: 15,
     };
+    if (protocol === "km-kemei-seedream" || protocol === "km-kemei-seedream-image" || protocol === "km-seedream-image") {
+        const presets = kemeiSeedreamPresets();
+        image.references = { ...image.references, maxImages: 10, maskSupported: false };
+        image.size = { parameter: "size", values: presets.map((preset) => preset.size), default: "2048x2048", allowCustom: true, presets };
+        image.quality = { supported: false, values: [], default: "auto" };
+        // 透明输出要求一张含 alpha 的参考图，宿主通用开关不能保证此条件。
+        // 此能力通过插件命名空间的 background + output_format 显式配置。
+        image.transparentBackground = { supported: false, default: false };
+        image.responseFormat = { supported: true };
+        image.outputFormat = { supported: true };
+        image.maxOutputs = 1;
+        return image;
+    }
     if (protocol === "kacang-midjourney-special" || protocol === "kacang-midjourney-v7" || protocol === "kacang-midjourney") {
         const stable = protocol === "kacang-midjourney";
         const extendedRatios = stable || protocol === "kacang-midjourney-v7";
@@ -452,7 +466,7 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         image.maxOutputs = 1;
     }
     const cleanLower = model.trim().toLowerCase();
-    if (protocol === "km-kemei-seedream-image" || protocol === "km-seedream-image" || (cleanLower.includes("seedream") && !protocol?.includes("ark"))) {
+    if ((protocol === "doubao-seedream-image" || protocol === "seedream-image" || cleanLower.includes("seedream")) && !protocol?.includes("ark") && !protocol?.startsWith("km-") && !protocol?.startsWith("km-kemei")) {
         const isPro = cleanLower.includes("pro") || cleanLower.includes("flash");
         image.references.maxImages = isPro ? 10 : 14;
         image.references.maskSupported = true;
@@ -707,7 +721,7 @@ export function normalizeImageValue(profile: ImageCapabilityConfig, value: { siz
             : value.quality && profile.quality.values.includes(value.quality)
                 ? value.quality
                 : profile.quality.default || "auto"
-        : requestedQuality === "1k" || requestedQuality === "2k" || requestedQuality === "4k"
+        : requestedQuality === "1k" || requestedQuality === "1.5k" || requestedQuality === "2k" || requestedQuality === "4k"
             ? requestedQuality
             : presetTier || profile.quality.default || "auto";
     const count = String(Math.max(1, Math.min(profile.maxOutputs, Math.floor(Math.abs(Number(value.count)) || 1))));

@@ -114,11 +114,11 @@ func TestKemeiSeedreamImageCreateAndParse(t *testing.T) {
 	adapter := officialPackageAdapter(t, "km-kemei-seedream-image.yingce-plugin", "km-kemei-seedream-image")
 	createPro, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{
 		Model: "doubao-seedream-5-0-pro-260628", Prompt: "一只柴犬，透明背景", Resolution: "2K",
-		Images: []MediaReference{{URL: "https://example.com/ref1.png", Order: 1}, {URL: "https://example.com/ref2.png", Order: 2}},
+		Images:     []MediaReference{{URL: "https://example.com/ref1.png", Order: 1}, {URL: "https://example.com/ref2.png", Order: 2}},
 		ImageCount: 4, // Pro 模型应当忽略 >1 的数量
 		Watermark:  false,
 		ProviderOptions: map[string]map[string]any{"km-kemei-seedream-image": {
-			"background": "transparent",
+			"background":          "transparent",
 			"layer_decomposition": false,
 		}},
 	}})
