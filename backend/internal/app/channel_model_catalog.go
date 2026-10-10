@@ -295,6 +295,8 @@ var (
 	flow2APIPresetModels = []string{
 		"Nano Banana Pro",
 		"Nano Banana 2",
+		"Nano Banana 2 Lite",
+		"Nano Banana 2.1",
 		"Imagen 4",
 		"Omni 1.1 Flash",
 		"Omni Flash",

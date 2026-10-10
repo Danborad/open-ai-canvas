@@ -627,14 +627,21 @@ func (s *Service) syncInitialChannelModels(channel *model.ModelChannel, names []
 		}
 	}
 	for index := range existing {
-		if !desired[existing[index].ModelKey] {
-			changed := existing[index].Enabled
+		key := existing[index].ModelKey
+		if desired[key] {
+			continue
+		}
+		// 预设同步只负责补齐与刷新预设目录，不擅自停用管理员手动启用或从上游导入
+		// 的模型；只有被显式标记为下架（retired）的模型才会自动停用，避免任何一次
+		// 后端重启都把用户刚启用的模型再次关掉。
+		if !retired[channelModelCatalogKey(key)] {
+			continue
+		}
+		if existing[index].Enabled {
 			existing[index].Enabled = false
-			if changed {
-				existing[index].PriceVersion++
-				if err := s.repo.SaveChannelModel(&existing[index]); err != nil {
-					return err
-				}
+			existing[index].PriceVersion++
+			if err := s.repo.SaveChannelModel(&existing[index]); err != nil {
+				return err
 			}
 		}
 	}
