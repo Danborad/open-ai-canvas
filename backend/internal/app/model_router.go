@@ -416,12 +416,75 @@ func matchSKUSelector(tier map[string]string, requested map[string]string) (bool
 		if expected == "" || expected == "*" {
 			continue
 		}
-		if requested[key] != expected {
-			return false, 0
+		reqVal := requested[key]
+		if reqVal == expected {
+			score += 2
+			continue
 		}
-		score++
+		if key == "vquality" && matchVideoResolutionTier(expected, reqVal) {
+			score++
+			continue
+		}
+		if key == "quality" && reqVal == "1.5k" && (expected == "2k" || expected == "1k") {
+			score++
+			continue
+		}
+		if key == "resolution" && reqVal == "1.5k" && (expected == "2k" || expected == "1k") {
+			score++
+			continue
+		}
+		return false, 0
 	}
 	return true, score
+}
+
+// matchVideoResolutionTier 让同一像素档的不同写法（480p / 480p竖 / 480p横）以及
+// 720p / 768p / 736p 这类等价档位都能命中同一价格档。仅在至少一侧是「裸档位」
+// （纯数字或数字+p）时才做跨写法匹配，避免把 768p竖 与 768p(1:1) 误判为同一档。
+func matchVideoResolutionTier(expected string, requested string) bool {
+	exp := strings.ToLower(strings.TrimSpace(expected))
+	req := strings.ToLower(strings.TrimSpace(requested))
+	if exp == "" || exp == "*" || exp == "any" {
+		return true
+	}
+	if req == exp {
+		return true
+	}
+	expNum, expBare := splitResolutionTier(exp)
+	reqNum, reqBare := splitResolutionTier(req)
+	if expNum == "" || reqNum == "" {
+		return false
+	}
+	if expNum == reqNum && (expBare || reqBare) {
+		return true
+	}
+	if isInterchangeableResolution(expNum) && isInterchangeableResolution(reqNum) && (expBare || reqBare) {
+		return true
+	}
+	return false
+}
+
+// splitResolutionTier 拆分档位为像素数字与是否「裸档位」。裸档位只包含数字和可选结尾 p，
+// 例如 480 / 480p；带方向或比例后缀的 480p竖、480p(1:1) 不是裸档位。
+func splitResolutionTier(value string) (string, bool) {
+	value = strings.TrimSpace(strings.ToLower(value))
+	value = strings.TrimSuffix(value, "p")
+	digits := strings.Builder{}
+	for _, ch := range value {
+		if ch >= '0' && ch <= '9' {
+			digits.WriteRune(ch)
+			continue
+		}
+		return digits.String(), false
+	}
+	if digits.Len() == 0 {
+		return "", false
+	}
+	return digits.String(), true
+}
+
+func isInterchangeableResolution(digits string) bool {
+	return digits == "720" || digits == "768" || digits == "736"
 }
 
 func (s *Service) logicalRouteBlocked(route cachedLogicalRoute) bool {

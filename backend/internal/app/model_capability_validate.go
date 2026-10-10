@@ -371,6 +371,10 @@ func validateImageTask(profile *ImageCapabilityConfig, input canvasGenerationInp
 		return BadAuthRequest("图片尺寸不在当前模型支持范围内")
 	}
 	if profile.Size.Parameter == "size" && profile.Size.AllowCustom && strings.HasPrefix(modelName, "gpt-image-2") && !containsCapabilityString(profile.Size.Values, input.Config.Size) {
+		// 画布按比例保存常用预设，OpenAI 图片接口只接受像素尺寸，校验前先转换。
+		if pixel := normalizePixelSize(input.Config.Size); pixel != "" {
+			input.Config.Size = pixel
+		}
 		if err := validateGPTImage2CustomSize(input.Config.Size); err != nil {
 			return BadAuthRequest(err.Error())
 		}
@@ -461,7 +465,10 @@ func validateGPTImage2CustomSize(value string) error {
 		return errors.New("图片尺寸必须是正整数")
 	}
 	if width%16 != 0 || height%16 != 0 {
-		return errors.New("图片尺寸宽高必须是 16 的倍数")
+		// 21:9 基准尺寸 1938x812 由官方端点接受，不强制 16 像素对齐。
+		if !((width == 1938 && height == 812) || (width == 812 && height == 1938)) {
+			return errors.New("图片尺寸宽高必须是 16 的倍数")
+		}
 	}
 	if max(width, height) > 3840 {
 		return errors.New("图片尺寸最长边不能超过 3840px")

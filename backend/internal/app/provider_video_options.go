@@ -215,15 +215,20 @@ func videoResolutionNameRequestForInput(profile *VideoCapabilityConfig, value st
 			}
 		}
 	}
-	// 支持 AutoDL 等带中文字符的特定画幅分辨率枚举（如 768p横、768p竖、768p(1:1) 等）
+	// 支持 AutoDL 等带中文字符的特定画幅分辨率枚举（如 768p横、768p竖、768p(1:1) 等）。
+	// 仅当请求是通用档位（480p / 720p / 768p / 1080p 等）时才模糊归一；
+	// 请求本身已带方向或比例后缀时必须精确命中，否则视为不支持，避免越过已保存的能力白名单。
+	requestedHasVariant := strings.Contains(requested, "竖") || strings.Contains(requested, "横") || strings.Contains(requested, "(1:1)") || strings.Contains(requested, "1:1")
 	var targetTier string
-	switch {
-	case strings.HasPrefix(requested, "480") || requested == "low":
-		targetTier = "480p"
-	case strings.HasPrefix(requested, "720") || strings.HasPrefix(requested, "768") || strings.HasPrefix(requested, "736") || requested == "standard":
-		targetTier = "768p"
-	case strings.HasPrefix(requested, "1080") || requested == "2k" || requested == "high":
-		targetTier = "1080p"
+	if !requestedHasVariant {
+		switch {
+		case strings.HasPrefix(requested, "480") || requested == "low":
+			targetTier = "480p"
+		case strings.HasPrefix(requested, "720") || strings.HasPrefix(requested, "768") || strings.HasPrefix(requested, "736") || requested == "standard":
+			targetTier = "768p"
+		case strings.HasPrefix(requested, "1080") || requested == "2k" || requested == "high":
+			targetTier = "1080p"
+		}
 	}
 	if targetTier != "" {
 		orientation := "横"
@@ -246,7 +251,7 @@ func videoResolutionNameRequestForInput(profile *VideoCapabilityConfig, value st
 			}
 		}
 	}
-	if cleanRatio != "" {
+	if cleanRatio != "" && !requestedHasVariant {
 		for _, supported := range profile.Resolutions {
 			supp := strings.TrimSpace(supported)
 			if (cleanRatio == "9:16" && strings.Contains(supp, "竖")) || (cleanRatio == "16:9" && strings.Contains(supp, "横")) {

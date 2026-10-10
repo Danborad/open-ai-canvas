@@ -58,7 +58,6 @@ type PublicChannelCatalog struct {
 	ID          string               `json:"id"`
 	Name        string               `json:"name"`
 	DisplayName string               `json:"displayName"`
-	PublicAlias string               `json:"publicAlias"`
 	SortOrder   int                  `json:"sortOrder"`
 	Models      []PublicChannelModel `json:"models"`
 }

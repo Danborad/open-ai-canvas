@@ -44,12 +44,77 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		// 透明背景需要带 alpha 的单张参考图，通过插件命名空间显式配置。
 		image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
 		image.MaxOutputs = 1
-	case model.ChannelInterfaceGrokImage:
+	case "flow2api-image":
+		image.References.MaxImages = 14
+		image.References.MaskSupported = false
+		flowRatios := []string{"16:9", "9:16", "1:1", "4:3", "3:4"}
+		if strings.EqualFold(strings.TrimSpace(modelName), "Imagen 4") || strings.EqualFold(strings.TrimSpace(modelName), "imagen") {
+			flowRatios = []string{"16:9", "9:16"}
+			image.Quality = ImageQualityConfig{Supported: false, Values: []string{}, Default: ""}
+		} else {
+			image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1k", "2k", "4k"}, Default: "1k"}
+		}
+		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: flowRatios, Default: "16:9", AllowCustom: false}
+		image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
+		image.ResponseFormat = ParameterSupport{Supported: false}
+		image.OutputFormat = ParameterSupport{Supported: false}
+		image.MaxOutputs = 4
+	case "zarklab-image":
+		image.References.MaxImages = 14
+		image.References.MaskSupported = false
+		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9"}, Default: "16:9", AllowCustom: false}
+		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1k", "2k", "4k"}, Default: "1k"}
+		image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
+		image.ResponseFormat = ParameterSupport{Supported: false}
+		image.OutputFormat = ParameterSupport{Supported: false}
+		image.MaxOutputs = 4
+	case "sensenova-image":
+		cleanSense := strings.ToLower(strings.TrimSpace(modelName))
+		if strings.Contains(cleanSense, "fast") {
+			image.References.MaxImages = 0
+			image.References.MaskSupported = false
+			image.Size = ImageSizeConfig{
+				Parameter: "size",
+				Values: []string{
+					"2752x1536", "1536x2752", "2048x2048",
+					"2368x1760", "1760x2368", "2496x1664", "1664x2496",
+					"2272x1824", "1824x2272", "3072x1376", "1344x3136",
+				},
+				Default:     "2752x1536",
+				AllowCustom: false,
+			}
+			image.Quality = ImageQualityConfig{Supported: false, Values: []string{}, Default: ""}
+			image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
+			image.ResponseFormat = ParameterSupport{Supported: false}
+			image.OutputFormat = ParameterSupport{Supported: false}
+			image.MaxOutputs = 1
+		} else {
+			image.References.MaxImages = 1
+			image.References.MaskSupported = false
+			image.Size = ImageSizeConfig{
+				Parameter: "size",
+				Values: []string{
+					"2048x2048", "2720x1536", "1536x2720", "2496x1664", "1664x2496",
+					"4096x4096", "3840x2176", "2176x3840", "3456x2304", "2304x3456",
+				},
+				Default:     "2048x2048",
+				AllowCustom: true,
+			}
+			image.Quality = ImageQualityConfig{Supported: false, Values: []string{}, Default: ""}
+			image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
+			image.ResponseFormat = ParameterSupport{Supported: true}
+			image.OutputFormat = ParameterSupport{Supported: true}
+			image.MaxOutputs = 1
+		}
+	case model.ChannelInterfaceGrokImage, "grok2api-image":
 		image.References.MaxImages = 1
 		image.References.MaskSupported = false
-		// grok2api / xAI Imagine：size→aspect_ratio，quality→resolution(1k/2k)。
-		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2"}, Default: "1:1", AllowCustom: false}
+		// grok2api / xAI Imagine：9种宽高比，quality→resolution(1k/2k)。
+		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "2:1", "1:2"}, Default: "1:1", AllowCustom: false}
 		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1k", "2k"}, Default: "2k"}
+		if strings.Contains(strings.ToLower(modelName), "2.0") {
+			image.Quality.Default = "1k"
+		}
 		image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
 		image.ResponseFormat = ParameterSupport{Supported: true}
 		image.OutputFormat = ParameterSupport{Supported: false}
@@ -125,10 +190,10 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 			image.MaxOutputs = 15
 		}
 	}
-	if model.ChannelInterfaceType(protocol) != model.ChannelInterfaceGrokImage && strings.HasPrefix(strings.ToLower(strings.TrimSpace(modelName)), "grok-imagine-image") {
-		image.References.MaxImages = 0
+	if model.ChannelInterfaceType(protocol) != model.ChannelInterfaceGrokImage && protocol != "grok2api-image" && strings.HasPrefix(strings.ToLower(strings.TrimSpace(modelName)), "grok-imagine-image") {
+		image.References.MaxImages = 1
 		image.References.MaskSupported = false
-		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2"}, Default: "1:1", AllowCustom: false}
+		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "2:1", "1:2"}, Default: "1:1", AllowCustom: false}
 		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1k", "2k"}, Default: "2k"}
 		image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
 		image.ResponseFormat = ParameterSupport{Supported: true}
@@ -182,6 +247,42 @@ func DefaultModelCapabilityConfigForModel(protocol string, modelName string) *Mo
 		DefaultOperation:  "text_to_video",
 	}
 	switch model.ChannelInterfaceType(protocol) {
+	case "flow2api-video":
+		cleanModel := strings.ToLower(strings.TrimSpace(modelName))
+		video.References.MaxImages = 9
+		video.References.PromptMaxChars = 2000
+		video.Operations = []string{"text_to_video", "image_to_video", "reference_to_video"}
+		video.DefaultOperation = "text_to_video"
+		video.Ratios = []string{"16:9", "9:16"}
+		video.DefaultRatio = "16:9"
+		video.GenerateAudio = VideoBooleanConfig{Supported: false, Default: false}
+		video.Watermark = VideoBooleanConfig{Supported: false, Default: false}
+		if strings.Contains(cleanModel, "omni") {
+			video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{4, 6, 8, 10}, Default: 6}
+			video.DurationSupported = boolPointer(true)
+			video.Resolutions = []string{}
+			video.DefaultResolution = ""
+			video.References.MaxVideos = 1
+			video.References.MaxVideoDuration = 10
+			video.Operations = []string{"text_to_video", "image_to_video", "video_to_video", "reference_to_video"}
+		} else if strings.Contains(cleanModel, "quality") {
+			video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{6}, Default: 6}
+			video.DurationSupported = boolPointer(false)
+			video.Resolutions = []string{"1080p", "4k"}
+			video.DefaultResolution = ""
+		} else {
+			video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{6}, Default: 6}
+			video.DurationSupported = boolPointer(false)
+			video.Resolutions = []string{}
+			video.DefaultResolution = ""
+		}
+	case "zarklab-video":
+		video.References.MaxImages = 4
+		video.Duration = VideoDurationConfig{Selection: "range", Min: 1, Max: 15, Step: 1, Default: 5}
+		video.Ratios = []string{"16:9", "21:9", "4:3", "1:1", "3:4", "4:5", "5:4", "9:16", "9:21"}
+		video.DefaultRatio = "16:9"
+		video.Resolutions = []string{}
+		video.DefaultResolution = ""
 	case model.ChannelInterfaceVolcengineJiMengVideo:
 		video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{5, 10}, Default: 5}
 		video.Resolutions = []string{"720p"}
@@ -204,8 +305,21 @@ func DefaultModelCapabilityConfigForModel(protocol string, modelName string) *Mo
 		if model.ChannelInterfaceType(protocol) == model.ChannelInterfaceNewAPIChannel1 {
 			video.Resolutions = []string{"480p", "720p", "1080p"}
 		}
-	case model.ChannelInterfaceNewAPIVideo, model.ChannelInterfaceXAIVideo:
+	case model.ChannelInterfaceNewAPIVideo:
 		video.GenerateAudio = VideoBooleanConfig{Supported: false, Default: false}
+	case model.ChannelInterfaceXAIVideo, "grok2api-video":
+		video.References.MaxImages = 8
+		video.References.PromptMaxChars = 2000
+		video.Operations = []string{"text_to_video", "image_to_video", "reference_to_video"}
+		video.DefaultOperation = "text_to_video"
+		video.Duration = VideoDurationConfig{Selection: "range", Min: 1, Max: 15, Step: 1, Default: 6}
+		video.DurationSupported = boolPointer(true)
+		video.Ratios = []string{"16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"}
+		video.DefaultRatio = "16:9"
+		video.Resolutions = []string{"480p", "720p", "1080p"}
+		video.DefaultResolution = "720p"
+		video.GenerateAudio = VideoBooleanConfig{Supported: false, Default: false}
+		video.Watermark = VideoBooleanConfig{Supported: false, Default: false}
 	case model.ChannelInterfaceNovitaVideo:
 		video.References.MaxImages, video.References.MaxImageBytes = 1, 10*1024*1024
 		video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{5, 10}, Default: 5}
