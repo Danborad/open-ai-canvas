@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
-  <!-- G-Flow Monochrome: Pure, Scalable, Negative Space Accent -->
-  <path d="M96 42C90.5 30 78.5 22 64 22C40.8 22 22 40.8 22 64C22 87.2 40.8 106 64 106C86.5 106 104.8 88.2 105.9 66C106.1 62.7 103.4 60 100.1 60H62C58.7 60 56 62.7 56 66C56 69.3 58.7 72 62 72H92.7C88.6 83.5 77.4 92 64 92C48.5 92 36 79.5 36 64C36 48.5 48.5 36 64 36C73 36 80.9 40.5 85.5 47.8C87.2 50.5 90.7 51.5 93.5 49.8C96.3 48.1 97.2 44.5 95.5 41.7L96 42Z" fill="currentColor"/>
-  <!-- Center Core Cutout -->
-  <circle cx="64" cy="66" r="3.5" fill="#0B0F19"/>
-</svg>

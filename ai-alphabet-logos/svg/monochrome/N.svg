@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none" style="color: currentColor;">
-
-      <path d="M28 24C28 21.8 29.8 20 32 20H44C47.2 20 50.1 22.1 51.1 25.1L75 97H57L41.9 48.5L42 104C42 106.2 40.2 108 38 108H32C29.8 108 28 106.2 28 104V24Z" fill="currentColor"/>
-      <path d="M100 104C100 106.2 98.2 108 96 108H84C80.8 108 77.9 105.9 76.9 102.9L53 31H71L86.1 79.5L86 24C86 21.8 87.8 20 90 20H96C98.2 20 100 21.8 100 24V104Z" fill="currentColor"/>
-      <circle cx="64" cy="64" r="4" fill="#0C0E14"/>
-    
-</svg>

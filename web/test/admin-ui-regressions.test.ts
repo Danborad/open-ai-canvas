@@ -86,12 +86,12 @@ test("channel model fetch requires explicit selection before import", async () =
     expect(component).toContain("setFetchPreviewOpen(true)");
     expect(component).toContain("setSelectedFetchModels(result.models)");
     expect(component).toContain("已选择 {selectedFetchModels.length} / {fetchPreviewModels.length} 个模型");
-    expect(component).toContain("disabled={importing || (isSearching ? allFilteredFetchModelsSelected : allFetchModelsSelected)}");
-    expect(component).toContain("onClick={handleSelectAllFiltered}");
-    expect(component).toContain("disabled={importing || (isSearching ? !filteredFetchPreviewModels.some((name) => selectedFetchModels.includes(name)) : selectedFetchModels.length === 0)}");
-    expect(component).toContain("onClick={handleDeselectFiltered}");
-    expect(component).toContain("搜索模型");
-    expect(component).toContain("未找到匹配");
+    expect(component).toContain("disabled={importing || !visibleFetchModels.length || allVisibleFetchModelsSelected}");
+    expect(component).toContain("selectVisibleModels(current, visibleFetchModels)");
+    expect(component).toContain("disabled={importing || selectedVisibleFetchCount === 0}");
+    expect(component).toContain("deselectVisibleModels(current, visibleFetchModels)");
+    expect(component).toContain("搜索模型标识");
+    expect(component).toContain("没有匹配");
     expect(component).toContain("取消全选");
     expect(component).toContain("disabled={importing}");
     expect(component).toContain("importAdminChannelModels(channel.id, selectedFetchModels)");
