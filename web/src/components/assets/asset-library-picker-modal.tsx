@@ -162,6 +162,10 @@ export function AssetLibraryPickerModal({
         enabled: remoteEnabled && open && sessionHydrated,
         // 切分类/翻页时保留上一页，避免加载间隙退回本地数据源、左侧分类被重置（点"角色"闪一下又跳回全部）。
         placeholderData: keepPreviousData,
+        // 每次打开参考弹窗都取最新远端列表：生成/上传后素材库应立即出现新素材，
+        // 不能因为 30s 的 staleTime 命中旧缓存，逼用户刷新整页才能看到。
+        staleTime: 0,
+        refetchOnMount: "always",
     });
     // 调用方的 items 只是本地缓存，不代表可插入集合（分页结果大多不在缓存里）。能接收 pickedItems 的
     // 调用方（acceptRemoteItems）允许直接选远端条目；其余调用方保持"不在 items 里就不可选"的旧约束。
