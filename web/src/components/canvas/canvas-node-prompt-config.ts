@@ -4,6 +4,7 @@ import { type CanvasNodeData, CanvasNodeType } from "@/types/canvas";
 import { Video } from "lucide-react";
 import { type AiConfig, defaultConfig } from "@/stores/use-config-store";
 import { type ModelRequirements, resolveCompatibleModel, resolveModelGenerationDefaults } from "@/lib/model-selection";
+import { inferImageRatio } from "@/lib/image-size-presets";
 import { canonicalGenerationMetadata } from "@/lib/canvas/generation-contract";
 import { resolveCanvasGenerationModel } from "@/lib/canvas/canvas-project-generation";
 import { normalizeVideoDuration, normalizeVideoResolution } from "@/lib/video-generation-options";
@@ -23,24 +24,29 @@ export function defaultMode(type: CanvasNodeData["type"]): CanvasNodeGenerationM
 
 export function buildNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mode: CanvasNodeGenerationMode, requirements: ModelRequirements): AiConfig {
     node = { ...node, metadata: canonicalGenerationMetadata(node, mode) };
+    const hasMedia = Boolean(node.metadata?.content || node.metadata?.storageKey || (node.metadata?.naturalWidth && node.metadata?.naturalHeight));
+    const inferredMediaRatio = !node.metadata?.size && hasMedia && (mode === "image" || mode === "video")
+        ? inferImageRatio(undefined, node.metadata?.naturalWidth || node.width, node.metadata?.naturalHeight || node.height)
+        : undefined;
+    const effectiveNodeSize = node.metadata?.size || inferredMediaRatio;
     const defaultModel = mode === "image" ? globalConfig.imageModel : mode === "video" ? globalConfig.videoModel : mode === "audio" ? globalConfig.audioModel : globalConfig.textModel;
     const fallbackModel = mode === "image" ? defaultConfig.imageModel : mode === "video" ? defaultConfig.videoModel : mode === "audio" ? defaultConfig.audioModel : defaultConfig.textModel;
     const preferredModel = resolveCanvasGenerationModel(globalConfig, node.metadata?.model, mode) || resolveCanvasGenerationModel(globalConfig, defaultModel, mode) || fallbackModel;
-    const model = resolveCompatibleModel(globalConfig, preferredModel, mode === "image" ? { ...requirements, imageSize: node.metadata?.size || globalConfig.size || defaultConfig.size } : requirements) || preferredModel;
+    const model = resolveCompatibleModel(globalConfig, preferredModel, mode === "image" ? { ...requirements, imageSize: effectiveNodeSize || globalConfig.size || defaultConfig.size } : requirements) || preferredModel;
     const defaults = resolveModelGenerationDefaults(
         globalConfig,
         model,
         mode === "image" ? "image" : mode === "video" ? "video" : undefined,
         mode === "image"
             ? {
-                  size: node.metadata?.size,
+                  size: effectiveNodeSize,
                   quality: node.metadata?.quality,
                   transparentBackground: node.metadata?.transparentBackground,
                   videoWatermark: node.metadata?.watermark,
                   count: String(node.metadata?.count || globalConfig.canvasImageCount || globalConfig.count || defaultConfig.count),
               }
             : {
-                  size: node.metadata?.size,
+                  size: effectiveNodeSize,
                   videoSeconds: node.metadata?.seconds,
                   vquality: node.metadata?.vquality,
                   videoGenerateAudio: node.metadata?.generateAudio,

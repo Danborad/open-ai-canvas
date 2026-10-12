@@ -1,4 +1,4 @@
-import { buildImageResolutionOptions, type ImageResolutionOption, type ImageResolutionTier } from "./image-resolution-tiers";
+import { buildImageResolutionOptions, closestRatio, imageRatioForSize, parseImageResolutionOption, type ImageResolutionOption, type ImageResolutionTier } from "./image-resolution-tiers";
 import type { ImageCapabilityConfig } from "./model-capabilities";
 
 export const IMAGE_RESOLUTIONS: ImageResolutionTier[] = ["1k", "2k", "4k"];
@@ -19,6 +19,137 @@ const standardSizes: Record<string, string[]> = {
     "5:4": ["1280x1024", "2240x1792", "3200x2560"],
     "21:9": ["2048x878", "3136x1344", "3808x1632"],
 };
+
+/**
+ * 从现有尺寸或宽高比中推导标准画幅比例（如 "16:9", "1:1", "9:16"）。
+ */
+export function inferImageRatio(size?: string, width?: number, height?: number): string | undefined {
+    if (size && size !== "auto" && size !== "*") {
+        const clean = size.trim().toLowerCase().replace(/×/g, "x");
+        if (clean.includes(":")) {
+            return clean;
+        }
+        const ratio = imageRatioForSize(clean);
+        if (ratio) return ratio;
+    }
+    if (width && height && width > 0 && height > 0) {
+        return closestRatio(width / height) || undefined;
+    }
+    return undefined;
+}
+
+/**
+ * 从现有的尺寸或画质参数中推导分辨率档位（"1k" | "1.5k" | "2k" | "4k"）。
+ * 当 size 是具体像素（含 "x"）时优先按像素面积推导，避免被全局遗留的默认 quality 干扰。
+ */
+export function inferImageResolutionTier(size?: string, quality?: string): ImageResolutionTier | undefined {
+    if (size && size !== "auto" && size.toLowerCase().replace(/×/g, "x").includes("x")) {
+        const cleanSize = size.trim().toLowerCase().replace(/×/g, "x");
+        const match = cleanSize.match(/^(\d+)x(\d+)$/);
+        if (match) {
+            const pixels = Number(match[1]) * Number(match[2]);
+            if (pixels <= 2_000_000) return "1k";
+            if (pixels <= 2_600_000) return "1.5k";
+            if (pixels <= 4_624_220) return "2k";
+            return "4k";
+        }
+        const option = parseImageResolutionOption(cleanSize);
+        if (option?.tier) return option.tier;
+    }
+    const cleanQuality = quality?.trim().toLowerCase();
+    if (cleanQuality && (cleanQuality === "1k" || cleanQuality === "1.5k" || cleanQuality === "2k" || cleanQuality === "4k")) {
+        return cleanQuality as ImageResolutionTier;
+    }
+    if (cleanQuality) {
+        const mapped = ({ low: "1k", medium: "2k", high: "4k", xhigh: "4k", max: "4k" } as Record<string, ImageResolutionTier>)[cleanQuality];
+        if (mapped) return mapped;
+    }
+    return undefined;
+}
+
+/**
+ * 模型切换时智能继承相同比例和分辨率：
+ * 若目标模型也支持当前比例（如 16:9），优先继承为目标模型对应的 16:9 尺寸与档位，
+ * 避免普通换模型时每次都被重置回默认 1:1。
+ */
+export function matchCompatibleImageSize(
+    targetProfile: ImageCapabilityConfig,
+    currentSize?: string,
+    currentQuality?: string,
+    allowCustomFallback = true,
+): { size: string; quality?: string } | undefined {
+    if (targetProfile.size.parameter === "none") return undefined;
+
+    const ratio = inferImageRatio(currentSize);
+    if (!ratio) return undefined;
+
+    const tier = inferImageResolutionTier(currentSize, currentQuality);
+    const presets = imageSizePresets(targetProfile);
+
+    // 1. 如果目标模型是 aspect_ratio 格式（如 Grok, Gemini, Flow2API 等）
+    if (targetProfile.size.parameter === "aspect_ratio") {
+        const hasPresetRatio = targetProfile.size.values.includes(ratio) || presets.some((p) => p.ratio === ratio);
+        if (!hasPresetRatio && !(allowCustomFallback && targetProfile.size.allowCustom)) return undefined;
+
+        let quality = targetProfile.quality.default || "auto";
+        if (targetProfile.quality.supported && tier) {
+            const fallbackTiers: ImageResolutionTier[] =
+                tier === "4k" ? ["4k", "2k", "1.5k", "1k"] : tier === "2k" ? ["2k", "1.5k", "4k", "1k"] : tier === "1.5k" ? ["1.5k", "2k", "1k"] : ["1k", "1.5k", "2k"];
+            for (const candidateTier of fallbackTiers) {
+                const aliasMatch = imageQualityForTier(targetProfile, candidateTier);
+                if (aliasMatch) {
+                    quality = aliasMatch;
+                    break;
+                }
+                if (targetProfile.quality.values.includes(candidateTier)) {
+                    quality = candidateTier;
+                    break;
+                }
+            }
+        }
+        return { size: ratio, quality };
+    }
+
+    // 2. 如果目标模型是具体像素 size 格式（如 OpenAI, Seedream, 通用模型等）
+    if (targetProfile.size.parameter === "size") {
+        const cleanCurrentSize = currentSize?.trim().toLowerCase().replace(/×/g, "x");
+        // 如果目标模型直接支持当前像素（例如都是 1824x1024）
+        if (cleanCurrentSize && targetProfile.size.values.includes(cleanCurrentSize)) {
+            return { size: cleanCurrentSize };
+        }
+
+        // 寻找目标模型中相同比例的预设
+        const matchingPresets = presets.filter((p) => p.ratio === ratio && imageTierAvailable(targetProfile, p.tier));
+        if (matchingPresets.length > 0) {
+            // 优先寻找同分辨率档位（如 16:9 2K 对 16:9 2K）
+            let best = tier ? matchingPresets.find((p) => p.tier === tier) : undefined;
+            if (!best && tier === "1.5k") {
+                // 1.5K 向 2K 或 1K 寻找
+                best = matchingPresets.find((p) => p.tier === "2k") || matchingPresets.find((p) => p.tier === "1k");
+            }
+            if (!best && tier === "4k") {
+                // 4K 若不支持向 2K 降级
+                best = matchingPresets.find((p) => p.tier === "2k");
+            }
+            if (!best) {
+                best = matchingPresets[0];
+            }
+            return { size: imagePresetValue(targetProfile, best) };
+        }
+
+        // 若允许自定义且能按该比例计算
+        if (allowCustomFallback && targetProfile.size.allowCustom) {
+            try {
+                const calculated = imagePresetForRatio(tier || "1k", ratio);
+                return { size: calculated.size };
+            } catch {
+                // ignore
+            }
+        }
+    }
+
+    return undefined;
+}
 
 export function imagePresetForRatio(tier: ImageResolutionTier, input: string): ImageResolutionOption {
     const match = input.trim().match(/^(\d{1,5})\s*[:：]\s*(\d{1,5})$/);

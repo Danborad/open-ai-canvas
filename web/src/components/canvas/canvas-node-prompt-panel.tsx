@@ -10,7 +10,7 @@ import { PROMPT_EDITOR_VIEWPORT_MARGIN } from "@/lib/canvas/canvas-prompt-editor
 import { CreditSymbol, requestCreditCost } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { modelQuoteDescription, modelQuoteRequest } from "@/lib/model-pricing";
-import { modelRequestOptions, defaultImageParamsForModel, type ModelRequirements } from "@/lib/model-selection";
+import { modelRequestOptions, defaultImageParamsForModel, defaultVideoParamsForModel, type ModelRequirements } from "@/lib/model-selection";
 import { navigateToSettings } from "@/lib/settings-navigation";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -445,7 +445,30 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                         fullWidth
                         config={config}
                         value={config.model}
-                        onChange={(model) => onConfigChange(node.id, mode === "image" ? { model, ...defaultImageParamsForModel(config, model) } : { model })}
+                        onChange={(model) =>
+                            onConfigChange(
+                                node.id,
+                                mode === "image"
+                                    ? {
+                                          model,
+                                          ...defaultImageParamsForModel(config, model, {
+                                              size: node.metadata?.size || config.size,
+                                              quality: node.metadata?.quality || config.quality,
+                                              transparentBackground: node.metadata?.transparentBackground || config.transparentBackground,
+                                          }),
+                                      }
+                                    : mode === "video"
+                                      ? {
+                                            model,
+                                            ...defaultVideoParamsForModel(config, model, {
+                                                size: node.metadata?.size || config.size,
+                                                vquality: node.metadata?.vquality || config.vquality,
+                                                videoSeconds: node.metadata?.seconds || config.videoSeconds,
+                                            }),
+                                        }
+                                      : { model },
+                            )
+                        }
                         capability={mode}
                         requirements={resolvedRequirements}
                         onMissingConfig={() => navigateToSettings({ continueCreation: true })}

@@ -1,6 +1,6 @@
 import { defaultImageCapabilityConfig, modelCapabilityConfigFor, normalizeImageValue, normalizeVideoValue, STANDARD_IMAGE_SIZE_VALUES, videoDurationAllowed, type ImageCapabilityConfig } from "@/lib/model-capabilities";
 import { videoResolutionComparisonKey } from "@/lib/video-generation-options";
-import { imageSizePresets } from "@/lib/image-size-presets";
+import { imageSizePresets, matchCompatibleImageSize } from "@/lib/image-size-presets";
 import { modelOptionName, PUBLIC_MODEL_CATALOG_ID, resolveModelChannel, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
 
 export type ModelInputSummary = {
@@ -301,16 +301,58 @@ export function mergedImageCapabilityConfig(config: AiConfig, selected: string):
     return { ...base, size: { ...base.size, values, allowCustom, presets } };
 }
 
-// 切换模型后初始化图片参数为该模型能力默认值，避免旧参数在目标模型族不兼容导致无法切换。
-export function defaultImageParamsForModel(config: AiConfig, model: string): Pick<AiConfig, "size" | "quality" | "transparentBackground"> {
+// 切换模型后初始化图片参数；若新旧模型均支持相同画幅比例/分辨率档位，智能继承该参数，避免普通换模型每次都被强行重置为 1:1。
+export function defaultImageParamsForModel(
+    config: AiConfig,
+    model: string,
+    currentParams?: { size?: string; quality?: string; transparentBackground?: string | boolean },
+): Pick<AiConfig, "size" | "quality" | "transparentBackground"> {
     const image = modelCapabilityConfigFor(config, model).image;
     if (!image) return { size: "1:1", quality: "auto", transparentBackground: "false" };
+
+    const currentSize = currentParams?.size ?? config.size;
+    const currentQuality = currentParams?.quality ?? config.quality;
+    const currentTransparent = currentParams?.transparentBackground ?? config.transparentBackground;
+
+    const matched = matchCompatibleImageSize(image, currentSize, currentQuality);
+
     const sizeValues = image.size.values.filter((value) => value !== "*");
     const sizeDefault = image.size.default !== "*" && image.size.default ? image.size.default : sizeValues[0] || "1:1";
+
+    const resolvedSize = matched?.size || sizeDefault;
+    const resolvedQuality = matched?.quality ?? (image.quality.supported ? image.quality.default || "auto" : "");
+    const resolvedTransparent = image.transparentBackground.supported && String(currentTransparent) === "true" ? "true" : String(image.transparentBackground.default ?? false);
+
     return {
-        size: sizeDefault,
-        quality: image.quality.supported ? image.quality.default || "auto" : "",
-        transparentBackground: String(image.transparentBackground.default ?? false),
+        size: resolvedSize,
+        quality: resolvedQuality,
+        transparentBackground: resolvedTransparent,
+    };
+}
+
+// 切换视频模型后智能继承画幅比例、分辨率与时长；若新模型支持相同比例（如 16:9），同样保留。
+export function defaultVideoParamsForModel(
+    config: AiConfig,
+    model: string,
+    currentParams?: { size?: string; vquality?: string; videoSeconds?: string },
+): { size: string; vquality: string; seconds: string } {
+    const profile = modelCapabilityConfigFor(config, model).video;
+    if (!profile) return { size: "16:9", vquality: "720p", seconds: "5" };
+
+    const currentRatio = currentParams?.size ?? config.size;
+    const currentResolution = currentParams?.vquality ?? config.vquality;
+    const currentSeconds = currentParams?.videoSeconds ?? config.videoSeconds;
+
+    const normalized = normalizeVideoValue(profile, {
+        ratio: currentRatio,
+        resolution: currentResolution,
+        seconds: currentSeconds,
+    });
+
+    return {
+        size: normalized.ratio,
+        vquality: normalized.resolution,
+        seconds: normalized.seconds,
     };
 }
 

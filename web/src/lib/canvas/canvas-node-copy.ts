@@ -1,4 +1,5 @@
 import { resetGenerationTaskMetadata } from "@/lib/canvas/canvas-project-generation";
+import { inferImageRatio } from "@/lib/image-size-presets";
 import { CanvasNodeType, type CanvasNodeData, type CanvasNodeMetadata, type StoryboardRow } from "@/types/canvas";
 
 const COPY_TITLE_SUFFIX = /^(.*)_copy(\d+)$/i;
@@ -99,6 +100,15 @@ export function isolateCopiedNodeMetadata(node: CanvasNodeData, idMap: ReadonlyM
     delete metadata.resourceReloadAvailable;
 
     metadata.copiedFromNodeId = node.id;
+    const hasMedia = Boolean(node.metadata?.content || node.metadata?.storageKey || (node.metadata?.naturalWidth && node.metadata?.naturalHeight));
+    if (!metadata.size && hasMedia && (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video)) {
+        const width = node.metadata?.naturalWidth || node.width;
+        const height = node.metadata?.naturalHeight || node.height;
+        if (width > 0 && height > 0) {
+            const inferred = inferImageRatio(undefined, width, height);
+            if (inferred) metadata.size = inferred;
+        }
+    }
     if (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video || node.type === CanvasNodeType.Audio) {
         metadata.generationResultPlacement = "replace-node";
     }

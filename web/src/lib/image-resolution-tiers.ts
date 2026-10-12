@@ -54,7 +54,7 @@ export function formatImageResolutionSize(size: string, options: ImageResolution
     return option ? `${option.ratio} · ${option.tier.toUpperCase()}` : size;
 }
 
-function parseImageResolutionOption(value: string): ImageResolutionOption | null {
+export function parseImageResolutionOption(value: string): ImageResolutionOption | null {
     const match = value.trim().toLowerCase().match(/^(\d+)x(\d+)$/);
     if (!match) return null;
     const width = Number(match[1]);
@@ -69,7 +69,7 @@ function parseImageResolutionOption(value: string): ImageResolutionOption | null
     return { size: `${width}x${height}`, tier, ratio, width, height };
 }
 
-function closestRatio(value: number) {
+export function closestRatio(value: number) {
     let result = "";
     let bestDifference = Number.POSITIVE_INFINITY;
     for (const label of ratioOrder) {

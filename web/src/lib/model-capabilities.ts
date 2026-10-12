@@ -1,6 +1,6 @@
 import type { ModelProtocol, ModelProtocolWorkflow } from "@/lib/model-protocols";
 import type { ImageResolutionOption, ImageResolutionTier } from "@/lib/image-resolution-tiers";
-import { imagePresetForRatio } from "./image-size-presets";
+import { imagePresetForRatio, matchCompatibleImageSize } from "./image-size-presets";
 import { kemeiSeedreamPresets } from "./kemei-image-presets";
 import { type WorkflowVideoFieldLike, workflowImageCapabilityConfig, workflowVideoCapabilityConfig } from "./model-capabilities-workflow";
 import { resolveWorkflowVideoScreenSpec } from "./video-screen-specs";
@@ -737,7 +737,13 @@ function imagePresetTierForSelection(profile: ImageCapabilityConfig, size: strin
 export function normalizeImageSizeSetting(profile: ImageCapabilityConfig, value?: string) {
     if (profile.size.parameter === "none") return "auto";
     const candidate = value?.trim() || profile.size.default;
-    if (profile.size.allowCustom || profile.size.values.includes(candidate)) return candidate;
+    if (profile.size.values.includes(candidate)) return candidate;
+    if (candidate && candidate !== "auto" && candidate !== "*") {
+        // 如果 candidate 是其它格式但属于当前模型支持的同一比例（如 16:9 像素与比例互转），优先智能继承为预设
+        const matched = matchCompatibleImageSize(profile, candidate, undefined, false);
+        if (matched?.size) return matched.size;
+    }
+    if (profile.size.allowCustom) return candidate;
     return profile.size.default || profile.size.values[0] || "auto";
 }
 
