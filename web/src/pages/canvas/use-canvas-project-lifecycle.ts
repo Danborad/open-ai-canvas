@@ -11,6 +11,7 @@ import { hydrateAssistantImages, resetInterruptedGeneration } from "@/lib/canvas
 import { repairMissingCanvasAssets } from "@/services/canvas-asset-repair";
 import { listAddedSkills, type Skill } from "@/services/api/skills";
 import { createCanvasProjectWithRemoteSync, deleteCanvasProjectsWithRemoteSync, loadCanvasProjectForEditing, saveRemoteUserDataNow, subscribeAgentCanvasRefresh } from "@/services/user-data-sync";
+import { sameCanvasContent } from "@/lib/canvas/canvas-content";
 import { flushCanvasStorePersistence, useCanvasStore, type CanvasProject } from "@/stores/canvas/use-canvas-store";
 import { useCanvasThemeStore } from "@/stores/canvas/use-canvas-theme-store";
 import { useSyncProgressStore } from "@/stores/use-sync-progress-store";
@@ -354,23 +355,33 @@ export function useCanvasProjectLifecycle({
 
 
 function sameCanvasHistorySnapshot(left: CanvasHistorySnapshot, right: CanvasHistorySnapshot) {
-    return left.nodes === right.nodes
+    if (left.nodes === right.nodes
         && left.connections === right.connections
         && left.chatSessions === right.chatSessions
         && left.activeChatId === right.activeChatId
         && left.canvasAppearance === right.canvasAppearance
         && left.backgroundMode === right.backgroundMode
-        && left.showImageInfo === right.showImageInfo;
+        && left.showImageInfo === right.showImageInfo) {
+        return true;
+    }
+    return sameCanvasContent(
+        { ...left, id: "", revision: 0, title: "", createdAt: "", updatedAt: "", viewport: { x: 0, y: 0, k: 1 }, previsScenes: [] },
+        { ...right, id: "", revision: 0, title: "", createdAt: "", updatedAt: "", viewport: { x: 0, y: 0, k: 1 }, previsScenes: [] },
+    );
 }
 
 function sameCanvasPatch(project: CanvasProject, patch: Pick<CanvasProject, "nodes" | "connections" | "chatSessions" | "activeChatId" | "backgroundMode" | "showImageInfo"> & { appearance: CanvasProject["appearance"] }) {
-    return project.nodes === patch.nodes
+    if (project.nodes === patch.nodes
         && project.connections === patch.connections
         && project.chatSessions === patch.chatSessions
         && project.activeChatId === patch.activeChatId
         && project.appearance === patch.appearance
         && project.backgroundMode === patch.backgroundMode
-        && project.showImageInfo === patch.showImageInfo;
+        && project.showImageInfo === patch.showImageInfo) {
+        return true;
+    }
+    const candidate: CanvasProject = { ...project, ...patch };
+    return sameCanvasContent(project, candidate);
 }
 
 function mergeHydratedSessions(currentSessions: CanvasAssistantSession[], hydratedSessions: CanvasAssistantSession[]) {

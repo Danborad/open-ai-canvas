@@ -1154,6 +1154,13 @@ async function saveRemoteUserDataBatch(uploaded: Map<string, string>, options: {
                 if (!operations.length) {
                     acknowledgedProjects.set(source.id, { ...prepared, revision: current.revision, remoteContentHash: await canvasContentHash(prepared) });
                     verifiedProjects.add(source.id);
+                    useSyncProgressStore.getState().setProjectProgress(source.id, {
+                        phase: "done",
+                        cloudRevision: Number(current.revision),
+                        pendingChanges: 0,
+                        errorKind: undefined,
+                        message: "已保存到云端",
+                    });
                     continue;
                 }
                 const request: CanvasOperationsRequest = {

@@ -14,6 +14,7 @@ export function sameCanvasContent(left: CanvasProject | undefined, right: Canvas
     const b = canvasContentSnapshot(right) as Record<string, unknown>;
     return [...new Set([...Object.keys(a), ...Object.keys(b)])].every((key) => {
         if (a[key] === b[key]) return true;
+        if ((a[key] === undefined || a[key] === null) && (b[key] === undefined || b[key] === null)) return true;
         if ((key === "nodes" || key === "connections") && Array.isArray(a[key]) && Array.isArray(b[key])) {
             const leftItems = a[key] as unknown[];
             const rightItems = b[key] as unknown[];
@@ -29,7 +30,8 @@ const contentHashes = new WeakMap<CanvasProject["nodes"], { content: ContentSnap
 const canonicalValueCache = new WeakMap<object, string>();
 
 function canonicalValue(value: unknown) {
-    if (!value || typeof value !== "object") return canonicalize(value);
+    if (value === undefined || value === null) return "null";
+    if (typeof value !== "object") return canonicalize(value);
     const cached = canonicalValueCache.get(value);
     if (cached) return cached;
     const serialized = canonicalize(value);

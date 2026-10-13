@@ -64,7 +64,7 @@ export const useSyncProgressStore = create<SyncProgressStore>((set, get) => ({
     clearAll: () => set({ syncingProjects: {} }),
     isAnySyncing: () => {
         const list = Object.values(get().syncingProjects);
-        return list.some((item) => (item.phase !== "done" && item.phase !== "local") || item.localPhase === "pending" || item.localPhase === "error");
+        return list.some((item) => item.phase === "uploading" || item.phase === "saving" || item.localPhase === "pending");
     },
 }));
 

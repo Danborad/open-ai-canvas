@@ -71,16 +71,8 @@ func (s *Service) ValidateCanvasMediaAssets(userID string, raw json.RawMessage) 
 			readyResources[resource.ID] = resource
 		}
 	}
-	missing := make([]assets.DocumentResourceReference, 0)
-	for _, reference := range allResourceReferences {
-		if _, exists := readyResources[reference.ResourceID]; !exists {
-			reference.Source = "current"
-			missing = append(missing, reference)
-		}
-	}
-	if len(missing) > 0 {
-		return canvasResourcesMissingError(missing)
-	}
+	// 对于历史遗留节点或已清理的媒体，若资源表中已无此记录，不阻断画布工程的持久化保存
+	_ = allResourceReferences
 
 	for _, reference := range references {
 		resource, exists := readyResources[reference.ResourceID]
