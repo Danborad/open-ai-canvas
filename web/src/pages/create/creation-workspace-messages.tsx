@@ -37,7 +37,7 @@ export function CreationMessageView({
     shotNumber: number;
     onRetryFailure: () => void;
     onCreateVariant: () => void;
-    onEditUserMessage: (text: string) => void;
+    onEditUserMessage: (message: CreationMessage) => void;
     onContinueCanvas: (ids?: string[]) => void;
     openingCanvas: boolean;
 }) {
@@ -120,7 +120,7 @@ export function CreationMessageView({
     );
 }
 
-export function CreationUserMessage({ item, shotNumber, onEditUserMessage }: { item: CreationMessage; shotNumber: number; onEditUserMessage: (text: string) => void }) {
+export function CreationUserMessage({ item, shotNumber, onEditUserMessage }: { item: CreationMessage; shotNumber: number; onEditUserMessage: (message: CreationMessage) => void }) {
     const [previewUrl, setPreviewUrl] = useState("");
     const [previewType, setPreviewType] = useState<"image" | "video">("image");
     const copyText = useCopyText();
@@ -186,7 +186,7 @@ export function CreationUserMessage({ item, shotNumber, onEditUserMessage }: { i
                     </button>
                 </Tooltip>
                 <Tooltip title="编辑并重新发送">
-                    <button type="button" className="creation-user-message-edit" aria-label="编辑提示词" onClick={() => onEditUserMessage(visiblePrompt)}>
+                    <button type="button" className="creation-user-message-edit" aria-label="编辑并重新发送" onClick={() => onEditUserMessage(item)}>
                         <Pencil />
                     </button>
                 </Tooltip>
