@@ -143,6 +143,7 @@ export default function WecomNotificationPage() {
         <AdminPageFrame
             title="企微简报"
             description="企业微信运行总结与生成情况每日汇报机器人，支持定时自动推送与纯文本高兼容格式"
+            scroll
             actions={
                 <div className="flex flex-wrap items-center gap-2.5">
                     <Button

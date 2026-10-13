@@ -160,6 +160,7 @@ export default function ESAMonitoringPage() {
         <AdminPageFrame
             title="ESA 监控"
             description="阿里云边缘安全加速流量、请求与站点分布"
+            scroll
             actions={
                 <div className="flex flex-wrap items-center gap-2.5">
                     {/* 时间范围切换 */}
