@@ -1,5 +1,5 @@
 import type { ModelProtocol, ModelProtocolWorkflow } from "@/lib/model-protocols";
-import { projectImageParameters, normalizeImageParameters, imageParameterRequest } from "./image-parameters";
+import { projectImageParameters, normalizeImageParameters, imageParameterRequest, type ImageParameter } from "./image-parameters";
 import type { ImageResolutionOption, ImageResolutionTier } from "@/lib/image-resolution-tiers";
 import { IMAGE_RATIOS, IMAGE_RESOLUTIONS, imagePresetForRatio, matchCompatibleImageSize } from "@/lib/image-size-presets";
 import { kemeiSeedreamPresets } from "./kemei-image-presets";
@@ -308,6 +308,47 @@ export const seedreamProImageSizes = [
     "3136x1344",
 ];
 
+export function seedreamDefaultImageParameters(): ImageParameter[] {
+    return [
+        {
+            name: "size",
+            label: "画幅 / 尺寸",
+            type: "string",
+            binding: "aspectRatio",
+            encoding: "pixels",
+            pricing: true,
+        },
+        {
+            name: "imageResolution",
+            label: "分辨率",
+            type: "string",
+            binding: "resolution",
+            values: ["1k", "1.5k", "2k"],
+            default: "2k",
+            enabled: true,
+            pricing: true,
+        },
+        {
+            name: "count",
+            label: "生成数量",
+            type: "integer",
+            binding: "imageCount",
+            min: 1,
+            max: 1,
+            step: 1,
+            default: 1,
+        },
+        {
+            name: "transparentBackground",
+            label: "透明背景",
+            type: "boolean",
+            binding: "transparentBackground",
+            default: false,
+            enabled: false,
+        },
+    ];
+}
+
 export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = ""): ImageCapabilityConfig {
     const image: ImageCapabilityConfig = {
         references: { promptMaxChars: 32000, maxImages: 16, maxImageBytes: 30 * 1024 * 1024, maskSupported: true },
@@ -330,6 +371,7 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         image.responseFormat = { supported: true };
         image.outputFormat = { supported: true };
         image.maxOutputs = 1;
+        image.parameters = seedreamDefaultImageParameters();
         return image;
     }
     if (protocol === "kacang-midjourney-special" || protocol === "kacang-midjourney-v7" || protocol === "kacang-midjourney") {
@@ -546,6 +588,7 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         image.responseFormat = { supported: true };
         image.outputFormat = { supported: true };
         image.maxOutputs = isPro ? 1 : 15;
+        image.parameters = seedreamDefaultImageParameters();
     }
     return image;
 }

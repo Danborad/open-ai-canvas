@@ -372,9 +372,6 @@ func isPresetChannel(channel *model.ModelChannel) string {
 	if strings.Contains(url, "autodl.art") || strings.Contains(name, "autodl") {
 		return "autodl"
 	}
-	if strings.Contains(url, "flow2api") || strings.Contains(name, "flow2api") {
-		return "flow2api"
-	}
 	if strings.Contains(url, "grok2api") || strings.Contains(name, "grok2api") {
 		return "grok2api"
 	}
