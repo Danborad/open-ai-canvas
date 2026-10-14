@@ -51,4 +51,30 @@ describe("ImageSettingsPanel with km-kemei-seedream-image", () => {
         expect(html).not.toContain("3840");
         expect(html).not.toContain("2880");
     });
+
+    test("存量 Seedream 价格档 quality=1k/1.5k/2k 安全迁移为 imageResolution，无冲突", () => {
+        const { priceTierToForm, skuSelectorFromForm } = require("../src/pages/admin/components/channel-model-price-tier-form");
+        const { defaultImageCapabilityConfig } = require("../src/lib/model-capabilities");
+        const profile = defaultImageCapabilityConfig("km-kemei-seedream-image", "doubao-seedream-5-0-pro-260628");
+
+        const rawTiers = [
+            { id: "t1", selector: { quality: "1k" }, billingMode: "fixed_request", unitPriceMicrocredits: 20000000, priceConfigured: true, enabled: true },
+            { id: "t2", selector: { quality: "1.5k" }, billingMode: "fixed_request", unitPriceMicrocredits: 40000000, priceConfigured: true, enabled: true },
+            { id: "t3", selector: { quality: "2k" }, billingMode: "fixed_request", unitPriceMicrocredits: 40000000, priceConfigured: true, enabled: true },
+        ];
+
+        const formValues = rawTiers.map((tier) => priceTierToForm(tier, profile, "km-kemei-seedream-image"));
+        expect(formValues[0].imageResolution).toBe("1k");
+        expect(formValues[1].imageResolution).toBe("1.5k");
+        expect(formValues[2].imageResolution).toBe("2k");
+
+        const selectors = formValues.map((fv) => skuSelectorFromForm("image", fv, { image: profile }));
+        expect(selectors[0]).toEqual({ imageResolution: "1k" });
+        expect(selectors[1]).toEqual({ imageResolution: "1.5k" });
+        expect(selectors[2]).toEqual({ imageResolution: "2k" });
+
+        // 验证 3 个 selector 各不相同，不会被判定为重复
+        const keys = new Set(selectors.map((s) => JSON.stringify(s)));
+        expect(keys.size).toBe(3);
+    });
 });

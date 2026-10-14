@@ -54,6 +54,10 @@ export function formatImageResolutionSize(size: string, options: ImageResolution
     return option ? `${option.ratio} · ${option.tier.toUpperCase()}` : size;
 }
 
+export const SEEDREAM_15K_SIZES = new Set([
+    "1536x1536", "2048x1152", "1152x2048", "1792x1344", "1344x1792", "1872x1248", "1248x1872", "2352x1008"
+]);
+
 export function parseImageResolutionOption(value: string): ImageResolutionOption | null {
     const match = value.trim().toLowerCase().match(/^(\d+)x(\d+)$/);
     if (!match) return null;
@@ -61,7 +65,17 @@ export function parseImageResolutionOption(value: string): ImageResolutionOption
     const height = Number(match[2]);
     if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width <= 0 || height <= 0) return null;
     const pixels = width * height;
-    const tier: ImageResolutionTier | null = pixels <= 2_000_000 ? "1k" : pixels <= 4_300_000 ? "2k" : pixels <= 8_294_400 ? "4k" : null;
+    const clean = `${width}x${height}`;
+    const tier: ImageResolutionTier | null =
+        SEEDREAM_15K_SIZES.has(clean)
+            ? "1.5k"
+            : pixels <= 2_000_000
+              ? "1k"
+              : pixels <= 5_000_000
+                ? "2k"
+                : pixels <= 17_000_000
+                  ? "4k"
+                  : null;
     if (!tier) return null;
     let a = width, b = height;
     while (b) [a, b] = [b, a % b];

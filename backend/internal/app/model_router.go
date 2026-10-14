@@ -408,9 +408,11 @@ func normalizeImagePriceQuality(rawQuality string, rawSize string) string {
 	}
 	pixels := width * height
 	switch {
-	case pixels <= 2_000_000:
+	case pixels <= 1_600_000:
 		return "1k"
-	case pixels <= 4_300_000:
+	case pixels <= 2_800_000:
+		return "1.5k"
+	case pixels <= 5_000_000:
 		return "2k"
 	case pixels <= 8_294_400:
 		return "4k"
@@ -431,9 +433,11 @@ func imageResolutionFromSize(rawSize string) string {
 	}
 	pixels := width * height
 	switch {
-	case pixels <= 2_000_000:
+	case pixels <= 1_600_000:
 		return "1k"
-	case pixels <= 4_300_000:
+	case pixels <= 2_800_000:
+		return "1.5k"
+	case pixels <= 5_000_000:
 		return "2k"
 	case pixels <= 8_294_400:
 		return "4k"
@@ -444,7 +448,7 @@ func imageResolutionFromSize(rawSize string) string {
 
 func isImageResolutionTier(value string) bool {
 	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "1k", "2k", "4k":
+	case "1k", "1.5k", "2k", "4k":
 		return true
 	default:
 		return false
@@ -484,11 +488,7 @@ func matchSKUSelector(tier map[string]string, requested map[string]string) (bool
 			score++
 			continue
 		}
-		if key == "quality" && reqVal == "1.5k" && (expected == "2k" || expected == "1k") {
-			score++
-			continue
-		}
-		if key == "resolution" && reqVal == "1.5k" && (expected == "2k" || expected == "1k") {
+		if (key == "quality" || key == "resolution" || key == "imageResolution") && reqVal == "1.5k" && (expected == "2k" || expected == "1k") {
 			score++
 			continue
 		}

@@ -34,7 +34,7 @@ test("Seedream 5.0 Pro/Flash has 1K, 1.5K, 2K only (NO 4K) with a unified ratio 
 test("Seedream profile surfaces 1K/1.5K/2K and never 4K", () => {
     const profile = defaultImageCapabilityConfig("km-kemei-seedream", "doubao-seedream-5-0-pro-260628");
     const tiers = imageResolutionTiers(profile);
-    expect(tiers).toEqual(["1k", "1.5k", "2k", "4k"]);
+    expect(tiers).toEqual(["1k", "1.5k", "2k"]);
     expect(profile.size.presets?.some((preset) => preset.tier === "4k")).toBe(false);
     expect(profile.quality.supported).toBe(false);
     expect(profile.maxOutputs).toBe(1);

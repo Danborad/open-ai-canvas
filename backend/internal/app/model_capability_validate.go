@@ -108,7 +108,11 @@ func validateImageCapabilityConfig(value *ImageCapabilityConfig) error {
 			requestValue = preset.Ratio
 		}
 		if !containsCapabilityString(value.Size.Values, requestValue) {
-			return BadAuthRequest("图片预设必须包含在尺寸支持值中")
+			if value.Size.AllowCustom {
+				value.Size.Values = append(value.Size.Values, requestValue)
+			} else {
+				return BadAuthRequest("图片预设必须包含在尺寸支持值中")
+			}
 		}
 	}
 	if value.Quality.Supported {

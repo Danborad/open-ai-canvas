@@ -1,11 +1,27 @@
-import { buildImageResolutionOptions, closestRatio, imageRatioForSize, parseImageResolutionOption, type ImageResolutionOption, type ImageResolutionTier } from "./image-resolution-tiers";
+import { buildImageResolutionOptions, closestRatio, imageRatioForSize, parseImageResolutionOption, SEEDREAM_15K_SIZES, type ImageResolutionOption, type ImageResolutionTier } from "./image-resolution-tiers";
 import type { ImageCapabilityConfig } from "./model-capabilities";
 
 export const IMAGE_RESOLUTIONS: ImageResolutionTier[] = ["1k", "2k", "4k"];
 // 1.5K 只在模型明确配置此档位时出现，既有模型的档位保持原有顺序。
 export function imageResolutionTiers(profile: ImageCapabilityConfig): ImageResolutionTier[] {
     if (profile.parameters) return profile.resolution.supported ? profile.resolution.values : [];
-    return profile.size.presets?.some((preset) => preset.tier === "1.5k") || profile.quality.values.includes("1.5k") ? ["1k", "1.5k", "2k", "4k"] : IMAGE_RESOLUTIONS;
+    const has15k = Boolean(
+        profile.size.presets?.some((preset) => preset.tier === "1.5k") ||
+        profile.quality.values.includes("1.5k") ||
+        profile.size.values.some((v) => SEEDREAM_15K_SIZES.has(v.trim()))
+    );
+    const has4k = Boolean(
+        profile.size.presets?.some((preset) => preset.tier === "4k") ||
+        profile.quality.values.includes("4k") ||
+        profile.size.values.some((v) => {
+            const m = v.match(/^(\d+)x(\d+)$/);
+            return m && Number(m[1]) * Number(m[2]) > 5_000_000;
+        })
+    );
+    // Seedream Pro / Flash 专属：最大只支持 2K，包含 1K / 1.5K / 2K，不包含 4K
+    if (has15k && !has4k) return ["1k", "1.5k", "2k"];
+    if (has15k) return ["1k", "1.5k", "2k", "4k"];
+    return IMAGE_RESOLUTIONS;
 }
 export const IMAGE_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9"];
 // Administrator's initial selection; plugin constraints still bound these choices.

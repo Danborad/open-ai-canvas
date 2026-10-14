@@ -10,11 +10,11 @@ test("创作页参考素材弹窗接受远端素材并可解析远端条目", as
     ]);
 
     expect(createPage).toContain("acceptRemoteItems");
-    expect(createPage).toContain("remoteItemDisabledReason={(item) => creationLibraryDisabledReason(mode, item.asset?.kind, videoReferenceLimits)}");
-    expect(createPage).toContain("const handleLibrarySelect = (selectedIds: string[], pickedItems?: AssetLibraryPickerItem[]) =>");
-    expect(createPage).toContain("pickedById.get(id)?.asset");
+    expect(createPage).toContain("remoteItemDisabledReason={(asset) => creationLibraryDisabledReason(mode, asset.kind, videoReferenceLimits)}");
+    expect(createPage).toContain("const handleLibrarySelect = async (selectedIds: string[], pickedItems = libraryItems) =>");
+    expect(createPage).toContain("creationLibrarySelectionToAttachments(selectedIds, pickedItems, mode, videoReferenceLimits)");
 
     // 弹窗必须为远端条目在校验通过后清空禁用原因，否则仍会全部置灰。
-    expect(picker).toContain("remoteItemDisabledReason?: (item: AssetLibraryPickerItem) => string | undefined");
-    expect(picker).toContain("if (acceptRemoteItems) return { ...remoteItem, disabledReason: remoteItemDisabledReason?.(remoteItem) };");
+    expect(picker).toContain("remoteItemDisabledReason?: (asset: Asset) => string | undefined");
+    expect(picker).toContain("remoteItemDisabledReason?.(asset)");
 });

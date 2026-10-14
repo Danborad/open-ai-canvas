@@ -164,7 +164,10 @@ export function normalizeModelCapabilityConfig(config: ModelCapabilityConfig): M
                   watermark: config.image.watermark,
                   size: {
                       ...config.image.size,
-                      values: normalizeCapabilityStrings(config.image.size.values),
+                      values: normalizeCapabilityStrings([
+                          ...(config.image.size.values || []),
+                          ...(config.image.size.presets || []).map((p) => config.image!.size.parameter === "aspect_ratio" ? p.ratio : p.size),
+                      ]),
                       default: normalizeCapabilityString(config.image.size.default),
                   },
                   quality: {
@@ -193,6 +196,19 @@ export function normalizeModelCapabilityConfig(config: ModelCapabilityConfig): M
 export function normalizeLegacyImageResolutionConfig(protocol: ModelProtocol | undefined, image: ImageCapabilityConfig): ImageCapabilityConfig {
     if (image.parameters) return projectImageParameters(image, image.parameters);
     image = { ...image, resolutionUsesQuality: protocol === "gemini-image" };
+    const isSeedream = protocol === "km-kemei-seedream" || protocol === "km-kemei-seedream-image" || protocol === "km-seedream-image" || protocol === "seedream-image" || protocol === "doubao-seedream-image" || Boolean(protocol?.includes("seedream"));
+    if (isSeedream) {
+        const presets = image.size.presets?.length ? image.size.presets : kemeiSeedreamPresets();
+        return {
+            ...image,
+            size: {
+                ...image.size,
+                presets,
+            },
+            resolution: { supported: true, values: ["1k", "1.5k", "2k"], default: image.resolution?.default && ["1k", "1.5k", "2k"].includes(image.resolution.default) ? image.resolution.default : "2k" },
+            quality: { supported: false, values: [], default: "auto" },
+        };
+    }
     if (image.resolution.supported || !image.quality.supported) return image;
     const allowed = protocol === "grok-image" ? new Set(["1k", "2k"]) : protocol === "agnes-image" ? new Set(["1k", "2k", "4k"]) : undefined;
     if (!allowed) return image;
@@ -308,9 +324,8 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         const presets = kemeiSeedreamPresets();
         image.references = { ...image.references, maxImages: 10, maskSupported: false };
         image.size = { parameter: "size", values: presets.map((preset) => preset.size), default: "2048x2048", allowCustom: true, presets };
+        image.resolution = { supported: true, values: ["1k", "1.5k", "2k"], default: "2k" };
         image.quality = { supported: false, values: [], default: "auto" };
-        // 透明输出要求一张含 alpha 的参考图，宿主通用开关不能保证此条件。
-        // 此能力通过插件命名空间的 background + output_format 显式配置。
         image.transparentBackground = { supported: false, default: false };
         image.responseFormat = { supported: true };
         image.outputFormat = { supported: true };
@@ -522,7 +537,9 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
             values: isPro ? [...seedreamProImageSizes] : [...defaultImageSizes],
             default: "2048x2048",
             allowCustom: true,
+            presets: kemeiSeedreamPresets(),
         };
+        image.resolution = { supported: true, values: ["1k", "1.5k", "2k"], default: "2k" };
         image.quality = { supported: false, values: [], default: "" };
         image.transparentBackground = { supported: true, default: false };
         image.watermark = { supported: true, default: false };
