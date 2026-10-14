@@ -50,7 +50,7 @@
 {
   "apiVersion": "yingce.plugin/v2",
   "id": "km-kemei-seedream-image",
-  "name": "KM 可美 Seedream 图片",
+  "name": "KM 可美 Seedream 5.0",
   "version": "1.0.0",
   "author": "KM 可美 / 影策",
   "description": "KM 可美豆包 Seedream 图像生成协议插件，兼容 OpenAI 规范，支持文生图、组图、多图参考、透明背景与图层拆分。",
@@ -72,7 +72,7 @@
     "providers": [
       {
         "id": "km-kemei-seedream-image",
-        "label": "KM 可美 Seedream 图片",
+        "label": "KM 可美 Seedream 5.0",
         "capabilities": [
           "image"
         ],

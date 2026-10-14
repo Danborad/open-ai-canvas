@@ -94,8 +94,6 @@ Pro / Flash 不支持 sequential_image_generation、组图、联网搜索、流�
           "image"
         ],
         "scopes": [
-          "admin.system-channel",
-          "user.custom-channel",
           "canvas",
           "creation",
           "agent"
