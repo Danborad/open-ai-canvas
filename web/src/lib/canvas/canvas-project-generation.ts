@@ -458,6 +458,8 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
     const requestedConfig: AiConfig = {
         ...config,
         quality: node?.metadata?.quality ?? workflowParameterValue("quality") ?? config.quality ?? defaultConfig.quality,
+        imageResolution: node?.metadata?.imageResolution ?? workflowParameterValue("imageResolution") ?? config.imageResolution ?? defaultConfig.imageResolution,
+        imageParameters: node?.metadata?.imageParameters ?? workflowParameterValue("imageParameters") ?? config.imageParameters ?? "{}",
         size: workflowProvider === "model" ? (node?.metadata?.size ?? config.size ?? defaultConfig.size) : workflowOutputSize || node?.metadata?.size || config.size || defaultConfig.size,
         transparentBackground: node?.metadata?.transparentBackground ?? config.transparentBackground ?? defaultConfig.transparentBackground,
         videoSeconds:
@@ -494,6 +496,8 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
                   mode === "image"
                       ? {
                             size: node?.metadata?.size,
+                            imageResolution: node?.metadata?.imageResolution,
+                            imageParameters: node?.metadata?.imageParameters,
                             quality: node?.metadata?.quality,
                             transparentBackground: node?.metadata?.transparentBackground,
                             count: requestedConfig.count,
@@ -507,6 +511,8 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
                         },
                   {
                       size: requestedConfig.size,
+                      imageResolution: requestedConfig.imageResolution,
+                      imageParameters: requestedConfig.imageParameters,
                       quality: requestedConfig.quality,
                       transparentBackground: requestedConfig.transparentBackground,
                       count: requestedConfig.count,
@@ -550,6 +556,8 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
         runningHub,
         model,
         quality: generationDefaults.quality ?? requestedConfig.quality,
+        imageResolution: generationDefaults.imageResolution ?? requestedConfig.imageResolution,
+        imageParameters: generationDefaults.imageParameters ?? requestedConfig.imageParameters,
         size: generationDefaults.size ?? requestedConfig.size,
         transparentBackground: generationDefaults.transparentBackground ?? (requestedConfig.transparentBackground === "true" ? "true" : "false"),
         videoSeconds: resolvedVideoSeconds,

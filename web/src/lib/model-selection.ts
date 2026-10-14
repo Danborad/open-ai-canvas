@@ -1,5 +1,6 @@
 import { defaultImageCapabilityConfig, modelCapabilityConfigFor, normalizeImageValue, normalizeVideoValue, STANDARD_IMAGE_SIZE_VALUES, videoDurationAllowed, type ImageCapabilityConfig } from "@/lib/model-capabilities";
 import { videoResolutionComparisonKey } from "@/lib/video-generation-options";
+import { imageParameterRequest, imageParameterDefaults, imageParameterAccepts } from "./image-parameters";
 import { imageSizePresets, matchCompatibleImageSize } from "@/lib/image-size-presets";
 import { modelOptionName, PUBLIC_MODEL_CATALOG_ID, resolveModelChannel, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
 
@@ -182,10 +183,18 @@ export function modelPromptLengthError(config: AiConfig, model: string, capabili
     return `当前${label}模型提示词最多 ${maxChars} 个字符，完整提示词为 ${actualChars} 个字符。系统不会自动截断，请精简当前输入、连线内容或技能上下文后重试`;
 }
 
-export function modelRequestOptions(config: AiConfig, capability: ModelCapability) {
+export function modelRequestOptions(config: AiConfig, capability: ModelCapability): Record<string, unknown> {
     switch (capability) {
         case "image":
-            return { size: config.size, quality: config.quality, transparentBackground: config.transparentBackground === "true", count: Number(config.count) };
+            return (
+                imageParameterRequest(modelCapabilityConfigFor(config, config.model || config.imageModel).image!, config) ?? {
+                    size: config.size,
+                    imageResolution: config.imageResolution,
+                    quality: config.quality,
+                    transparentBackground: config.transparentBackground === "true",
+                    count: Number(config.count),
+                }
+            );
         case "video":
             return { size: config.size, videoSeconds: Number(config.videoSeconds), vquality: config.vquality, videoGenerateAudio: config.videoGenerateAudio === "true", videoWatermark: config.videoWatermark === "true" };
         case "audio":
@@ -220,6 +229,9 @@ function logicalModelCompatibilityError(spec: NonNullable<NonNullable<AiConfig["
     };
     for (const [name, value] of Object.entries(options)) {
         if (value === undefined || value === null || value === "") continue;
+        const field = spec.imageParameters?.find((p) => p.name === name);
+        if (field && name !== "size" && !imageParameterAccepts(field, value)) return `不支持当前${field.label}`;
+        if ((name === "quality" || name === "imageResolution") && /^(auto|any)$/i.test(String(value).trim())) continue;
         const constraint = spec.options?.[name];
         if (!constraint || !logicalOptionMatches(name, constraint, value)) return logicalOptionError(name);
     }
@@ -228,6 +240,7 @@ function logicalModelCompatibilityError(spec: NonNullable<NonNullable<AiConfig["
 
 function logicalOptionMatches(name: string, constraint: { values?: unknown[]; min?: number; max?: number; step?: number }, value: unknown) {
     if (constraint.values?.length) {
+        if (constraint.values.includes("*")) return true;
         const requested = normalizeLogicalOptionValue(name, value);
         return constraint.values.some((candidate) => normalizeLogicalOptionValue(name, candidate) === requested);
     }
@@ -305,10 +318,10 @@ export function mergedImageCapabilityConfig(config: AiConfig, selected: string):
 export function defaultImageParamsForModel(
     config: AiConfig,
     model: string,
-    currentParams?: { size?: string; quality?: string; transparentBackground?: string | boolean },
-): Pick<AiConfig, "size" | "quality" | "transparentBackground"> {
+    currentParams?: { size?: string; quality?: string; imageResolution?: string; transparentBackground?: string | boolean },
+): Pick<AiConfig, "size" | "imageResolution" | "quality" | "transparentBackground" | "imageParameters"> {
     const image = modelCapabilityConfigFor(config, model).image;
-    if (!image) return { size: "1:1", quality: "auto", transparentBackground: "false" };
+    if (!image) return { size: "1:1", imageResolution: "auto", quality: "auto", transparentBackground: "false" };
 
     const currentSize = currentParams?.size ?? config.size;
     const currentQuality = currentParams?.quality ?? config.quality;
@@ -318,15 +331,22 @@ export function defaultImageParamsForModel(
 
     const sizeValues = image.size.values.filter((value) => value !== "*");
     const sizeDefault = image.size.default !== "*" && image.size.default ? image.size.default : sizeValues[0] || "1:1";
+    const qualityValues = image.quality.values;
+    const qualityDefault = image.quality.supported ? image.quality.default || qualityValues[0] || "auto" : "";
+    const resolutionDefault = image.resolution.supported ? image.resolution.default || image.resolution.values[0] || "auto" : "auto";
+    const imageParameters = image.parameters ? JSON.stringify(imageParameterDefaults(image.parameters)) : undefined;
 
     const resolvedSize = matched?.size || sizeDefault;
-    const resolvedQuality = matched?.quality ?? (image.quality.supported ? image.quality.default || "auto" : "");
+    const resolvedQuality = matched?.quality ?? qualityDefault;
+    const resolvedResolution = matched?.quality || resolutionDefault;
     const resolvedTransparent = image.transparentBackground.supported && String(currentTransparent) === "true" ? "true" : String(image.transparentBackground.default ?? false);
 
     return {
         size: resolvedSize,
+        imageResolution: resolvedResolution,
         quality: resolvedQuality,
         transparentBackground: resolvedTransparent,
+        imageParameters,
     };
 }
 
@@ -356,8 +376,7 @@ export function defaultVideoParamsForModel(
     };
 }
 
-
-export type ModelGenerationDefaults = Pick<AiConfig, "size" | "quality" | "transparentBackground" | "count" | "videoSeconds" | "vquality" | "videoGenerateAudio" | "videoWatermark">;
+export type ModelGenerationDefaults = Pick<AiConfig, "size" | "imageResolution" | "quality" | "transparentBackground" | "count" | "imageParameters" | "videoSeconds" | "vquality" | "videoGenerateAudio" | "videoWatermark">;
 
 type ModelVideoBooleanOptions = Pick<AiConfig, "videoGenerateAudio" | "videoWatermark">;
 
@@ -380,12 +399,18 @@ export function resolveModelGenerationDefaults(
     const profile = modelCapabilityConfigFor(config, model);
 
     if (capability === "image" && profile.image) {
-        const normalized = normalizeImageValue(profile.image, {
-            size: source("size"),
-            quality: source("quality"),
-            count: source("count"),
-            transparentBackground: source("transparentBackground"),
-        });
+        const normalized = normalizeImageValue(
+            profile.image,
+            {
+                size: source("size"),
+                imageResolution: source("imageResolution"),
+                imageParameters: source("imageParameters"),
+                quality: source("quality"),
+                count: source("count"),
+                transparentBackground: source("transparentBackground"),
+            },
+            cost?.protocol,
+        );
         const watermarkDefault = profile.image.watermark?.supported ? String(profile.image.watermark.default ?? false) : "false";
         return {
             ...normalized,
