@@ -316,6 +316,7 @@ export function seedreamDefaultImageParameters(): ImageParameter[] {
             type: "string",
             binding: "aspectRatio",
             encoding: "pixels",
+            values: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"],
             pricing: true,
         },
         {
@@ -371,7 +372,6 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         image.responseFormat = { supported: true };
         image.outputFormat = { supported: true };
         image.maxOutputs = 1;
-        image.parameters = seedreamDefaultImageParameters();
         return image;
     }
     if (protocol === "kacang-midjourney-special" || protocol === "kacang-midjourney-v7" || protocol === "kacang-midjourney") {
@@ -588,7 +588,6 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         image.responseFormat = { supported: true };
         image.outputFormat = { supported: true };
         image.maxOutputs = isPro ? 1 : 15;
-        image.parameters = seedreamDefaultImageParameters();
     }
     return image;
 }
