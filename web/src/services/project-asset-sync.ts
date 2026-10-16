@@ -280,9 +280,8 @@ async function storedGenerationMedia(dataUrl: string, effectKey: string, mediaTy
 async function cachedRemoteGenerationVideo(video: NonNullable<BackendGenerationResult["video"]>, signal?: AbortSignal) {
     if (!video.storageKey) throw new Error("生成视频缺少云端资源标识");
     throwIfAborted(signal);
-    const blob = await getCachedResourceBlob(video.storageKey);
+    const blob = await getCachedResourceBlob(video.storageKey).catch(() => null);
     throwIfAborted(signal);
-    if (!blob) throw new Error("生成视频资源缓存失败，未标记为成功");
     const url = await resolveMediaUrl(video.storageKey, video.dataUrl);
     throwIfAborted(signal);
     if (!url) throw new Error("生成视频资源地址为空，未标记为成功");
@@ -292,8 +291,8 @@ async function cachedRemoteGenerationVideo(video: NonNullable<BackendGenerationR
         width: video.width || 0,
         height: video.height || 0,
         durationMs: video.durationMs,
-        bytes: video.bytes || blob.size,
-        mimeType: video.mimeType || blob.type || "video/mp4",
+        bytes: video.bytes || blob?.size || 0,
+        mimeType: video.mimeType || blob?.type || "video/mp4",
     };
 }
 
@@ -308,6 +307,7 @@ async function generationOutputAsset(input: Parameters<MaterializeGenerationTask
         conversationId: input.task.clientContext?.conversationId,
         messageId: input.task.clientContext?.messageId,
         batchIndex: input.task.clientContext?.batchIndex,
+        nodeId: input.task.clientContext?.nodeId,
     };
 
     if (input.output.mediaType === "image") {

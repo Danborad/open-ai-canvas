@@ -206,6 +206,7 @@ export function useCanvasGeneration({ projectId, domainProjectId, projectLoaded,
     const generationRequestsRef = useRef(new Map<string, CanvasGenerationRequest>());
     const recoveringTaskIdsRef = useRef(new Set<string>());
     const autoSavedTaskIdsRef = useRef(new Set<string>());
+    const autoSaveCooldownRef = useRef(new Map<string, number>());
     const consumerControllerRef = useRef(new AbortController());
     const recoveryCoordinatorRef = useRef<ReturnType<typeof createCanvasGenerationRecoveryCoordinator> | null>(null);
     if (!recoveryCoordinatorRef.current) recoveryCoordinatorRef.current = createCanvasGenerationRecoveryCoordinator();
@@ -514,17 +515,24 @@ export function useCanvasGeneration({ projectId, domainProjectId, projectLoaded,
 
     useEffect(() => {
         if (!projectLoaded) return;
+        const now = Date.now();
         nodes.forEach((node) => {
             const taskId = node.metadata?.taskId;
             if (!taskId || !node.metadata?.content || node.metadata.status !== NODE_STATUS_SUCCESS || (node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video && node.type !== CanvasNodeType.Audio)) return;
             if (!domainProjectId && node.metadata?.assetId) return;
             const saveKey = `${taskId}:${node.id}:${domainProjectId || "personal"}${node.metadata.imageLayerGroup ? `:${node.metadata.storageKey}` : ""}`;
             if (autoSavedTaskIdsRef.current.has(saveKey)) return;
+            const cooldownUntil = autoSaveCooldownRef.current.get(saveKey);
+            if (cooldownUntil && now < cooldownUntil) return;
+
             autoSavedTaskIdsRef.current.add(saveKey);
             void runGenerationConsumer(consumerControllerRef.current.signal, async (signal) => {
                 await saveGeneratedAsset(node, taskId, signal);
+                autoSaveCooldownRef.current.delete(saveKey);
             }).catch((error) => {
                 autoSavedTaskIdsRef.current.delete(saveKey);
+                // 失败后设置 30 秒冷却，避免每次渲染/拖拽/缩放都无限循环重试和频繁弹窗
+                autoSaveCooldownRef.current.set(saveKey, Date.now() + 30_000);
                 if (error instanceof Error && error.name === "AbortError") return;
                 const detail = error instanceof Error ? error.message : "未知错误";
                 const content = hasRemoteUserDataSyncSession()
