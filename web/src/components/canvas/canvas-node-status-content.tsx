@@ -6,6 +6,7 @@ import { AlertCircle, Clock3, Download, FileText, RefreshCw } from "lucide-react
 import { useSyncExternalStore } from "react";
 import { idleTaskTickerSubscribe, subscribeTaskTicker, taskTickerSnapshot } from "@/lib/canvas/task-ticker";
 import { CONTENT_MODERATION_ERROR_CODE, generationErrorMessage, isContentModerationError } from "@/lib/generation-error";
+import { CanvasNodeType } from "@/types/canvas";
 import type { CanvasNodeContentProps } from "./canvas-node-content";
 
 export function LoadingContent({ node, theme, onOpenTaskDetails }: Pick<CanvasNodeContentProps, "node" | "theme" | "onOpenTaskDetails">) {
@@ -25,6 +26,51 @@ export function LoadingContent({ node, theme, onOpenTaskDetails }: Pick<CanvasNo
     const workflow = node.metadata?.imageLayerWorkflow;
     const stageLabel = workflow ? (workflow.stage === "planning" ? "拆解规划中" : `拆解中，共 ${workflow.total} 张图`) : node.metadata?.experimentalLayerPlan?.progress || (taskId ? generationTaskStageLabel(displayTask) : "正在创建任务");
     const elapsed = useTaskElapsed(workflow?.startedAt || node.metadata?.taskCreatedAt);
+    const isCompact = (Boolean(node.height) && node.height <= 170) || node.type === CanvasNodeType.Audio;
+
+    if (isCompact) {
+        return (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 px-3 py-1.5 text-center" style={{ color: theme.node.activeStroke }}>
+                {submissionUncertain ? (
+                    <AlertCircle className="size-6 shrink-0" />
+                ) : (
+                    <div className="size-6 shrink-0 animate-spin rounded-full border-2" style={{ borderColor: theme.node.stroke, borderTopColor: theme.node.activeStroke }} />
+                )}
+                <div className="flex max-w-[260px] flex-col items-center gap-0.5">
+                    <span className="max-w-full truncate text-[var(--fs-tiny)] font-semibold leading-tight">{stageLabel}</span>
+                    <div className="max-w-full truncate text-[11px] leading-tight" style={{ color: theme.node.text }}>
+                        {statusLabel}
+                        {progress !== null ? ` · ${progress}%` : ""}
+                    </div>
+                </div>
+                {progress !== null ? (
+                    <div className="h-1 w-full max-w-[180px] overflow-hidden rounded-full" style={{ background: theme.node.stroke }}>
+                        <div className="h-full rounded-full transition-[width]" style={{ width: `${progress}%`, background: theme.node.activeStroke }} />
+                    </div>
+                ) : null}
+                {taskId ? (
+                    <div className="flex items-center gap-1.5 text-[10px] tabular-nums" style={{ color: theme.node.muted }}>
+                        <Clock3 className="size-2.5 shrink-0" />
+                        <span>{workflow ? shortTaskId(taskId) : `${elapsed} · ${shortTaskId(taskId)}`}</span>
+                        <button
+                            type="button"
+                            className="ml-1 inline-flex h-5 items-center gap-1 rounded-[var(--r-sm)] px-1.5 text-[10px] font-medium transition-colors"
+                            style={{ background: theme.toolbar.itemHover, color: theme.node.text }}
+                            onMouseDown={(event) => event.stopPropagation()}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onOpenTaskDetails?.(node);
+                            }}
+                        >
+                            <FileText className="size-2.5" />
+                            详情
+                        </button>
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
+
     return (
         <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 px-5 text-center" style={{ color: theme.node.activeStroke }}>
             {submissionUncertain ? <AlertCircle className="size-10" /> : <div className="size-10 animate-spin rounded-full border-2" style={{ borderColor: theme.node.stroke, borderTopColor: theme.node.activeStroke }} />}
