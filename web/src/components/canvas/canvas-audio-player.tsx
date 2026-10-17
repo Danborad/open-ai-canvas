@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { AlertCircle, LoaderCircle, Pause, Play } from "lucide-react";
 
 import type { CanvasTheme } from "@/lib/canvas-theme";
 import { useCanvasNodeActions } from "./canvas-node-action-context";
 import { getCanvasAudioPlaybackSnapshot, seekCanvasAudio, stopCanvasAudio, subscribeCanvasAudioNode, toggleCanvasAudio } from "@/services/canvas-audio-playback";
+import { AUDIO_WAVEFORM_BARS, loadAudioWaveform } from "@/lib/canvas/canvas-audio-waveform";
 import type { CanvasNodeData } from "@/types/canvas";
 
 type CanvasAudioPlayerProps = {
@@ -26,7 +27,36 @@ export function CanvasAudioPlayer({ node, theme }: CanvasAudioPlayerProps) {
         }),
         [node.id, node.metadata?.content, node.metadata?.durationMs, node.metadata?.mimeType, node.metadata?.storageKey],
     );
-    const waveform = useMemo(() => createStableWaveform(node.id), [node.id]);
+    const fallbackWaveform = useMemo(() => createStableWaveform(node.id), [node.id]);
+    const [realWaveform, setRealWaveform] = useState<number[] | null>(() => {
+        if (node.metadata?.waveform && node.metadata.waveform.length === AUDIO_WAVEFORM_BARS) {
+            return node.metadata.waveform;
+        }
+        return null;
+    });
+
+    useEffect(() => {
+        if (!source.content && !source.storageKey) return;
+        if (node.metadata?.waveform && node.metadata.waveform.length === AUDIO_WAVEFORM_BARS) {
+            setRealWaveform(node.metadata.waveform);
+            return;
+        }
+        let cancelled = false;
+        void loadAudioWaveform(source, AUDIO_WAVEFORM_BARS)
+            .then((peaks) => {
+                if (cancelled || !peaks.length) return;
+                setRealWaveform(peaks);
+                updateMetadata?.(node.id, { waveform: peaks });
+            })
+            .catch(() => {
+                // 解码失败或非浏览器环境时保留回退波形
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [node.id, node.metadata?.waveform, source, updateMetadata]);
+
+    const waveform = realWaveform || fallbackWaveform;
     const syncedDurationRef = useRef(0);
     const durationMs = snapshot.durationMs || node.metadata?.durationMs || 0;
     const progress = durationMs > 0 ? Math.min(1, Math.max(0, snapshot.currentTimeMs / durationMs)) : 0;

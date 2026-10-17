@@ -253,7 +253,7 @@ function sameSource(left: CanvasAudioSource, right: CanvasAudioSource) {
     return left.content === right.content && left.storageKey === right.storageKey && left.mimeType === right.mimeType;
 }
 
-async function resolveAudioSource(source: CanvasAudioSource) {
+export async function resolveAudioSource(source: CanvasAudioSource) {
     if (source.storageKey) {
         const resourceId = resourceIdFromStorageKey(source.storageKey);
         if (resourceId) return resolveResourceAccessURL((await getResourceAccess(source.storageKey, "display", "playback")).url);
