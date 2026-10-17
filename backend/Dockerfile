@@ -67,7 +67,7 @@ RUN npm config set registry https://registry.npmmirror.com && npm ci --omit=dev 
 
 FROM node:22-alpine
 
-RUN apk add --no-cache ca-certificates tzdata wget \
+RUN apk add --no-cache ca-certificates tzdata wget ffmpeg \
     && addgroup -S app \
     && adduser -S app -G app
 
