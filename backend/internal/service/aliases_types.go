@@ -159,6 +159,7 @@ type (
 	EagleItemQuery                         = app.EagleItemQuery
 	EagleLibrary                           = app.EagleLibrary
 	EmailCodeCooldownError                 = app.EmailCodeCooldownError
+	EmailSenderRequest                     = app.EmailSenderRequest
 	EmailSettingRequest                    = app.EmailSettingRequest
 	ErrorReason                            = app.ErrorReason
 	FeatureAvailability                    = app.FeatureAvailability
@@ -240,6 +241,7 @@ type (
 	PublicChannelModelPriceTier            = app.PublicChannelModelPriceTier
 	PublicCreditPolicy                     = app.PublicCreditPolicy
 	PublicDrawingEngineSetting             = app.PublicDrawingEngineSetting
+	PublicEmailSender                      = app.PublicEmailSender
 	PublicEmailSetting                     = app.PublicEmailSetting
 	PublicFeatureAvailability              = app.PublicFeatureAvailability
 	PublicLibTVSetting                     = app.PublicLibTVSetting
@@ -328,6 +330,8 @@ type (
 	TaskClientContext                      = app.TaskClientContext
 	TaskListOptions                        = app.TaskListOptions
 	TaskSummary                            = app.TaskSummary
+	TestEmailRequest                       = app.TestEmailRequest
+	TestEmailResult                        = app.TestEmailResult
 	TextCapabilityConfig                   = app.TextCapabilityConfig
 	TextReferenceConfig                    = app.TextReferenceConfig
 	TextReplayResult                       = app.TextReplayResult
