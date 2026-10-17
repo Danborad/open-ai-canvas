@@ -184,6 +184,10 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     const credits = routeQuote ? routeQuote.amountMicrocredits / 1_000_000 : configuredCredits;
     const activeReferenceCount = activeReferences.length;
     const videoFrameOptions = resolvedMentionReferences.filter((item) => item.active && item.kind === "image").map((item) => ({ nodeId: item.nodeId, label: item.label, title: item.title, previewUrl: item.previewUrl }));
+    const audioReferenceOptions = useMemo(
+        () => resolvedMentionReferences.filter((item) => item.active && item.kind === "audio").map((item) => ({ id: item.id, title: item.title, label: item.label })),
+        [resolvedMentionReferences],
+    );
     const hasVideoPromptTools = mode === "video" && !simpleMode && videoFrameOptions.length > 0;
     const monochromeAccent = theme.node.activeStroke;
     const composerTokens = {
@@ -544,6 +548,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                     ) : mode === "audio" ? (
                         <CanvasAudioSettingsPopover
                             config={config}
+                            referenceAudios={audioReferenceOptions}
                             buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
                             onConfigChange={(key, value) => onConfigChange(node.id, audioConfigPatch(key, value))}
                         />

@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { Input, InputNumber, Radio } from "antd";
+import { Music2 } from "lucide-react";
 import { Select } from "@/components/ui/base/select";
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
 import { audioFormatOptionsForConfig, audioSpeedLabel, audioVoiceOptionsForConfig, isDoubaoAudioConfig, normalizeAudioFormatForConfig, normalizeAudioSpeedValue, normalizeAudioVoiceForConfig } from "@/lib/audio-generation";
@@ -7,9 +8,16 @@ import type { CanvasTheme } from "@/lib/canvas-theme";
 import type { AiConfig } from "@/stores/use-config-store";
 import type { CanvasAudioSettingKey } from "@/components/canvas/canvas-audio-settings-popover";
 
-type AudioSettingsPanelProps = { config: AiConfig; onConfigChange: (key: CanvasAudioSettingKey, value: string) => void; theme: CanvasTheme; showTitle?: boolean; className?: string };
+type AudioSettingsPanelProps = {
+    config: AiConfig;
+    onConfigChange: (key: CanvasAudioSettingKey, value: string) => void;
+    theme: CanvasTheme;
+    showTitle?: boolean;
+    className?: string;
+    referenceAudios?: Array<{ id: string; title?: string; label?: string }>;
+};
 
-export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = true, className = "w-[var(--panel-width-compact)] space-y-4" }: AudioSettingsPanelProps) {
+export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = true, className = "w-[var(--panel-width-compact)] space-y-4", referenceAudios = [] }: AudioSettingsPanelProps) {
     const listId = useId();
     const streaming = isDoubaoAudioConfig(config);
     const voice = normalizeAudioVoiceForConfig(config, config.audioVoice);
@@ -19,6 +27,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
     const format = normalizeAudioFormatForConfig(config, config.audioFormat);
     const speed = normalizeAudioSpeedValue(config.audioSpeed);
     const selectVoice = (value: string) => onConfigChange("audioVoice", value);
+    const hasAudioRef = referenceAudios.length > 0;
     return (
         <ImageSettingsTheme theme={theme}>
             <section className={className} style={{ color: theme.node.text }} onPointerDown={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()} aria-label="音频生成参数">
@@ -27,12 +36,31 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                     <legend className="mb-2 text-xs" style={{ color: theme.node.muted }}>
                         音色
                     </legend>
-                    {streaming ? (
+                    {hasAudioRef ? (
+                        <div className="space-y-1.5 rounded-lg border border-primary/25 bg-primary/5 p-2.5 text-xs">
+                            <div className="flex items-center gap-1.5 font-medium text-primary">
+                                <Music2 className="size-3.5" />
+                                <span>已启用参考音频克隆音色</span>
+                            </div>
+                            <p className="leading-relaxed" style={{ color: theme.node.muted }}>
+                                当前已连接 <span className="font-semibold text-foreground">{referenceAudios.map((r) => r.title || r.label || "参考音频").join("、")}</span>，将直接复刻该音频的声音特征，无需指定预设音色。
+                            </p>
+                        </div>
+                    ) : streaming ? (
                         <>
                             <p className="text-xs leading-5" style={{ color: theme.node.muted }}>
                                 无参考素材时按提示词生成；可连接最多 3 段音频或 1 张图片，图片与音频不能混用。
                             </p>
-                            <Select className="w-full" ariaLabel="音色" value={voice} onChange={selectVoice} options={[{ value: "", label: "不指定音色" }, ...(voice ? [{ value: voice, label: `当前音色 · ${voice}` }] : [])]} />
+                            <Select
+                                className="w-full"
+                                ariaLabel="音色"
+                                value={voice}
+                                onChange={selectVoice}
+                                options={[
+                                    { value: "", label: "不指定音色（按提示词自动演绎）" },
+                                    ...(voice ? [{ value: voice, label: `当前音色 · ${voice}` }] : []),
+                                ]}
+                            />
                         </>
                     ) : (
                         <>
