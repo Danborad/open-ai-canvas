@@ -4,17 +4,17 @@ import { resolveAudioSource, type CanvasAudioSource } from "@/services/canvas-au
 const waveformMemoryCache = new Map<string, number[]>();
 const waveformInFlight = new Map<string, Promise<number[]>>();
 
-export const AUDIO_WAVEFORM_BARS = 36;
+export const AUDIO_WAVEFORM_BARS = 64;
 
 /**
- * 从已解码的 AudioBuffer 中提取指定柱数的归一化波形峰值（范围 0.12 ~ 1.0）。
- * 结合峰值（捕捉瞬态辅音/鼓点）与 RMS（反映感知响度），采用 0.7 幂次动态范围缩放，
- * 呈现贴合真实人声起伏的波形动画。
+ * 从已解码的 AudioBuffer 中提取指定柱数的归一化波形峰值（静音为 0，有声范围 0.12 ~ 1.0）。
+ * 结合峰值（捕捉瞬态辅音/鼓点）与 RMS（反映感知响度），采用非线性动态范围缩放，
+ * 静音段沉降贴平中心虚线，有声段对称伸展，呈现精细真实的声波形态。
  */
 export function computeWaveformPeaks(buffer: AudioBuffer, barCount = AUDIO_WAVEFORM_BARS): number[] {
     const channelCount = buffer.numberOfChannels;
     const length = buffer.length;
-    if (length === 0 || barCount <= 0) return Array(barCount).fill(0.25);
+    if (length === 0 || barCount <= 0) return Array(barCount).fill(0);
 
     const c0 = buffer.getChannelData(0);
     const c1 = channelCount > 1 ? buffer.getChannelData(1) : null;
@@ -44,8 +44,12 @@ export function computeWaveformPeaks(buffer: AudioBuffer, barCount = AUDIO_WAVEF
     }
 
     const maxPeak = Math.max(...rawPeaks, 0.0001);
+    // 底噪截断：低于峰值 2% 的微弱底噪直接归为静音，露出干净的中心基准线
+    const threshold = 0.02 * maxPeak;
+
     return rawPeaks.map((val) => {
-        const normalized = Math.pow(val / maxPeak, 0.7);
+        if (val <= threshold) return 0;
+        const normalized = Math.pow((val - threshold) / (maxPeak - threshold), 0.75);
         const clamped = 0.12 + 0.88 * normalized;
         return Math.round(clamped * 1000) / 1000;
     });

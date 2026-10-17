@@ -28,16 +28,16 @@ describe("canvas audio waveform extraction", () => {
         const peaks = computeWaveformPeaks(mockBuffer, AUDIO_WAVEFORM_BARS);
 
         expect(peaks).toHaveLength(AUDIO_WAVEFORM_BARS);
-        // 所有柱高必须在 [0.12, 1.0] 的合法视觉高度范围内
+        // 所有柱高必须在 [0, 1.0] 的合法视觉高度范围内（静音为 0，有声为 0.12~1.0）
         for (const val of peaks) {
-            expect(val).toBeGreaterThanOrEqual(0.12);
+            expect(val).toBeGreaterThanOrEqual(0);
             expect(val).toBeLessThanOrEqual(1.0);
         }
         // 最高峰值应为 1.0
         expect(Math.max(...peaks)).toBe(1.0);
 
         // 前半段的峰值应呈上升趋势（反映真实音频振幅），而不是固定的伪随机值
-        expect(peaks[AUDIO_WAVEFORM_BARS / 2 - 1]).toBeGreaterThan(peaks[1]);
+        expect(peaks[Math.floor(AUDIO_WAVEFORM_BARS / 2) - 1]).toBeGreaterThan(peaks[1]);
     });
 
     test("handles silent or empty audio buffers gracefully", () => {
@@ -51,8 +51,9 @@ describe("canvas audio waveform extraction", () => {
 
         const peaks = computeWaveformPeaks(mockSilentBuffer, AUDIO_WAVEFORM_BARS);
         expect(peaks).toHaveLength(AUDIO_WAVEFORM_BARS);
+        // 静音音频切分后峰值应全为 0（基准虚线平铺）
         for (const val of peaks) {
-            expect(val).toBeGreaterThanOrEqual(0.12);
+            expect(val).toBe(0);
         }
 
         const mockEmptyBuffer = {
@@ -65,5 +66,8 @@ describe("canvas audio waveform extraction", () => {
 
         const emptyPeaks = computeWaveformPeaks(mockEmptyBuffer, AUDIO_WAVEFORM_BARS);
         expect(emptyPeaks).toHaveLength(AUDIO_WAVEFORM_BARS);
+        for (const val of emptyPeaks) {
+            expect(val).toBe(0);
+        }
     });
 });
