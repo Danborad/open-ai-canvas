@@ -40,17 +40,18 @@ export function computeWaveformPeaks(buffer: AudioBuffer, barCount = AUDIO_WAVEF
             sampleCount++;
         }
         const rms = sampleCount > 0 ? Math.sqrt(sumSquares / sampleCount) : 0;
-        rawPeaks.push(peak * 0.7 + rms * 0.3);
+        // RMS 占比 65%，Peak 占比 35%，让持续发音与过渡音的能量反差显著增强
+        rawPeaks.push(peak * 0.35 + rms * 0.65);
     }
 
     const maxPeak = Math.max(...rawPeaks, 0.0001);
-    // 底噪截断：低于峰值 2% 的微弱底噪直接归为静音，露出干净的中心基准线
-    const threshold = 0.02 * maxPeak;
 
     return rawPeaks.map((val) => {
-        if (val <= threshold) return 0;
-        const normalized = Math.pow((val - threshold) / (maxPeak - threshold), 0.75);
-        const clamped = 0.12 + 0.88 * normalized;
+        const ratio = val / maxPeak;
+        // 采用 1.8 幂次展开动态范围，低响度/底噪迅速压低，重音与高潮充分拔高，对比极鲜明
+        const powered = Math.pow(Math.max(0, ratio), 1.8);
+        if (powered < 0.015) return 0; // 静音/微弱底噪沉降为 0（露出中心基准虚线）
+        const clamped = 0.05 + 0.95 * powered;
         return Math.round(clamped * 1000) / 1000;
     });
 }

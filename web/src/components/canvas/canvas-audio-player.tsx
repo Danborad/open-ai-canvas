@@ -3,7 +3,7 @@ import { AlertCircle, LoaderCircle, Pause, Play } from "lucide-react";
 
 import type { CanvasTheme } from "@/lib/canvas-theme";
 import { useCanvasNodeActions } from "./canvas-node-action-context";
-import { getCanvasAudioPlaybackSnapshot, seekCanvasAudio, stopCanvasAudio, subscribeCanvasAudioNode, toggleCanvasAudio } from "@/services/canvas-audio-playback";
+import { getCanvasAudioCurrentTimeMs, getCanvasAudioPlaybackSnapshot, seekCanvasAudio, stopCanvasAudio, subscribeCanvasAudioNode, toggleCanvasAudio } from "@/services/canvas-audio-playback";
 import { AUDIO_WAVEFORM_BARS, loadAudioWaveform } from "@/lib/canvas/canvas-audio-waveform";
 import type { CanvasNodeData } from "@/types/canvas";
 
@@ -29,7 +29,7 @@ export function CanvasAudioPlayer({ node, theme }: CanvasAudioPlayerProps) {
     );
     const fallbackWaveform = useMemo(() => createStableWaveform(node.id), [node.id]);
     const [realWaveform, setRealWaveform] = useState<number[] | null>(() => {
-        if (node.metadata?.waveform && node.metadata.waveform.length === AUDIO_WAVEFORM_BARS) {
+        if (node.metadata?.waveformVersion === 2 && node.metadata?.waveform && node.metadata.waveform.length === AUDIO_WAVEFORM_BARS) {
             return node.metadata.waveform;
         }
         return null;
@@ -37,7 +37,7 @@ export function CanvasAudioPlayer({ node, theme }: CanvasAudioPlayerProps) {
 
     useEffect(() => {
         if (!source.content && !source.storageKey) return;
-        if (node.metadata?.waveform && node.metadata.waveform.length === AUDIO_WAVEFORM_BARS) {
+        if (node.metadata?.waveformVersion === 2 && node.metadata?.waveform && node.metadata.waveform.length === AUDIO_WAVEFORM_BARS) {
             setRealWaveform(node.metadata.waveform);
             return;
         }
@@ -46,7 +46,7 @@ export function CanvasAudioPlayer({ node, theme }: CanvasAudioPlayerProps) {
             .then((peaks) => {
                 if (cancelled || !peaks.length) return;
                 setRealWaveform(peaks);
-                updateMetadata?.(node.id, { waveform: peaks });
+                updateMetadata?.(node.id, { waveform: peaks, waveformVersion: 2 });
             })
             .catch(() => {
                 // 解码失败或非浏览器环境时保留回退波形
@@ -54,12 +54,16 @@ export function CanvasAudioPlayer({ node, theme }: CanvasAudioPlayerProps) {
         return () => {
             cancelled = true;
         };
-    }, [node.id, node.metadata?.waveform, source, updateMetadata]);
+    }, [node.id, node.metadata?.waveform, node.metadata?.waveformVersion, source, updateMetadata]);
 
     const waveform = realWaveform || fallbackWaveform;
     const syncedDurationRef = useRef(0);
     const durationMs = snapshot.durationMs || node.metadata?.durationMs || 0;
     const progress = durationMs > 0 ? Math.min(1, Math.max(0, snapshot.currentTimeMs / durationMs)) : 0;
+
+    const playheadRef = useRef<HTMLDivElement>(null);
+    const timeDisplayRef = useRef<HTMLSpanElement>(null);
+    const barsContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!snapshot.durationMs || snapshot.durationMs === node.metadata?.durationMs || syncedDurationRef.current === snapshot.durationMs) return;
@@ -74,6 +78,56 @@ export function CanvasAudioPlayer({ node, theme }: CanvasAudioPlayerProps) {
         void toggleCanvasAudio(source);
     };
 
+    const isPlaying = snapshot.phase === "playing";
+    const isLoading = snapshot.phase === "loading";
+    const isError = snapshot.phase === "error";
+
+    // 播放状态下使用 60fps 硬件帧率驱动红色游标平滑位移，彻底消除原生 timeupdate 的 250ms 阶梯卡顿
+    useEffect(() => {
+        if (!isPlaying || !durationMs) {
+            if (playheadRef.current) {
+                playheadRef.current.style.left = `calc(12px + (100% - 24px) * ${Math.min(1, Math.max(0, progress))})`;
+            }
+            if (timeDisplayRef.current) {
+                timeDisplayRef.current.textContent = `${formatAudioTime(snapshot.currentTimeMs)} / ${durationMs ? formatAudioTime(durationMs) : "00:00"}`;
+            }
+            return;
+        }
+
+        let animationFrameId: number;
+        const tick = () => {
+            const currentMs = getCanvasAudioCurrentTimeMs(node.id);
+            const currentProgress = Math.min(1, Math.max(0, currentMs / durationMs));
+
+            if (playheadRef.current) {
+                playheadRef.current.style.left = `calc(12px + (100% - 24px) * ${currentProgress})`;
+            }
+            if (timeDisplayRef.current) {
+                timeDisplayRef.current.textContent = `${formatAudioTime(currentMs)} / ${formatAudioTime(durationMs)}`;
+            }
+            if (barsContainerRef.current) {
+                const bars = barsContainerRef.current.children;
+                const totalBars = bars.length;
+                for (let i = 0; i < totalBars; i++) {
+                    const barSpan = bars[i].firstElementChild as HTMLElement | null;
+                    if (barSpan) {
+                        const isPassed = i / totalBars <= currentProgress;
+                        const targetColor = isPassed ? "#ef4444" : "rgba(255, 255, 255, 0.35)";
+                        if (barSpan.style.backgroundColor !== targetColor) {
+                            barSpan.style.backgroundColor = targetColor;
+                        }
+                    }
+                }
+            }
+            animationFrameId = requestAnimationFrame(tick);
+        };
+
+        animationFrameId = requestAnimationFrame(tick);
+        return () => {
+            cancelAnimationFrame(animationFrameId);
+        };
+    }, [isPlaying, durationMs, node.id, progress, snapshot.currentTimeMs]);
+
     const handleWaveformPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
         stopCanvasEvent(event);
         if (!durationMs || isError) return;
@@ -84,7 +138,14 @@ export function CanvasAudioPlayer({ node, theme }: CanvasAudioPlayerProps) {
             if (availableWidth <= 0) return;
             const x = Math.max(0, Math.min(availableWidth, clientX - rect.left - 12));
             const pct = x / availableWidth;
-            seekCanvasAudio(node.id, Math.round(pct * durationMs), source);
+            const targetMs = Math.round(pct * durationMs);
+            seekCanvasAudio(node.id, targetMs, source);
+            if (playheadRef.current) {
+                playheadRef.current.style.left = `calc(12px + (100% - 24px) * ${pct})`;
+            }
+            if (timeDisplayRef.current) {
+                timeDisplayRef.current.textContent = `${formatAudioTime(targetMs)} / ${formatAudioTime(durationMs)}`;
+            }
         };
         computeAndSeek(event.clientX);
 
@@ -99,9 +160,6 @@ export function CanvasAudioPlayer({ node, theme }: CanvasAudioPlayerProps) {
         window.addEventListener("pointerup", onPointerUp);
     };
     const label = node.title || "音频";
-    const isPlaying = snapshot.phase === "playing";
-    const isLoading = snapshot.phase === "loading";
-    const isError = snapshot.phase === "error";
 
     return (
         <div
@@ -128,7 +186,7 @@ export function CanvasAudioPlayer({ node, theme }: CanvasAudioPlayerProps) {
                 <div className="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 border-b border-dashed border-white/15" />
 
                 {/* 细波形柱状图（对称垂直居中） */}
-                <div className="pointer-events-none relative z-10 flex h-full w-full items-center justify-between gap-[1.5px]">
+                <div ref={barsContainerRef} className="pointer-events-none relative z-10 flex h-full w-full items-center justify-between gap-[1.5px]">
                     {waveform.map((height, index) => {
                         const isPassed = durationMs > 0 && index / waveform.length <= progress;
                         const hasSound = height > 0;
@@ -148,9 +206,10 @@ export function CanvasAudioPlayer({ node, theme }: CanvasAudioPlayerProps) {
                     })}
                 </div>
 
-                {/* 垂直红色播放游标指针 */}
+                {/* 垂直红色播放游标指针（原生无 transition 驱动以保证 60fps 丝滑平移） */}
                 <div
-                    className="pointer-events-none absolute bottom-1.5 top-1.5 z-20 w-[2px] rounded-full bg-red-500 shadow-sm transition-[left] duration-75"
+                    ref={playheadRef}
+                    className="pointer-events-none absolute bottom-1.5 top-1.5 z-20 w-[2px] rounded-full bg-red-500 shadow-sm"
                     style={{
                         left: `calc(12px + (100% - 24px) * ${Math.min(1, Math.max(0, progress))})`,
                         transform: "translateX(-50%)",
@@ -168,7 +227,7 @@ export function CanvasAudioPlayer({ node, theme }: CanvasAudioPlayerProps) {
                             <span className="max-w-[130px] truncate">{snapshot.error || "播放失败"}</span>
                         </span>
                     ) : (
-                        <span>
+                        <span ref={timeDisplayRef}>
                             {formatAudioTime(snapshot.currentTimeMs)} / {durationMs ? formatAudioTime(durationMs) : "00:00"}
                         </span>
                     )}
