@@ -11,5 +11,7 @@ import "./media-conversion";
 import "./composer-image-paste";
 import "./wecom-bot";
 import "./user-storage-status";
+import "./user-feedback";
 
 export * from "./user-storage-status";
+export * from "./user-feedback";

@@ -24,6 +24,7 @@ export const EXTENDED_APPLICATION_PLUGIN_IDS = [
     "composer-image-paste",
     "wecom-daily-report",
     "user-storage-status",
+    "user-feedback",
 ] as const;
 
 const officialApplicationIdSet = new Set<string>(OFFICIAL_APPLICATION_PLUGIN_IDS);
