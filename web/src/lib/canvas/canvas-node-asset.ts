@@ -108,14 +108,9 @@ export function findCanvasNodeAsset(assets: Asset[], node: CanvasNodeData, canva
     const generationTaskId = taskId || node.metadata?.taskId;
     const nodeResourceKey = node.metadata?.storageKey;
     return assets.find((asset) => {
-        if (generationTaskId && asset.metadata?.taskId === generationTaskId) {
-            if (asset.metadata?.nodeId && asset.metadata.nodeId !== node.id) {
-                if (sameAssetResource(asset, node) && !(node.metadata?.imageLayerGroup || node.metadata?.layerExtraction)) {
-                    return true;
-                }
-            } else if (!(node.metadata?.imageLayerGroup || node.metadata?.layerExtraction) || sameAssetResource(asset, node)) {
-                return true;
-            }
+        if (generationTaskId && asset.metadata?.taskId === generationTaskId && sameAssetResource(asset, node)) {
+            if (!asset.metadata?.nodeId || asset.metadata.nodeId === node.id) return true;
+            if (!(node.metadata?.imageLayerGroup || node.metadata?.layerExtraction)) return true;
         }
         if (nodeResourceKey && nodeResourceKey.startsWith("resource:") && sameAssetResource(asset, node)) {
             if (!asset.metadata?.nodeId || asset.metadata.nodeId === node.id) return true;
@@ -123,8 +118,7 @@ export function findCanvasNodeAsset(assets: Asset[], node: CanvasNodeData, canva
         if (asset.metadata?.nodeId !== node.id) return false;
         const sourceCanvasId = asset.metadata?.canvasId;
         if (sourceCanvasId !== canvasId && (sourceCanvasId || asset.metadata?.source !== "canvas-generation")) return false;
-        const assetResourceKey = typeof asset.metadata?.resourceKey === "string" ? asset.metadata.resourceKey : assetStorageKey(asset);
-        return !nodeResourceKey || !assetResourceKey || nodeResourceKey === assetResourceKey;
+        return sameAssetResource(asset, node);
     });
 }
 

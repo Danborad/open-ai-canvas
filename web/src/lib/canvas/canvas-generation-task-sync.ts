@@ -3,7 +3,7 @@ import { commitCanvasGenerationResult } from "@/lib/canvas/canvas-generation-res
 import { batchOutputResultPending } from "@/lib/canvas/canvas-batch-references";
 import { findCanvasNodeAsset } from "@/lib/canvas/canvas-node-asset";
 import { findAvailableGenerationGroupPosition, imageGenerationChildPosition } from "@/lib/canvas/canvas-generation-layout";
-import { fitImageNodeSize, fitNodeSize, imageNodeSizeFromRatio, preserveImageNodeSize, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
+import { fitImageNodeSize, fitNodeSize, imageNodeSizeFromRatio, nodeSizeFromRatio, preserveImageNodeSize, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
 import { compositeEmotionImage } from "@/lib/canvas/canvas-emotion";
 import { storeGeneratedAudio } from "@/services/api/audio";
 import { storeGeneratedVideo } from "@/services/api/video";

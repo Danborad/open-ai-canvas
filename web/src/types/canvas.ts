@@ -539,6 +539,8 @@ export type CanvasNodeMetadata = {
     storyboardComposerHeight?: number;
     generationBatches?: CanvasGenerationBatch[];
     batchTable?: CanvasBatchTableData;
+    batchSourceNodeId?: string;
+    batchRowId?: string;
     batchOperation?: CanvasBatchOperation;
     batchInputNodeIds?: string[];
     /** 本次批量生成准备时的输入签名；不代表旧缩略图已采用这些输入。 */
