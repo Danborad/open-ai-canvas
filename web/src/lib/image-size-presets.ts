@@ -8,20 +8,21 @@ export function imageResolutionTiers(profile: ImageCapabilityConfig): ImageResol
     const has15k = Boolean(
         profile.size.presets?.some((preset) => preset.tier === "1.5k") ||
         profile.quality.values.includes("1.5k") ||
+        profile.resolution.values.includes("1.5k") ||
         profile.size.values.some((v) => SEEDREAM_15K_SIZES.has(v.trim()))
     );
-    const has4k = Boolean(
+    if (!has15k) return IMAGE_RESOLUTIONS;
+    // Seedream 5.0 最高 2K：声明了 1.5K 且没有 4K 档位时只提供 1K / 1.5K / 2K。
+    const declares4k = Boolean(
         profile.size.presets?.some((preset) => preset.tier === "4k") ||
         profile.quality.values.includes("4k") ||
+        profile.resolution.values.includes("4k") ||
         profile.size.values.some((v) => {
             const m = v.match(/^(\d+)x(\d+)$/);
             return m && Number(m[1]) * Number(m[2]) > 5_000_000;
         })
     );
-    // Seedream Pro / Flash 专属：最大只支持 2K，包含 1K / 1.5K / 2K，不包含 4K
-    if (has15k && !has4k) return ["1k", "1.5k", "2k"];
-    if (has15k) return ["1k", "1.5k", "2k", "4k"];
-    return IMAGE_RESOLUTIONS;
+    return declares4k ? ["1k", "1.5k", "2k", "4k"] : ["1k", "1.5k", "2k"];
 }
 export const IMAGE_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9"];
 // Administrator's initial selection; plugin constraints still bound these choices.

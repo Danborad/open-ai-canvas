@@ -93,7 +93,8 @@ export function canvasNodeToAsset(node: CanvasNodeData, options: CanvasNodeAsset
 export function requiresMaterializedCanvasAsset(node: CanvasNodeData, taskId?: string) {
     const metadata = node.metadata;
     if (!(taskId || metadata?.taskId) || !metadata?.storageKey?.startsWith("resource:")) return false;
-    if (metadata.imageLayerGroup) return false;
+    // 图层组合成与情绪局部融合保存的是浏览器加工后的文件，不是模型原始输出。
+    if (metadata.imageLayerGroup || metadata.emotionEdit?.editRegion) return false;
     const sourceKey = metadata.layerExtraction?.sourceResultStorageKey;
     return !sourceKey || sourceKey === metadata.storageKey;
 }

@@ -23,6 +23,8 @@ type (
 	CanvasProjectStats      = canvas.CanvasProjectStats
 	CanvasOperationsRequest = canvas.CanvasOperationsRequest
 	CanvasOperation         = canvas.CanvasOperation
+	CanvasEditLeaseRequest  = canvas.CanvasEditLeaseRequest
+	CanvasSyncStatus        = canvas.CanvasSyncStatus
 )
 
 type canvasHost struct {
@@ -230,6 +232,14 @@ func (s *Service) UserCanvasProjectSummaries(userID string) ([]UserDataSummary, 
 
 func (s *Service) UserCanvasProjectMetadata(userID string, id string) (*model.CanvasProject, error) {
 	return s.canvasDomain().UserCanvasProjectMetadata(userID, id)
+}
+
+func (s *Service) UserCanvasSyncStatus(userID, id string) (CanvasSyncStatus, error) {
+	return s.canvasDomain().UserCanvasSyncStatus(userID, id)
+}
+
+func (s *Service) ChangeUserCanvasEditLease(userID, id string, req CanvasEditLeaseRequest) (map[string]any, error) {
+	return s.canvasDomain().ChangeUserCanvasEditLease(userID, id, req)
 }
 
 func (s *Service) UserCanvasProject(userID string, id string) (json.RawMessage, error) {
