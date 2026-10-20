@@ -7,6 +7,7 @@ import { Select } from "@/components/ui/base/select";
 import { imageHostControls, imageParameterAccepts, imageParameterRequest, parseImageParameters, updateImageParameterSchema, updateImageParameterSize, type ImageParameter, type ImageParameterValue } from "@/lib/image-parameters";
 import type { ImageCapabilityConfig } from "@/lib/model-capabilities";
 import type { AiConfig } from "@/stores/use-config-store";
+import { cn } from "@/lib/utils";
 
 export function ImageParameterInput({
     field,
@@ -156,27 +157,79 @@ export function ImageParameterFields({
                     }}
                 />
             ) : null}
-            {fields.map((field) => (
-                <div className="space-y-1.5" key={field.name}>
-                    <div className="text-xs font-medium">{field.label}</div>
-                    <ImageParameterInput
-                        field={field}
-                        inlineChoices
-                        value={values[field.name]}
-                        onChange={(next) => {
-                            if (imageHostControls.has(field.name)) {
-                                onChange(field.name as "size" | "quality" | "imageResolution" | "transparentBackground" | "count", next === undefined ? "" : String(next));
-                                return;
-                            }
-                            const parameters = parseImageParameters(config.imageParameters);
-                            if (next === undefined) delete parameters[field.name];
-                            else parameters[field.name] = next;
-                            onChange("imageParameters", JSON.stringify(parameters));
-                        }}
-                    />
-                    {field.description ? <p className="text-xs leading-relaxed text-foreground/55">{field.description}</p> : null}
-                </div>
-            ))}
+            {fields.map((field) => {
+                if (field.name === "count") {
+                    const max = Number(field.max ?? profile.maxOutputs ?? 4);
+                    const countVal = Number(values.count ?? config.count ?? 1);
+                    const quickCount = Math.min(3, max);
+                    return (
+                        <div className="space-y-2" key="count">
+                            <div className="text-xs font-medium">生成张数</div>
+                            <div className="grid grid-cols-4 gap-1.5">
+                                {Array.from({ length: quickCount }, (_, i) => i + 1).map((val) => (
+                                    <button
+                                        key={val}
+                                        type="button"
+                                        onClick={() => onChange("count", String(val))}
+                                        className={cn(
+                                            "flex h-8 items-center justify-center rounded-full text-xs font-medium transition-all select-none",
+                                            countVal === val
+                                                ? "bg-primary/20 text-primary border border-primary/40 font-semibold"
+                                                : "bg-muted/40 hover:bg-muted/70 text-muted-foreground hover:text-foreground border border-border/40",
+                                        )}
+                                    >
+                                        {val}
+                                    </button>
+                                ))}
+                                <label className="flex h-8 overflow-hidden rounded-full text-xs bg-muted/40 border border-border/40 hover:border-primary/40 transition-colors">
+                                    <input
+                                        key={countVal > quickCount ? `custom-${countVal}` : "quick"}
+                                        type="number"
+                                        min={1}
+                                        max={max}
+                                        aria-label="自定义生成张数"
+                                        placeholder="输入"
+                                        className="min-w-0 flex-1 bg-transparent px-2 text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none text-foreground placeholder:text-muted-foreground/60"
+                                        defaultValue={countVal > quickCount ? countVal : ""}
+                                        onBlur={(e) => {
+                                            const next = Math.max(1, Math.min(max, Math.floor(Number(e.currentTarget.value) || 1)));
+                                            e.currentTarget.value = String(next);
+                                            onChange("count", String(next));
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") e.currentTarget.blur();
+                                        }}
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                    />
+                                </label>
+                            </div>
+                            {field.description ? <p className="text-xs leading-relaxed text-foreground/55">{field.description}</p> : null}
+                        </div>
+                    );
+                }
+
+                return (
+                    <div className="space-y-1.5" key={field.name}>
+                        <div className="text-xs font-medium">{field.label}</div>
+                        <ImageParameterInput
+                            field={field}
+                            inlineChoices
+                            value={values[field.name]}
+                            onChange={(next) => {
+                                if (imageHostControls.has(field.name)) {
+                                    onChange(field.name as "size" | "quality" | "imageResolution" | "transparentBackground" | "count", next === undefined ? "" : String(next));
+                                    return;
+                                }
+                                const parameters = parseImageParameters(config.imageParameters);
+                                if (next === undefined) delete parameters[field.name];
+                                else parameters[field.name] = next;
+                                onChange("imageParameters", JSON.stringify(parameters));
+                            }}
+                        />
+                        {field.description ? <p className="text-xs leading-relaxed text-foreground/55">{field.description}</p> : null}
+                    </div>
+                );
+            })}
         </div>
     );
 }
