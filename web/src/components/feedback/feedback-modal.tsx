@@ -192,6 +192,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
             onCancel={onClose}
             footer={null}
             width={680}
+            style={{ maxWidth: "calc(100vw - 20px)", top: 20, margin: "0 auto" }}
             destroyOnClose={false}
             title={null}
             closable={false}
@@ -202,20 +203,20 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
         >
             <div className="flex flex-col max-h-[85vh] text-foreground" onPaste={handlePaste}>
                 {/* Header with Navigation Tabs */}
-                <div className="flex items-center justify-between border-b border-border/60 px-5 py-3.5 bg-muted/20">
-                    <div className="flex items-center gap-1.5">
+                <div className="flex items-center justify-between border-b border-border/60 px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-muted/20">
+                    <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
                         <button
                             id="feedback-tab-submit"
                             type="button"
                             onClick={() => setActiveTab("submit")}
                             className={cn(
-                                "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                                "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 sm:px-3 sm:py-1.5 text-xs font-semibold transition-colors whitespace-nowrap shrink-0",
                                 activeTab === "submit"
                                     ? "bg-primary text-primary-foreground shadow-sm"
                                     : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                             )}
                         >
-                            <Plus className="size-3.5" />
+                            <Plus className="size-3.5 shrink-0" />
                             <span>新建反馈</span>
                         </button>
                         <button
@@ -223,17 +224,17 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                             type="button"
                             onClick={() => setActiveTab("inbox")}
                             className={cn(
-                                "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors relative",
+                                "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 sm:px-3 sm:py-1.5 text-xs font-semibold transition-colors relative whitespace-nowrap shrink-0",
                                 activeTab === "inbox"
                                     ? "bg-primary text-primary-foreground shadow-sm"
                                     : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                             )}
                         >
-                            <Inbox className="size-3.5" />
-                            <span>我的反馈收件箱</span>
+                            <Inbox className="size-3.5 shrink-0" />
+                            <span><span className="hidden sm:inline">我的</span>反馈收件箱</span>
                             {myFeedbacks.length > 0 ? (
                                 <span className={cn(
-                                    "px-1.5 py-0.2 rounded-full text-[10px] font-bold leading-tight",
+                                    "px-1.5 py-0.2 rounded-full text-[10px] font-bold leading-tight shrink-0",
                                     activeTab === "inbox" ? "bg-white/20 text-white" : "bg-primary/20 text-primary"
                                 )}>
                                     {myFeedbacks.length}
@@ -248,7 +249,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors shrink-0 ml-1"
                         aria-label="关闭"
                     >
                         <X className="size-4" />
@@ -256,7 +257,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                 </div>
 
                 {/* Body Content */}
-                <div className="overflow-y-auto px-6 py-5 flex-1 min-h-0 space-y-4">
+                <div className="overflow-y-auto px-4 py-3.5 sm:px-6 sm:py-5 flex-1 min-h-0 space-y-4">
                     {activeTab === "submit" ? (
                         <div className="space-y-4">
                             {/* Feedback Type Selector */}
@@ -277,17 +278,17 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                                                 type="button"
                                                 onClick={() => setType(item.value as FeedbackType)}
                                                 className={cn(
-                                                    "flex flex-col items-start p-2.5 rounded-xl border text-left transition-all",
+                                                    "flex flex-col items-start p-2 sm:p-2.5 rounded-xl border text-left transition-all",
                                                     selected
                                                         ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/40"
                                                         : "border-border/60 bg-muted/20 hover:border-border text-muted-foreground hover:text-foreground",
                                                 )}
                                             >
                                                 <div className="flex items-center gap-1.5 font-medium text-xs mb-1">
-                                                    <Icon className={cn("size-3.5", selected ? "text-primary" : "text-muted-foreground")} />
+                                                    <Icon className={cn("size-3.5 shrink-0", selected ? "text-primary" : "text-muted-foreground")} />
                                                     <span className={selected ? "text-primary font-bold" : ""}>{item.label}</span>
                                                 </div>
-                                                <span className="text-[11px] text-muted-foreground/75 leading-tight">{item.desc}</span>
+                                                <span className="text-[10px] sm:text-[11px] text-muted-foreground/75 leading-tight">{item.desc}</span>
                                             </button>
                                         );
                                     })}
@@ -310,7 +311,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                                               : "简明扼要概括您的反馈内容"
                                     }
                                     maxLength={200}
-                                    className="rounded-lg h-9"
+                                    className="rounded-lg h-9 text-xs"
                                 />
                             </div>
 
@@ -320,7 +321,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                                     <label className="block text-xs font-medium text-muted-foreground">
                                         详细说明 <span className="text-red-500">*</span>
                                     </label>
-                                    <span className="text-[11px] text-muted-foreground/60">可直接截图并在窗口内按 Ctrl+V 粘贴</span>
+                                    <span className="hidden sm:inline text-[11px] text-muted-foreground/60">可直接截图并在窗口内按 Ctrl+V 粘贴</span>
                                 </div>
                                 <Input.TextArea
                                     value={content}
@@ -332,7 +333,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                                             : "请描述具体的使用场景或期望的效果，便于评估并纳入产品路线图..."
                                     }
                                     maxLength={10000}
-                                    className="rounded-lg py-2"
+                                    className="rounded-lg py-2 text-xs"
                                 />
                             </div>
 
@@ -340,7 +341,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                             <div>
                                 <div className="flex items-center justify-between mb-2">
                                     <label className="text-xs font-medium text-muted-foreground">图片或视频附件 ({attachments.length}/5)</label>
-                                    <span className="text-[11px] text-muted-foreground/60">单文件最高 50MB</span>
+                                    <span className="text-[10px] sm:text-[11px] text-muted-foreground/60">单文件最高 50MB</span>
                                 </div>
 
                                 <input
@@ -415,8 +416,8 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                                             uploading && "opacity-60 cursor-not-allowed",
                                         )}
                                     >
-                                        <UploadCloud className="size-4 text-primary" />
-                                        <span>{uploading ? "正在上传附件..." : "点击选择图片/视频文件，或直接在窗口粘贴截图 (Ctrl+V)"}</span>
+                                        <UploadCloud className="size-4 text-primary shrink-0" />
+                                        <span className="text-center">{uploading ? "正在上传附件..." : "点击选择图片/视频文件，或直接在窗口粘贴截图 (Ctrl+V)"}</span>
                                     </button>
                                 ) : null}
                             </div>
@@ -428,7 +429,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                                     value={contact}
                                     onChange={(e) => setContact(e.target.value)}
                                     placeholder="留下邮箱或微信号，方便我们进一步反馈处理进展"
-                                    className="rounded-lg h-9"
+                                    className="rounded-lg h-9 text-xs"
                                 />
                             </div>
                         </div>
@@ -478,7 +479,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
 
                 {/* Fixed Footer for Submit Tab */}
                 {activeTab === "submit" ? (
-                    <div className="border-t border-border/60 px-6 py-3 bg-muted/20 flex items-center justify-between">
+                    <div className="border-t border-border/60 px-4 py-3 sm:px-6 sm:py-3.5 bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-muted-foreground">
                             <Checkbox
                                 checked={includeEnv}
@@ -486,15 +487,15 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                             />
                             <span>附带诊断环境信息（推荐）</span>
                         </label>
-                        <div className="flex items-center gap-2">
-                            <Button onClick={onClose}>取消</Button>
+                        <div className="flex items-center justify-end gap-2 w-full sm:w-auto">
+                            <Button onClick={onClose} className="flex-1 sm:flex-none">取消</Button>
                             <Button
                                 id="feedback-submit-btn"
                                 type="primary"
                                 loading={submitting || uploading}
                                 onClick={handleSubmit}
                                 icon={<Send className="size-3.5" />}
-                                className="font-medium"
+                                className="flex-1 sm:flex-none font-medium"
                             >
                                 提交反馈
                             </Button>

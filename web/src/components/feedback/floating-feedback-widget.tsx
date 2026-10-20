@@ -20,16 +20,17 @@ export function FloatingFeedbackWidget({ className }: FloatingFeedbackWidgetProp
         <>
             <div
                 className={cn(
-                    "fixed bottom-6 right-6 z-40 select-none print:hidden",
+                    "fixed bottom-6 right-6 z-40 select-none print:hidden transition-all duration-200",
+                    open ? "opacity-0 pointer-events-none scale-90" : "opacity-100 scale-100",
                     className,
                 )}
             >
-                <Tooltip title="反馈问题或提议新功能" placement="left">
+                <Tooltip title="反馈问题或提议新功能" placement="left" trigger={["hover"]}>
                     <button
                         type="button"
                         onClick={() => setOpen(true)}
                         className={cn(
-                            "group flex items-center gap-2 rounded-full border border-border/80 bg-background/80 px-3.5 py-2",
+                            "group flex items-center gap-2 rounded-full border border-border/80 bg-background/90 p-2 sm:px-3.5 sm:py-2",
                             "text-xs font-semibold text-foreground shadow-lg backdrop-blur-md transition-all duration-200",
                             "hover:border-primary/50 hover:bg-muted/80 hover:shadow-primary/10 hover:shadow-xl hover:scale-105",
                             "active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
