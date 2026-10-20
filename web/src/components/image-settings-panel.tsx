@@ -1,10 +1,10 @@
 import { ImageSizePicker } from "./image-size-picker";
 import { ImageParameterFields } from "./image-parameter-fields";
 import { imageResolutionUsesQuality, imageSizePresets } from "@/lib/image-size-presets";
-import { type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ConfigProvider } from "antd";
 import { Switch } from "@/components/ui/base/switch";
-import { Plus } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import { buildImageResolutionOptions, formatImageResolutionSize } from "@/lib/image-resolution-tiers";
@@ -52,7 +52,7 @@ type ImageSettingsPanelProps = {
     bypassPriceGuard?: boolean;
 };
 
-export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = true, showQuality = true, showTransparent = true, showSize = true, showCount = true, className = "w-[304px] space-y-3 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 4, bypassPriceGuard = false }: ImageSettingsPanelProps) {
+export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = true, showQuality = true, showTransparent = true, showSize = true, showCount = true, className = "w-[304px] space-y-3 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 3, bypassPriceGuard = false }: ImageSettingsPanelProps) {
     const profile = mergedImageCapabilityConfig(config, config.model || config.imageModel);
     const normalized = normalizeImageValue(profile, config);
     const quality = normalized.quality;
@@ -121,14 +121,14 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 {showCount && effectiveMaxCount > 1 ? (
                     <div className="space-y-2">
                         <SettingTitle color={theme.node.muted}>生成张数</SettingTitle>
-                        <div className={effectiveMaxCount > quickCount ? "grid grid-cols-5 gap-1.5" : `grid grid-cols-${Math.min(quickCount, effectiveMaxCount)} gap-1.5`}>
-                            {Array.from({ length: Math.min(quickCount, effectiveMaxCount) }, (_, index) => index + 1).map((value) => (
+                        <div className="grid grid-cols-4 gap-1.5">
+                            {Array.from({ length: Math.min(3, effectiveMaxCount) }, (_, index) => index + 1).map((value) => (
                                 <OptionPill key={value} selected={count === value} theme={theme} onClick={() => onConfigChange("count", String(value))}>
                                     {value}
                                 </OptionPill>
                             ))}
-                            {effectiveMaxCount > quickCount ? (
-                                <CountInput value={count} quickCount={quickCount} max={effectiveMaxCount} theme={theme} onChange={(value) => onConfigChange("count", String(value || 1))} />
+                            {effectiveMaxCount >= 4 ? (
+                                <CountStepperInput value={count} max={effectiveMaxCount} theme={theme} onChange={(value) => onConfigChange("count", String(value))} />
                             ) : null}
                         </div>
                     </div>
@@ -196,63 +196,130 @@ function OptionPill({ selected, disabled = false, theme, onClick, children }: { 
     );
 }
 
-function CountInput({ value, quickCount, max, theme, onChange }: { value: number; quickCount: number; max: number; theme: CanvasTheme; onChange: (value: number | null) => void }) {
-    const isCustom = value > quickCount;
-    const commit = (input: HTMLInputElement) => {
-        const next = Math.max(1, Math.min(max, Math.floor(Number(input.value) || (quickCount + 1))));
-        input.value = String(next);
+function CountStepperInput({
+    value,
+    max,
+    theme,
+    onChange,
+}: {
+    value: number;
+    max: number;
+    theme: CanvasTheme;
+    onChange: (value: number) => void;
+}) {
+    const isSelected = value >= 4;
+    const [draftValue, setDraftValue] = useState(() => (value >= 4 ? String(value) : "4"));
+
+    useEffect(() => {
+        if (value >= 4) {
+            setDraftValue(String(value));
+        }
+    }, [value]);
+
+    const handleSelectThis = () => {
+        const num = Math.max(1, Math.min(max, parseInt(draftValue, 10) || 4));
+        onChange(num);
+    };
+
+    const handleStepUp = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const base = value >= 4 ? value : (parseInt(draftValue, 10) || 4);
+        const next = Math.min(max, base + 1);
+        setDraftValue(String(next));
         onChange(next);
     };
 
-    const handlePlusClick = (event: React.MouseEvent) => {
-        event.stopPropagation();
-        if (value <= quickCount) {
-            onChange(quickCount + 1);
-        } else if (value < max) {
-            onChange(value + 1);
+    const handleStepDown = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const base = value >= 4 ? value : (parseInt(draftValue, 10) || 4);
+        const next = Math.max(1, base - 1);
+        setDraftValue(String(next));
+        onChange(next);
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setDraftValue(e.target.value);
+    };
+
+    const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        const num = Math.max(1, Math.min(max, parseInt(e.target.value, 10) || 4));
+        setDraftValue(String(num));
+        onChange(num);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") {
+            e.currentTarget.blur();
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            const base = value >= 4 ? value : (parseInt(draftValue, 10) || 4);
+            const next = Math.min(max, base + 1);
+            setDraftValue(String(next));
+            onChange(next);
+        } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            const base = value >= 4 ? value : (parseInt(draftValue, 10) || 4);
+            const next = Math.max(1, base - 1);
+            setDraftValue(String(next));
+            onChange(next);
         }
     };
 
     return (
-        <label
-            className="group flex h-8 items-center overflow-hidden rounded-full px-1.5 text-xs transition-colors cursor-pointer select-none"
+        <div
+            className="group relative flex h-8 items-center overflow-hidden rounded-full border text-xs transition-colors cursor-pointer select-none"
             style={{
-                background: isCustom ? theme.toolbar.activeBg : theme.toolbar.itemHover,
+                background: isSelected ? theme.toolbar.activeBg : theme.toolbar.itemHover,
+                borderColor: isSelected ? theme.accent.primary : "transparent",
                 color: theme.node.text,
             }}
-            onClick={() => {
-                if (value <= quickCount) {
-                    onChange(Math.min(max, quickCount + 1));
-                }
-            }}
+            onClick={handleSelectThis}
         >
-            <span
-                onClick={handlePlusClick}
-                className="grid size-4 place-items-center rounded-full hover:bg-black/15 dark:hover:bg-white/15 transition-colors shrink-0"
-                title="增加生成数量"
-            >
-                <Plus className="size-3" style={{ color: isCustom ? theme.accent.primary : "inherit" }} />
-            </span>
             <input
-                key={isCustom ? `custom-${value}` : "quick"}
-                type="number"
-                min={1}
-                max={max}
+                type="text"
+                inputMode="numeric"
                 aria-label="自定义生成张数"
-                placeholder={isCustom ? String(value) : "+"}
-                className="min-w-0 flex-1 bg-transparent px-0.5 text-center outline-none placeholder:text-current placeholder:opacity-75 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none font-semibold text-xs"
+                value={draftValue}
+                onChange={handleInputChange}
+                onBlur={handleInputBlur}
+                onKeyDown={handleKeyDown}
+                onFocus={(e) => {
+                    e.currentTarget.select();
+                    if (value < 4) {
+                        handleSelectThis();
+                    }
+                }}
+                className="w-full min-w-0 flex-1 bg-transparent pl-2 pr-0.5 text-center font-medium text-xs outline-none"
                 style={{ color: theme.node.text, WebkitTextFillColor: theme.node.text }}
-                defaultValue={isCustom ? value : ""}
-                onFocus={(e) => e.currentTarget.select()}
-                onBlur={(event) => {
-                    if (event.currentTarget.value) commit(event.currentTarget);
-                }}
-                onKeyDown={(event) => {
-                    if (event.key === "Enter") event.currentTarget.blur();
-                }}
-                onMouseDown={(event) => event.stopPropagation()}
             />
-        </label>
+            <div
+                className="flex flex-col h-full w-4.5 shrink-0 border-l justify-center items-center divide-y"
+                style={{ borderColor: `${theme.toolbar.border}80` }}
+            >
+                <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={handleStepUp}
+                    disabled={value >= max && isSelected}
+                    className="flex flex-1 w-full items-center justify-center hover:bg-black/15 dark:hover:bg-white/15 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="增加 1 张"
+                    aria-label="增加 1 张"
+                >
+                    <ChevronUp className="size-2.5 opacity-70" />
+                </button>
+                <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={handleStepDown}
+                    disabled={value <= 1 && isSelected}
+                    className="flex flex-1 w-full items-center justify-center hover:bg-black/15 dark:hover:bg-white/15 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="减少 1 张"
+                    aria-label="减少 1 张"
+                >
+                    <ChevronDown className="size-2.5 opacity-70" />
+                </button>
+            </div>
+        </div>
     );
 }
 
