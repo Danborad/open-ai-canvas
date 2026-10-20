@@ -204,16 +204,16 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
             <div className="flex flex-col max-h-[85vh] text-foreground" onPaste={handlePaste}>
                 {/* Header with Navigation Tabs */}
                 <div className="flex items-center justify-between border-b border-border/60 px-3.5 py-2.5 sm:px-5 sm:py-3.5 bg-muted/20">
-                    <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+                    <div className="inline-flex items-center gap-1 rounded-xl bg-muted/40 p-1 border border-border/40 min-w-0">
                         <button
                             id="feedback-tab-submit"
                             type="button"
                             onClick={() => setActiveTab("submit")}
                             className={cn(
-                                "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 sm:px-3 sm:py-1.5 text-xs font-semibold transition-colors whitespace-nowrap shrink-0",
+                                "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all whitespace-nowrap shrink-0",
                                 activeTab === "submit"
-                                    ? "bg-primary text-primary-foreground shadow-sm"
-                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                                    ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-transparent",
                             )}
                         >
                             <Plus className="size-3.5 shrink-0" />
@@ -224,10 +224,10 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                             type="button"
                             onClick={() => setActiveTab("inbox")}
                             className={cn(
-                                "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 sm:px-3 sm:py-1.5 text-xs font-semibold transition-colors relative whitespace-nowrap shrink-0",
+                                "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all relative whitespace-nowrap shrink-0",
                                 activeTab === "inbox"
-                                    ? "bg-primary text-primary-foreground shadow-sm"
-                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                                    ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-transparent",
                             )}
                         >
                             <Inbox className="size-3.5 shrink-0" />
@@ -235,7 +235,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                             {myFeedbacks.length > 0 ? (
                                 <span className={cn(
                                     "px-1.5 py-0.2 rounded-full text-[10px] font-bold leading-tight shrink-0",
-                                    activeTab === "inbox" ? "bg-white/20 text-white" : "bg-primary/20 text-primary"
+                                    activeTab === "inbox" ? "bg-blue-500/25 text-blue-600 dark:text-blue-300" : "bg-muted text-muted-foreground"
                                 )}>
                                     {myFeedbacks.length}
                                 </span>
