@@ -122,4 +122,24 @@ func TestFeedbackHTTPEndpoints(t *testing.T) {
 	if wPatch.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", wPatch.Code, wPatch.Body.String())
 	}
+
+	// 5. Admin archive feedback
+	reqArchive := httptest.NewRequest(http.MethodPost, "/api/admin/feedbacks/"+submitResp.Data.ID+"/archive", nil)
+	reqArchive.AddCookie(&http.Cookie{Name: "open_ai_canvas_session", Value: "sess_admin.admin-tok"})
+	wArchive := httptest.NewRecorder()
+	r.ServeHTTP(wArchive, reqArchive)
+
+	if wArchive.Code != http.StatusOK {
+		t.Fatalf("expected 200 on archive, got %d: %s", wArchive.Code, wArchive.Body.String())
+	}
+
+	// 6. Admin query with archived=true
+	reqArchivedList := httptest.NewRequest(http.MethodGet, "/api/admin/feedbacks?archived=true", nil)
+	reqArchivedList.AddCookie(&http.Cookie{Name: "open_ai_canvas_session", Value: "sess_admin.admin-tok"})
+	wArchivedList := httptest.NewRecorder()
+	r.ServeHTTP(wArchivedList, reqArchivedList)
+
+	if wArchivedList.Code != http.StatusOK {
+		t.Fatalf("expected 200 on query archived list, got %d: %s", wArchivedList.Code, wArchivedList.Body.String())
+	}
 }

@@ -96,4 +96,26 @@ func TestFeedbackSubmitAndList(t *testing.T) {
 	if myList2[0].Status != model.FeedbackStatusResolved || myList2[0].AdminReply != "已修复该问题，感谢您的反馈！" {
 		t.Fatalf("user inbox did not reflect admin reply: %+v", myList2[0])
 	}
+
+	// 6. Admin archives feedback
+	archived, err := svc.AdminArchiveFeedback(admin, fb.ID, true)
+	if err != nil {
+		t.Fatalf("AdminArchiveFeedback failed: %v", err)
+	}
+	if !archived.Archived || archived.ArchivedAt == nil {
+		t.Fatalf("expected feedback to be archived: %+v", archived)
+	}
+
+	// 7. Verify admin filter by archived
+	archivedFilter := true
+	adminArchivedList, err := svc.AdminListFeedbacks(admin, repository.FeedbackFilter{Archived: &archivedFilter})
+	if err != nil || adminArchivedList.Total != 1 {
+		t.Fatalf("expected 1 archived feedback, got %d", adminArchivedList.Total)
+	}
+
+	notArchivedFilter := false
+	adminActiveList, err := svc.AdminListFeedbacks(admin, repository.FeedbackFilter{Archived: &notArchivedFilter})
+	if err != nil || adminActiveList.Total != 0 {
+		t.Fatalf("expected 0 active feedbacks, got %d", adminActiveList.Total)
+	}
 }

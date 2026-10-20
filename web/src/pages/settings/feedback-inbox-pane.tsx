@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { App, Button, Modal, Tag, Image as AntImage } from "antd";
-import { Bug, CheckCircle2, Clock, Inbox, Lightbulb, MessageSquare, Paperclip, Play, Plus, RefreshCw, Sparkles } from "lucide-react";
+import { App, Button, Modal, Tag, Image as AntImage, Segmented } from "antd";
+import { Archive, Bug, CheckCircle2, Clock, Inbox, Lightbulb, MessageSquare, Paperclip, Play, Plus, RefreshCw, Sparkles } from "lucide-react";
 
 import { getMyFeedbacks, type FeedbackItem, type FeedbackType, type FeedbackAttachment } from "@/services/api/feedback";
 import { FeedbackModal } from "@/components/feedback/feedback-modal";
@@ -11,6 +11,7 @@ export function FeedbackInboxPane() {
     const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
     const [submitModalOpen, setSubmitModalOpen] = useState(false);
     const [previewVideoUrl, setPreviewVideoUrl] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -28,6 +29,10 @@ export function FeedbackInboxPane() {
         void loadData();
     }, [loadData]);
 
+    const activeFeedbacks = feedbacks.filter((i) => !i.archived);
+    const archivedFeedbacks = feedbacks.filter((i) => i.archived);
+    const displayedFeedbacks = activeTab === "active" ? activeFeedbacks : archivedFeedbacks;
+
     return (
         <section className="space-y-4" aria-label="我的反馈收件箱">
             {/* Header */}
@@ -35,7 +40,7 @@ export function FeedbackInboxPane() {
                 <div>
                     <h3 className="text-base font-semibold text-foreground">我的反馈与建议</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                        查看您提交的问题缺陷、功能提议以及官方回复进展。
+                        查看您提交的问题缺陷、功能提议、官方回复进展与历史归档。
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -57,6 +62,21 @@ export function FeedbackInboxPane() {
                 </div>
             </div>
 
+            {/* Tabs & Controls */}
+            {feedbacks.length > 0 ? (
+                <div className="flex items-center justify-between">
+                    <Segmented
+                        value={activeTab}
+                        onChange={(v) => setActiveTab(v as "active" | "archived")}
+                        options={[
+                            { label: `进行中 (${activeFeedbacks.length})`, value: "active" },
+                            { label: `历史归档 (${archivedFeedbacks.length})`, value: "archived" },
+                        ]}
+                        className="bg-muted/40 text-xs"
+                    />
+                </div>
+            ) : null}
+
             {/* List */}
             {loading && feedbacks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-muted-foreground text-xs gap-2">
@@ -76,9 +96,35 @@ export function FeedbackInboxPane() {
                         提交第一条反馈
                     </Button>
                 </div>
+            ) : displayedFeedbacks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-xs gap-3 rounded-2xl border border-dashed border-border/60 bg-muted/10">
+                    {activeTab === "active" ? (
+                        <>
+                            <CheckCircle2 className="size-8 text-green-500/80" />
+                            <div className="text-center">
+                                <p className="font-medium text-foreground">当前没有进行中的反馈</p>
+                                {archivedFeedbacks.length > 0 ? (
+                                    <p className="text-[11px] text-muted-foreground/80 mt-1">
+                                        您有 {archivedFeedbacks.length} 条已归档的历史反馈
+                                    </p>
+                                ) : null}
+                            </div>
+                            {archivedFeedbacks.length > 0 ? (
+                                <Button size="small" onClick={() => setActiveTab("archived")}>
+                                    查看历史归档
+                                </Button>
+                            ) : null}
+                        </>
+                    ) : (
+                        <>
+                            <Archive className="size-8 text-muted-foreground/40" />
+                            <p className="font-medium text-foreground">暂无历史归档记录</p>
+                        </>
+                    )}
+                </div>
             ) : (
                 <div className="space-y-3">
-                    {feedbacks.map((item) => (
+                    {displayedFeedbacks.map((item) => (
                         <FeedbackDetailCard
                             key={item.id}
                             item={item}
@@ -159,6 +205,12 @@ function FeedbackDetailCard({
             <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
+                        {item.archived ? (
+                            <Tag className="flex items-center gap-1 m-0 text-[11px] px-1.5 py-0.5 bg-muted/60 text-muted-foreground border-border/60">
+                                <Archive className="size-3" />
+                                <span>已归档</span>
+                            </Tag>
+                        ) : null}
                         <Tag color={typeInfo.color} className="flex items-center gap-1 m-0 text-[11px] px-1.5 py-0.5">
                             <TypeIcon className="size-3" />
                             <span>{typeInfo.label}</span>

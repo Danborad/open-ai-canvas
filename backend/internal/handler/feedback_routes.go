@@ -96,6 +96,14 @@ func RegisterFeedbackRoutes(r *gin.RouterGroup, svc *service.Service) {
 			Limit:   limit,
 		}
 
+		if arch := c.Query("archived"); arch == "true" || arch == "1" {
+			v := true
+			filter.Archived = &v
+		} else if arch == "false" || arch == "0" {
+			v := false
+			filter.Archived = &v
+		}
+
 		result, err := svc.AdminListFeedbacks(user, filter)
 		if err != nil {
 			failService(c, err)
@@ -120,6 +128,40 @@ func RegisterFeedbackRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 
 		fb, err := svc.AdminUpdateFeedback(user, c.Param("id"), req)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+
+		ok(c, fb)
+	})
+
+	// 管理员归档反馈
+	r.POST("/admin/feedbacks/:id/archive", func(c *gin.Context) {
+		user, err := currentUser(c, svc)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+
+		fb, err := svc.AdminArchiveFeedback(user, c.Param("id"), true)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+
+		ok(c, fb)
+	})
+
+	// 管理员取消归档
+	r.POST("/admin/feedbacks/:id/unarchive", func(c *gin.Context) {
+		user, err := currentUser(c, svc)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+
+		fb, err := svc.AdminArchiveFeedback(user, c.Param("id"), false)
 		if err != nil {
 			failService(c, err)
 			return

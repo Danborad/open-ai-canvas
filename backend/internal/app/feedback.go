@@ -26,6 +26,7 @@ type SubmitFeedbackRequest struct {
 type AdminUpdateFeedbackRequest struct {
 	Status     model.FeedbackStatus `json:"status"`
 	AdminReply string               `json:"adminReply"`
+	Archived   *bool                `json:"archived"`
 }
 
 type FeedbackListResult struct {
@@ -210,10 +211,45 @@ func (s *Service) AdminUpdateFeedback(actor *model.User, id string, req AdminUpd
 		fb.RepliedAt = &now
 	}
 
+	if req.Archived != nil {
+		fb.Archived = *req.Archived
+		if fb.Archived {
+			fb.ArchivedAt = &now
+		} else {
+			fb.ArchivedAt = nil
+		}
+	}
+
 	fb.UpdatedAt = now
 
 	if err := s.repo.UpdateFeedback(fb); err != nil {
 		return nil, fmt.Errorf("更新反馈失败：%w", err)
+	}
+
+	return fb, nil
+}
+
+func (s *Service) AdminArchiveFeedback(actor *model.User, id string, archive bool) (*model.UserFeedback, error) {
+	if err := s.RequireAdmin(actor); err != nil {
+		return nil, err
+	}
+
+	fb, err := s.repo.GetFeedback(id)
+	if err != nil {
+		return nil, kernel.BadAuthRequest("反馈不存在或已被删除")
+	}
+
+	now := time.Now().UTC()
+	fb.Archived = archive
+	if archive {
+		fb.ArchivedAt = &now
+	} else {
+		fb.ArchivedAt = nil
+	}
+	fb.UpdatedAt = now
+
+	if err := s.repo.UpdateFeedback(fb); err != nil {
+		return nil, fmt.Errorf("更新反馈归档状态失败：%w", err)
 	}
 
 	return fb, nil

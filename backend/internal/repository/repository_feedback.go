@@ -7,11 +7,12 @@ import (
 )
 
 type FeedbackFilter struct {
-	Type    string
-	Status  string
-	Keyword string
-	Page    int
-	Limit   int
+	Type     string
+	Status   string
+	Keyword  string
+	Archived *bool
+	Page     int
+	Limit    int
 }
 
 func (r *Repository) CreateFeedback(fb *model.UserFeedback) error {
@@ -39,8 +40,13 @@ func (r *Repository) ListAllFeedbacks(filter FeedbackFilter) ([]model.UserFeedba
 	if filter.Type != "" && filter.Type != "all" {
 		query = query.Where("type = ?", filter.Type)
 	}
-	if filter.Status != "" && filter.Status != "all" {
+	if filter.Status == "archived" {
+		query = query.Where("archived = ?", true)
+	} else if filter.Status != "" && filter.Status != "all" {
 		query = query.Where("status = ?", filter.Status)
+	}
+	if filter.Archived != nil {
+		query = query.Where("archived = ?", *filter.Archived)
 	}
 	if kw := strings.TrimSpace(filter.Keyword); kw != "" {
 		like := "%" + kw + "%"

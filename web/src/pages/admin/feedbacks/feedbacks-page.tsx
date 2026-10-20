@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
-import { App, Button, Drawer, Input, Modal, Popconfirm, Select, Space, Table, Tag, Image as AntImage } from "antd";
+import { App, Button, Drawer, Input, Modal, Popconfirm, Select, Space, Table, Tag, Image as AntImage, Segmented } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
     AlertCircle,
+    Archive,
+    ArchiveRestore,
     Bug,
     CheckCircle2,
     Clock,
@@ -16,14 +18,13 @@ import {
     Search,
     Send,
     Sparkles,
-    Trash2,
     UserRound,
 } from "lucide-react";
 
 import {
     getAdminFeedbacks,
     updateAdminFeedback,
-    deleteAdminFeedback,
+    archiveAdminFeedback,
     type FeedbackItem,
     type FeedbackType,
     type FeedbackStatus,
@@ -44,6 +45,7 @@ export default function AdminFeedbacksPage() {
     // Filters
     const [typeFilter, setTypeFilter] = useState<string>("all");
     const [statusFilter, setStatusFilter] = useState<string>("all");
+    const [archivedTab, setArchivedTab] = useState<"active" | "archived" | "all">("active");
     const [keyword, setKeyword] = useState<string>("");
 
     // Detail drawer
@@ -62,6 +64,7 @@ export default function AdminFeedbacksPage() {
             const res = await getAdminFeedbacks({
                 type: typeFilter,
                 status: statusFilter,
+                archived: archivedTab === "all" ? "all" : archivedTab === "archived",
                 keyword: keyword.trim() || undefined,
                 page,
                 limit,
@@ -73,7 +76,7 @@ export default function AdminFeedbacksPage() {
         } finally {
             setLoading(false);
         }
-    }, [typeFilter, statusFilter, keyword, page, limit, message]);
+    }, [typeFilter, statusFilter, archivedTab, keyword, page, limit, message]);
 
     useEffect(() => {
         void loadData();
@@ -105,24 +108,24 @@ export default function AdminFeedbacksPage() {
         }
     };
 
-    const handleDelete = async (id: string) => {
+    const handleArchive = async (id: string, archive: boolean) => {
         try {
-            await deleteAdminFeedback(id);
-            message.success("已删除该条反馈");
+            const updated = await archiveAdminFeedback(id, archive);
+            message.success(archive ? "已将反馈移入历史归档" : "已将反馈移出归档并恢复活跃");
             if (selectedItem?.id === id) {
-                setDrawerOpen(false);
-                setSelectedItem(null);
+                setSelectedItem(updated);
             }
             void loadData();
         } catch (error) {
-            message.error(error instanceof Error ? error.message : "删除失败");
+            message.error(error instanceof Error ? error.message : "操作失败");
         }
     };
 
     // Calculate metrics
-    const pendingCount = list.filter((i) => i.status === "pending").length;
-    const processingCount = list.filter((i) => i.status === "processing").length;
-    const resolvedCount = list.filter((i) => i.status === "resolved").length;
+    const pendingCount = list.filter((i) => i.status === "pending" && !i.archived).length;
+    const processingCount = list.filter((i) => i.status === "processing" && !i.archived).length;
+    const resolvedCount = list.filter((i) => i.status === "resolved" && !i.archived).length;
+    const archivedCount = list.filter((i) => i.archived).length;
 
     const typeConfig: Record<FeedbackType, { label: string; color: string; icon: typeof Bug }> = {
         bug: { label: "Bug 缺陷", color: "error", icon: Bug },
@@ -136,6 +139,7 @@ export default function AdminFeedbacksPage() {
         processing: { label: "处理中", tagColor: "blue" },
         resolved: { label: "已解决", tagColor: "green" },
         closed: { label: "已关闭", tagColor: "default" },
+        archived: { label: "已归档", tagColor: "default" },
     };
 
     const columns: ColumnsType<FeedbackItem> = [
@@ -169,10 +173,15 @@ export default function AdminFeedbacksPage() {
 
                 return (
                     <div className="space-y-1 py-0.5">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-semibold text-foreground hover:text-primary cursor-pointer" onClick={() => handleOpenDetail(record)}>
                                 {record.title}
                             </span>
+                            {record.archived ? (
+                                <Tag className="text-[10px] px-1.5 m-0 bg-muted/60 text-muted-foreground border-border/60">
+                                    已归档
+                                </Tag>
+                            ) : null}
                             {attCount > 0 ? (
                                 <Tag className="text-[10px] px-1 m-0 flex items-center gap-0.5 border-dashed">
                                     <Paperclip className="size-2.5" />
@@ -213,9 +222,13 @@ export default function AdminFeedbacksPage() {
             dataIndex: "status",
             key: "status",
             width: 110,
-            render: (val: string) => {
+            render: (val: string, record: FeedbackItem) => {
                 const conf = statusConfig[val] || { label: val, tagColor: "default" };
-                return <Tag color={conf.tagColor} className="m-0 text-xs font-medium">{conf.label}</Tag>;
+                return (
+                    <div className="flex items-center gap-1">
+                        <Tag color={conf.tagColor} className="m-0 text-xs font-medium">{conf.label}</Tag>
+                    </div>
+                );
             },
         },
         {
@@ -237,20 +250,27 @@ export default function AdminFeedbacksPage() {
         {
             title: "操作",
             key: "action",
-            width: 130,
+            width: 160,
             render: (_: unknown, record: FeedbackItem) => (
                 <Space size="small">
                     <Button size="small" type="link" onClick={() => handleOpenDetail(record)}>
-                        查看回复
+                        详情回复
                     </Button>
                     <Popconfirm
-                        title="确定删除这条反馈吗？"
-                        onConfirm={() => handleDelete(record.id)}
-                        okText="删除"
+                        title={record.archived ? "确定将此反馈移出归档吗？" : "确定归档此反馈吗？"}
+                        description={record.archived ? "移出后将重新回到活跃收件箱中跟进" : "归档后移入历史归档，用户与管理员仍可随时完整查阅"}
+                        onConfirm={() => handleArchive(record.id, !record.archived)}
+                        okText={record.archived ? "移出归档" : "归档"}
                         cancelText="取消"
-                        okButtonProps={{ danger: true }}
                     >
-                        <Button size="small" type="text" danger icon={<Trash2 className="size-3.5" />} />
+                        <Button
+                            size="small"
+                            type="text"
+                            icon={record.archived ? <ArchiveRestore className="size-3.5" /> : <Archive className="size-3.5" />}
+                            className={cn(record.archived ? "text-primary" : "text-muted-foreground hover:text-foreground")}
+                        >
+                            {record.archived ? "移出归档" : "归档"}
+                        </Button>
                     </Popconfirm>
                 </Space>
             ),
@@ -270,7 +290,7 @@ export default function AdminFeedbacksPage() {
     return (
         <AdminPageFrame
             title="用户反馈收件箱"
-            description="集中查阅全站用户提交的 Bug 缺陷、功能提议与体验建议，支持收件箱式答复与状态跟进"
+            description="集中查阅全站用户提交的 Bug 缺陷、功能提议与体验建议，支持收件箱式答复与历史归档管理"
             scroll
         >
             <div className="space-y-4">
@@ -278,7 +298,7 @@ export default function AdminFeedbacksPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="rounded-xl border border-border/70 bg-card p-3.5 flex items-center justify-between">
                         <div>
-                            <p className="text-xs text-muted-foreground">总反馈量</p>
+                            <p className="text-xs text-muted-foreground">当前列表数</p>
                             <p className="text-xl font-bold text-foreground mt-0.5">{total}</p>
                         </div>
                         <Inbox className="size-5 text-primary opacity-60" />
@@ -299,7 +319,7 @@ export default function AdminFeedbacksPage() {
                     </div>
                     <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-3.5 flex items-center justify-between">
                         <div>
-                            <p className="text-xs text-green-600 dark:text-green-400">已解决 / 已采纳</p>
+                            <p className="text-xs text-green-600 dark:text-green-400">已解决 / 采纳</p>
                             <p className="text-xl font-bold text-green-600 dark:text-green-400 mt-0.5">{resolvedCount}</p>
                         </div>
                         <CheckCircle2 className="size-5 text-green-500 opacity-60" />
@@ -309,6 +329,16 @@ export default function AdminFeedbacksPage() {
                 {/* Filter and Search Bar */}
                 <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-border/70 bg-card p-3">
                     <div className="flex flex-wrap items-center gap-2">
+                        <Segmented
+                            value={archivedTab}
+                            onChange={(v) => { setArchivedTab(v as "active" | "archived" | "all"); setPage(1); }}
+                            options={[
+                                { label: "进行中反馈", value: "active" },
+                                { label: "历史归档", value: "archived" },
+                                { label: "全部反馈", value: "all" },
+                            ]}
+                            className="bg-muted/40"
+                        />
                         <Input
                             placeholder="搜索标题、内容、用户或联系方式"
                             prefix={<Search className="size-3.5 text-muted-foreground mr-1" />}
@@ -316,7 +346,7 @@ export default function AdminFeedbacksPage() {
                             onChange={(e) => setKeyword(e.target.value)}
                             onPressEnter={() => { setPage(1); void loadData(); }}
                             allowClear
-                            className="w-64 h-8 text-xs"
+                            className="w-56 h-8 text-xs"
                         />
                         <Select
                             value={typeFilter}
@@ -393,9 +423,14 @@ export default function AdminFeedbacksPage() {
                         <div className="rounded-xl border border-border/70 bg-muted/20 p-3.5 space-y-2">
                             <div className="flex items-center justify-between">
                                 <span className="font-semibold text-sm text-foreground">{selectedItem.title}</span>
-                                <Tag color={statusConfig[selectedItem.status]?.tagColor || "default"} className="m-0 text-xs">
-                                    {statusConfig[selectedItem.status]?.label || selectedItem.status}
-                                </Tag>
+                                <div className="flex items-center gap-1.5">
+                                    {selectedItem.archived ? (
+                                        <Tag className="m-0 text-xs bg-muted/80 text-muted-foreground border-border/80">已归档</Tag>
+                                    ) : null}
+                                    <Tag color={statusConfig[selectedItem.status]?.tagColor || "default"} className="m-0 text-xs">
+                                        {statusConfig[selectedItem.status]?.label || selectedItem.status}
+                                    </Tag>
+                                </div>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-muted-foreground pt-1 border-t border-border/40 text-[11px]">
                                 <div>提交用户：<span className="text-foreground">{selectedItem.userName}</span></div>
@@ -481,7 +516,7 @@ export default function AdminFeedbacksPage() {
 
                             <div>
                                 <label className="block text-xs text-muted-foreground mb-1">
-                                    官方处理答复 (用户可在其收件箱中直接查看)
+                                    官方处理答复 (用户可在其收件箱与历史归档中直接查看)
                                 </label>
                                 <Input.TextArea
                                     rows={4}
@@ -492,16 +527,24 @@ export default function AdminFeedbacksPage() {
                                 />
                             </div>
 
-                            <div className="flex justify-end gap-2 pt-1">
-                                <Button onClick={() => setDrawerOpen(false)}>取消</Button>
+                            <div className="flex items-center justify-between pt-1">
                                 <Button
-                                    type="primary"
-                                    loading={saving}
-                                    onClick={handleSaveReply}
-                                    icon={<Send className="size-3.5" />}
+                                    icon={selectedItem.archived ? <ArchiveRestore className="size-3.5" /> : <Archive className="size-3.5" />}
+                                    onClick={() => handleArchive(selectedItem.id, !selectedItem.archived)}
                                 >
-                                    保存并答复
+                                    {selectedItem.archived ? "移出归档" : "归档此反馈"}
                                 </Button>
+                                <div className="flex items-center gap-2">
+                                    <Button onClick={() => setDrawerOpen(false)}>取消</Button>
+                                    <Button
+                                        type="primary"
+                                        loading={saving}
+                                        onClick={handleSaveReply}
+                                        icon={<Send className="size-3.5" />}
+                                    >
+                                        保存并答复
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>

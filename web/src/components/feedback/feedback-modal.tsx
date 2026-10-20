@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef, type ClipboardEvent } from "react";
-import { App, Button, Checkbox, Input, Modal, Radio, Tag, Tooltip, Image as AntImage } from "antd";
-import { AlertCircle, Bug, CheckCircle2, Clock, Inbox, Lightbulb, MessageSquare, Paperclip, Play, Plus, RefreshCw, Send, Sparkles, Trash2, UploadCloud, X } from "lucide-react";
+import { App, Button, Checkbox, Input, Modal, Radio, Tag, Tooltip, Image as AntImage, Segmented } from "antd";
+import { AlertCircle, Archive, Bug, CheckCircle2, Clock, Inbox, Lightbulb, MessageSquare, Paperclip, Play, Plus, RefreshCw, Send, Sparkles, Trash2, UploadCloud, X } from "lucide-react";
 
 import {
     submitFeedback,
@@ -184,7 +184,12 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
         }
     };
 
-    const countWithReply = myFeedbacks.filter((f) => Boolean(f.adminReply)).length;
+    const [inboxFilter, setInboxFilter] = useState<"active" | "archived">("active");
+
+    const activeFeedbacks = myFeedbacks.filter((item) => !item.archived);
+    const archivedFeedbacks = myFeedbacks.filter((item) => item.archived);
+    const displayedFeedbacks = inboxFilter === "active" ? activeFeedbacks : archivedFeedbacks;
+    const countWithReply = activeFeedbacks.filter((f) => Boolean(f.adminReply)).length;
 
     return (
         <Modal
@@ -237,7 +242,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                                     "px-1.5 py-0.2 rounded-full text-[10px] font-bold leading-tight shrink-0",
                                     activeTab === "inbox" ? "bg-blue-500/25 text-blue-600 dark:text-blue-300" : "bg-muted text-muted-foreground"
                                 )}>
-                                    {myFeedbacks.length}
+                                    {activeFeedbacks.length > 0 ? activeFeedbacks.length : archivedFeedbacks.length}
                                 </span>
                             ) : null}
                             {countWithReply > 0 && activeTab !== "inbox" ? (
@@ -436,10 +441,17 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                     ) : (
                         /* Inbox View */
                         <div className="space-y-3">
-                            <div className="flex items-center justify-between pb-1">
-                                <div className="text-xs text-muted-foreground">
-                                    已提交的反馈将在这里归档，管理员答复后可直接查看处理结果。
-                                </div>
+                            <div className="flex items-center justify-between pb-1 flex-wrap gap-2">
+                                <Segmented
+                                    size="small"
+                                    value={inboxFilter}
+                                    onChange={(v) => setInboxFilter(v as "active" | "archived")}
+                                    options={[
+                                        { label: `进行中 (${activeFeedbacks.length})`, value: "active" },
+                                        { label: `历史归档 (${archivedFeedbacks.length})`, value: "archived" },
+                                    ]}
+                                    className="bg-muted/40 text-xs"
+                                />
                                 <Button
                                     size="small"
                                     icon={<RefreshCw className={cn("size-3", loadingInbox && "animate-spin")} />}
@@ -457,14 +469,33 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                             ) : myFeedbacks.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-xs gap-2 border border-dashed rounded-xl border-border/60">
                                     <Inbox className="size-8 text-muted-foreground/40" />
-                                    <span>暂无反馈记录</span>
+                                    <span>暂无任何反馈记录</span>
                                     <Button size="small" type="link" onClick={() => setActiveTab("submit")}>
                                         提交第一条反馈
                                     </Button>
                                 </div>
+                            ) : displayedFeedbacks.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-14 text-muted-foreground text-xs gap-2.5 border border-dashed rounded-xl border-border/60 bg-muted/10">
+                                    {inboxFilter === "active" ? (
+                                        <>
+                                            <CheckCircle2 className="size-7 text-green-500/80" />
+                                            <span>当前没有进行中的反馈</span>
+                                            {archivedFeedbacks.length > 0 ? (
+                                                <Button size="small" type="link" onClick={() => setInboxFilter("archived")}>
+                                                    查看 {archivedFeedbacks.length} 条已归档的历史反馈 →
+                                                </Button>
+                                            ) : null}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Archive className="size-7 text-muted-foreground/50" />
+                                            <span>暂无已归档的历史反馈</span>
+                                        </>
+                                    )}
+                                </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {myFeedbacks.map((item) => (
+                                    {displayedFeedbacks.map((item) => (
                                         <FeedbackInboxCard
                                             key={item.id}
                                             item={item}
@@ -572,6 +603,12 @@ function FeedbackInboxCard({
             <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
+                        {item.archived ? (
+                            <Tag className="flex items-center gap-1 m-0 text-[11px] px-1.5 py-0.5 bg-muted/60 text-muted-foreground border-border/60">
+                                <Archive className="size-3" />
+                                <span>已归档</span>
+                            </Tag>
+                        ) : null}
                         <Tag color={typeInfo.color} className="flex items-center gap-1 m-0 text-[11px] px-1.5 py-0.5">
                             <TypeIcon className="size-3" />
                             <span>{typeInfo.label}</span>

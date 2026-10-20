@@ -18,6 +18,7 @@ const (
 	FeedbackStatusProcessing FeedbackStatus = "processing" // 处理中/评估中
 	FeedbackStatusResolved   FeedbackStatus = "resolved"   // 已解决/已采纳
 	FeedbackStatusClosed     FeedbackStatus = "closed"     // 已关闭
+	FeedbackStatusArchived   FeedbackStatus = "archived"   // 已归档
 )
 
 type FeedbackAttachment struct {
@@ -43,6 +44,8 @@ type UserFeedback struct {
 	Status      FeedbackStatus `gorm:"size:32;index;default:'pending'" json:"status"`
 	AdminReply  string         `gorm:"type:text" json:"adminReply"`
 	RepliedAt   *time.Time     `json:"repliedAt,omitempty"`
+	Archived    bool           `gorm:"index;default:false" json:"archived"`
+	ArchivedAt  *time.Time     `json:"archivedAt,omitempty"`
 	CreatedAt   time.Time      `gorm:"index" json:"createdAt"`
 	UpdatedAt   time.Time      `json:"updatedAt"`
 }

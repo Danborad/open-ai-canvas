@@ -26,6 +26,8 @@ export interface FeedbackItem {
     status: FeedbackStatus;
     adminReply?: string;
     repliedAt?: string;
+    archived?: boolean;
+    archivedAt?: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -50,6 +52,7 @@ export interface AdminFeedbackFilter {
     type?: string;
     status?: string;
     keyword?: string;
+    archived?: boolean | "all";
     page?: number;
     limit?: number;
 }
@@ -72,6 +75,7 @@ export async function getAdminFeedbacks(filter: AdminFeedbackFilter = {}): Promi
     const params = new URLSearchParams();
     if (filter.type && filter.type !== "all") params.set("type", filter.type);
     if (filter.status && filter.status !== "all") params.set("status", filter.status);
+    if (filter.archived !== undefined && filter.archived !== "all") params.set("archived", String(filter.archived));
     if (filter.keyword) params.set("keyword", filter.keyword);
     if (filter.page) params.set("page", String(filter.page));
     if (filter.limit) params.set("limit", String(filter.limit));
@@ -81,8 +85,13 @@ export async function getAdminFeedbacks(filter: AdminFeedbackFilter = {}): Promi
     return http.get<FeedbackListResult>(url);
 }
 
-export async function updateAdminFeedback(id: string, payload: { status?: FeedbackStatus; adminReply?: string }): Promise<FeedbackItem> {
+export async function updateAdminFeedback(id: string, payload: { status?: FeedbackStatus; adminReply?: string; archived?: boolean }): Promise<FeedbackItem> {
     return http.patch<FeedbackItem>(`/admin/feedbacks/${id}`, payload);
+}
+
+export async function archiveAdminFeedback(id: string, archive = true): Promise<FeedbackItem> {
+    const action = archive ? "archive" : "unarchive";
+    return http.post<FeedbackItem>(`/admin/feedbacks/${id}/${action}`);
 }
 
 export async function deleteAdminFeedback(id: string): Promise<{ ok: boolean }> {
