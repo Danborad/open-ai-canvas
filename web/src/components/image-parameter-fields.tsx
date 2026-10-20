@@ -8,6 +8,7 @@ import { imageHostControls, imageParameterAccepts, imageParameterRequest, parseI
 import type { ImageCapabilityConfig } from "@/lib/model-capabilities";
 import type { AiConfig } from "@/stores/use-config-store";
 import { cn } from "@/lib/utils";
+import { Plus } from "lucide-react";
 
 export function ImageParameterInput({
     field,
@@ -159,13 +160,15 @@ export function ImageParameterFields({
             ) : null}
             {fields.map((field) => {
                 if (field.name === "count") {
-                    const max = Number(field.max ?? profile.maxOutputs ?? 4);
+                    const max = Number(field.max ?? profile.maxOutputs ?? 15);
                     const countVal = Number(values.count ?? config.count ?? 1);
-                    const quickCount = Math.min(3, max);
+                    const quickCount = Math.min(4, max);
+                    const isCustom = countVal > quickCount;
+                    const hasMore = max > quickCount;
                     return (
                         <div className="space-y-2" key="count">
                             <div className="text-xs font-medium">生成张数</div>
-                            <div className="grid grid-cols-4 gap-1.5">
+                            <div className={cn("grid gap-1.5", hasMore ? "grid-cols-5" : `grid-cols-${quickCount}`)}>
                                 {Array.from({ length: quickCount }, (_, i) => i + 1).map((val) => (
                                     <button
                                         key={val}
@@ -181,27 +184,58 @@ export function ImageParameterFields({
                                         {val}
                                     </button>
                                 ))}
-                                <label className="flex h-8 overflow-hidden rounded-full text-xs bg-muted/40 border border-border/40 hover:border-primary/40 transition-colors">
-                                    <input
-                                        key={countVal > quickCount ? `custom-${countVal}` : "quick"}
-                                        type="number"
-                                        min={1}
-                                        max={max}
-                                        aria-label="自定义生成张数"
-                                        placeholder="输入"
-                                        className="min-w-0 flex-1 bg-transparent px-2 text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none text-foreground placeholder:text-muted-foreground/60"
-                                        defaultValue={countVal > quickCount ? countVal : ""}
-                                        onBlur={(e) => {
-                                            const next = Math.max(1, Math.min(max, Math.floor(Number(e.currentTarget.value) || 1)));
-                                            e.currentTarget.value = String(next);
-                                            onChange("count", String(next));
+                                {hasMore ? (
+                                    <label
+                                        className={cn(
+                                            "group flex h-8 items-center overflow-hidden rounded-full px-1.5 text-xs transition-colors cursor-pointer select-none border",
+                                            isCustom
+                                                ? "bg-primary/20 text-primary border-primary/40 font-semibold"
+                                                : "bg-muted/40 hover:bg-muted/70 text-muted-foreground hover:text-foreground border-border/40",
+                                        )}
+                                        onClick={() => {
+                                            if (countVal <= quickCount) {
+                                                onChange("count", String(quickCount + 1));
+                                            }
                                         }}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter") e.currentTarget.blur();
-                                        }}
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                    />
-                                </label>
+                                    >
+                                        <span
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (countVal <= quickCount) {
+                                                    onChange("count", String(quickCount + 1));
+                                                } else if (countVal < max) {
+                                                    onChange("count", String(countVal + 1));
+                                                }
+                                            }}
+                                            className="grid size-4 place-items-center rounded-full hover:bg-black/15 dark:hover:bg-white/15 transition-colors shrink-0"
+                                            title="增加数量"
+                                        >
+                                            <Plus className="size-3" />
+                                        </span>
+                                        <input
+                                            key={isCustom ? `custom-${countVal}` : "quick"}
+                                            type="number"
+                                            min={1}
+                                            max={max}
+                                            aria-label="自定义生成张数"
+                                            placeholder={isCustom ? String(countVal) : "+"}
+                                            className="min-w-0 flex-1 bg-transparent px-0.5 text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none font-semibold text-xs text-foreground placeholder:text-foreground/75"
+                                            defaultValue={isCustom ? countVal : ""}
+                                            onFocus={(e) => e.currentTarget.select()}
+                                            onBlur={(e) => {
+                                                if (e.currentTarget.value) {
+                                                    const next = Math.max(1, Math.min(max, Math.floor(Number(e.currentTarget.value) || (quickCount + 1))));
+                                                    e.currentTarget.value = String(next);
+                                                    onChange("count", String(next));
+                                                }
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") e.currentTarget.blur();
+                                            }}
+                                            onMouseDown={(e) => e.stopPropagation()}
+                                        />
+                                    </label>
+                                ) : null}
                             </div>
                             {field.description ? <p className="text-xs leading-relaxed text-foreground/55">{field.description}</p> : null}
                         </div>

@@ -4,6 +4,7 @@ import { imageResolutionUsesQuality, imageSizePresets } from "@/lib/image-size-p
 import { type ReactNode } from "react";
 import { ConfigProvider } from "antd";
 import { Switch } from "@/components/ui/base/switch";
+import { Plus } from "lucide-react";
 
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import { buildImageResolutionOptions, formatImageResolutionSize } from "@/lib/image-resolution-tiers";
@@ -51,7 +52,7 @@ type ImageSettingsPanelProps = {
     bypassPriceGuard?: boolean;
 };
 
-export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = true, showQuality = true, showTransparent = true, showSize = true, showCount = true, className = "w-[304px] space-y-3 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 3, bypassPriceGuard = false }: ImageSettingsPanelProps) {
+export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = true, showQuality = true, showTransparent = true, showSize = true, showCount = true, className = "w-[304px] space-y-3 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 4, bypassPriceGuard = false }: ImageSettingsPanelProps) {
     const profile = mergedImageCapabilityConfig(config, config.model || config.imageModel);
     const normalized = normalizeImageValue(profile, config);
     const quality = normalized.quality;
@@ -120,13 +121,15 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                 {showCount && effectiveMaxCount > 1 ? (
                     <div className="space-y-2">
                         <SettingTitle color={theme.node.muted}>生成张数</SettingTitle>
-                        <div className="grid grid-cols-4 gap-1.5">
+                        <div className={effectiveMaxCount > quickCount ? "grid grid-cols-5 gap-1.5" : `grid grid-cols-${Math.min(quickCount, effectiveMaxCount)} gap-1.5`}>
                             {Array.from({ length: Math.min(quickCount, effectiveMaxCount) }, (_, index) => index + 1).map((value) => (
                                 <OptionPill key={value} selected={count === value} theme={theme} onClick={() => onConfigChange("count", String(value))}>
                                     {value}
                                 </OptionPill>
                             ))}
-                            <CountInput value={count} quickCount={quickCount} max={effectiveMaxCount} theme={theme} onChange={(value) => onConfigChange("count", String(value || 1))} />
+                            {effectiveMaxCount > quickCount ? (
+                                <CountInput value={count} quickCount={quickCount} max={effectiveMaxCount} theme={theme} onChange={(value) => onConfigChange("count", String(value || 1))} />
+                            ) : null}
                         </div>
                     </div>
                 ) : null}
@@ -194,24 +197,56 @@ function OptionPill({ selected, disabled = false, theme, onClick, children }: { 
 }
 
 function CountInput({ value, quickCount, max, theme, onChange }: { value: number; quickCount: number; max: number; theme: CanvasTheme; onChange: (value: number | null) => void }) {
+    const isCustom = value > quickCount;
     const commit = (input: HTMLInputElement) => {
-        const next = Math.max(1, Math.min(max, Math.floor(Number(input.value) || 1)));
+        const next = Math.max(1, Math.min(max, Math.floor(Number(input.value) || (quickCount + 1))));
         input.value = String(next);
         onChange(next);
     };
+
+    const handlePlusClick = (event: React.MouseEvent) => {
+        event.stopPropagation();
+        if (value <= quickCount) {
+            onChange(quickCount + 1);
+        } else if (value < max) {
+            onChange(value + 1);
+        }
+    };
+
     return (
-        <label className="flex h-8 overflow-hidden rounded-full text-xs" style={{ background: theme.toolbar.itemHover, color: theme.node.text }}>
+        <label
+            className="group flex h-8 items-center overflow-hidden rounded-full px-1.5 text-xs transition-colors cursor-pointer select-none"
+            style={{
+                background: isCustom ? theme.toolbar.activeBg : theme.toolbar.itemHover,
+                color: theme.node.text,
+            }}
+            onClick={() => {
+                if (value <= quickCount) {
+                    onChange(Math.min(max, quickCount + 1));
+                }
+            }}
+        >
+            <span
+                onClick={handlePlusClick}
+                className="grid size-4 place-items-center rounded-full hover:bg-black/15 dark:hover:bg-white/15 transition-colors shrink-0"
+                title="增加生成数量"
+            >
+                <Plus className="size-3" style={{ color: isCustom ? theme.accent.primary : "inherit" }} />
+            </span>
             <input
-                key={value > quickCount ? `custom-${value}` : "quick"}
+                key={isCustom ? `custom-${value}` : "quick"}
                 type="number"
                 min={1}
                 max={max}
                 aria-label="自定义生成张数"
-                placeholder="输入"
-                className="min-w-0 flex-1 bg-transparent px-2 text-center outline-none placeholder:text-current placeholder:opacity-55 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                placeholder={isCustom ? String(value) : "+"}
+                className="min-w-0 flex-1 bg-transparent px-0.5 text-center outline-none placeholder:text-current placeholder:opacity-75 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none font-semibold text-xs"
                 style={{ color: theme.node.text, WebkitTextFillColor: theme.node.text }}
-                defaultValue={value > quickCount ? value : ""}
-                onBlur={(event) => commit(event.currentTarget)}
+                defaultValue={isCustom ? value : ""}
+                onFocus={(e) => e.currentTarget.select()}
+                onBlur={(event) => {
+                    if (event.currentTarget.value) commit(event.currentTarget);
+                }}
                 onKeyDown={(event) => {
                     if (event.key === "Enter") event.currentTarget.blur();
                 }}
