@@ -324,7 +324,7 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
                                                               ? `库存 ${product.stockRemaining ?? 0}`
                                                               : product.saleStrategy === "periodic"
                                                                 ? `每 ${product.periodDays} 天限购 ${product.periodPurchaseLimit} 次`
-                                                                : "不限量";
+                                                                : "";
                                                 return (
                                                     <button
                                                         key={product.id}
@@ -337,7 +337,8 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
                                                         <span>{product.name}</span>
                                                         <strong>{formatCredits(product.creditsMicrocredits, 6)} 积分</strong>
                                                         <small>
-                                                            ¥ {(product.amountFen / 100).toFixed(2)} · {unavailableLabel}
+                                                            ¥ {(product.amountFen / 100).toFixed(2)}
+                                                            {unavailableLabel ? ` · ${unavailableLabel}` : ""}
                                                             {product.description ? ` · ${product.description}` : ""}
                                                         </small>
                                                         {selectedProductId === product.id ? <Check /> : null}
