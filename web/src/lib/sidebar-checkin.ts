@@ -1,5 +1,5 @@
 export function shouldShowSidebarCheckin(input: { creditsEnabled?: boolean; checkinBonusMicrocredits?: number | null; checkedInToday?: boolean }) {
-    return Boolean(input.creditsEnabled && (input.checkinBonusMicrocredits || 0) > 0 && !input.checkedInToday);
+    return Boolean(input.creditsEnabled && (input.checkinBonusMicrocredits || 0) > 0);
 }
 
 export function sidebarCheckinTitle(brandName: string) {

@@ -128,8 +128,8 @@ export default function AdminPromotionPage() {
 
     return (
         <AdminPageFrame
-            title="推广注册送积分"
-            description="配置用户推广拉新赠送积分规则，查看全站用户邀请关系与奖励明细"
+            title="邀请中心"
+            description="配置用户邀请好友注册送积分规则，查看全站用户邀请关系与奖励明细"
             scroll
             actions={
                 <Button

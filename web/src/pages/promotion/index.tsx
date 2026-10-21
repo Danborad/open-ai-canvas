@@ -136,9 +136,9 @@ export default function PromotionPage() {
                         <Gift className="size-5" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">推广注册送积分</h1>
+                        <h1 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">邀请中心</h1>
                         <p className="text-sm text-muted-foreground">
-                            邀请好友注册影策创作平台，好友注册即送积分，您立享丰厚推广奖励，直接到账可用！
+                            邀请好友注册影策创作平台，好友注册即送积分，您立享丰厚邀请奖励，直接到账可用！
                         </p>
                     </div>
                 </div>
