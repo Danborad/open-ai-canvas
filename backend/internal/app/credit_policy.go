@@ -150,7 +150,7 @@ func (s *Service) CheckinCredits(user *model.User) (*model.CreditAccount, bool, 
 	if policy.CheckinBonusMicrocredits == 0 {
 		return nil, false, BadAuthRequest("当前未开启签到奖励")
 	}
-	day := time.Now().UTC().Format("2006-01-02")
+	day := time.Now().In(chinaTimeZone()).Format("2006-01-02")
 	return s.repo.GrantCreditsOnce(user.ID, model.CreditLedgerCheckinBonus, policy.CheckinBonusMicrocredits, "checkin:"+user.ID+":"+day, "每日签到奖励")
 }
 
@@ -159,7 +159,7 @@ func (s *Service) publicCreditPolicy(userID string) (PublicCreditPolicy, error) 
 	if err != nil {
 		return PublicCreditPolicy{}, err
 	}
-	reference := "checkin:" + userID + ":" + time.Now().UTC().Format("2006-01-02")
+	reference := "checkin:" + userID + ":" + time.Now().In(chinaTimeZone()).Format("2006-01-02")
 	checked, err := s.repo.CreditLedgerReferenceExists(reference)
 	return PublicCreditPolicy{SignupBonusMicrocredits: policy.SignupBonusMicrocredits, CheckinBonusMicrocredits: policy.CheckinBonusMicrocredits, CheckedInToday: checked}, err
 }
