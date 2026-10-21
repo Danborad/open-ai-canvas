@@ -65,7 +65,6 @@ function buildNav(features: FeatureAvailability): { groups: WorkspaceNavGroup[];
             items: [
                 { ...toolItem("assets", "/assets"), title: "资产" },
                 ...(features.taskCenterEnabled ? [{ id: "tasks", title: "创作历史", icon: ImageIcon, to: "/tasks" }] : []),
-                ...(features.promotionEnabled ? [{ id: "promotion", title: "邀请中心", icon: Gift, to: "/promotion" }] : []),
             ],
         },
     ];

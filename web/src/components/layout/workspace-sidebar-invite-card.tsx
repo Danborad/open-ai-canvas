@@ -28,31 +28,31 @@ export function WorkspaceSidebarInviteCard({ collapsed }: { collapsed: boolean }
 
     return (
         <aside
-            className="app-workspace-sidebar-checkin group my-1 cursor-pointer transition hover:shadow-lg"
+            className="group my-1 flex flex-col justify-center rounded-[12px] bg-white px-3 py-2 text-neutral-900 shadow-sm transition hover:shadow-md cursor-pointer"
             onClick={() => navigate("/promotion")}
-            title="点击进入邀请中心，分享专属链接赚取积分"
+            title="点击进入邀请中心，分享专属推广链接赚取积分"
         >
-            <div className="app-workspace-sidebar-checkin-copy min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                    <strong className="app-workspace-sidebar-checkin-title font-bold text-neutral-900">邀请中心</strong>
-                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600">
-                        奖励
-                    </span>
-                </div>
-                <span className="app-workspace-sidebar-checkin-offer block truncate text-[11px] text-neutral-500">
-                    邀请好友注册<em>+100</em>积分
+            {/* 上排：左边小字「邀请中心」，右边黑色胶囊按钮「立即邀请」 */}
+            <div className="flex items-center justify-between gap-2">
+                <span className="text-[12.5px] font-bold tracking-tight text-neutral-900">
+                    邀请中心
                 </span>
+                <button
+                    type="button"
+                    className="flex h-[26px] shrink-0 items-center justify-center rounded-full bg-neutral-900 px-2.5 text-[11px] font-semibold text-white transition group-hover:bg-black active:scale-95"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        navigate("/promotion");
+                    }}
+                >
+                    立即邀请
+                </button>
             </div>
-            <button
-                type="button"
-                className="app-workspace-sidebar-checkin-claim shrink-0 rounded-full bg-neutral-900 px-3 py-1 text-xs font-semibold text-white shadow-sm transition group-hover:bg-black"
-                onClick={(e) => {
-                    e.stopPropagation();
-                    navigate("/promotion");
-                }}
-            >
-                立即邀请
-            </button>
+
+            {/* 下排：整行横向小字说明，字号精致，绝不折行挤压 */}
+            <div className="mt-1 flex items-center text-[10.5px] leading-tight text-neutral-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                邀请好友送积分
+            </div>
         </aside>
     );
 }
