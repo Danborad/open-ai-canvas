@@ -82,6 +82,53 @@ func (r *Repository) CountInvitations(inviterID string) (int64, error) {
 	return total, err
 }
 
+func (r *Repository) PromotionRewardCredits(inviterID string) (int64, error) {
+	var total int64
+	err := r.db.Model(&model.CreditLedgerEntry{}).
+		Where("user_id = ? AND type = ?", inviterID, model.CreditLedgerPromotionReward).
+		Select("COALESCE(SUM(amount_microcredits), 0)").
+		Scan(&total).Error
+	return total / 1_000_000, err
+}
+
+type AdminPromotionInvitationRow struct {
+	ID             string    `json:"id" gorm:"column:id"`
+	InviterID      string    `json:"inviterId" gorm:"column:inviter_id"`
+	InviterName    string    `json:"inviterName" gorm:"column:inviter_name"`
+	InviterContact string    `json:"inviterContact" gorm:"column:inviter_contact"`
+	InviteeID      string    `json:"inviteeId" gorm:"column:invitee_id"`
+	InviteeName    string    `json:"inviteeName" gorm:"column:invitee_name"`
+	InviteeContact string    `json:"inviteeContact" gorm:"column:invitee_contact"`
+	Code           string    `json:"code" gorm:"column:code"`
+	RewardCredits  int64     `json:"rewardCredits" gorm:"column:reward_credits"`
+	CreatedAt      time.Time `json:"createdAt" gorm:"column:created_at"`
+}
+
+func (r *Repository) AdminPromotionInvitationPage(offset, limit int) ([]AdminPromotionInvitationRow, int64, error) {
+	var total int64
+	if err := r.db.Model(&model.Invitation{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	rows := make([]AdminPromotionInvitationRow, 0, limit)
+	err := r.db.Table("invitations").
+		Select(`invitations.id AS id,
+			invitations.inviter_id AS inviter_id,
+			COALESCE(inviters.display_name, inviters.username) AS inviter_name,
+			COALESCE(NULLIF(inviters.email, ''), inviters.username) AS inviter_contact,
+			invitations.invitee_id AS invitee_id,
+			COALESCE(invitees.display_name, invitees.username) AS invitee_name,
+			COALESCE(NULLIF(invitees.email, ''), invitees.username) AS invitee_contact,
+			invitations.code AS code,
+			COALESCE((SELECT SUM(amount_microcredits)/1000000 FROM credit_ledgers WHERE user_id = invitations.inviter_id AND type = 'promotion_reward' AND reference_key = 'promotion:inviter:' || invitations.invitee_id), 0) AS reward_credits,
+			invitations.created_at AS created_at`).
+		Joins("LEFT JOIN users AS inviters ON inviters.id = invitations.inviter_id").
+		Joins("LEFT JOIN users AS invitees ON invitees.id = invitations.invitee_id").
+		Order("invitations.created_at DESC").
+		Offset(offset).Limit(limit).
+		Scan(&rows).Error
+	return rows, total, err
+}
+
 func (r *Repository) PromotionInvitationPage(inviterID string, offset, limit int) ([]PromotionInvitationRow, int64, error) {
 	var total int64
 	if err := r.db.Model(&model.Invitation{}).Where("inviter_id = ?", inviterID).Count(&total).Error; err != nil {
@@ -93,10 +140,8 @@ func (r *Repository) PromotionInvitationPage(inviterID string, offset, limit int
 			COALESCE(users.display_name, '') AS invitee_name,
 			COALESCE(NULLIF(users.email, ''), users.username) AS invitee_contact,
 			invitations.source AS source,
-			COALESCE((SELECT SUM(commission_records.base_microcredits) FROM commission_records
-				WHERE commission_records.inviter_id = invitations.inviter_id AND commission_records.invitee_id = invitations.invitee_id), 0) AS contributed_microcredits,
-			COALESCE((SELECT SUM(commission_records.amount_microcredits) FROM commission_records
-				WHERE commission_records.inviter_id = invitations.inviter_id AND commission_records.invitee_id = invitations.invitee_id), 0) AS commission_microcredits,
+			0 AS contributed_microcredits,
+			COALESCE((SELECT SUM(amount_microcredits)/1000000 FROM credit_ledgers WHERE user_id = invitations.inviter_id AND type = 'promotion_reward' AND reference_key = 'promotion:inviter:' || invitations.invitee_id), 0) AS commission_microcredits,
 			invitations.created_at AS created_at`).
 		Joins("LEFT JOIN users ON users.id = invitations.invitee_id").
 		Where("invitations.inviter_id = ?", inviterID).

@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -510,10 +509,6 @@ func (s *Service) applyPaymentResult(providerID string, result payment.Result) (
 			return nil, err
 		}
 		if granted {
-			// 返佣结算失败不阻断充值入账：订单已入账，返佣可由幂等键在后续回调中补齐。
-			if commissionErr := s.SettlePaymentCommission(completed); commissionErr != nil {
-				log.Printf("推广返佣结算失败 order=%s: %v", completed.ID, commissionErr)
-			}
 			s.NotifyWecomPaymentReceived(completed)
 		}
 		return completed, nil

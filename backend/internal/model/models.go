@@ -122,6 +122,8 @@ const (
 	CreditLedgerCheckinBonus CreditLedgerType = "checkin_bonus"
 	CreditLedgerPaymentTopup        CreditLedgerType = "payment_topup"
 	CreditLedgerPromotionCommission CreditLedgerType = "promotion_commission"
+	CreditLedgerPromotionReward      CreditLedgerType = "promotion_reward"
+	CreditLedgerPromotionSignupBonus CreditLedgerType = "promotion_signup_bonus"
 
 	RedeemCodeUnused   RedeemCodeStatus = "unused"
 	RedeemCodeRedeemed RedeemCodeStatus = "redeemed"

@@ -239,14 +239,11 @@ type (
 	PromptOperationDefinition              = app.PromptOperationDefinition
 	PromptTemplateRequest                  = app.PromptTemplateRequest
 	PromptTemplateVariable                 = app.PromptTemplateVariable
-	PromotionCommissionPageResult          = app.PromotionCommissionPageResult
 	PromotionInvitationItem                = app.PromotionInvitationItem
 	PromotionInvitationPageResult          = app.PromotionInvitationPageResult
+	AdminPromotionInvitationPageResult     = app.AdminPromotionInvitationPageResult
 	PromotionOverview                      = app.PromotionOverview
 	PromotionPolicy                        = app.PromotionPolicy
-	PromotionTransferRequest               = app.PromotionTransferRequest
-	PromotionWithdrawalPageResult          = app.PromotionWithdrawalPageResult
-	PromotionWithdrawalRequest             = app.PromotionWithdrawalRequest
 	ProviderTaskQueryResult                = app.ProviderTaskQueryResult
 	PublicAppearanceSetting                = app.PublicAppearanceSetting
 	PublicArkPrivateAssetSetting           = app.PublicArkPrivateAssetSetting

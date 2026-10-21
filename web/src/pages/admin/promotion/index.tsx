@@ -1,96 +1,58 @@
 import { useCallback, useEffect, useState } from "react";
-import { App, Button, Input, InputNumber, Modal, Switch, Table } from "antd";
+import { App, Button, Form, InputNumber, Switch, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { Coins, Gift, RefreshCw, Save, Users } from "lucide-react";
 
-import { StatusBadge } from "@/components/ui/base/badges/status-badge";
 import { PaginationBar, TableSurface } from "@/components/layout/workspace-page";
-import { SegmentedControl } from "@/components/ui/base/segmented-control";
-import { formatCredits } from "@/constant/credits";
-import { refreshFeatureAvailability } from "@/lib/user-session";
-import { updateAdminFeatureAvailability } from "@/services/api/auth";
-import { useUserStore } from "@/stores/use-user-store";
+import { AdminPageFrame } from "@/pages/admin/components/admin-shell";
+import { WorkspaceState } from "@/components/layout/workspace-state";
 import {
     getAdminPromotionPolicy,
-    listAdminPromotionWithdrawals,
-    reviewAdminPromotionWithdrawal,
+    listAdminPromotionInvitations,
     updateAdminPromotionPolicy,
-    type PromotionWithdrawal,
-    type PromotionWithdrawalPage,
+    type AdminPromotionInvitationPage,
+    type AdminPromotionInvitationRow,
+    type PromotionPolicy,
 } from "@/services/api/promotion";
-
-const MICROCREDITS_PER_CREDIT = 1_000_000;
-
-const statusOptions = [
-    { value: "pending", label: "审核中" },
-    { value: "approved", label: "已通过" },
-    { value: "rejected", label: "已驳回" },
-    { value: "", label: "全部" },
-];
-
-// 统一用项目 StatusBadge，避免 antd Tag 在主题 token 下出现不可读配色。
-type BadgeTone = "neutral" | "success" | "warning" | "error" | "loading";
-
-const statusTag: Record<PromotionWithdrawal["status"], { text: string; tone: BadgeTone }> = {
-    pending: { text: "审核中", tone: "loading" },
-    approved: { text: "已通过", tone: "success" },
-    rejected: { text: "已驳回", tone: "error" },
-};
-
-const channelLabel: Record<string, string> = { alipay: "支付宝", wechat: "微信", bank: "银行卡" };
-
-function formatDateTime(value?: string) {
-    if (!value) return "—";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "—";
-    return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-}
 
 export default function AdminPromotionPage() {
     const { message } = App.useApp();
-    const promotionEnabled = useUserStore((state) => state.features.promotionEnabled);
-    const [togglingPromotion, setTogglingPromotion] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [ratioPercent, setRatioPercent] = useState<number | null>(3);
-    const [freezeDays, setFreezeDays] = useState<number | null>(3);
-    const [minWithdrawCredits, setMinWithdrawCredits] = useState<number | null>(10);
+    const [policyForm] = Form.useForm<PromotionPolicy>();
+    const [policy, setPolicy] = useState<PromotionPolicy | null>(null);
+    const [savingPolicy, setSavingPolicy] = useState(false);
+    const [loadingPolicy, setLoadingPolicy] = useState(true);
 
-    const [status, setStatus] = useState("pending");
+    const [invitationsPage, setInvitationsPage] = useState<AdminPromotionInvitationPage | null>(null);
+    const [loadingInvitations, setLoadingInvitations] = useState(false);
     const [page, setPage] = useState(1);
-    const [pageSize] = useState(20);
-    const [withdrawals, setWithdrawals] = useState<PromotionWithdrawalPage | null>(null);
-    const [recordsLoading, setRecordsLoading] = useState(false);
-    const [reviewTarget, setReviewTarget] = useState<PromotionWithdrawal | null>(null);
-    const [reviewApprove, setReviewApprove] = useState(true);
-    const [reviewNote, setReviewNote] = useState("");
-    const [reviewing, setReviewing] = useState(false);
+    const [pageSize, setPageSize] = useState(20);
 
     const loadPolicy = useCallback(async () => {
+        setLoadingPolicy(true);
         try {
-            const result = await getAdminPromotionPolicy();
-            const policy = result.policy;
-            setRatioPercent(policy.ratioBasisPoints / 100);
-            setFreezeDays(policy.freezeDays);
-            setMinWithdrawCredits(policy.minWithdrawalMicrocredits / MICROCREDITS_PER_CREDIT);
+            const { policy: data } = await getAdminPromotionPolicy();
+            setPolicy(data);
+            policyForm.setFieldsValue(data);
         } catch (error) {
-            message.error(error instanceof Error ? error.message : "推广策略加载失败");
+            message.error(error instanceof Error ? error.message : "读取推广策略失败");
         } finally {
-            setLoading(false);
+            setLoadingPolicy(false);
         }
-    }, [message]);
+    }, [message, policyForm]);
 
-    const loadWithdrawals = useCallback(
-        async (targetStatus: string, targetPage: number) => {
-            setRecordsLoading(true);
+    const loadInvitations = useCallback(
+        async (targetPage = page, targetPageSize = pageSize) => {
+            setLoadingInvitations(true);
             try {
-                setWithdrawals(await listAdminPromotionWithdrawals({ status: targetStatus || undefined, page: targetPage, pageSize }));
+                const data = await listAdminPromotionInvitations({ page: targetPage, pageSize: targetPageSize });
+                setInvitationsPage(data);
             } catch (error) {
-                message.error(error instanceof Error ? error.message : "提现申请加载失败");
+                message.error(error instanceof Error ? error.message : "读取全站邀请记录失败");
             } finally {
-                setRecordsLoading(false);
+                setLoadingInvitations(false);
             }
         },
-        [message, pageSize],
+        [message, page, pageSize],
     );
 
     useEffect(() => {
@@ -98,256 +60,178 @@ export default function AdminPromotionPage() {
     }, [loadPolicy]);
 
     useEffect(() => {
-        void loadWithdrawals(status, page);
-    }, [loadWithdrawals, page, status]);
+        void loadInvitations(page, pageSize);
+    }, [loadInvitations, page, pageSize]);
 
-    // 与「系统配置 → 功能开放」共用同一个特性开关；保存后刷新会话态，侧边栏与路由立即响应。
-    const togglePromotion = async (checked: boolean) => {
-        setTogglingPromotion(true);
+    const handleSavePolicy = async (values: PromotionPolicy) => {
+        setSavingPolicy(true);
         try {
-            await updateAdminFeatureAvailability({ promotionEnabled: checked });
-            await refreshFeatureAvailability();
-            message.success(checked ? "推广中心已开启" : "推广中心已关闭");
+            const { policy: updated } = await updateAdminPromotionPolicy(values);
+            setPolicy(updated);
+            policyForm.setFieldsValue(updated);
+            message.success("推广送积分规则已保存生效");
         } catch (error) {
-            message.error(error instanceof Error ? error.message : "开关保存失败");
+            message.error(error instanceof Error ? error.message : "保存策略失败");
         } finally {
-            setTogglingPromotion(false);
+            setSavingPolicy(false);
         }
     };
 
-    const savePolicy = async () => {
-        const ratio = Number(ratioPercent ?? 0);
-        if (ratio < 0 || ratio > 100) {
-            message.warning("返佣比例必须在 0%-100% 之间");
-            return;
-        }
-        const days = Number(freezeDays ?? 0);
-        if (days < 0 || days > 365) {
-            message.warning("冻结天数必须在 0-365 天之间");
-            return;
-        }
-        setSaving(true);
-        try {
-            await updateAdminPromotionPolicy({
-                ratioBasisPoints: Math.round(ratio * 100),
-                freezeDays: Math.round(days),
-                minWithdrawalMicrocredits: Math.round(Number(minWithdrawCredits ?? 0) * MICROCREDITS_PER_CREDIT),
-            });
-            message.success("推广策略已保存，对新的返佣结算立即生效");
-            await loadPolicy();
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : "保存推广策略失败");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const openReview = (target: PromotionWithdrawal, approve: boolean) => {
-        setReviewTarget(target);
-        setReviewApprove(approve);
-        setReviewNote("");
-    };
-
-    const submitReview = async () => {
-        if (!reviewTarget) return;
-        if (!reviewApprove && !reviewNote.trim()) {
-            message.warning("驳回时必须填写原因");
-            return;
-        }
-        setReviewing(true);
-        try {
-            await reviewAdminPromotionWithdrawal(reviewTarget.id, { approve: reviewApprove, note: reviewNote.trim() });
-            message.success(reviewApprove ? "已通过，返佣标记为已提现" : "已驳回，占用额度已退回可用返佣");
-            setReviewTarget(null);
-            await Promise.all([loadWithdrawals(status, page), loadPolicy()]);
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : "审核失败");
-        } finally {
-            setReviewing(false);
-        }
-    };
-
-    const columns: ColumnsType<PromotionWithdrawal> = [
+    const columns: ColumnsType<AdminPromotionInvitationRow> = [
         {
-            title: "用户",
-            dataIndex: "userId",
-            render: (value: string) => <span className="truncate font-mono text-[var(--fs-caption)]">{value || "—"}</span>,
-        },
-        {
-            title: "提现方式",
-            dataIndex: "channel",
-            width: 110,
-            render: (value: string) => <StatusBadge variant="filled" tone="neutral" label={channelLabel[value] || value} />,
-        },
-        {
-            title: "收款账号",
-            dataIndex: "account",
-            render: (value: string, record) => (
-                <div className="min-w-0">
-                    <div className="truncate">{value || "—"}</div>
-                    {record.accountName ? <div className="truncate text-[var(--fs-caption)] text-foreground/52">{record.accountName}</div> : null}
+            title: "邀请人（推广员）",
+            key: "inviter",
+            render: (_, record) => (
+                <div className="flex flex-col">
+                    <span className="font-medium text-foreground">{record.inviterName || "用户"}</span>
+                    <span className="font-mono text-xs text-muted-foreground">{record.inviterContact || record.inviterId}</span>
                 </div>
             ),
         },
         {
-            title: "金额",
-            dataIndex: "amountMicrocredits",
-            width: 130,
-            render: (value: number) => <span className="font-medium tabular-nums">{formatCredits(value)} 积分</span>,
+            title: "邀请码",
+            dataIndex: "code",
+            key: "code",
+            render: (value) => <span className="font-mono font-semibold text-foreground tracking-wider">{value}</span>,
         },
         {
-            title: "状态",
-            dataIndex: "status",
-            width: 110,
-            render: (value: PromotionWithdrawal["status"]) => (
-                <StatusBadge variant="filled" tone={statusTag[value]?.tone ?? "neutral"} label={statusTag[value]?.text || value} />
+            title: "被邀请人（新用户）",
+            key: "invitee",
+            render: (_, record) => (
+                <div className="flex flex-col">
+                    <span className="font-medium text-foreground">{record.inviteeName || "新用户"}</span>
+                    <span className="font-mono text-xs text-muted-foreground">{record.inviteeContact || record.inviteeId}</span>
+                </div>
             ),
         },
         {
-            title: "提交时间",
+            title: "注册时间",
             dataIndex: "createdAt",
-            width: 150,
-            render: (value: string) => <span className="tabular-nums text-foreground/72">{formatDateTime(value)}</span>,
+            key: "createdAt",
+            render: (value: string) => {
+                if (!value) return "—";
+                return new Date(value).toLocaleString("zh-CN", { hour12: false });
+            },
         },
         {
-            title: "操作",
-            key: "actions",
-            width: 150,
-            render: (_, record) =>
-                record.status === "pending" ? (
-                    <div className="flex items-center gap-2">
-                        <Button size="small" type="primary" onClick={() => openReview(record, true)}>
-                            通过
-                        </Button>
-                        <Button size="small" danger onClick={() => openReview(record, false)}>
-                            驳回
-                        </Button>
-                    </div>
-                ) : (
-                    <span className="text-[var(--fs-caption)] text-foreground/52">{record.reviewNote || "已处理"}</span>
-                ),
+            title: "邀请人奖励",
+            dataIndex: "rewardCredits",
+            key: "rewardCredits",
+            align: "right",
+            render: (value: number) => (
+                <span className="font-semibold text-emerald-600">
+                    +{value > 0 ? value : policy?.inviterRewardCredits || 100} 积分
+                </span>
+            ),
         },
     ];
 
     return (
-        <div className="flex flex-col gap-4">
-            <div>
-                <h1 className="text-[var(--fs-heading-lg)] font-semibold leading-7">推广中心</h1>
-                <p className="mt-1 text-[var(--fs-caption)] text-foreground/62">配置返佣策略，并处理用户提交的提现申请。</p>
-            </div>
-
-            <section className="rounded-xl border border-border/70 bg-surface p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h2 className="text-[var(--fs-body)] font-semibold">返佣策略</h2>
-                        <p className="mt-1 text-[var(--fs-caption)] text-foreground/62">比例按充值入账积分计算；冻结期满自动转为可用返佣。</p>
+        <AdminPageFrame
+            title="推广注册送积分"
+            description="配置用户推广拉新赠送积分规则，查看全站用户邀请关系与奖励明细"
+            scroll
+            actions={
+                <Button
+                    icon={<RefreshCw className="size-3.5" />}
+                    onClick={() => {
+                        void loadPolicy();
+                        void loadInvitations();
+                    }}
+                    loading={loadingPolicy || loadingInvitations}
+                >
+                    刷新数据
+                </Button>
+            }
+        >
+            <div className="space-y-6">
+                {/* 规则配置卡片 */}
+                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                    <div className="mb-4 flex items-center gap-2">
+                        <Gift className="size-4 text-[var(--accent)]" />
+                        <h2 className="text-sm font-semibold text-foreground">推广注册奖励规则配置</h2>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-[var(--fs-caption)] text-foreground/62">启用推广中心</span>
-                        <Switch checked={promotionEnabled} loading={togglingPromotion} onChange={(checked) => void togglePromotion(checked)} />
-                    </div>
-                </div>
 
-                <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                    <label className="flex flex-col gap-1.5">
-                        <span className="text-[var(--fs-label)] font-medium text-foreground/62">返佣比例</span>
-                        <InputNumber
-                            className="w-full"
-                            min={0}
-                            max={100}
-                            step={0.5}
-                            value={ratioPercent}
-                            onChange={(value) => setRatioPercent(typeof value === "number" ? value : null)}
-                            addonAfter="%"
-                            disabled={loading}
-                        />
-                    </label>
-                    <label className="flex flex-col gap-1.5">
-                        <span className="text-[var(--fs-label)] font-medium text-foreground/62">冻结天数</span>
-                        <InputNumber
-                            className="w-full"
-                            min={0}
-                            max={365}
-                            step={1}
-                            value={freezeDays}
-                            onChange={(value) => setFreezeDays(typeof value === "number" ? value : null)}
-                            addonAfter="天"
-                            disabled={loading}
-                        />
-                    </label>
-                    <label className="flex flex-col gap-1.5">
-                        <span className="text-[var(--fs-label)] font-medium text-foreground/62">最低提现额度</span>
-                        <InputNumber
-                            className="w-full"
-                            min={0}
-                            step={1}
-                            value={minWithdrawCredits}
-                            onChange={(value) => setMinWithdrawCredits(typeof value === "number" ? value : null)}
-                            addonAfter="积分"
-                            disabled={loading}
-                        />
-                    </label>
-                </div>
-
-                <div className="mt-4 flex justify-end">
-                    <Button type="primary" loading={saving} disabled={loading} onClick={() => void savePolicy()}>
-                        保存策略
-                    </Button>
-                </div>
-            </section>
-
-            <section className="rounded-xl border border-border/70 bg-surface p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h2 className="text-[var(--fs-body)] font-semibold">提现审核</h2>
-                        <p className="mt-1 text-[var(--fs-caption)] text-foreground/62">通过后占用额度转为已提现；驳回会立即把额度退回用户的可用返佣。</p>
-                    </div>
-                    <SegmentedControl
-                        value={status}
-                        options={statusOptions}
-                        onChange={(value) => {
-                            setStatus(value);
-                            setPage(1);
+                    <Form
+                        form={policyForm}
+                        layout="vertical"
+                        onFinish={(values) => void handleSavePolicy(values)}
+                        initialValues={{
+                            enabled: true,
+                            inviterRewardCredits: 100,
+                            inviteeRewardCredits: 50,
                         }}
-                    />
+                    >
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                            <Form.Item
+                                name="enabled"
+                                label="开启推广注册送积分"
+                                valuePropName="checked"
+                                extra="关闭后新用户填邀请码注册将不再发放推广积分。"
+                            >
+                                <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+                            </Form.Item>
+
+                            <Form.Item
+                                name="inviterRewardCredits"
+                                label="邀请人奖励积分（每人）"
+                                rules={[{ required: true, message: "请输入邀请人奖励积分" }]}
+                                extra="新用户成功注册后，直接打入邀请人的可用积分账户。"
+                            >
+                                <InputNumber min={0} max={100000} className="w-full" addonAfter="积分" />
+                            </Form.Item>
+
+                            <Form.Item
+                                name="inviteeRewardCredits"
+                                label="新人专属奖励积分（每人）"
+                                rules={[{ required: true, message: "请输入新人专属奖励积分" }]}
+                                extra="新用户填码注册后额外获赠的可用积分（与普通注册积分叠加）。"
+                            >
+                                <InputNumber min={0} max={100000} className="w-full" addonAfter="积分" />
+                            </Form.Item>
+                        </div>
+
+                        <div className="flex justify-end pt-2">
+                            <Button type="primary" htmlType="submit" icon={<Save className="size-4" />} loading={savingPolicy}>
+                                保存奖励规则
+                            </Button>
+                        </div>
+                    </Form>
                 </div>
 
-                <TableSurface className="mt-3 rounded-xl border-border/70 bg-transparent">
-                    <Table
-                        rowKey="id"
-                        size="small"
-                        loading={recordsLoading}
-                        columns={columns}
-                        dataSource={withdrawals?.items || []}
-                        pagination={false}
-                        locale={{ emptyText: "当前筛选下没有提现申请。" }}
-                    />
-                </TableSurface>
+                {/* 全站邀请记录明细 */}
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Users className="size-4 text-muted-foreground" />
+                            <h2 className="text-sm font-semibold text-foreground">全站推广邀请明细</h2>
+                        </div>
+                        <span className="text-xs text-muted-foreground">共 {invitationsPage?.total || 0} 次邀请记录</span>
+                    </div>
 
-                <div className="mt-3">
-                    <PaginationBar total={withdrawals?.total || 0} current={page} pageSize={pageSize} onChange={(nextPage) => setPage(nextPage)} />
+                    <TableSurface>
+                        <Table
+                            columns={columns}
+                            dataSource={invitationsPage?.items || []}
+                            rowKey="id"
+                            loading={loadingInvitations}
+                            pagination={false}
+                            locale={{ emptyText: <WorkspaceState icon="empty" title="暂无邀请记录" description="当有用户通过邀请码或推广链接注册时，记录将在此呈现。" /> }}
+                        />
+                        {(invitationsPage?.total || 0) > 0 && (
+                            <PaginationBar
+                                current={page}
+                                pageSize={pageSize}
+                                total={invitationsPage?.total || 0}
+                                onChange={(p, ps) => {
+                                    setPage(p);
+                                    setPageSize(ps);
+                                }}
+                            />
+                        )}
+                    </TableSurface>
                 </div>
-            </section>
-
-            <Modal
-                open={Boolean(reviewTarget)}
-                title={reviewApprove ? "通过提现申请" : "驳回提现申请"}
-                okText={reviewApprove ? "确认通过" : "确认驳回"}
-                cancelText="取消"
-                confirmLoading={reviewing}
-                onOk={() => void submitReview()}
-                onCancel={() => setReviewTarget(null)}
-            >
-                <p className="mb-3 text-[var(--fs-caption)] text-foreground/62">
-                    {reviewTarget ? `${formatCredits(reviewTarget.amountMicrocredits)} 积分 · ${channelLabel[reviewTarget.channel] || reviewTarget.channel} · ${reviewTarget.account}` : ""}
-                </p>
-                <Input.TextArea
-                    rows={3}
-                    value={reviewNote}
-                    onChange={(event) => setReviewNote(event.target.value)}
-                    placeholder={reviewApprove ? "审核备注（选填，可记录打款凭证）" : "请填写驳回原因，用户可在提现记录中看到"}
-                />
-            </Modal>
-        </div>
+            </div>
+        </AdminPageFrame>
     );
 }
