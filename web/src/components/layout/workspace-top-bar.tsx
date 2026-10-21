@@ -22,6 +22,7 @@ const PAGE_TITLES: Record<string, string> = {
     skills: "技能",
     plugins: "插件",
     settings: "设置",
+    promotion: "邀请中心",
 };
 
 export function WorkspaceTopBar({ sidebarOpen, onToggleSidebar }: { sidebarOpen: boolean; onToggleSidebar: () => void }) {
