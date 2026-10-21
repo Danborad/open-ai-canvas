@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const CurrentSchemaVersion int64 = 58
+const CurrentSchemaVersion int64 = 59
 
 const baselineSchemaChecksum = "sha256:open-ai-canvas-schema-v1-20260830"
 const schemaMigrationAppliedAtIndexChecksum = "sha256:schema-migrations-applied-at-index-v2-20260830"
@@ -22,6 +22,7 @@ const resourcePlaybackChecksum = "sha256:resource-playback-v6-20260902"
 const assetLibraryFoldersChecksum = "sha256:asset-library-folders-v6-20260902"
 const logicalModelActiveCodeChecksum = "sha256:logical-model-active-code-v8-20260905"
 const creationRuntimeChecksum = "sha256:creation-runtime-v10-20260909"
+const promotionCenterChecksum = "sha256:promotion-center-v59-20261021"
 const authNotificationsChecksum = "sha256:auth-notifications-v35-20260924"
 const cloudAgentGeminiCacheChecksum = "sha256:cloud-agent-gemini-cache-v36-20260924"
 const cloudAgentGeminiCacheIdentityChecksum = "sha256:cloud-agent-gemini-cache-identity-v37-20260925"
@@ -200,6 +201,21 @@ var schemaMigrations = []migration{
 	{version: 58, name: "user_feedbacks", checksum: "sha256:user-feedbacks-v58-20261020", apply: func(tx *gorm.DB) error {
 		return tx.AutoMigrate(&model.UserFeedback{})
 	}},
+	{version: 59, name: "promotion_center", checksum: promotionCenterChecksum, apply: migratePromotionCenter},
+}
+
+func migratePromotionCenter(tx *gorm.DB) error {
+	// 推广中心的邀请关系、返佣流水和提现申请都是新增表，不影响既有资金数据。
+	if err := tx.AutoMigrate(
+		&model.InviteCode{},
+		&model.Invitation{},
+		&model.CommissionRecord{},
+		&model.CommissionAllocation{},
+		&model.WithdrawalRequest{},
+	); err != nil {
+		return fmt.Errorf("创建推广中心结构：%w", err)
+	}
+	return nil
 }
 
 func migratePrefixedIDSequenceReconcile(tx *gorm.DB) error {

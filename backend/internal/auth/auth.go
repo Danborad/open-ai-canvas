@@ -39,6 +39,7 @@ type RegisterRequest struct {
 	DisplayName   string       `json:"displayName"`
 	Password      string       `json:"password"`
 	AcceptedTerms bool         `json:"acceptedTerms"`
+	InviteCode    string       `json:"inviteCode"`
 }
 
 type LoginRequest struct {

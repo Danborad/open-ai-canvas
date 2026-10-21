@@ -1,5 +1,5 @@
 import { Popover } from "antd";
-import { ChevronDown, ChevronRight, CircleUserRound, History as HistoryIcon, Image as ImageIcon, Infinity as InfinityIcon, PanelLeftClose, PanelLeftOpen, Plus, Video } from "lucide-react";
+import { ChevronDown, ChevronRight, CircleUserRound, Gift, History as HistoryIcon, Image as ImageIcon, Infinity as InfinityIcon, PanelLeftClose, PanelLeftOpen, Plus, Video } from "lucide-react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
@@ -64,6 +64,7 @@ function buildNav(features: FeatureAvailability): { groups: WorkspaceNavGroup[];
             items: [
                 { ...toolItem("assets", "/assets"), title: "资产" },
                 ...(features.taskCenterEnabled ? [{ id: "tasks", title: "创作历史", icon: ImageIcon, to: "/tasks" }] : []),
+                ...(features.promotionEnabled ? [{ id: "promotion", title: "推广中心", icon: Gift, to: "/promotion" }] : []),
             ],
         },
     ];

@@ -190,6 +190,7 @@ func (s *Service) StartWorker() {
 	s.startPaymentWorker(ctx)
 	s.startWecomNotificationWorker(ctx)
 	s.startBillingAutoRefundWorker()
+	s.startPromotionWorker(ctx)
 	go s.syncAgentSessionLimit()
 	s.runWorkerLoop(func(ctx context.Context) {
 		ticker := time.NewTicker(3 * time.Second)

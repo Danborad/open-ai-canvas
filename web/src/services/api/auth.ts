@@ -443,7 +443,7 @@ export function getAdminFeatureAvailability() {
 }
 
 export function updateAdminFeatureAvailability(
-    features: Partial<Pick<FeatureAvailability, "welcomeEnabled" | "shortDramaEnabled" | "taskCenterEnabled" | "creditsEnabled" | "customChannelsEnabled" | "frontendModelsEnabled" | "pluginCenterEnabled" | "systemPluginsVisibleToUsers" | "inspirationSourcesVisible" | "imageWorkbenchEnabled" | "videoWorkbenchEnabled">>,
+    features: Partial<Pick<FeatureAvailability, "welcomeEnabled" | "shortDramaEnabled" | "taskCenterEnabled" | "creditsEnabled" | "customChannelsEnabled" | "frontendModelsEnabled" | "pluginCenterEnabled" | "systemPluginsVisibleToUsers" | "inspirationSourcesVisible" | "imageWorkbenchEnabled" | "videoWorkbenchEnabled" | "promotionEnabled">>,
 ) {
     return http.patch<{ features: FeatureAvailability }>("/admin/settings/features", features);
 }
@@ -467,7 +467,7 @@ export function resetPassword(input: { email: string; emailCode: string; passwor
     return http.post<{ reset: boolean }>("/auth/password-reset", input);
 }
 
-export async function register(input: { username: string; email?: string; emailCode?: string; phone?: string; smsCode?: string; ticket?: string; displayName?: string; password: string; acceptedTerms: boolean }) {
+export async function register(input: { username: string; email?: string; emailCode?: string; phone?: string; smsCode?: string; ticket?: string; displayName?: string; password: string; acceptedTerms: boolean; inviteCode?: string }) {
     const result = await http.post<{ user: LocalUser }>("/auth/register", input);
     invalidateAuthSessionCache();
     return result;

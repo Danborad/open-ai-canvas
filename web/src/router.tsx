@@ -57,6 +57,8 @@ const SkillsPage = lazy(() => import("@/pages/skills"));
 const PluginsPage = lazy(() => import("@/pages/plugins"));
 const EagleLibraryPage = lazy(() => import("@/pages/plugins/eagle"));
 const TasksPage = lazy(() => import("@/pages/tasks"));
+const PromotionPage = lazy(() => import("@/pages/promotion"));
+const AdminPromotionPage = lazy(() => import("@/pages/admin/promotion"));
 const ProjectsPage = lazy(loadProjectsPage);
 const ProjectDetailPage = lazy(loadProjectDetailPage);
 const SettingsPage = lazy(() => import("@/pages/settings"));
@@ -169,6 +171,14 @@ export const router = createBrowserRouter([
                 element: <RequireAuth>{null}</RequireAuth>,
             },
             { path: "/settings", element: <RequireAuth>{deferred(<SettingsPage />)}</RequireAuth> },
+            {
+                path: "/promotion",
+                element: (
+                    <RequireAuth>
+                        <RequireFeature feature="promotionEnabled">{deferred(<PromotionPage />)}</RequireFeature>
+                    </RequireAuth>
+                ),
+            },
             { path: "/test-voice-recording", element: <RequireAuth>{deferred(<TestVoiceRecording />)}</RequireAuth> },
             {
                 path: "/projects",
@@ -251,6 +261,7 @@ export const router = createBrowserRouter([
                     { path: "notifications", element: <Navigate to="/admin/wecom" replace /> },
                     { path: "credit-operations", element: <CreditOperationsPage /> },
                     { path: "redemption-codes", element: <RedemptionCodesPage /> },
+                    { path: "promotion", element: <AdminPromotionPage /> },
                     { path: "logs", element: <LogsPage /> },
                     { path: "settings", element: <Navigate to="runtime-policy" replace /> },
                     { path: "settings/appearance", element: <AppearanceSettingsPage /> },

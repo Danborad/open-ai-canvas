@@ -1,9 +1,10 @@
-import { type FormEvent, useEffect, useRef, useState, type ReactNode } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { App, Button, Checkbox, Divider, Input, Modal, Segmented } from "antd";
-import { ArrowRight, FileText, Info, LockKeyhole, Mail, TriangleAlert, UserRound } from "lucide-react";
+import { ArrowRight, FileText, Gift, Info, LockKeyhole, Mail, TriangleAlert, UserRound } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { getAuthSession, getAuthSettings, linuxDOLoginURL, register } from "@/services/api/auth";
+import { getPublicPromotionStatus } from "@/services/api/promotion";
 import { LinuxDOIcon } from "./auth-scene";
 import { ApiError } from "@/services/api/request";
 import { VerificationFields } from "@/components/auth/verification-fields";
@@ -16,6 +17,31 @@ export default function RegisterPage() {
     const navigate = useNavigate();
     const [params] = useSearchParams();
     const { message } = App.useApp();
+    const inviteCodeFromLink = (params.get("invite") || params.get("ref") || "").trim().toUpperCase();
+    const [inviteInput, setInviteInput] = useState(inviteCodeFromLink);
+    const [inviteError, setInviteError] = useState("");
+
+    const verifyInviteCode = useCallback(async (code: string) => {
+        const normalized = code.trim().toUpperCase();
+        if (!normalized) return { ok: true, message: "" };
+        try {
+            const status = await getPublicPromotionStatus(normalized);
+            if (!status.enabled) return { ok: false, message: "推广邀请暂时未启用，请直接注册。" };
+            if (!status.inviteCodeValid) return { ok: false, message: "邀请码无效，请检查后重试或留空注册。" };
+            return { ok: true, message: "" };
+        } catch {
+            return { ok: false, message: "邀请码校验失败，请检查网络后重试" };
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!inviteCodeFromLink) return;
+        void verifyInviteCode(inviteCodeFromLink).then((result) => {
+            if (!result.message) return;
+            setInviteError(result.message);
+            message.warning(result.message);
+        });
+    }, [inviteCodeFromLink, message, verifyInviteCode]);
     const brandName = useAppearanceStore((state) => state.appearance.brandName) || "平台";
     const [settings, setSettings] = useState<AuthSettings | null>(null);
     const [username, setUsername] = useState("");
@@ -73,8 +99,18 @@ export default function RegisterPage() {
         registering.current = true;
         setSubmitting(true);
         try {
+            const inviteCode = inviteInput.trim().toUpperCase();
+            if (inviteCode) {
+                const inviteCheck = await verifyInviteCode(inviteCode);
+                if (!inviteCheck.ok) {
+                    setInviteError(inviteCheck.message);
+                    message.error(inviteCheck.message);
+                    return;
+                }
+            }
+            setInviteError("");
             if (!settings?.firstUser && !verification.ticket) throw new Error("请先获取本次注册验证码");
-            await register({ username, ...(settings?.firstUser ? { email } : verification), displayName, password, acceptedTerms: agreementAccepted });
+            await register({ username, ...(settings?.firstUser ? { email } : verification), displayName, password, acceptedTerms: agreementAccepted, inviteCode: inviteCode || undefined });
             const { applyUserSession } = await import("@/lib/user-session");
             await applyUserSession(await getAuthSession());
             if (!settings?.firstUser) window.sessionStorage.setItem("yingce:model-setup-guide", "1");
@@ -169,6 +205,23 @@ export default function RegisterPage() {
                     />
                 </AuthField>
             </div>
+
+            <AuthField label="邀请码（选填）">
+                <Input
+                    size="large"
+                    prefix={<Gift className="auth-scene-icon size-4" />}
+                    value={inviteInput}
+                    onChange={(event) => {
+                        setInviteInput(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8));
+                        if (inviteError) setInviteError("");
+                    }}
+                    onBlur={() => void verifyInviteCode(inviteInput).then((result) => setInviteError(result.message))}
+                    status={inviteError ? "error" : undefined}
+                    placeholder="填写好友的邀请码，不填也可正常注册"
+                    disabled={disabled}
+                />
+                {inviteError ? <p className="mt-1 text-xs text-red-500">{inviteError}</p> : null}
+            </AuthField>
 
             {settingsFailed ? (
                 <Notice icon={<TriangleAlert className="size-3.5" />} tone="amber">

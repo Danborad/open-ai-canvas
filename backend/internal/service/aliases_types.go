@@ -153,6 +153,7 @@ type (
 	CreationSubmissionOutput               = app.CreationSubmissionOutput
 	CreditPolicy                           = app.CreditPolicy
 	BillingAutoRefundSetting               = app.BillingAutoRefundSetting
+	BillingReconcileStats                  = app.BillingReconcileStats
 	DiagnosticBundle                       = app.DiagnosticBundle
 	DiagnosticClientEvent                  = app.DiagnosticClientEvent
 	DiagnosticExportRequest                = app.DiagnosticExportRequest
@@ -238,6 +239,14 @@ type (
 	PromptOperationDefinition              = app.PromptOperationDefinition
 	PromptTemplateRequest                  = app.PromptTemplateRequest
 	PromptTemplateVariable                 = app.PromptTemplateVariable
+	PromotionCommissionPageResult          = app.PromotionCommissionPageResult
+	PromotionInvitationItem                = app.PromotionInvitationItem
+	PromotionInvitationPageResult          = app.PromotionInvitationPageResult
+	PromotionOverview                      = app.PromotionOverview
+	PromotionPolicy                        = app.PromotionPolicy
+	PromotionTransferRequest               = app.PromotionTransferRequest
+	PromotionWithdrawalPageResult          = app.PromotionWithdrawalPageResult
+	PromotionWithdrawalRequest             = app.PromotionWithdrawalRequest
 	ProviderTaskQueryResult                = app.ProviderTaskQueryResult
 	PublicAppearanceSetting                = app.PublicAppearanceSetting
 	PublicArkPrivateAssetSetting           = app.PublicArkPrivateAssetSetting

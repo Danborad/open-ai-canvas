@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { App, Button, Skeleton } from "antd";
 import { Switch } from "@/pages/admin/ui/controls";
-import { AlertTriangle, Clapperboard, Coins, ListChecks, MonitorCog, PlugZap, RadioTower, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
+import { AlertTriangle, Clapperboard, Coins, Gift, ListChecks, MonitorCog, PlugZap, RadioTower, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { getAdminFeatureAvailability, updateAdminFeatureAvailability } from "@/services/api/auth";
@@ -9,7 +9,7 @@ import { useUserStore, type FeatureAvailability } from "@/stores/use-user-store"
 import { AdminStatusBadge } from "./admin-ui";
 
 type FeatureKey =
-    "shortDramaEnabled" | "taskCenterEnabled" | "creditsEnabled" | "customChannelsEnabled" | "inspirationSourcesVisible" | "frontendModelsEnabled" | "pluginCenterEnabled" | "systemPluginsVisibleToUsers" | "imageWorkbenchEnabled" | "videoWorkbenchEnabled";
+    "shortDramaEnabled" | "taskCenterEnabled" | "creditsEnabled" | "customChannelsEnabled" | "inspirationSourcesVisible" | "frontendModelsEnabled" | "pluginCenterEnabled" | "systemPluginsVisibleToUsers" | "imageWorkbenchEnabled" | "videoWorkbenchEnabled" | "promotionEnabled";
 type FeatureRow = {
     key: FeatureKey;
     title: string;
@@ -26,6 +26,7 @@ const editableFeatureKeys: FeatureKey[] = [
     "inspirationSourcesVisible",
     "imageWorkbenchEnabled",
     "videoWorkbenchEnabled",
+    "promotionEnabled",
     "frontendModelsEnabled",
     "pluginCenterEnabled",
     "systemPluginsVisibleToUsers",
@@ -73,6 +74,12 @@ const workspaceFeatureRows: FeatureRow[] = [
         title: "视频生成",
         description: "开放视频入口并允许创建新的工作台视频任务；关闭不删除结果和历史。",
         icon: <Clapperboard className="size-4" aria-hidden="true" />,
+    },
+    {
+        key: "promotionEnabled",
+        title: "推广中心",
+        description: "开放邀请返利与推广中心入口；关闭后停止邀请绑定与前台入口。",
+        icon: <Gift className="size-4" aria-hidden="true" />,
     },
 ];
 
@@ -384,6 +391,7 @@ function toEditablePayload(features: FeatureAvailability) {
         inspirationSourcesVisible: features.inspirationSourcesVisible,
         imageWorkbenchEnabled: features.imageWorkbenchEnabled,
         videoWorkbenchEnabled: features.videoWorkbenchEnabled,
+        promotionEnabled: features.promotionEnabled,
         frontendModelsEnabled: features.frontendModelsEnabled,
         pluginCenterEnabled: features.pluginCenterEnabled,
         systemPluginsVisibleToUsers: features.systemPluginsVisibleToUsers,
@@ -409,6 +417,7 @@ function parseFeatureAvailability(value: unknown): FeatureAvailability {
         inspirationSourcesVisible: record.inspirationSourcesVisible as boolean,
         imageWorkbenchEnabled: record.imageWorkbenchEnabled as boolean,
         videoWorkbenchEnabled: record.videoWorkbenchEnabled as boolean,
+        promotionEnabled: record.promotionEnabled as boolean,
         frontendModelsEnabled: record.frontendModelsEnabled as boolean,
         pluginCenterEnabled: record.pluginCenterEnabled as boolean,
         systemPluginsVisibleToUsers: record.systemPluginsVisibleToUsers as boolean,

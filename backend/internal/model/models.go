@@ -120,7 +120,8 @@ const (
 	CreditLedgerAdminAdjust  CreditLedgerType = "admin_adjustment"
 	CreditLedgerSignupBonus  CreditLedgerType = "signup_bonus"
 	CreditLedgerCheckinBonus CreditLedgerType = "checkin_bonus"
-	CreditLedgerPaymentTopup CreditLedgerType = "payment_topup"
+	CreditLedgerPaymentTopup        CreditLedgerType = "payment_topup"
+	CreditLedgerPromotionCommission CreditLedgerType = "promotion_commission"
 
 	RedeemCodeUnused   RedeemCodeStatus = "unused"
 	RedeemCodeRedeemed RedeemCodeStatus = "redeemed"
