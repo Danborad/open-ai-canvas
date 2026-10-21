@@ -152,6 +152,7 @@ type (
 	CreationRunOutput                      = app.CreationRunOutput
 	CreationSubmissionOutput               = app.CreationSubmissionOutput
 	CreditPolicy                           = app.CreditPolicy
+	BillingAutoRefundSetting               = app.BillingAutoRefundSetting
 	DiagnosticBundle                       = app.DiagnosticBundle
 	DiagnosticClientEvent                  = app.DiagnosticClientEvent
 	DiagnosticExportRequest                = app.DiagnosticExportRequest
