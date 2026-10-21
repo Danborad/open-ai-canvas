@@ -54,7 +54,10 @@ export function WorkspaceSidebarCheckin({ collapsed }: { collapsed: boolean }) {
         return (
             <button
                 type="button"
-                className={cn("app-workspace-sidebar-checkin is-collapsed", checkedIn && "opacity-75")}
+                className={cn(
+                    "app-workspace-sidebar-checkin is-collapsed dark:border-white/10 dark:!bg-white/[0.06] dark:!text-white dark:shadow-none",
+                    checkedIn && "opacity-75"
+                )}
                 title={summary}
                 aria-label={summary}
                 aria-busy={claiming}
@@ -64,30 +67,34 @@ export function WorkspaceSidebarCheckin({ collapsed }: { collapsed: boolean }) {
                 {claiming ? (
                     <LoaderCircle className="size-5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
                 ) : checkedIn ? (
-                    <Check className="size-4 text-emerald-600" aria-hidden="true" />
+                    <Check className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                 ) : (
-                    <Gift className="size-5" aria-hidden="true" />
+                    <Gift className="size-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                 )}
             </button>
         );
     }
 
     return (
-        <aside className={cn("app-workspace-sidebar-checkin", checkedIn && "opacity-85")} aria-label={summary}>
+        <aside
+            className={cn(
+                "app-workspace-sidebar-checkin dark:border-white/10 dark:!bg-white/[0.06] dark:!text-white dark:shadow-none",
+                checkedIn && "opacity-85"
+            )}
+            aria-label={summary}
+        >
             <div className="app-workspace-sidebar-checkin-copy">
-                <strong className="app-workspace-sidebar-checkin-title">{title}</strong>
-                <span className="app-workspace-sidebar-checkin-offer">
-                    {checkedIn ? (
-                        <span className="text-muted-foreground">今日已领 <em>{amount}</em> 积分</span>
-                    ) : (
-                        <>今日<em>{amount}</em>积分</>
-                    )}
+                <strong className="app-workspace-sidebar-checkin-title dark:!text-white">
+                    今日 <span className="text-emerald-500 dark:text-emerald-400 font-bold">{amount}</span> 积分
+                </strong>
+                <span className="app-workspace-sidebar-checkin-offer dark:!text-neutral-400">
+                    {checkedIn ? "今日签到已完成" : "每日签到免费领"}
                 </span>
             </div>
             <button
                 type="button"
                 className={cn(
-                    "app-workspace-sidebar-checkin-claim",
+                    "app-workspace-sidebar-checkin-claim dark:!bg-white dark:!text-neutral-900 dark:hover:!bg-neutral-200",
                     claiming && "is-loading",
                     checkedIn && "!bg-muted !text-muted-foreground cursor-not-allowed opacity-80 hover:!bg-muted"
                 )}
@@ -95,7 +102,9 @@ export function WorkspaceSidebarCheckin({ collapsed }: { collapsed: boolean }) {
                 aria-label={checkedIn ? "今日已领取" : `立即领取 ${amount} 积分`}
                 onClick={() => void claim()}
             >
-                {claiming ? "领取中" : checkedIn ? "已领取" : "立即领取"}
+                <span className="font-bold tracking-tight">
+                    {claiming ? "领取中" : checkedIn ? "已领取" : "立即领取"}
+                </span>
             </button>
         </aside>
     );
