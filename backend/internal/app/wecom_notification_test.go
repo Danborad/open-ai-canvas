@@ -142,6 +142,45 @@ func TestFormatWecomUserRegisteredText(t *testing.T) {
 	}
 }
 
+func TestFormatWecomPaymentReceivedMarkdown(t *testing.T) {
+	svc, _, _ := newResourceDeletionTestService(t)
+	user := &model.User{
+		ID:          "user-pay",
+		Username:    "zoro",
+		DisplayName: "索隆",
+		Email:       "zoro@onepiece.com",
+	}
+	tradeNo := "wx_trade_12345678"
+	paidAt := time.Date(2026, 10, 21, 15, 30, 0, 0, time.UTC)
+	order := &model.PaymentOrder{
+		ID:                  "ord-1",
+		UserID:              user.ID,
+		MerchantOrderNo:     "ORD_20261021_001",
+		ProviderTradeNo:     &tradeNo,
+		ProviderID:          "zhifufm-pay",
+		AmountFen:           5000,
+		CreditsMicrocredits: 5600 * CreditScale,
+		ProviderPaidAt:      &paidAt,
+	}
+
+	md := svc.FormatWecomPaymentReceivedMarkdown(order, user)
+	checks := []string{
+		"用户充值到账通知",
+		"¥ 50.00 元",
+		"+5600 积分",
+		"索隆 (@zoro)",
+		"zoro@onepiece.com",
+		"支付FM",
+		"ORD_20261021_001",
+		"wx_trade_12345678",
+	}
+	for _, check := range checks {
+		if !strings.Contains(md, check) {
+			t.Errorf("FormatWecomPaymentReceivedMarkdown missing %q\nFull text:\n%s", check, md)
+		}
+	}
+}
+
 func TestBuildDailyReportData(t *testing.T) {
 	svc, _, _ := newResourceDeletionTestService(t)
 	ctx := context.Background()

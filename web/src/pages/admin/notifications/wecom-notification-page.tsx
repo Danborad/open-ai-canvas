@@ -4,7 +4,7 @@ import { App, Button, Form, Input, Switch, Alert, Spin, Tag, Card, Row, Col, Typ
 import { Send, RefreshCw, CheckCircle2, AlertCircle, Clock3, Globe, Users, Image as ImageIcon, Video, HardDrive, Bell, Check, Copy } from "lucide-react";
 
 import { AdminPageFrame } from "@/pages/admin/components/admin-shell";
-import { getWecomSetting, updateWecomSetting, testWecomNotification, testWecomRegisterNotification, previewWecomReport, type WecomSettingRequest } from "@/services/api/wecom";
+import { getWecomSetting, updateWecomSetting, testWecomNotification, testWecomRegisterNotification, testWecomPaymentNotification, previewWecomReport, type WecomSettingRequest } from "@/services/api/wecom";
 import { cn } from "@/lib/utils";
 
 const { Text, Paragraph } = Typography;
@@ -15,6 +15,7 @@ export default function WecomNotificationPage() {
     const [form] = Form.useForm<WecomSettingRequest>();
     const [testLoading, setTestLoading] = useState(false);
     const [testRegisterLoading, setTestRegisterLoading] = useState(false);
+    const [testPaymentLoading, setTestPaymentLoading] = useState(false);
     const [copied, setCopied] = useState(false);
 
     // 读取企微配置
@@ -41,6 +42,7 @@ export default function WecomNotificationPage() {
                 targetDomain: setting.targetDomain || "art.960916.xyz",
                 mentionAll: setting.mentionAll || false,
                 notifyNewUser: setting.notifyNewUser !== false,
+                notifyPayment: setting.notifyPayment !== false,
             });
         }
     }, [form, setting]);
@@ -102,6 +104,27 @@ export default function WecomNotificationPage() {
         }
     };
 
+    // 测试发送充值到账通知
+    const handleTestPaymentSend = async () => {
+        if (!setting?.hasWebhookUrl && !form.getFieldValue("webhookUrl")) {
+            message.warning("请先配置并保存 Webhook 地址");
+            return;
+        }
+        setTestPaymentLoading(true);
+        try {
+            const res = await testWecomPaymentNotification();
+            if (res.sent) {
+                message.success("测试用户充值通知已成功发送至企业微信群！");
+            } else {
+                message.error(`发送失败：${res.message}`);
+            }
+        } catch (err) {
+            message.error(err instanceof Error ? err.message : "发送异常，请检查 Webhook 地址与网络");
+        } finally {
+            setTestPaymentLoading(false);
+        }
+    };
+
     const handleCopyContent = () => {
         if (!preview?.content) return;
         const text = preview.content;
@@ -159,6 +182,13 @@ export default function WecomNotificationPage() {
                         loading={testRegisterLoading}
                     >
                         测试注册通知
+                    </Button>
+                    <Button
+                        icon={<Send className="size-3.5" />}
+                        onClick={handleTestPaymentSend}
+                        loading={testPaymentLoading}
+                    >
+                        测试充值通知
                     </Button>
                     <Button
                         type="primary"
@@ -365,6 +395,15 @@ export default function WecomNotificationPage() {
                                     label="新用户注册微信实时通知"
                                     valuePropName="checked"
                                     extra="开启后，每当有新用户完成注册（包括邮箱注册、Linux.do 或管理员添加），机器人会立即在微信群内发送注册提醒。"
+                                >
+                                    <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+                                </Form.Item>
+
+                                <Form.Item
+                                    name="notifyPayment"
+                                    label="用户充值成功微信实时通知"
+                                    valuePropName="checked"
+                                    extra="开启后，每当有用户在线完成充值到账，机器人会立即向微信群推送含金额、积分、用户与单号的精美卡片通知。"
                                 >
                                     <Switch checkedChildren="开启" unCheckedChildren="关闭" />
                                 </Form.Item>

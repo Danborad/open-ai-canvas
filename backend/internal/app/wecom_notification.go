@@ -28,6 +28,7 @@ type WecomSettingRequest struct {
 	TargetDomain  string `json:"targetDomain"`
 	MentionAll    bool   `json:"mentionAll"`
 	NotifyNewUser *bool  `json:"notifyNewUser"`
+	NotifyPayment *bool  `json:"notifyPayment"`
 }
 
 type PublicWecomSetting struct {
@@ -38,6 +39,7 @@ type PublicWecomSetting struct {
 	TargetDomain   string    `json:"targetDomain"`
 	MentionAll     bool      `json:"mentionAll"`
 	NotifyNewUser  bool      `json:"notifyNewUser"`
+	NotifyPayment  bool      `json:"notifyPayment"`
 	LastSentAt     string    `json:"lastSentAt,omitempty"`
 	LastSentStatus string    `json:"lastSentStatus,omitempty"`
 	UpdatedAt      time.Time `json:"updatedAt"`
@@ -50,6 +52,7 @@ type wecomSettingValue struct {
 	TargetDomain   string `json:"targetDomain"`
 	MentionAll     bool   `json:"mentionAll"`
 	NotifyNewUser  bool   `json:"notifyNewUser"`
+	NotifyPayment  bool   `json:"notifyPayment"`
 	LastSentAt     string `json:"lastSentAt"`
 	LastSentStatus string `json:"lastSentStatus"`
 }
@@ -106,6 +109,7 @@ func defaultWecomSetting() wecomSettingValue {
 		TargetDomain:  "art.960916.xyz",
 		MentionAll:    false,
 		NotifyNewUser: true,
+		NotifyPayment: true,
 	}
 }
 
@@ -124,6 +128,9 @@ func (s *Service) readWecomSetting() (*model.SystemSetting, wecomSettingValue, e
 			if _, exists := rawMap["notifyNewUser"]; !exists {
 				value.NotifyNewUser = true
 			}
+			if _, exists := rawMap["notifyPayment"]; !exists {
+				value.NotifyPayment = true
+			}
 		}
 		if err := json.Unmarshal([]byte(setting.ValueJSON), &value); err != nil {
 			return nil, wecomSettingValue{}, errors.New("企业微信通知配置格式无效")
@@ -131,6 +138,9 @@ func (s *Service) readWecomSetting() (*model.SystemSetting, wecomSettingValue, e
 		if rawMap != nil {
 			if _, exists := rawMap["notifyNewUser"]; !exists {
 				value.NotifyNewUser = true
+			}
+			if _, exists := rawMap["notifyPayment"]; !exists {
+				value.NotifyPayment = true
 			}
 		}
 	}
@@ -203,6 +213,7 @@ func (s *Service) AdminWecomNotificationSetting(actor *model.User) (*PublicWecom
 		TargetDomain:   value.TargetDomain,
 		MentionAll:     value.MentionAll,
 		NotifyNewUser:  value.NotifyNewUser,
+		NotifyPayment:  value.NotifyPayment,
 		LastSentAt:     value.LastSentAt,
 		LastSentStatus: value.LastSentStatus,
 		UpdatedAt:      updatedAt,
@@ -232,8 +243,11 @@ func (s *Service) UpdateWecomNotificationSetting(actor *model.User, req WecomSet
 	if req.NotifyNewUser != nil {
 		next.NotifyNewUser = *req.NotifyNewUser
 	}
+	if req.NotifyPayment != nil {
+		next.NotifyPayment = *req.NotifyPayment
+	}
 
-	if (next.Enabled || next.NotifyNewUser) && next.WebhookURL == "" {
+	if (next.Enabled || next.NotifyNewUser || next.NotifyPayment) && next.WebhookURL == "" {
 		return nil, BadAuthRequest("启用企业微信通知必须配置 Webhook 地址")
 	}
 
@@ -517,6 +531,46 @@ func formatByteSize(bytes int64) string {
 	return fmt.Sprintf("%.2f %s", float64(bytes)/float64(div), units[exp])
 }
 
+func (s *Service) sendWecomMarkdownMessage(ctx context.Context, webhookURL string, content string) error {
+	cleanURL := strings.TrimSpace(webhookURL)
+	if cleanURL == "" {
+		return errors.New("企业微信 Webhook 地址未配置")
+	}
+	payload := map[string]any{
+		"msgtype": "markdown",
+		"markdown": map[string]any{
+			"content": content,
+		},
+	}
+	jsonBytes, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cleanURL, bytes.NewReader(jsonBytes))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("请求企业微信 Webhook 失败: %w", err)
+	}
+	defer resp.Body.Close()
+	respBytes, _ := io.ReadAll(resp.Body)
+	var wecomResp struct {
+		ErrCode int    `json:"errcode"`
+		ErrMsg  string `json:"errmsg"`
+	}
+	if err := json.Unmarshal(respBytes, &wecomResp); err != nil {
+		return fmt.Errorf("企业微信响应格式错误 (HTTP %d): %s", resp.StatusCode, string(respBytes))
+	}
+	if wecomResp.ErrCode != 0 {
+		return fmt.Errorf("企业微信返回错误 [%d]: %s", wecomResp.ErrCode, wecomResp.ErrMsg)
+	}
+	return nil
+}
+
 func (s *Service) sendWecomTextMessage(ctx context.Context, webhookURL string, content string, mentionAll bool) error {
 	cleanURL := strings.TrimSpace(webhookURL)
 	if cleanURL == "" {
@@ -652,6 +706,132 @@ func (s *Service) FormatWecomUserRegisteredText(user *model.User) string {
 	b.WriteString("----------------------------------------\n")
 	b.WriteString("※ 来自影策用户中心实时通知")
 	return b.String()
+}
+
+func (s *Service) FormatWecomPaymentReceivedMarkdown(order *model.PaymentOrder, user *model.User) string {
+	var b strings.Builder
+	amountYuan := float64(order.AmountFen) / 100.0
+	credits := order.CreditsMicrocredits / CreditScale
+
+	userName := "未知用户"
+	userEmail := "未绑定邮箱"
+	if user != nil {
+		if strings.TrimSpace(user.DisplayName) != "" {
+			userName = fmt.Sprintf("%s (@%s)", user.DisplayName, user.Username)
+		} else {
+			userName = fmt.Sprintf("@%s", user.Username)
+		}
+		if strings.TrimSpace(user.Email) != "" {
+			userEmail = user.Email
+		}
+	}
+
+	payTime := time.Now().Format("2006-01-02 15:04:05")
+	if order.ProviderPaidAt != nil {
+		payTime = order.ProviderPaidAt.Format("2006-01-02 15:04:05")
+	}
+
+	providerName := order.ProviderID
+	if strings.Contains(strings.ToLower(providerName), "zhifufm") {
+		providerName = "支付FM (微信/支付宝)"
+	} else if strings.Contains(strings.ToLower(providerName), "alipay") {
+		providerName = "支付宝支付"
+	} else if strings.Contains(strings.ToLower(providerName), "wechat") {
+		providerName = "微信支付"
+	}
+
+	b.WriteString("### 🎉 用户充值到账通知\n")
+	b.WriteString(fmt.Sprintf("> **充值金额**：<font color=\"warning\">¥ %.2f 元</font>\n", amountYuan))
+	b.WriteString(fmt.Sprintf("> **到账积分**：<font color=\"info\">+%d 积分</font>\n", credits))
+	b.WriteString(fmt.Sprintf("> **充值用户**：`%s`\n", userName))
+	b.WriteString(fmt.Sprintf("> **用户邮箱**：`%s`\n", userEmail))
+	b.WriteString(fmt.Sprintf("> **支付方式**：`%s`\n", providerName))
+	b.WriteString(fmt.Sprintf("> **商户单号**：`%s`\n", order.MerchantOrderNo))
+	if order.ProviderTradeNo != nil && *order.ProviderTradeNo != "" {
+		b.WriteString(fmt.Sprintf("> **渠道交易号**：`%s`\n", *order.ProviderTradeNo))
+	}
+	b.WriteString(fmt.Sprintf("> **到账时间**：`%s`\n", payTime))
+	b.WriteString("\n※ 来自影策财务中心实时通知")
+	return b.String()
+}
+
+func (s *Service) NotifyWecomPaymentReceived(order *model.PaymentOrder) {
+	if s == nil || order == nil {
+		return
+	}
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("[WeCom] panic in NotifyWecomPaymentReceived: %v", r)
+			}
+		}()
+
+		_, setting, err := s.readWecomSetting()
+		if err != nil {
+			return
+		}
+		cleanURL := strings.TrimSpace(setting.WebhookURL)
+		if cleanURL == "" || !setting.NotifyPayment {
+			return
+		}
+
+		user, _ := s.repo.User(order.UserID)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		content := s.FormatWecomPaymentReceivedMarkdown(order, user)
+		if err := s.sendWecomMarkdownMessage(ctx, cleanURL, content); err != nil {
+			log.Printf("[WeCom] 发送充值成功 Markdown 通知失败，降级为纯文本: %v", err)
+			_ = s.sendWecomTextMessage(ctx, cleanURL, content, false)
+		} else {
+			log.Printf("[WeCom] 成功推送用户充值通知: 订单=%s 金额=%.2f元", order.MerchantOrderNo, float64(order.AmountFen)/100.0)
+		}
+	}()
+}
+
+func (s *Service) TestWecomPaymentNotification(actor *model.User) (*WecomTestResult, error) {
+	if err := s.RequireAdmin(actor); err != nil {
+		return nil, err
+	}
+	_, setting, err := s.readWecomSetting()
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(setting.WebhookURL) == "" {
+		return nil, BadAuthRequest("请先配置企业微信 Webhook 地址")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	tradeNo := "wx_test_trade_999999999"
+	sampleOrder := &model.PaymentOrder{
+		ID:                  "ord_sample_test",
+		UserID:              actor.ID,
+		MerchantOrderNo:     fmt.Sprintf("TEST_%s", time.Now().Format("20060102150405")),
+		ProviderTradeNo:     &tradeNo,
+		ProviderID:          "zhifufm-pay",
+		AmountFen:           5000,
+		Currency:            "CNY",
+		CreditsMicrocredits: 5600 * CreditScale,
+	}
+	content := s.FormatWecomPaymentReceivedMarkdown(sampleOrder, actor)
+	if err := s.sendWecomMarkdownMessage(ctx, setting.WebhookURL, content); err != nil {
+		// 尝试降级文本
+		if txtErr := s.sendWecomTextMessage(ctx, setting.WebhookURL, content, false); txtErr != nil {
+			return &WecomTestResult{
+				Sent:    false,
+				Content: content,
+				Message: fmt.Sprintf("企业微信推送失败: %v", txtErr),
+			}, nil
+		}
+	}
+	return &WecomTestResult{
+		Sent:    true,
+		Content: content,
+		Message: "测试充值通知已成功发送至企业微信群",
+	}, nil
 }
 
 func (s *Service) NotifyWecomUserRegistered(user *model.User) {

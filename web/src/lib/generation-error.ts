@@ -23,7 +23,7 @@ const REASON_MESSAGES: Record<string, string> = {
     invalid_model_selection: "模型选择无效，请重新选择模型后再试。",
     quota_exceeded: "积分或额度不足，请充值后再试。",
     rate_limited: "请求过于频繁，请稍后再试。",
-    timeout: "模型服务响应超时，请稍后再试。",
+    timeout: "模型服务响应超时，请稍后再试；若未生成有效文件，预扣积分将在1小时内自动对账退还。",
     bad_gateway: "模型服务暂时不可用，请稍后再试。",
     unavailable: "模型服务暂时不可用，请稍后再试。",
     upstream_dns_failed: "模型服务暂时不可用，请稍后再试。",
@@ -97,8 +97,27 @@ export function generationErrorMessage(error: unknown) {
     if (isModelCapabilityFailure(displayMessage)) return MODEL_CAPABILITY_ERROR_MESSAGE;
     if (isModelParameterFailure(displayMessage)) return MODEL_PARAMETER_ERROR_MESSAGE;
     if (keepsProviderDetail(displayMessage)) return displayMessage;
-    if (isTechnicalProviderMessage(displayMessage)) return MODEL_SERVICE_ERROR_MESSAGE;
-    return displayMessage || DEFAULT_GENERATION_ERROR_MESSAGE;
+    let finalMessage = displayMessage || DEFAULT_GENERATION_ERROR_MESSAGE;
+    if (isTechnicalProviderMessage(displayMessage)) finalMessage = MODEL_SERVICE_ERROR_MESSAGE;
+    if (isTimeoutOrReconciliationError(finalMessage) || isTimeoutOrReconciliationError(raw)) {
+        if (!finalMessage.includes("退还") && !finalMessage.includes("退回")) {
+            finalMessage = `${finalMessage}；若未生成有效文件，预扣积分将在1小时内自动对账退还。`;
+        }
+    }
+    return finalMessage;
+}
+
+export function isTimeoutOrReconciliationError(value: unknown): boolean {
+    const text = (value instanceof Error ? value.message : String(value || "")).toLowerCase();
+    return (
+        text.includes("524") ||
+        text.includes("timeout") ||
+        text.includes("超时") ||
+        text.includes("待核对") ||
+        text.includes("gateway time") ||
+        text.includes("网关超时") ||
+        text.includes("没有返回媒体地址")
+    );
 }
 
 function contentModerationMessage(raw: string) {

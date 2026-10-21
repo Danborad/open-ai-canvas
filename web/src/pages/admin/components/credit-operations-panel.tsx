@@ -96,6 +96,16 @@ export default function CreditOperationsPanel({ users, activeOperation, onOperat
     }, [debouncedKeyword, orderStatus, page, pageSize]);
 
     useEffect(() => {
+        const handler = () => {
+            void reload(page, pageSize);
+        };
+        window.addEventListener("billing-orders:refresh", handler);
+        return () => {
+            window.removeEventListener("billing-orders:refresh", handler);
+        };
+    }, [page, pageSize]);
+
+    useEffect(() => {
         if (activeOperation !== "policy") return;
         let active = true;
         setLoadingPolicy(true);

@@ -149,6 +149,19 @@ func registerAdminWecomRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		ok(c, result)
 	})
+	r.POST("/admin/wecom/test-payment-notice", func(c *gin.Context) {
+		user, err := currentUser(c, svc)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		result, err := svc.TestWecomPaymentNotification(user)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, result)
+	})
 	r.GET("/admin/wecom/preview", func(c *gin.Context) {
 		user, err := currentUser(c, svc)
 		if err != nil {

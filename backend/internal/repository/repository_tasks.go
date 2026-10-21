@@ -242,6 +242,17 @@ func (r *Repository) SaveTaskCompletionWithRegistration(task *model.Task, expect
 	})
 }
 
+func (r *Repository) MarkTaskTerminalFailed(id string, errorText string) error {
+	now := time.Now()
+	return r.db.Model(&model.Task{}).Where("id = ?", id).Updates(map[string]any{
+		"status":       model.TaskStatusFailed,
+		"stage":        "任务失败",
+		"error":        errorText,
+		"completed_at": &now,
+		"updated_at":   now,
+	}).Error
+}
+
 func (r *Repository) UpdateTaskTerminalState(id string, owner string, expected model.TaskStatus, status model.TaskStatus, stage string, errorText string, completedAt time.Time) (bool, error) {
 	result := taskLeaseWriter(r.db.Model(&model.Task{}), owner).
 		Where("id = ? AND status = ?", id, expected).

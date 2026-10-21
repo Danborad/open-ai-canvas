@@ -34,3 +34,10 @@ func TestBillingAutoRefundRequiresAdmin(t *testing.T) {
 		t.Fatal("被拒绝的请求不能写入开关")
 	}
 }
+
+func TestAdminRunBillingAutoReconciliationRequiresAdmin(t *testing.T) {
+	svc := newResourceTestService(t)
+	if _, err := svc.AdminRunBillingAutoReconciliation(&model.User{ID: "user-1", Role: model.UserRoleUser}); err == nil {
+		t.Fatal("非管理员不能执行自动对账")
+	}
+}

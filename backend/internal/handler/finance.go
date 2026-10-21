@@ -193,6 +193,19 @@ func RegisterFinanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		ok(c, gin.H{"setting": setting})
 	})
+	r.POST("/admin/settings/billing-auto-refund/run", func(c *gin.Context) {
+		user, err := currentUser(c, svc)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		stats, err := svc.AdminRunBillingAutoReconciliation(user)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, gin.H{"stats": stats})
+	})
 	r.GET("/admin/settings/email", func(c *gin.Context) {
 		user, err := currentUser(c, svc)
 		if err != nil {

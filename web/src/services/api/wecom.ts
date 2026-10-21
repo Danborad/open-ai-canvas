@@ -8,6 +8,7 @@ export interface WecomSetting {
     targetDomain: string;
     mentionAll: boolean;
     notifyNewUser: boolean;
+    notifyPayment: boolean;
     lastSentAt?: string;
     lastSentStatus?: string;
     updatedAt: string;
@@ -20,6 +21,7 @@ export interface WecomSettingRequest {
     targetDomain?: string;
     mentionAll?: boolean;
     notifyNewUser?: boolean;
+    notifyPayment?: boolean;
 }
 
 export interface ModelUsageStat {
@@ -86,6 +88,10 @@ export function testWecomNotification() {
 
 export function testWecomRegisterNotification() {
     return http.post<WecomTestResult>("/admin/wecom/test-register-notice", {});
+}
+
+export function testWecomPaymentNotification() {
+    return http.post<WecomTestResult>("/admin/wecom/test-payment-notice", {});
 }
 
 export function previewWecomReport(signal?: AbortSignal) {

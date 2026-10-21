@@ -284,12 +284,23 @@ export function updateAdminCreditPolicy(policy: CreditPolicy) {
 
 export type BillingAutoRefundSetting = { enabled: boolean; updatedAt?: string };
 
+export type BillingReconcileStats = {
+    totalChecked: number;
+    refunded: number;
+    settled: number;
+    skipped: number;
+};
+
 export function getAdminBillingAutoRefund() {
     return http.get<{ setting: BillingAutoRefundSetting }>("/admin/settings/billing-auto-refund");
 }
 
 export function updateAdminBillingAutoRefund(enabled: boolean) {
     return http.patch<{ setting: BillingAutoRefundSetting }>("/admin/settings/billing-auto-refund", { enabled });
+}
+
+export function runAdminBillingAutoReconcile() {
+    return http.post<{ stats: BillingReconcileStats }>("/admin/settings/billing-auto-refund/run");
 }
 
 export function getAdminLinuxDOSetting() {
