@@ -189,8 +189,12 @@ export function useCanvasUpload({
                 progress.done("上传完成，画布占位已移除");
                 return null;
             }
+            const isDefaultTitle = !currentNode.title || currentNode.title === "Audio" || currentNode.title === "图片" || currentNode.title === "视频" || currentNode.title === "Note" || currentNode.title === "未命名背板";
+            const nextTitle = (replaceId && !isDefaultTitle) ? currentNode.title : file.name;
             const node: CanvasNodeData = {
-                ...currentNode, type: placeholder.type,
+                ...currentNode,
+                type: placeholder.type,
+                title: nextTitle,
                 metadata: {
                     ...currentNode.metadata, ...metadata,
                     fileUpload: undefined, fileUploadProgress: undefined, errorDetails: undefined,
@@ -208,7 +212,7 @@ export function useCanvasUpload({
                     } : {}),
                 },
             };
-            setNodes((current) => current.map((item) => item.id === id ? { ...item, type: node.type, metadata: node.metadata } : item));
+            setNodes((current) => current.map((item) => item.id === id ? { ...item, type: node.type, title: node.title, metadata: node.metadata } : item));
             if (domainProjectId) progress.update("写入项目资产", 4);
             const persisted = await persistMediaNode(node);
             const localOnly = metadata.storageKey && !resourceIdFromStorageKey(metadata.storageKey);

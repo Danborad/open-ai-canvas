@@ -119,7 +119,7 @@ func (r *Repository) AdminPromotionInvitationPage(offset, limit int) ([]AdminPro
 			COALESCE(invitees.display_name, invitees.username) AS invitee_name,
 			COALESCE(NULLIF(invitees.email, ''), invitees.username) AS invitee_contact,
 			invitations.code AS code,
-			COALESCE((SELECT SUM(amount_microcredits)/1000000 FROM credit_ledger_entries WHERE user_id = invitations.inviter_id AND type = 'promotion_reward' AND reference_key = 'promotion:inviter:' || invitations.invitee_id), 0) AS reward_credits,
+			CAST(COALESCE((SELECT SUM(amount_microcredits)/1000000 FROM credit_ledger_entries WHERE user_id = invitations.inviter_id AND type = 'promotion_reward' AND reference_key = 'promotion:inviter:' || invitations.invitee_id), 0) AS bigint) AS reward_credits,
 			invitations.created_at AS created_at`).
 		Joins("LEFT JOIN users AS inviters ON inviters.id = invitations.inviter_id").
 		Joins("LEFT JOIN users AS invitees ON invitees.id = invitations.invitee_id").
@@ -141,7 +141,7 @@ func (r *Repository) PromotionInvitationPage(inviterID string, offset, limit int
 			COALESCE(NULLIF(users.email, ''), users.username) AS invitee_contact,
 			invitations.source AS source,
 			0 AS contributed_microcredits,
-			COALESCE((SELECT SUM(amount_microcredits)/1000000 FROM credit_ledger_entries WHERE user_id = invitations.inviter_id AND type = 'promotion_reward' AND reference_key = 'promotion:inviter:' || invitations.invitee_id), 0) AS commission_microcredits,
+			CAST(COALESCE((SELECT SUM(amount_microcredits)/1000000 FROM credit_ledger_entries WHERE user_id = invitations.inviter_id AND type = 'promotion_reward' AND reference_key = 'promotion:inviter:' || invitations.invitee_id), 0) AS bigint) AS commission_microcredits,
 			invitations.created_at AS created_at`).
 		Joins("LEFT JOIN users ON users.id = invitations.invitee_id").
 		Where("invitations.inviter_id = ?", inviterID).
