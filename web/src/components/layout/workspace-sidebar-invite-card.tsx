@@ -39,13 +39,15 @@ export function WorkspaceSidebarInviteCard({ collapsed }: { collapsed: boolean }
                 </span>
                 <button
                     type="button"
-                    className="flex h-[26px] shrink-0 items-center justify-center rounded-full bg-neutral-900 px-2.5 text-[11px] font-semibold text-white transition group-hover:bg-black active:scale-95 dark:bg-white dark:text-neutral-900 dark:group-hover:bg-neutral-200"
+                    className="app-workspace-sidebar-invite-btn flex h-[26px] shrink-0 items-center justify-center rounded-full px-2.5 text-[11px] font-bold transition active:scale-95 shadow-sm"
                     onClick={(e) => {
                         e.stopPropagation();
                         navigate("/promotion");
                     }}
                 >
-                    立即邀请
+                    <span className="font-bold tracking-tight">
+                        立即邀请
+                    </span>
                 </button>
             </div>
 

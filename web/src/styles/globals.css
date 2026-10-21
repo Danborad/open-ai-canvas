@@ -18995,3 +18995,22 @@ html:not(.dark) .creation-home .creation-user-message-copy-wrap { box-shadow: 0 
     background: color-mix(in srgb, var(--popover-foreground) 10%, var(--popover)) !important;
     color: var(--popover-foreground) !important;
 }
+
+/* 侧边栏邀请中心按钮颜色强制保障，防止白底白字 */
+.app-user-workspace .app-workspace-sidebar-invite-btn {
+    background-color: #171717 !important;
+    color: #ffffff !important;
+}
+.app-user-workspace .app-workspace-sidebar-invite-btn span {
+    color: #ffffff !important;
+}
+.dark .app-user-workspace .app-workspace-sidebar-invite-btn {
+    background-color: #ffffff !important;
+    color: #121212 !important;
+}
+.dark .app-user-workspace .app-workspace-sidebar-invite-btn:hover {
+    background-color: #e5e5e5 !important;
+}
+.dark .app-user-workspace .app-workspace-sidebar-invite-btn span {
+    color: #121212 !important;
+}
