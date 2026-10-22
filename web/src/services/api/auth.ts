@@ -406,15 +406,8 @@ export function getAuthSettings() {
             agreementContent?: string;
             wechatQrLoginEnabled?: boolean;
             wechatQrManual?: boolean;
-            xkzhiEnabled?: boolean;
-            xkzhiTypes?: string[];
         }
     >("/auth/settings");
-}
-
-export function xkzhiLoginURL(type: string, next: string = "/") {
-    const base = String(apiBaseURL).replace(/\/$/, "");
-    return `${base}/auth/oauth/xkzhi/start?type=${encodeURIComponent(type)}&next=${encodeURIComponent(next)}`;
 }
 
 export type WechatQRTicketData = {

@@ -263,7 +263,6 @@ type (
 	WechatQRTicketResponse                 = app.WechatQRTicketResponse
 	WechatTicketStatusResult               = app.WechatTicketStatusResult
 	WechatConfirmResult                    = app.WechatConfirmResult
-	XkzhiCallbackResult                    = app.XkzhiCallbackResult
 	PublicLogicalModel                     = app.PublicLogicalModel
 	PublicLogicalModelPriceTier            = app.PublicLogicalModelPriceTier
 	PublicModelAvailability                = app.PublicModelAvailability

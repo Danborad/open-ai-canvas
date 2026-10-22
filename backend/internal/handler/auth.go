@@ -210,46 +210,6 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		c.Redirect(http.StatusFound, target)
 	})
 	r.GET("/auth/linuxdo/callback", rejectedLoginAudit(svc, "linuxdo"), linuxDOCallbackHandler(svc))
-
-	xkzhiStartHandler := func(c *gin.Context) {
-		loginType := c.DefaultQuery("type", "qq")
-		next := c.DefaultQuery("next", "/")
-		redirectURI := c.Query("redirect_uri")
-		if redirectURI == "" {
-			// 星空聚合登录授权域名锁定为 mexai.cc，统一使用 mexai.cc 作为接收端再反弹回测试站
-			redirectURI = "https://mexai.cc/api/auth/oauth/xkzhi/callback"
-		}
-		target, err := svc.BeginXkzhiLogin(loginType, redirectURI, next)
-		if err != nil {
-			failService(c, err)
-			return
-		}
-		c.Redirect(http.StatusFound, target)
-	}
-
-	xkzhiCallbackHandler := func(c *gin.Context) {
-		loginType := c.Query("type")
-		code := c.Query("code")
-		if code == "" || loginType == "" {
-			c.Redirect(http.StatusFound, "/login?error="+url.QueryEscape("授权失败或缺少参数"))
-			return
-		}
-		res, err := svc.CompleteXkzhiLogin(loginType, code, nil, loginRequestContext(c))
-		if err != nil {
-			c.Redirect(http.StatusFound, "/login?error="+url.QueryEscape(err.Error()))
-			return
-		}
-		if res.Session != "" {
-			setSessionCookie(c, res.Session, res.MaxAgeSecs)
-		}
-		c.Redirect(http.StatusFound, res.Next)
-	}
-
-	r.GET("/auth/oauth/xkzhi/start", xkzhiStartHandler)
-	r.GET("/auth/xkzhi/start", xkzhiStartHandler)
-	r.GET("/auth/oauth/xkzhi/callback", xkzhiCallbackHandler)
-	r.GET("/oauth/xkzhi/callback", xkzhiCallbackHandler)
-	r.GET("/auth/xkzhi/callback", xkzhiCallbackHandler)
 	r.POST("/auth/logout", func(c *gin.Context) {
 		if err := svc.Logout(sessionCookie(c), loginRequestContext(c)); err != nil {
 			failService(c, err)
