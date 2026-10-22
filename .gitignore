@@ -85,3 +85,5 @@ __pycache__/
 /web/public/live2d/live2dcubismcore.min.js.map
 .zocde/
 ai-alphabet-logos/
+.data-test*
+web/node_modules

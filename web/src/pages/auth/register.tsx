@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from "react-router";
 
 import { getAuthSession, getAuthSettings, linuxDOLoginURL, register } from "@/services/api/auth";
 import { getPublicPromotionStatus } from "@/services/api/promotion";
-import { LinuxDOIcon } from "./auth-scene";
+import { LinuxDOIcon, WechatIcon } from "./auth-scene";
 import { ApiError } from "@/services/api/request";
 import { VerificationFields } from "@/components/auth/verification-fields";
 import { emptyVerification, methodLabels, verificationMethods, type VerificationMethod } from "@/services/api/verification";
@@ -255,6 +255,18 @@ export default function RegisterPage() {
                     </Divider>
                     <Button size="large" block disabled={!agreementAccepted} icon={<LinuxDOIcon />} href={agreementAccepted ? linuxDOLoginURL(next, true) : undefined}>
                         使用 Linux.do 注册 / 登录
+                    </Button>
+                </>
+            ) : null}
+            {settings?.wechatQrLoginEnabled ? (
+                <>
+                    {!settings.linuxdoEnabled ? (
+                        <Divider plain className="auth-scene-divider">
+                            或
+                        </Divider>
+                    ) : null}
+                    <Button size="large" block icon={<WechatIcon className="size-4 text-emerald-500" />} onClick={() => navigate(inviteInput ? `/login?invite=${inviteInput}` : "/login")}>
+                        使用微信扫码直接注册 / 登录
                     </Button>
                 </>
             ) : null}

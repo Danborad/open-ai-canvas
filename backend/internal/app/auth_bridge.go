@@ -48,6 +48,9 @@ type (
 	TapNowImportIssue          = auth.TapNowImportIssue
 	TapNowImportMetadata       = auth.TapNowImportMetadata
 	TapNowImportWarning        = auth.TapNowImportWarning
+	WechatQRTicketResponse     = auth.WechatQRTicketResponse
+	WechatTicketStatusResult   = auth.WechatTicketStatusResult
+	WechatConfirmResult        = auth.WechatConfirmResult
 )
 
 type authHost struct {
@@ -122,6 +125,13 @@ func (h authHost) NotifyUserRegistered(user *model.User) {
 		return
 	}
 	h.svc.NotifyWecomUserRegistered(user)
+}
+
+func (h authHost) BindInvitation(inviteeID string, code string, source string) error {
+	if h.svc == nil {
+		return nil
+	}
+	return h.svc.BindInvitation(inviteeID, code, source)
 }
 
 func (s *Service) authDomain() *auth.Service {
@@ -236,6 +246,22 @@ func (s *Service) BeginLinuxDOLogin(nextPath string, acceptedTerms bool) (string
 
 func (s *Service) CompleteLinuxDOLogin(stateValue string, code string, cookieValue string, contexts ...LoginContext) (*LinuxDOCallbackResult, error) {
 	return s.authDomain().CompleteLinuxDOLogin(stateValue, code, cookieValue, contexts...)
+}
+
+func (s *Service) CreateWechatQRTicket(action string, userID string, inviteCode string) (*WechatQRTicketResponse, error) {
+	return s.authDomain().CreateWechatQRTicket(action, userID, inviteCode)
+}
+
+func (s *Service) GetWechatQRTicketStatus(ticketID string) (*WechatTicketStatusResult, error) {
+	return s.authDomain().GetWechatQRTicketStatus(ticketID)
+}
+
+func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*WechatConfirmResult, error) {
+	return s.authDomain().ConfirmWechatTicket(ticketID, manualCode, jsCode)
+}
+
+func (s *Service) UnbindWechat(user *model.User) error {
+	return s.authDomain().UnbindWechat(user)
 }
 
 func (s *Service) AdminLibTVSetting(actor *model.User) (*PublicLibTVSetting, error) {

@@ -260,6 +260,9 @@ type (
 	PublicFeatureAvailability              = app.PublicFeatureAvailability
 	PublicLibTVSetting                     = app.PublicLibTVSetting
 	PublicLinuxDOSetting                   = app.PublicLinuxDOSetting
+	WechatQRTicketResponse                 = app.WechatQRTicketResponse
+	WechatTicketStatusResult               = app.WechatTicketStatusResult
+	WechatConfirmResult                    = app.WechatConfirmResult
 	PublicLogicalModel                     = app.PublicLogicalModel
 	PublicLogicalModelPriceTier            = app.PublicLogicalModelPriceTier
 	PublicModelAvailability                = app.PublicModelAvailability

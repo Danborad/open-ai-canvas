@@ -24,6 +24,7 @@ type Host interface {
 	AllowRequest(ctx context.Context, key string, limit int, window time.Duration) (bool, error)
 	RequestRetryAfter(ctx context.Context, key string, window time.Duration) time.Duration
 	NotifyUserRegistered(user *model.User)
+	BindInvitation(inviteeID string, code string, source string) error
 }
 
 type nopHost struct{}
@@ -46,6 +47,7 @@ func (nopHost) RequestRetryAfter(context.Context, string, time.Duration) time.Du
 	return 0
 }
 func (nopHost) NotifyUserRegistered(*model.User) {}
+func (nopHost) BindInvitation(string, string, string) error { return nil }
 
 type Service struct {
 	repo           *repository.Repository
