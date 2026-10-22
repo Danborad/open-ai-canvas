@@ -51,6 +51,7 @@ type (
 	WechatQRTicketResponse     = auth.WechatQRTicketResponse
 	WechatTicketStatusResult   = auth.WechatTicketStatusResult
 	WechatConfirmResult        = auth.WechatConfirmResult
+	XkzhiCallbackResult        = auth.XkzhiCallbackResult
 )
 
 type authHost struct {
@@ -262,6 +263,22 @@ func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*Wec
 
 func (s *Service) UnbindWechat(user *model.User) error {
 	return s.authDomain().UnbindWechat(user)
+}
+
+func (s *Service) XkzhiEnabled() bool {
+	return s.authDomain().XkzhiEnabled()
+}
+
+func (s *Service) XkzhiTypes() []string {
+	return s.authDomain().XkzhiTypes()
+}
+
+func (s *Service) BeginXkzhiLogin(loginType string, redirectURI string, nextPath string) (string, error) {
+	return s.authDomain().BeginXkzhiLogin(loginType, redirectURI, nextPath)
+}
+
+func (s *Service) CompleteXkzhiLogin(loginType string, code string, bindActor *model.User, context LoginContext) (*XkzhiCallbackResult, error) {
+	return s.authDomain().CompleteXkzhiLogin(loginType, code, bindActor, context)
 }
 
 func (s *Service) AdminLibTVSetting(actor *model.User) (*PublicLibTVSetting, error) {

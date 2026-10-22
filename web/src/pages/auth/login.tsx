@@ -3,9 +3,9 @@ import { App, Button, Divider, Input, Segmented } from "antd";
 import { ArrowRight, LockKeyhole, UserRound } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 
-import { getAuthSession, getAuthSettings, linuxDOLoginURL, login } from "@/services/api/auth";
+import { getAuthSession, getAuthSettings, linuxDOLoginURL, login, xkzhiLoginURL } from "@/services/api/auth";
 import { useUserStore } from "@/stores/use-user-store";
-import { LinuxDOIcon } from "./auth-scene";
+import { GithubIcon, LinuxDOIcon, QQIcon, WechatIcon } from "./auth-scene";
 import { WechatQRLogin } from "./wechat-qr-login";
 import { VerificationFields } from "@/components/auth/verification-fields";
 import { emptyVerification, loginVerification, methodLabels, verificationMethods, type VerificationMethod } from "@/services/api/verification";
@@ -19,6 +19,8 @@ export default function LoginPage() {
     const [submitting, setSubmitting] = useState(false);
     const [linuxdoEnabled, setLinuxdoEnabled] = useState(false);
     const [wechatLoginEnabled, setWechatLoginEnabled] = useState(false);
+    const [xkzhiEnabled, setXkzhiEnabled] = useState(false);
+    const [xkzhiTypes, setXkzhiTypes] = useState<string[]>([]);
     const [loginMode, setLoginMode] = useState<"account" | "wechat">("account");
     const [methods, setMethods] = useState<VerificationMethod[]>([]);
     const [method, setMethod] = useState<"password" | VerificationMethod>("password");
@@ -41,6 +43,8 @@ export default function LoginPage() {
             .then((settings) => {
                 setLinuxdoEnabled(settings.linuxdoEnabled);
                 setWechatLoginEnabled(Boolean(settings.wechatQrLoginEnabled));
+                setXkzhiEnabled(Boolean(settings.xkzhiEnabled));
+                setXkzhiTypes(settings.xkzhiTypes || []);
                 setMethods(verificationMethods(settings, "login"));
             })
             .catch((error) => {
@@ -123,14 +127,33 @@ export default function LoginPage() {
                     <Button type="primary" htmlType="submit" size="large" block loading={submitting} icon={<ArrowRight className="size-4" />} iconPlacement="end">
                         登录
                     </Button>
-                    {linuxdoEnabled ? (
+                    {linuxdoEnabled || xkzhiEnabled ? (
                         <>
                             <Divider plain className="auth-scene-divider">
-                                或
+                                或通过第三方快捷登录
                             </Divider>
-                            <Button size="large" block icon={<LinuxDOIcon />} href={linuxDOLoginURL(next)}>
-                                使用 Linux.do 登录
-                            </Button>
+                            <div className="flex flex-col gap-2.5">
+                                {xkzhiEnabled && xkzhiTypes.includes("qq") ? (
+                                    <Button size="large" block icon={<QQIcon className="size-4 text-sky-500" />} href={xkzhiLoginURL("qq", next)}>
+                                        使用 QQ 登录 (聚合)
+                                    </Button>
+                                ) : null}
+                                {xkzhiEnabled && xkzhiTypes.includes("wx") ? (
+                                    <Button size="large" block icon={<WechatIcon className="size-4 text-emerald-500" />} href={xkzhiLoginURL("wx", next)}>
+                                        使用微信登录 (聚合)
+                                    </Button>
+                                ) : null}
+                                {xkzhiEnabled && xkzhiTypes.includes("github") ? (
+                                    <Button size="large" block icon={<GithubIcon className="size-4" />} href={xkzhiLoginURL("github", next)}>
+                                        使用 GitHub 登录 (聚合)
+                                    </Button>
+                                ) : null}
+                                {linuxdoEnabled ? (
+                                    <Button size="large" block icon={<LinuxDOIcon />} href={linuxDOLoginURL(next)}>
+                                        使用 Linux.do 登录
+                                    </Button>
+                                ) : null}
+                            </div>
                         </>
                     ) : null}
                 </form>

@@ -210,6 +210,58 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		c.Redirect(http.StatusFound, target)
 	})
 	r.GET("/auth/linuxdo/callback", rejectedLoginAudit(svc, "linuxdo"), linuxDOCallbackHandler(svc))
+
+	xkzhiStartHandler := func(c *gin.Context) {
+		loginType := c.DefaultQuery("type", "qq")
+		next := c.DefaultQuery("next", "/")
+		redirectURI := c.Query("redirect_uri")
+		if redirectURI == "" {
+			scheme := "http"
+			if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
+				scheme = "https"
+			}
+			host := c.Request.Host
+			// u.xkzhi.com 外部防火墙会拦截带有私有 IP (127.0.0.1, 192.168.x 等) 的 redirect_uri，自动回退到 mexai.cc 对应端口
+			if strings.HasPrefix(host, "127.0.0.1") || strings.HasPrefix(host, "192.168.") || strings.HasPrefix(host, "10.") {
+				port := ""
+				if idx := strings.Index(host, ":"); idx != -1 {
+					port = host[idx:]
+				}
+				host = "mexai.cc" + port
+			}
+			redirectURI = fmt.Sprintf("%s://%s/api/auth/oauth/xkzhi/callback", scheme, host)
+		}
+		target, err := svc.BeginXkzhiLogin(loginType, redirectURI, next)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		c.Redirect(http.StatusFound, target)
+	}
+
+	xkzhiCallbackHandler := func(c *gin.Context) {
+		loginType := c.Query("type")
+		code := c.Query("code")
+		if code == "" || loginType == "" {
+			c.Redirect(http.StatusFound, "/login?error="+url.QueryEscape("授权失败或缺少参数"))
+			return
+		}
+		res, err := svc.CompleteXkzhiLogin(loginType, code, nil, loginRequestContext(c))
+		if err != nil {
+			c.Redirect(http.StatusFound, "/login?error="+url.QueryEscape(err.Error()))
+			return
+		}
+		if res.Session != "" {
+			setSessionCookie(c, res.Session, res.MaxAgeSecs)
+		}
+		c.Redirect(http.StatusFound, res.Next)
+	}
+
+	r.GET("/auth/oauth/xkzhi/start", xkzhiStartHandler)
+	r.GET("/auth/xkzhi/start", xkzhiStartHandler)
+	r.GET("/auth/oauth/xkzhi/callback", xkzhiCallbackHandler)
+	r.GET("/oauth/xkzhi/callback", xkzhiCallbackHandler)
+	r.GET("/auth/xkzhi/callback", xkzhiCallbackHandler)
 	r.POST("/auth/logout", func(c *gin.Context) {
 		if err := svc.Logout(sessionCookie(c), loginRequestContext(c)); err != nil {
 			failService(c, err)

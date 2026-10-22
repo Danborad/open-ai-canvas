@@ -57,9 +57,11 @@ type PublicAuthSettings struct {
 	LinuxDOEnabled        bool   `json:"linuxdoEnabled"`
 	EmailEnabled          bool   `json:"emailEnabled"`
 	EmailCodeRequired     bool   `json:"emailCodeRequired"`
-	WechatQrLoginEnabled  bool   `json:"wechatQrLoginEnabled"`
-	WechatQrManual        bool   `json:"wechatQrManual"`
-	AgreementTitle        string `json:"agreementTitle,omitempty"`
+	WechatQrLoginEnabled  bool     `json:"wechatQrLoginEnabled"`
+	WechatQrManual        bool     `json:"wechatQrManual"`
+	XkzhiEnabled          bool     `json:"xkzhiEnabled"`
+	XkzhiTypes            []string `json:"xkzhiTypes,omitempty"`
+	AgreementTitle        string   `json:"agreementTitle,omitempty"`
 	AgreementContent      string `json:"agreementContent,omitempty"`
 }
 
@@ -91,6 +93,8 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 			LinuxDOEnabled:       false,
 			WechatQrLoginEnabled: s.WechatLoginEnabled(),
 			WechatQrManual:       s.WechatManualMode(),
+			XkzhiEnabled:          s.XkzhiEnabled(),
+			XkzhiTypes:            s.XkzhiTypes(),
 			AgreementTitle:       agreementTitle,
 			AgreementContent:     agreementContent,
 		}, nil
@@ -136,6 +140,8 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 		EmailCodeRequired:     p.EmailRegistration || p.SMSAndEmailRegistration,
 		WechatQrLoginEnabled:  s.WechatLoginEnabled(),
 		WechatQrManual:        s.WechatManualMode(),
+		XkzhiEnabled:          s.XkzhiEnabled(),
+		XkzhiTypes:            s.XkzhiTypes(),
 		AgreementTitle:        agreementTitle,
 		AgreementContent:      agreementContent,
 	}, nil

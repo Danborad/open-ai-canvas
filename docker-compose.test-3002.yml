@@ -22,6 +22,11 @@ services:
       CANVAS_WECHAT_QR_PAGE: "pages/login/login"
       CANVAS_WECHAT_QR_ENV_VERSION: "${CANVAS_WECHAT_QR_ENV_VERSION:-trial}"
       CANVAS_WECHAT_QR_MANUAL: "false"
+      CANVAS_XKZHI_ENABLED: "true"
+      CANVAS_XKZHI_APPID: "1036"
+      CANVAS_XKZHI_APPKEY: "cb1b546d50b86159268534ee065ce812"
+      CANVAS_XKZHI_TYPES: "qq,wx,github"
+      CANVAS_XKZHI_CALLBACK_URL: ""
       GIN_MODE: release
     user: "0:0"
     volumes:
