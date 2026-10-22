@@ -23,13 +23,43 @@ import (
 	"gorm.io/gorm"
 )
 
+const wechatSettingKey = "wechat_login"
+
+type WechatSettingValue struct {
+	Enabled    bool   `json:"enabled"`
+	AppID      string `json:"appId"`
+	Secret     string `json:"secret"`
+	Page       string `json:"page"`
+	EnvVersion string `json:"envVersion"`
+	Manual     bool   `json:"manual"`
+}
+
+type PublicWechatSetting struct {
+	Enabled    bool      `json:"enabled"`
+	AppID      string    `json:"appId"`
+	HasSecret  bool      `json:"hasSecret"`
+	Page       string    `json:"page"`
+	EnvVersion string    `json:"envVersion"`
+	Manual     bool      `json:"manual"`
+	UpdatedAt  time.Time `json:"updatedAt"`
+}
+
+type WechatSettingRequest struct {
+	Enabled    bool   `json:"enabled"`
+	AppID      string `json:"appId"`
+	Secret     string `json:"secret,omitempty"`
+	Page       string `json:"page"`
+	EnvVersion string `json:"envVersion"`
+	Manual     bool   `json:"manual"`
+}
+
 var (
 	wechatTokenMu       sync.Mutex
 	wechatAccessToken   string
 	wechatTokenExpireAt time.Time
 )
 
-func wechatLoginConfig() (enabled bool, appID string, secret string, page string, envVersion string, manual bool) {
+func wechatLoginEnvConfig() (enabled bool, appID string, secret string, page string, envVersion string, manual bool) {
 	enabled = os.Getenv("CANVAS_WECHAT_LOGIN_ENABLED") == "true" || os.Getenv("CANVAS_WECHAT_LOGIN_ENABLED") == "1"
 	appID = strings.TrimSpace(os.Getenv("CANVAS_WECHAT_APPID"))
 	secret = strings.TrimSpace(os.Getenv("CANVAS_WECHAT_SECRET"))
@@ -47,14 +77,143 @@ func wechatLoginConfig() (enabled bool, appID string, secret string, page string
 	return
 }
 
+func (s *Service) readWechatSetting() (*model.SystemSetting, WechatSettingValue, error) {
+	setting, err := s.repo.SystemSetting(wechatSettingKey)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		enabled, appID, secret, page, envVersion, manual := wechatLoginEnvConfig()
+		return nil, WechatSettingValue{
+			Enabled:    enabled,
+			AppID:      appID,
+			Secret:     secret,
+			Page:       page,
+			EnvVersion: envVersion,
+			Manual:     manual,
+		}, nil
+	}
+	if err != nil {
+		return nil, WechatSettingValue{}, err
+	}
+	var value WechatSettingValue
+	if err := json.Unmarshal([]byte(setting.ValueJSON), &value); err != nil {
+		return nil, WechatSettingValue{}, err
+	}
+	if value.Secret != "" {
+		decrypted, err := s.host.DecryptSecret(value.Secret)
+		if err == nil {
+			value.Secret = decrypted
+		}
+	}
+	return setting, value, nil
+}
+
+func (s *Service) wechatLoginConfig() (enabled bool, appID string, secret string, page string, envVersion string, manual bool) {
+	_, value, err := s.readWechatSetting()
+	if err != nil {
+		return wechatLoginEnvConfig()
+	}
+	return value.Enabled, value.AppID, value.Secret, value.Page, value.EnvVersion, value.Manual
+}
+
 func (s *Service) WechatLoginEnabled() bool {
-	enabled, appID, _, _, _, _ := wechatLoginConfig()
+	enabled, appID, _, _, _, _ := s.wechatLoginConfig()
 	return enabled && appID != ""
 }
 
 func (s *Service) WechatManualMode() bool {
-	_, _, _, _, _, manual := wechatLoginConfig()
+	_, _, _, _, _, manual := s.wechatLoginConfig()
 	return manual
+}
+
+func (s *Service) AdminWechatSetting(actor *model.User) (*PublicWechatSetting, error) {
+	if err := s.host.RequireAdmin(actor); err != nil {
+		return nil, err
+	}
+	setting, value, err := s.readWechatSetting()
+	if err != nil {
+		return nil, err
+	}
+	updatedAt := time.Now()
+	if setting != nil {
+		updatedAt = setting.UpdatedAt
+	}
+	return &PublicWechatSetting{
+		Enabled:    value.Enabled,
+		AppID:      value.AppID,
+		HasSecret:  value.Secret != "",
+		Page:       value.Page,
+		EnvVersion: value.EnvVersion,
+		Manual:     value.Manual,
+		UpdatedAt:  updatedAt,
+	}, nil
+}
+
+func (s *Service) UpdateWechatSetting(actor *model.User, req WechatSettingRequest) (*PublicWechatSetting, error) {
+	if err := s.host.RequireAdmin(actor); err != nil {
+		return nil, err
+	}
+	currentSetting, current, err := s.readWechatSetting()
+	if err != nil {
+		return nil, err
+	}
+
+	secret := strings.TrimSpace(req.Secret)
+	if secret == "" {
+		secret = current.Secret
+	}
+	page := strings.TrimSpace(req.Page)
+	if page == "" {
+		page = "pages/login/login"
+	}
+	envVersion := strings.TrimSpace(req.EnvVersion)
+	if envVersion == "" {
+		envVersion = "trial"
+	}
+
+	value := WechatSettingValue{
+		Enabled:    req.Enabled,
+		AppID:      strings.TrimSpace(req.AppID),
+		Secret:     secret,
+		Page:       page,
+		EnvVersion: envVersion,
+		Manual:     req.Manual,
+	}
+
+	stored := value
+	if stored.Secret != "" {
+		encrypted, err := s.host.EncryptSecret(stored.Secret)
+		if err != nil {
+			return nil, err
+		}
+		stored.Secret = encrypted
+	}
+
+	encoded, err := json.Marshal(stored)
+	if err != nil {
+		return nil, err
+	}
+	setting := model.SystemSetting{Key: wechatSettingKey, ValueJSON: string(encoded), UpdatedBy: actor.ID}
+	if currentSetting != nil {
+		setting.CreatedAt = currentSetting.CreatedAt
+	}
+	if err := s.repo.SaveSystemSetting(&setting); err != nil {
+		return nil, err
+	}
+
+	// 更新设置时清空 token 缓存以便重新获取
+	wechatTokenMu.Lock()
+	wechatAccessToken = ""
+	wechatTokenExpireAt = time.Time{}
+	wechatTokenMu.Unlock()
+
+	return &PublicWechatSetting{
+		Enabled:    value.Enabled,
+		AppID:      value.AppID,
+		HasSecret:  value.Secret != "",
+		Page:       value.Page,
+		EnvVersion: value.EnvVersion,
+		Manual:     value.Manual,
+		UpdatedAt:  time.Now(),
+	}, nil
 }
 
 func getWechatAccessToken(appID, secret string) (string, error) {
@@ -194,7 +353,7 @@ type WechatQRTicketResponse struct {
 }
 
 func (s *Service) CreateWechatQRTicket(action string, userID string, inviteCode string) (*WechatQRTicketResponse, error) {
-	enabled, appID, secret, page, envVersion, manual := wechatLoginConfig()
+	enabled, appID, secret, page, envVersion, manual := s.wechatLoginConfig()
 	if !enabled || appID == "" {
 		return nil, kernel.BadAuthRequest("微信扫码登录尚未启用")
 	}
@@ -329,7 +488,7 @@ func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*Wec
 		return nil, kernel.BadAuthRequest("二维码状态已变更，请刷新")
 	}
 
-	enabled, appID, secret, _, _, manual := wechatLoginConfig()
+	enabled, appID, secret, _, _, manual := s.wechatLoginConfig()
 	if !enabled || appID == "" {
 		return nil, kernel.BadAuthRequest("微信扫码登录尚未启用")
 	}

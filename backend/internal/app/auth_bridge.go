@@ -51,6 +51,8 @@ type (
 	WechatQRTicketResponse     = auth.WechatQRTicketResponse
 	WechatTicketStatusResult   = auth.WechatTicketStatusResult
 	WechatConfirmResult        = auth.WechatConfirmResult
+	PublicWechatSetting        = auth.PublicWechatSetting
+	WechatSettingRequest       = auth.WechatSettingRequest
 )
 
 type authHost struct {
@@ -262,6 +264,14 @@ func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*Wec
 
 func (s *Service) UnbindWechat(user *model.User) error {
 	return s.authDomain().UnbindWechat(user)
+}
+
+func (s *Service) AdminWechatSetting(actor *model.User) (*PublicWechatSetting, error) {
+	return s.authDomain().AdminWechatSetting(actor)
+}
+
+func (s *Service) UpdateWechatSetting(actor *model.User, req WechatSettingRequest) (*PublicWechatSetting, error) {
+	return s.authDomain().UpdateWechatSetting(actor, req)
 }
 
 func (s *Service) AdminLibTVSetting(actor *model.User) (*PublicLibTVSetting, error) {

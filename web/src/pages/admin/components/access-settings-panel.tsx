@@ -6,7 +6,7 @@ import { useBlocker } from "react-router";
 
 import { cn } from "@/lib/utils";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
-import { getAdminLinuxDOSetting, getAdminRegistrationSetting, updateAdminLinuxDOSetting, updateAdminRegistrationSetting, type LinuxDOSetting, type RegistrationSetting } from "@/services/api/wallet";
+import { getAdminLinuxDOSetting, getAdminRegistrationSetting, getAdminWechatSetting, updateAdminLinuxDOSetting, updateAdminRegistrationSetting, updateAdminWechatSetting, type LinuxDOSetting, type RegistrationSetting, type WechatAdminSetting, type WechatAdminSettingInput } from "@/services/api/wallet";
 import { AdminStatusBadge, configuredSecretText, SettingsSectionCard } from "./admin-ui";
 import { Select } from "@/components/ui/base/select";
 import { WechatIcon } from "@/pages/auth/auth-scene";
@@ -36,19 +36,24 @@ export default function AccessSettingsPanel() {
     const brandName = useAppearanceStore((state) => state.appearance.brandName) || "平台";
     const [linuxdo, setLinuxdo] = useState<LinuxDOSetting | null>(null);
     const [registration, setRegistration] = useState<RegistrationSetting | null>(null);
+    const [wechat, setWechat] = useState<WechatAdminSetting | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [savingLinuxDO, setSavingLinuxDO] = useState(false);
     const [savingRegistration, setSavingRegistration] = useState(false);
     const [savingAgreement, setSavingAgreement] = useState(false);
+    const [savingWechat, setSavingWechat] = useState(false);
     const [dirty, setDirty] = useState(false);
     const [draftLinuxDOEnabled, setDraftLinuxDOEnabled] = useState(false);
+    const [draftWechatEnabled, setDraftWechatEnabled] = useState(false);
+    const [wechatDirty, setWechatDirty] = useState(false);
     const [agreementTitle, setAgreementTitle] = useState("");
     const [agreementContent, setAgreementContent] = useState("");
     const [agreementDirty, setAgreementDirty] = useState(false);
     const [loadError, setLoadError] = useState("");
     const [saveError, setSaveError] = useState("");
     const [form] = Form.useForm<LinuxDOFormValues>();
+    const [wechatForm] = Form.useForm<WechatAdminSettingInput>();
     const requestVersionRef = useRef(0);
     const navigationConfirmOpenRef = useRef(false);
     const navigationTriggerRef = useRef<HTMLElement | null>(null);
@@ -60,10 +65,25 @@ export default function AccessSettingsPanel() {
             else setRefreshing(true);
             setLoadError("");
             try {
-                const [linuxdoData, registrationData] = await Promise.all([getAdminLinuxDOSetting(), getAdminRegistrationSetting()]);
+                const [linuxdoData, registrationData, wechatData] = await Promise.all([
+                    getAdminLinuxDOSetting(),
+                    getAdminRegistrationSetting(),
+                    getAdminWechatSetting(),
+                ]);
                 if (requestVersion !== requestVersionRef.current) return;
                 setLinuxdo(linuxdoData.setting);
                 setRegistration(registrationData.setting);
+                setWechat(wechatData.setting);
+                wechatForm.setFieldsValue({
+                    enabled: wechatData.setting.enabled,
+                    appId: wechatData.setting.appId,
+                    secret: "",
+                    page: wechatData.setting.page || "pages/login/login",
+                    envVersion: wechatData.setting.envVersion || "trial",
+                    manual: wechatData.setting.manual,
+                });
+                setDraftWechatEnabled(wechatData.setting.enabled);
+                setWechatDirty(false);
                 setAgreementTitle(registrationData.setting.agreementTitle || "");
                 setAgreementContent(registrationData.setting.agreementContent || "");
                 setAgreementDirty(false);
@@ -98,7 +118,7 @@ export default function AccessSettingsPanel() {
         setDraftLinuxDOEnabled(linuxdo.enabled);
     }, [form, linuxdo, loading, registration]);
 
-    const unsaved = (dirty && !savingLinuxDO) || (agreementDirty && !savingAgreement);
+    const unsaved = (dirty && !savingLinuxDO) || (agreementDirty && !savingAgreement) || (wechatDirty && !savingWechat);
     const blocker = useBlocker(unsaved);
 
     // 条款编辑区下方的字数与段落提示：与注册页的分段规则保持一致（按空行分段），
@@ -266,7 +286,50 @@ export default function AccessSettingsPanel() {
         setSaveError("");
     };
 
-    if (loading && (!linuxdo || !registration)) {
+    const resetWechatDraft = () => {
+        if (!wechat) return;
+        wechatForm.setFieldsValue({
+            enabled: wechat.enabled,
+            appId: wechat.appId,
+            secret: "",
+            page: wechat.page || "pages/login/login",
+            envVersion: wechat.envVersion || "trial",
+            manual: wechat.manual,
+        });
+        setDraftWechatEnabled(wechat.enabled);
+        setWechatDirty(false);
+    };
+
+    const toggleWechat = (enabled: boolean) => {
+        if (!wechat || savingWechat) return;
+        wechatForm.setFieldValue("enabled", enabled);
+        setDraftWechatEnabled(enabled);
+        setWechatDirty(true);
+    };
+
+    const submitWechatSave = async () => {
+        let values: WechatAdminSettingInput;
+        try {
+            values = await wechatForm.validateFields();
+        } catch {
+            return;
+        }
+        setSavingWechat(true);
+        try {
+            const res = await updateAdminWechatSetting(values);
+            setWechat(res.setting);
+            wechatForm.setFieldValue("secret", "");
+            setDraftWechatEnabled(res.setting.enabled);
+            setWechatDirty(false);
+            message.success("微信登录配置已保存并生效");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "保存微信登录配置失败");
+        } finally {
+            setSavingWechat(false);
+        }
+    };
+
+    if (loading && (!linuxdo || !registration || !wechat)) {
         return (
             <div className="admin-settings-stack admin-access-settings" aria-label="正在读取登录与注册配置" role="status">
                 <div className="admin-access-loading-card">
@@ -276,7 +339,7 @@ export default function AccessSettingsPanel() {
         );
     }
 
-    if (!linuxdo || !registration) {
+    if (!linuxdo || !registration || !wechat) {
         return (
             <div className="admin-settings-stack admin-access-settings">
                 <div className="admin-access-load-error" role="alert">
@@ -356,30 +419,132 @@ export default function AccessSettingsPanel() {
                     className="admin-access-section admin-access-wechat-section"
                     icon={<WechatIcon className="size-4 text-emerald-500" aria-hidden="true" />}
                     title="2. 微信小程序扫码登录 (官方直连)"
-                    description="基于微信公众平台官方小程序码与系统自建直连通道，实现安全免密扫码登录与账号绑定。"
-                    status={<AdminStatusBadge label="运行中 (体验版)" tone="success" />}
-                >
-                    <div className="admin-access-registration-policy">
-                        <span className="admin-access-policy-icon">
-                            <WechatIcon className="size-5 text-emerald-500" aria-hidden="true" />
-                        </span>
-                        <div className="admin-access-policy-copy space-y-2">
+                    description="配置微信公众平台小程序参数。开启后，在登录与注册页面展示官方原生小程序码。"
+                    status={
+                        <AdminStatusBadge
+                            label={draftWechatEnabled ? (wechatDirty ? "待保存" : `已启用 (${wechat.envVersion === "release" ? "正式版" : wechat.envVersion === "develop" ? "开发版" : "体验版"})`) : "未启用"}
+                            tone={wechatDirty ? "warning" : draftWechatEnabled ? "success" : "neutral"}
+                        />
+                    }
+                    footer={
+                        <>
+                            <div className="admin-access-footer-note">
+                                <BadgeCheck className="size-4" aria-hidden="true" />
+                                <span>{draftWechatEnabled ? "配置 AppID 与 AppSecret 后点击保存生效" : "关闭后登录与注册页将隐藏微信扫码入口"}</span>
+                            </div>
                             <div className="flex flex-wrap items-center gap-2">
-                                <strong>微信官方小程序直连通道</strong>
-                                <AdminStatusBadge label="官方直出葵花码" tone="success" />
-                                <AdminStatusBadge label="已启用" tone="info" />
+                                {wechatDirty ? (
+                                    <Button icon={<RotateCcw className="size-4" />} disabled={savingWechat} onClick={resetWechatDraft}>
+                                        撤销
+                                    </Button>
+                                ) : null}
+                                <Button
+                                    type="primary"
+                                    icon={<Save className="size-4" />}
+                                    loading={savingWechat}
+                                    disabled={!wechatDirty || loading || refreshing}
+                                    onClick={() => void submitWechatSave()}
+                                >
+                                    {draftWechatEnabled ? "保存并启用" : "保存并关闭"}
+                                </Button>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground pt-1">
-                                <div>小程序 AppID：<span className="font-mono font-medium text-foreground">wx7423e3ed710143ab</span></div>
-                                <div>生成码模式：<span className="font-medium text-foreground">微信原生小程序码 (葵花码)</span></div>
-                                <div>扫码直达页面：<span className="font-mono text-foreground">pages/login/login</span></div>
-                                <div>运行环境版本：<span className="font-mono text-foreground">体验版 (trial)</span></div>
+                        </>
+                    }
+                >
+                    <Form
+                        form={wechatForm}
+                        layout="vertical"
+                        requiredMark={false}
+                        disabled={loading || refreshing || savingWechat}
+                        onValuesChange={() => {
+                            const values = wechatForm.getFieldsValue(true);
+                            setDraftWechatEnabled(Boolean(values.enabled));
+                            setWechatDirty(true);
+                        }}
+                    >
+                        <div className="admin-access-provider-toggle mb-5">
+                            <span className="admin-access-policy-icon">
+                                <WechatIcon className="size-5 text-emerald-500" aria-hidden="true" />
+                            </span>
+                            <div className="admin-access-policy-copy">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <strong>在登录与注册页显示微信扫码登录</strong>
+                                    <AdminStatusBadge label="保存后生效" tone="info" />
+                                </div>
+                                <p>关闭后将隐藏微信扫码入口，已有微信绑定的账号仍可通过密码登录。</p>
                             </div>
-                            <p className="text-[11px] text-muted-foreground pt-1">
-                                AppSecret 等敏感密钥由服务端环境变量安全托管，不落库、不写入前端，保障平台资产绝对安全。
-                            </p>
+                            <Switch
+                                checked={draftWechatEnabled}
+                                disabled={loading || refreshing || savingWechat}
+                                onChange={toggleWechat}
+                                aria-label="在登录与注册页显示微信扫码登录开关"
+                            />
                         </div>
-                    </div>
+
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <Form.Item
+                                name="appId"
+                                label="小程序 AppID"
+                                rules={[{ required: draftWechatEnabled, message: "请输入微信小程序 AppID" }]}
+                                extra="微信公众平台开发管理中的 AppID (如 wx7423e3ed710143ab)"
+                            >
+                                <Input placeholder="如 wx7423e3ed710143ab" />
+                            </Form.Item>
+                            <Form.Item
+                                name="secret"
+                                label="小程序 AppSecret"
+                                extra={wechat.hasSecret ? "已加密保存。如需更新请输入新密钥，留空则保留原密钥。" : "微信公众平台开发管理中的 AppSecret (32 位字符串)"}
+                            >
+                                <Input.Password placeholder={wechat.hasSecret ? "••••••••••••••••  (已保存，留空保留原密钥)" : "请输入 32 位 AppSecret"} />
+                            </Form.Item>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <Form.Item
+                                name="page"
+                                label="扫码直达小程序页面"
+                                extra="微信扫码后打开的页面路径，默认 pages/login/login"
+                            >
+                                <Input placeholder="pages/login/login" />
+                            </Form.Item>
+                            <Form.Item
+                                name="envVersion"
+                                label="小程序运行环境版本"
+                                extra="开发或提审期选体验版；小程序正式上线后切换为正式版"
+                            >
+                                <Select
+                                    value={wechatForm.getFieldValue("envVersion") || "trial"}
+                                    onChange={(val) => {
+                                        wechatForm.setFieldValue("envVersion", val);
+                                        setWechatDirty(true);
+                                    }}
+                                    options={[
+                                        { value: "trial", label: "体验版 (trial) - 适合提审与体验者自测" },
+                                        { value: "release", label: "正式版 (release) - 适合小程序已过审发布" },
+                                        { value: "develop", label: "开发版 (develop) - 适合本地开发者工具调试" },
+                                    ]}
+                                />
+                            </Form.Item>
+                        </div>
+
+                        <div className="mt-2 rounded-xl border border-border/70 bg-muted/30 p-3.5 flex items-center justify-between">
+                            <div>
+                                <div className="text-xs font-semibold text-foreground">6 位验证码备用/审核模式 (CANVAS_WECHAT_QR_MANUAL)</div>
+                                <div className="text-[11px] text-muted-foreground mt-0.5">
+                                    开启后网页将同时展示 6 位短码供审核员在无真机时自测输入。日常运营保持关闭，直接展示微信官方小程序码。
+                                </div>
+                            </div>
+                            <Form.Item name="manual" valuePropName="checked" noStyle>
+                                <Switch
+                                    checked={Boolean(wechatForm.getFieldValue("manual"))}
+                                    onChange={(checked) => {
+                                        wechatForm.setFieldValue("manual", checked);
+                                        setWechatDirty(true);
+                                    }}
+                                />
+                            </Form.Item>
+                        </div>
+                    </Form>
                 </SettingsSectionCard>
             </div>
 
