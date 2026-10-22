@@ -339,7 +339,7 @@ export function ProfilePane() {
                     {!profile.hasPassword ? (
                         <Callout
                             tone={reauthReady ? "success" : "info"}
-                            title="验证当前身份"
+                            title={reauthReady ? "首次设置密码安全期" : "账号密码提示"}
                             icon={ShieldCheck}
                             action={
                                 profile.linuxdoEnabled ? (
@@ -350,13 +350,15 @@ export function ProfilePane() {
                             }
                         >
                             {reauthReady
-                                ? `身份验证已通过，有效期剩余 ${profileSecondsRemaining(Date.parse(profile.reauthenticatedUntil!), now)} 秒。`
-                                : profile.linuxdoEnabled
-                                  ? "设置密码或更换邮箱前，请使用已绑定的 Linux.do 账号重新验证。验证有效期为 5 分钟。"
-                                  : "当前账号未设置密码，且 Linux.do 验证未启用，请联系管理员。"}
+                                ? `您刚通过微信扫码完成身份验证，当前处于首次设置密码的安全窗口（剩余 ${profileSecondsRemaining(Date.parse(profile.reauthenticatedUntil!), now)} 秒）。在此期间可直接在下方「设置登录密码」为账号设定密码，不需要输入原密码。日常登录与账号使用不受此时间限制。`
+                                : profile.wechatBound
+                                  ? "当前账号尚未设置密码，日常可随时直接使用微信扫码一键登录。如需设定账号密码，重新使用微信扫码登录即可激活免密设置窗口。"
+                                  : profile.linuxdoEnabled
+                                    ? "设置密码或更换邮箱前，请使用已绑定的 Linux.do 账号重新验证。验证有效期为 5 分钟。"
+                                    : "当前账号未设置独立密码，日常可直接通过第三方或微信快捷登录。"}
                             {reauthResult === "error" && !reauthReady ? (
                                 <p className="profile-reauth-error" role="alert">
-                                    Linux.do 身份验证失败，请重新验证。
+                                    身份验证失败，请重新尝试。
                                 </p>
                             ) : null}
                         </Callout>
