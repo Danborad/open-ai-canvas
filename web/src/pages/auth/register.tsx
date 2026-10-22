@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { getAuthSession, getAuthSettings, linuxDOLoginURL, register } from "@/services/api/auth";
 import { getPublicPromotionStatus } from "@/services/api/promotion";
 import { LinuxDOIcon, WechatIcon } from "./auth-scene";
+import { WechatQRLogin } from "./wechat-qr-login";
 import { ApiError } from "@/services/api/request";
 import { VerificationFields } from "@/components/auth/verification-fields";
 import { emptyVerification, methodLabels, verificationMethods, type VerificationMethod } from "@/services/api/verification";
@@ -44,6 +45,9 @@ export default function RegisterPage() {
     }, [inviteCodeFromLink, message, verifyInviteCode]);
     const brandName = useAppearanceStore((state) => state.appearance.brandName) || "平台";
     const [settings, setSettings] = useState<AuthSettings | null>(null);
+    const [registerMode, setRegisterMode] = useState<"form" | "wechat">(() => {
+        return params.get("mode") === "wechat" ? "wechat" : "form";
+    });
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
     const [verification, setVerification] = useState({ ...emptyVerification });
@@ -137,7 +141,24 @@ export default function RegisterPage() {
     const disabled = !settings || registrationClosed || verificationUnavailable;
 
     return (
-        <form onSubmit={submit} className="space-y-4">
+        <div className="space-y-4">
+            {settings?.wechatQrLoginEnabled ? (
+                <Segmented
+                    block
+                    aria-label="注册模式"
+                    value={registerMode}
+                    options={[
+                        { value: "form", label: "账号注册" },
+                        { value: "wechat", label: "微信扫码直接注册" },
+                    ]}
+                    onChange={(value) => setRegisterMode(value as "form" | "wechat")}
+                />
+            ) : null}
+
+            {registerMode === "wechat" ? (
+                <WechatQRLogin next={next} invite={inviteInput || inviteCodeFromLink} />
+            ) : (
+                <form onSubmit={submit} className="space-y-4">
             {settings?.firstUser ? (
                 <Notice icon={<Info className="size-3.5" />} tone="blue">
                     首个账号自动成为管理员，邮箱验证码暂不要求。
@@ -265,11 +286,13 @@ export default function RegisterPage() {
                             或
                         </Divider>
                     ) : null}
-                    <Button size="large" block icon={<WechatIcon className="size-4 text-emerald-500" />} onClick={() => navigate(inviteInput ? `/login?invite=${inviteInput}` : "/login")}>
-                        使用微信扫码直接注册 / 登录
+                    <Button size="large" block icon={<WechatIcon className="size-4 text-emerald-500" />} onClick={() => setRegisterMode("wechat")}>
+                        使用微信扫码直接注册
                     </Button>
                 </>
             ) : null}
+                </form>
+            )}
             <Modal
                 className="workspace-modal workspace-modal-compact auth-agreement-modal"
                 title={agreementTitle}
@@ -303,7 +326,7 @@ export default function RegisterPage() {
                     继续注册即表示你已阅读并接受本协议全部条款。
                 </p>
             </Modal>
-        </form>
+        </div>
     );
 }
 

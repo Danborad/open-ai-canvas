@@ -19,7 +19,9 @@ export default function LoginPage() {
     const [submitting, setSubmitting] = useState(false);
     const [linuxdoEnabled, setLinuxdoEnabled] = useState(false);
     const [wechatLoginEnabled, setWechatLoginEnabled] = useState(false);
-    const [loginMode, setLoginMode] = useState<"account" | "wechat">("account");
+    const [loginMode, setLoginMode] = useState<"account" | "wechat">(() => {
+        return params.get("mode") === "wechat" ? "wechat" : "account";
+    });
     const [methods, setMethods] = useState<VerificationMethod[]>([]);
     const [method, setMethod] = useState<"password" | VerificationMethod>("password");
     const [verification, setVerification] = useState({ ...emptyVerification });

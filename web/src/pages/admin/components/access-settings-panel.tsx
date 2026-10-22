@@ -9,6 +9,7 @@ import { useAppearanceStore } from "@/stores/use-appearance-store";
 import { getAdminLinuxDOSetting, getAdminRegistrationSetting, updateAdminLinuxDOSetting, updateAdminRegistrationSetting, type LinuxDOSetting, type RegistrationSetting } from "@/services/api/wallet";
 import { AdminStatusBadge, configuredSecretText, SettingsSectionCard } from "./admin-ui";
 import { Select } from "@/components/ui/base/select";
+import { WechatIcon } from "@/pages/auth/auth-scene";
 
 const DEFAULT_AGREEMENT_TEMPLATE = `一、服务说明与接受
 欢迎使用本平台提供的 AI 影视与内容创作服务。在注册或使用本平台各项功能前，请务必仔细阅读并理解本协议。当您勾选同意或点击注册、登录按钮，即表示您已自愿接受本协议所有条款的约束。
@@ -350,11 +351,43 @@ export default function AccessSettingsPanel() {
                 </SettingsSectionCard>
             </div>
 
+            <div id="admin-access-wechat" className="admin-settings-anchor">
+                <SettingsSectionCard
+                    className="admin-access-section admin-access-wechat-section"
+                    icon={<WechatIcon className="size-4 text-emerald-500" aria-hidden="true" />}
+                    title="2. 微信小程序扫码登录 (官方直连)"
+                    description="基于微信公众平台官方小程序码与系统自建直连通道，实现安全免密扫码登录与账号绑定。"
+                    status={<AdminStatusBadge label="运行中 (体验版)" tone="success" />}
+                >
+                    <div className="admin-access-registration-policy">
+                        <span className="admin-access-policy-icon">
+                            <WechatIcon className="size-5 text-emerald-500" aria-hidden="true" />
+                        </span>
+                        <div className="admin-access-policy-copy space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <strong>微信官方小程序直连通道</strong>
+                                <AdminStatusBadge label="官方直出葵花码" tone="success" />
+                                <AdminStatusBadge label="已启用" tone="info" />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground pt-1">
+                                <div>小程序 AppID：<span className="font-mono font-medium text-foreground">wx7423e3ed710143ab</span></div>
+                                <div>生成码模式：<span className="font-medium text-foreground">微信原生小程序码 (葵花码)</span></div>
+                                <div>扫码直达页面：<span className="font-mono text-foreground">pages/login/login</span></div>
+                                <div>运行环境版本：<span className="font-mono text-foreground">体验版 (trial)</span></div>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground pt-1">
+                                AppSecret 等敏感密钥由服务端环境变量安全托管，不落库、不写入前端，保障平台资产绝对安全。
+                            </p>
+                        </div>
+                    </div>
+                </SettingsSectionCard>
+            </div>
+
             <div id="admin-access-linuxdo" className="admin-settings-anchor">
                 <SettingsSectionCard
                     className="admin-access-section admin-access-linuxdo-section"
                     icon={<KeyRound className="size-4" aria-hidden="true" />}
-                    title="2. 是否开放 Linux.do 登录"
+                    title="3. 是否开放 Linux.do 登录"
                     description="先决定是否在登录与注册页展示 Linux.do。开启后再填写 OAuth 接入信息。"
                     status={<AdminStatusBadge label={draftLinuxDOEnabled ? (dirty ? "待启用" : "运行中") : dirty && linuxdo.enabled ? "待停用" : "未启用"} tone={dirty ? "warning" : draftLinuxDOEnabled ? "success" : "neutral"} />}
                     footer={
