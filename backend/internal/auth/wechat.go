@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -33,7 +34,9 @@ func wechatLoginConfig() (enabled bool, appID string, secret string, page string
 	appID = strings.TrimSpace(os.Getenv("CANVAS_WECHAT_APPID"))
 	secret = strings.TrimSpace(os.Getenv("CANVAS_WECHAT_SECRET"))
 	page = strings.TrimSpace(os.Getenv("CANVAS_WECHAT_QR_PAGE"))
-	if page == "" {
+	if page == "default" || page == "none" || page == "root" {
+		page = ""
+	} else if page == "" {
 		page = "pages/login/login"
 	}
 	envVersion = strings.TrimSpace(os.Getenv("CANVAS_WECHAT_QR_ENV_VERSION"))
@@ -95,10 +98,12 @@ func fetchWechatQRCode(accessToken, scene, page, envVersion string) (string, err
 	reqURL := fmt.Sprintf("https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=%s", url.QueryEscape(accessToken))
 	payload := map[string]any{
 		"scene":       scene,
-		"page":        page,
 		"check_path":  false,
 		"env_version": envVersion,
 		"width":       280,
+	}
+	if strings.TrimSpace(page) != "" {
+		payload["page"] = strings.TrimSpace(page)
 	}
 	jsonBytes, err := json.Marshal(payload)
 	if err != nil {
@@ -126,8 +131,14 @@ func fetchWechatQRCode(accessToken, scene, page, envVersion string) (string, err
 		return "", fmt.Errorf("生成小程序码失败 [%d]: %s", errRes.ErrCode, errRes.ErrMsg)
 	}
 
+	contentType := resp.Header.Get("Content-Type")
+	if strings.Contains(contentType, "png") {
+		contentType = "image/png"
+	} else {
+		contentType = "image/jpeg"
+	}
 	base64Str := base64.StdEncoding.EncodeToString(body)
-	return "data:image/png;base64," + base64Str, nil
+	return fmt.Sprintf("data:%s;base64,%s", contentType, base64Str), nil
 }
 
 type wechatSessionResult struct {
@@ -197,9 +208,13 @@ func (s *Service) CreateWechatQRTicket(action string, userID string, inviteCode 
 	qrImage := ""
 	if !manual && secret != "" {
 		token, tokenErr := getWechatAccessToken(appID, secret)
-		if tokenErr == nil {
+		if tokenErr != nil {
+			log.Printf("[Wechat] 获取 access_token 失败: %v", tokenErr)
+		} else {
 			img, imgErr := fetchWechatQRCode(token, ticketID, page, envVersion)
-			if imgErr == nil {
+			if imgErr != nil {
+				log.Printf("[Wechat] 获取小程序码图片失败 (page=%s, env=%s): %v", page, envVersion, imgErr)
+			} else {
 				qrImage = img
 			}
 		}

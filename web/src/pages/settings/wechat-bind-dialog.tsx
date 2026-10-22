@@ -19,6 +19,7 @@ export function WechatBindDialog({
     const [status, setStatus] = useState<"pending" | "scanned" | "confirmed" | "failed" | "expired">("pending");
     const [errorMessage, setErrorMessage] = useState("");
     const [copied, setCopied] = useState(false);
+    const [viewMode, setViewMode] = useState<"qr" | "manual">("qr");
     const timerRef = useRef<number | null>(null);
 
     const loadTicket = useCallback(async () => {
@@ -116,26 +117,9 @@ export function WechatBindDialog({
                             重新获取
                         </Button>
                     </div>
-                ) : ticketData?.manual ? (
-                    <div className="flex flex-col items-center gap-3">
-                        <span className="text-xs text-foreground">
-                            请在微信打开小程序，输入绑定验证码：
-                        </span>
-                        <div className="flex items-center gap-2">
-                            <div className="rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/10 px-5 py-2.5 font-mono text-2xl font-bold tracking-widest text-emerald-600 dark:text-emerald-400">
-                                {ticketData.code}
-                            </div>
-                            <Button icon={copied ? <Check className="size-4" /> : <Copy className="size-4" />} onClick={() => void handleCopyCode()}>
-                                {copied ? "已复制" : "复制"}
-                            </Button>
-                        </div>
-                        <span className="text-[11px] text-muted-foreground">
-                            在小程序中确认绑定后，网页将自动完成关联
-                        </span>
-                    </div>
-                ) : ticketData?.qrImage ? (
+                ) : (!ticketData?.manual && Boolean(ticketData?.qrImage) && viewMode === "qr") ? (
                     <div className="relative flex size-52 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white p-2 shadow-sm">
-                        <img src={ticketData.qrImage} alt="微信扫码绑定" className="size-full object-contain" />
+                        <img src={ticketData?.qrImage} alt="微信扫码绑定" className="size-full object-contain" />
                         {status === "expired" && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/75 p-4 text-center text-white backdrop-blur-sm">
                                 <span className="text-xs font-medium">二维码已过期</span>
@@ -151,12 +135,40 @@ export function WechatBindDialog({
                             </div>
                         )}
                     </div>
-                ) : null}
+                ) : (
+                    <div className="flex flex-col items-center gap-3">
+                        <span className="text-xs text-foreground">
+                            请在微信打开小程序，输入绑定验证码：
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <div className="rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/10 px-5 py-2.5 font-mono text-2xl font-bold tracking-widest text-emerald-600 dark:text-emerald-400">
+                                {ticketData?.code}
+                            </div>
+                            <Button icon={copied ? <Check className="size-4" /> : <Copy className="size-4" />} onClick={() => void handleCopyCode()}>
+                                {copied ? "已复制" : "复制"}
+                            </Button>
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">
+                            在小程序中确认绑定后，网页将自动完成关联
+                        </span>
+                    </div>
+                )}
 
-                {status === "pending" && !ticketData?.manual && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <QrCode className="size-3.5" />
-                        <span>请使用本人微信扫码完成账号绑定</span>
+                {status === "pending" && (
+                    <div className="flex flex-col items-center gap-1.5 text-center">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <QrCode className="size-3.5" />
+                            <span>请使用本人微信扫码完成账号绑定</span>
+                        </div>
+                        {ticketData?.qrImage && !ticketData?.manual && (
+                            <button
+                                type="button"
+                                className="text-[11px] text-muted-foreground/80 underline decoration-dotted transition-colors hover:text-foreground"
+                                onClick={() => setViewMode(viewMode === "qr" ? "manual" : "qr")}
+                            >
+                                {viewMode === "qr" ? "无法扫码？切换为 6 位绑定码" : "返回小程序码扫码"}
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
