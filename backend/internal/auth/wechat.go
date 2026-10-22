@@ -156,6 +156,14 @@ func (s *Service) UpdateWechatSetting(actor *model.User, req WechatSettingReques
 		return nil, err
 	}
 
+	appID := strings.TrimSpace(req.AppID)
+	if appID == "" {
+		appID = current.AppID
+	}
+	if req.Enabled && appID == "" {
+		return nil, kernel.BadAuthRequest("启用微信扫码登录前必须配置小程序 AppID")
+	}
+
 	secret := strings.TrimSpace(req.Secret)
 	if secret == "" {
 		secret = current.Secret
@@ -171,7 +179,7 @@ func (s *Service) UpdateWechatSetting(actor *model.User, req WechatSettingReques
 
 	value := WechatSettingValue{
 		Enabled:    req.Enabled,
-		AppID:      strings.TrimSpace(req.AppID),
+		AppID:      appID,
 		Secret:     secret,
 		Page:       page,
 		EnvVersion: envVersion,
