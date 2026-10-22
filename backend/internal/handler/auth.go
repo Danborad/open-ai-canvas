@@ -216,20 +216,8 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		next := c.DefaultQuery("next", "/")
 		redirectURI := c.Query("redirect_uri")
 		if redirectURI == "" {
-			scheme := "http"
-			if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
-				scheme = "https"
-			}
-			host := c.Request.Host
-			// u.xkzhi.com 外部防火墙会拦截带有私有 IP (127.0.0.1, 192.168.x 等) 的 redirect_uri，自动回退到 mexai.cc 对应端口
-			if strings.HasPrefix(host, "127.0.0.1") || strings.HasPrefix(host, "192.168.") || strings.HasPrefix(host, "10.") {
-				port := ""
-				if idx := strings.Index(host, ":"); idx != -1 {
-					port = host[idx:]
-				}
-				host = "mexai.cc" + port
-			}
-			redirectURI = fmt.Sprintf("%s://%s/api/auth/oauth/xkzhi/callback", scheme, host)
+			// 星空聚合登录授权域名锁定为 mexai.cc，统一使用 mexai.cc 作为接收端再反弹回测试站
+			redirectURI = "https://mexai.cc/api/auth/oauth/xkzhi/callback"
 		}
 		target, err := svc.BeginXkzhiLogin(loginType, redirectURI, next)
 		if err != nil {
