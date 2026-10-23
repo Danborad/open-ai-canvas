@@ -693,7 +693,7 @@ export default function AccessSettingsPanel() {
                 <SettingsSectionCard
                     className="admin-access-section admin-access-agreement-section"
                     icon={<FileText className="size-4" aria-hidden="true" />}
-                    title="3. 服务协议名称与条款"
+                    title="4. 服务协议名称与条款"
                     description="注册页勾选框与弹窗展示的内容。协议名称留空时自动跟随品牌名生成，条款留空时注册页给出待补充提示。"
                     status={<AdminStatusBadge label={agreementDirty ? "待保存" : agreementContent.trim() ? "已自定义" : "待补充"} tone={agreementDirty ? "warning" : agreementContent.trim() ? "success" : "neutral"} />}
                     footer={

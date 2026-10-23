@@ -304,24 +304,6 @@ var (
 		"Veo 3.1 - Fast",
 		"Veo 3.1 - Quality",
 	}
-	grok2APIPresetModels = []string{
-		"Web/grok-imagine-image-2.0",
-		"Web/grok-imagine-image",
-		"Console/grok-imagine-image-2.0",
-		"Console/grok-imagine-image",
-		"Web/grok-imagine-video",
-		"Console/grok-imagine-video-1.5",
-		"Console/grok-imagine-video",
-		"grok-voice-latest",
-		"grok-voice-think-fast-2.0",
-		"grok-voice-think-fast-1.0",
-		"grok-stt",
-		"Build/grok-4.6",
-		"Build/grok-4.5",
-		"Build/grok-composer-2.5-fast",
-		"Web/grok-chat-fast",
-		"Console/grok-4.5",
-	}
 	zarkLabPresetModels = []string{
 		"Nano Banana Lite",
 		"Nano Banana 2 Lite",
@@ -372,9 +354,6 @@ func isPresetChannel(channel *model.ModelChannel) string {
 	if strings.Contains(url, "autodl.art") || strings.Contains(name, "autodl") {
 		return "autodl"
 	}
-	if strings.Contains(url, "grok2api") || strings.Contains(name, "grok2api") {
-		return "grok2api"
-	}
 	if strings.Contains(url, "zarklab.ai") || strings.Contains(name, "zarklab") {
 		return "zarklab"
 	}
@@ -390,8 +369,6 @@ func presetChannelModels(preset string) []string {
 		return autoDLPresetModels
 	case "flow2api":
 		return flow2APIPresetModels
-	case "grok2api":
-		return grok2APIPresetModels
 	case "zarklab":
 		return zarkLabPresetModels
 	case "sensenova":
@@ -399,32 +376,6 @@ func presetChannelModels(preset string) []string {
 	default:
 		return nil
 	}
-}
-
-func grok2APIDisplayName(model string) string {
-	names := map[string]string{
-		"Web/grok-imagine-image-2.0":         "Grok Imagine 2.0 (极速出图)",
-		"Web/grok-imagine-image-quality-2.0": "Grok Imagine 2.0 (高质量)",
-		"Web/grok-imagine-image":             "Grok Imagine (标准生图)",
-		"Console/grok-imagine-image-2.0":     "Grok Imagine 2.0 (Console)",
-		"Console/grok-imagine-image":         "Grok Imagine (Console)",
-		"Web/grok-imagine-video":             "Grok Video (Web)",
-		"Console/grok-imagine-video-1.5":     "Grok Video 1.5 (Console 1080p)",
-		"Console/grok-imagine-video":         "Grok Video (Console 720p)",
-		"grok-voice-latest":                  "Grok Voice Latest (多语言TTS)",
-		"grok-voice-think-fast-2.0":          "Grok Voice Think Fast 2.0",
-		"grok-voice-think-fast-1.0":          "Grok Voice Think Fast 1.0",
-		"grok-stt":                           "Grok STT (语音识别)",
-		"Build/grok-4.6":                     "Grok 4.6 (500k/推理)",
-		"Build/grok-4.5":                     "Grok 4.5 (500k/推理)",
-		"Build/grok-composer-2.5-fast":       "Grok Composer 2.5 Fast",
-		"Web/grok-chat-fast":                 "Grok Chat Fast (128k)",
-		"Console/grok-4.5":                   "Grok 4.5 (1000k/Console)",
-	}
-	if name := names[model]; name != "" {
-		return name
-	}
-	return model
 }
 
 func senseNovaDisplayName(model string) string {

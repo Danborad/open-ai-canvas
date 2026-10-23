@@ -110,6 +110,14 @@ export function getIsolatedAdminAntTheme(dark: boolean, skinID: unknown = "class
                 colorTextQuaternary: switchOff,
                 colorTextTertiary: switchOff,
             },
+            Checkbox: {
+                borderRadiusSM: 4,
+                colorBgContainer: dark ? "#191c21" : "#ffffff",
+                colorBorder: dark ? "rgba(245, 245, 245, 0.32)" : "rgba(17, 17, 17, 0.25)",
+                colorPrimary: primary,
+                colorPrimaryHover: hover,
+                colorPrimaryActive: active,
+            },
             Table: {
                 headerBg: surfaceMuted,
                 headerColor: textSecondary,

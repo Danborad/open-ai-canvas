@@ -409,6 +409,7 @@ export function ChannelModelManager({ channel, onChanged }: { channel: ModelChan
                     size: "small",
                     loading,
                     rowSelection: {
+                        columnWidth: 44,
                         selectedRowKeys: selectedModelIds,
                         preserveSelectedRowKeys: true,
                         onChange: (keys) => {
