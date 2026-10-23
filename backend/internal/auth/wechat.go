@@ -57,6 +57,7 @@ var (
 	wechatTokenMu       sync.Mutex
 	wechatAccessToken   string
 	wechatTokenExpireAt time.Time
+	wechatConfirmMu     sync.Mutex
 )
 
 func wechatLoginEnvConfig() (enabled bool, appID string, secret string, page string, envVersion string, manual bool) {
@@ -464,6 +465,9 @@ type WechatConfirmResult struct {
 }
 
 func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*WechatConfirmResult, error) {
+	wechatConfirmMu.Lock()
+	defer wechatConfirmMu.Unlock()
+
 	var ticket *model.WechatQRTicket
 	var err error
 
@@ -505,6 +509,10 @@ func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*Wec
 	if secret != "" && jsCode != "" && !strings.HasPrefix(jsCode, "mock_") {
 		wxSession, wxErr := exchangeCode2Session(appID, secret, jsCode)
 		if wxErr != nil {
+			// 防抖与幂等兜底：若前置并发请求已成功确认该票据，直接返回成功，避免微信 code 二次兑换报 40029
+			if curTicket, curErr := s.repo.WechatQRTicket(ticket.ID); curErr == nil && curTicket.Status == model.WechatTicketStatusConfirmed {
+				return &WechatConfirmResult{Success: true, Action: curTicket.Action, Message: "已授权成功"}, nil
+			}
 			ticket.Status = model.WechatTicketStatusFailed
 			ticket.ErrorMessage = wxErr.Error()
 			_ = s.repo.UpdateWechatQRTicket(ticket)

@@ -82,7 +82,15 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		ok(c, res)
+		c.JSON(http.StatusOK, gin.H{
+			"code":    0,
+			"status":  200,
+			"success": true,
+			"msg":     "ok",
+			"message": res.Message,
+			"action":  res.Action,
+			"data":    res,
+		})
 	})
 	r.POST("/auth/register", func(c *gin.Context) {
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 64<<10)
