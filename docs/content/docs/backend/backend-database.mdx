@@ -338,3 +338,9 @@ Schema 32 为 `channel_models` 新增 `tags`（TEXT、NOT NULL、默认 `'[]'`�
 迁移 46 新增 skill_curation_settings、skill_curation_categories、skill_curation_assignments；默认关闭，不导入技能内容。表结构与事务规则见 [平台技能策展](./skill-curation)。
 
 迁移 47 依赖 46，新增 skill_curation_roots 与 skill_curation_root_assignments；保留原五个根 ID，根停用时使用派生默认桶，根表为空回落固定五类。
+
+## 推广中心与微信扫码登录
+
+Schema 59 新增推广中心相关数据表：`invite_codes`、`invitations`、`commission_records`、`commission_allocations`、`withdrawal_requests`，用于维护邀请关系、注册奖励与推广流水。
+
+Schema 60 新增 `wechat_qr_tickets` 表，记录微信小程序扫码登录票据（Ticket）、6位短码、绑定操作（login/bind）、关联用户 ID、微信 OpenID、UnionID、授权状态及过期时间。微信登录配置由 `system_settings` 中的 `wechat_login` 统一托管，支持后台热配置。
