@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { App, Avatar, Button, Form, Input, Skeleton } from "antd";
 import { BadgeCheck, Crop, ImagePlus, KeyRound, Mail, RefreshCw, ShieldCheck } from "lucide-react";
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { UserAvatar } from "@/components/layout/user-avatar";
@@ -291,6 +291,14 @@ export function ProfilePane() {
         }
     };
 
+    const handleCloseWechatDialog = useCallback(() => {
+        setWechatDialogOpen(false);
+    }, []);
+
+    const handleWechatBindSuccess = useCallback(() => {
+        void profileQuery.refetch();
+    }, [profileQuery]);
+
     return (
         <div className="profile-pane">
             <div className="settings-pane-header">
@@ -567,8 +575,8 @@ export function ProfilePane() {
             ) : null}
             <WechatBindDialog
                 open={wechatDialogOpen}
-                onCancel={() => setWechatDialogOpen(false)}
-                onSuccess={() => void profileQuery.refetch()}
+                onCancel={handleCloseWechatDialog}
+                onSuccess={handleWechatBindSuccess}
             />
             {profile ? (
                 <AppModal

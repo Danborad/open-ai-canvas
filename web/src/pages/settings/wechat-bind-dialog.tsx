@@ -20,7 +20,11 @@ export function WechatBindDialog({
     const [errorMessage, setErrorMessage] = useState("");
     const [copied, setCopied] = useState(false);
     const [viewMode, setViewMode] = useState<"qr" | "manual">("qr");
-    const timerRef = useRef<number | null>(null);
+
+    const callbacksRef = useRef({ onSuccess, onCancel });
+    useEffect(() => {
+        callbacksRef.current = { onSuccess, onCancel };
+    }, [onSuccess, onCancel]);
 
     const loadTicket = useCallback(async () => {
         setLoading(true);
@@ -40,47 +44,51 @@ export function WechatBindDialog({
         if (open) {
             void loadTicket();
         } else {
-            if (timerRef.current) clearInterval(timerRef.current);
             setTicketData(null);
             setStatus("pending");
         }
     }, [open, loadTicket]);
 
     useEffect(() => {
-        if (!open || !ticketData?.ticket || status === "confirmed" || status === "expired" || status === "failed") {
-            if (timerRef.current) clearInterval(timerRef.current);
+        const ticketId = ticketData?.ticket;
+        if (!open || !ticketId || status === "confirmed" || status === "expired" || status === "failed") {
             return;
         }
 
+        let cancelled = false;
+
         const poll = async () => {
+            if (cancelled) return;
             try {
-                const res = await getWechatTicketStatus(ticketData.ticket);
+                const res = await getWechatTicketStatus(ticketId);
+                if (cancelled) return;
                 if (res.status === "confirmed") {
+                    cancelled = true;
                     setStatus("confirmed");
-                    if (timerRef.current) clearInterval(timerRef.current);
                     message.success("微信账号绑定成功！");
-                    onSuccess();
-                    onCancel();
+                    callbacksRef.current.onSuccess();
+                    callbacksRef.current.onCancel();
                 } else if (res.status === "expired") {
+                    cancelled = true;
                     setStatus("expired");
-                    if (timerRef.current) clearInterval(timerRef.current);
                 } else if (res.status === "failed") {
+                    cancelled = true;
                     setStatus("failed");
                     setErrorMessage(res.error || "绑定失败");
-                    if (timerRef.current) clearInterval(timerRef.current);
                 } else if (res.status === "scanned") {
                     setStatus("scanned");
                 }
             } catch {
-                // ignore
+                // 忽略偶发网络抖动
             }
         };
 
-        timerRef.current = window.setInterval(poll, 1500);
+        const timer = window.setInterval(poll, 1500);
         return () => {
-            if (timerRef.current) clearInterval(timerRef.current);
+            cancelled = true;
+            window.clearInterval(timer);
         };
-    }, [open, ticketData?.ticket, status, onSuccess, onCancel, message]);
+    }, [open, ticketData?.ticket, status, message]);
 
     const handleCopyCode = async () => {
         if (!ticketData?.code) return;
