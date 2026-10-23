@@ -524,24 +524,26 @@ export function ProfilePane() {
                         <section className="profile-security-card" aria-labelledby="profile-wechat-title">
                             <div className="profile-card-heading">
                                 <span className="profile-card-icon">
-                                    <WechatIcon className="size-5" />
+                                    <WechatIcon className="size-5 text-emerald-500" />
                                 </span>
                                 <div>
                                     <h4 id="profile-wechat-title">微信账号绑定</h4>
                                     <p>绑定个人微信后，可直接在电脑端扫码快捷登录。</p>
                                 </div>
                             </div>
-                            <div className="profile-current-row">
+                            <div className="profile-current-email">
                                 <span>绑定状态</span>
-                                <strong>{profile.wechatBound ? "已绑定微信" : "尚未绑定"}</strong>
+                                <strong>{profile.wechatBound ? "已绑定微信账号" : "尚未绑定微信"}</strong>
                                 {profile.wechatBound ? (
                                     <span className="profile-email-status is-verified">
                                         <BadgeCheck className="size-3.5" />
                                         已绑定
                                     </span>
-                                ) : null}
+                                ) : (
+                                    <span className="profile-email-status">未绑定</span>
+                                )}
                             </div>
-                            <div className="pt-3">
+                            <div className="profile-actions">
                                 {profile.wechatBound ? (
                                     <Button
                                         danger
