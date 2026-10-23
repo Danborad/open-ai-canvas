@@ -299,31 +299,77 @@ func channelSlotRetryDelay(delay time.Duration) time.Duration {
 }
 
 func (c *Coordinator) CircuitOpen(ctx context.Context, channelID string) (bool, error) {
-	if c.redis == nil || strings.TrimSpace(channelID) == "" {
+	if c == nil || strings.TrimSpace(channelID) == "" {
+		return false, nil
+	}
+	if c.redis == nil {
+		c.localMu.Lock()
+		defer c.localMu.Unlock()
+		if c.localRate == nil {
+			return false, nil
+		}
+		openKey := "canvas:circuit:open:" + channelID
+		if entry, ok := c.localRate[openKey]; ok {
+			if !entry.started.IsZero() && time.Now().Before(entry.started) {
+				return true, nil
+			}
+			delete(c.localRate, openKey)
+		}
 		return false, nil
 	}
 	count, err := c.redis.Exists(ctx, "canvas:circuit:open:"+channelID).Result()
 	return count > 0, err
 }
 
-func (c *Coordinator) RecordChannelResult(ctx context.Context, channelID string, failed bool, failureLimit int, openDuration time.Duration) {
-	if c.redis == nil || strings.TrimSpace(channelID) == "" {
-		return
+func (c *Coordinator) RecordChannelResult(ctx context.Context, channelID string, failed bool, failureLimit int, openDuration time.Duration) bool {
+	if c == nil || strings.TrimSpace(channelID) == "" {
+		return false
 	}
 	failureKey := "canvas:circuit:failures:" + channelID
 	openKey := "canvas:circuit:open:" + channelID
+	if c.redis == nil {
+		c.localMu.Lock()
+		defer c.localMu.Unlock()
+		if c.localRate == nil {
+			c.localRate = make(map[string]localRateEntry)
+		}
+		if !failed {
+			delete(c.localRate, failureKey)
+			delete(c.localRate, openKey)
+			return false
+		}
+		now := time.Now()
+		entry := c.localRate[failureKey]
+		if entry.started.IsZero() || time.Since(entry.started) > time.Minute {
+			entry = localRateEntry{started: now, count: 0}
+		}
+		entry.count++
+		c.localRate[failureKey] = entry
+		if entry.count >= failureLimit {
+			openEntry := c.localRate[openKey]
+			if openEntry.started.IsZero() || now.After(openEntry.started) {
+				c.localRate[openKey] = localRateEntry{started: now.Add(openDuration), count: 1}
+				return true
+			}
+		}
+		return false
+	}
 	if !failed {
 		_ = c.redis.Del(ctx, failureKey, openKey).Err()
-		return
+		return false
 	}
 	count, err := c.redis.Incr(ctx, failureKey).Result()
 	if err != nil {
-		return
+		return false
 	}
 	_ = c.redis.Expire(ctx, failureKey, time.Minute).Err()
 	if count >= int64(failureLimit) {
-		_ = c.redis.Set(ctx, openKey, "1", openDuration).Err()
+		set, err := c.redis.SetNX(ctx, openKey, "1", openDuration).Result()
+		if err == nil && set {
+			return true
+		}
 	}
+	return false
 }
 
 const RouteCatalogVersionKey = "canvas:logical-model-route-catalog:version"
@@ -509,14 +555,14 @@ func (c *Coordinator) RateRetryAfter(ctx context.Context, key string, window tim
 	return time.Second
 }
 
-func (s *Service) RecordChannelResult(ctx context.Context, channelID string, failed bool) error {
+func (s *Service) RecordChannelResult(ctx context.Context, channelID string, failed bool) (bool, error) {
 	policy, err := s.RuntimePolicy()
 	if err != nil {
-		return err
+		return false, err
 	}
 	if s.Coordinator == nil {
-		return errors.New("运行时协调器未初始化")
+		return false, errors.New("运行时协调器未初始化")
 	}
-	s.Coordinator.RecordChannelResult(ctx, channelID, failed, policy.Request.ChannelCircuitFailureCount, time.Duration(policy.Request.ChannelCircuitOpenSeconds)*time.Second)
-	return nil
+	tripped := s.Coordinator.RecordChannelResult(ctx, channelID, failed, policy.Request.ChannelCircuitFailureCount, time.Duration(policy.Request.ChannelCircuitOpenSeconds)*time.Second)
+	return tripped, nil
 }

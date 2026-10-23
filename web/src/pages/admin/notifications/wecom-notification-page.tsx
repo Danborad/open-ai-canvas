@@ -4,7 +4,7 @@ import { App, Button, Form, Input, Switch, Alert, Spin, Tag, Card, Row, Col, Typ
 import { Send, RefreshCw, CheckCircle2, AlertCircle, Clock3, Globe, Users, Image as ImageIcon, Video, HardDrive, Bell, Check, Copy } from "lucide-react";
 
 import { AdminPageFrame } from "@/pages/admin/components/admin-shell";
-import { getWecomSetting, updateWecomSetting, testWecomNotification, testWecomRegisterNotification, testWecomPaymentNotification, previewWecomReport, type WecomSettingRequest } from "@/services/api/wecom";
+import { getWecomSetting, updateWecomSetting, testWecomNotification, testWecomRegisterNotification, testWecomPaymentNotification, testWecomCircuitBreakerNotification, previewWecomReport, type WecomSettingRequest } from "@/services/api/wecom";
 import { cn } from "@/lib/utils";
 
 const { Text, Paragraph } = Typography;
@@ -16,6 +16,7 @@ export default function WecomNotificationPage() {
     const [testLoading, setTestLoading] = useState(false);
     const [testRegisterLoading, setTestRegisterLoading] = useState(false);
     const [testPaymentLoading, setTestPaymentLoading] = useState(false);
+    const [testCircuitBreakerLoading, setTestCircuitBreakerLoading] = useState(false);
     const [copied, setCopied] = useState(false);
 
     // 读取企微配置
@@ -43,6 +44,7 @@ export default function WecomNotificationPage() {
                 mentionAll: setting.mentionAll || false,
                 notifyNewUser: setting.notifyNewUser !== false,
                 notifyPayment: setting.notifyPayment !== false,
+                notifyCircuitBreaker: setting.notifyCircuitBreaker !== false,
             });
         }
     }, [form, setting]);
@@ -125,6 +127,27 @@ export default function WecomNotificationPage() {
         }
     };
 
+    // 测试发送渠道熔断告警通知
+    const handleTestCircuitBreakerSend = async () => {
+        if (!setting?.hasWebhookUrl && !form.getFieldValue("webhookUrl")) {
+            message.warning("请先配置并保存 Webhook 地址");
+            return;
+        }
+        setTestCircuitBreakerLoading(true);
+        try {
+            const res = await testWecomCircuitBreakerNotification();
+            if (res.sent) {
+                message.success("测试渠道熔断告警已成功发送至企业微信群！");
+            } else {
+                message.error(`发送失败：${res.message}`);
+            }
+        } catch (err) {
+            message.error(err instanceof Error ? err.message : "发送异常，请检查 Webhook 地址与网络");
+        } finally {
+            setTestCircuitBreakerLoading(false);
+        }
+    };
+
     const handleCopyContent = () => {
         if (!preview?.content) return;
         const text = preview.content;
@@ -189,6 +212,13 @@ export default function WecomNotificationPage() {
                         loading={testPaymentLoading}
                     >
                         测试充值通知
+                    </Button>
+                    <Button
+                        icon={<Send className="size-3.5" />}
+                        onClick={handleTestCircuitBreakerSend}
+                        loading={testCircuitBreakerLoading}
+                    >
+                        测试熔断告警
                     </Button>
                     <Button
                         type="primary"
@@ -404,6 +434,15 @@ export default function WecomNotificationPage() {
                                     label="用户充值成功微信实时通知"
                                     valuePropName="checked"
                                     extra="开启后，每当有用户在线完成充值到账，机器人会立即向微信群推送含金额、积分、用户与单号的精美卡片通知。"
+                                >
+                                    <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+                                </Form.Item>
+
+                                <Form.Item
+                                    name="notifyCircuitBreaker"
+                                    label="渠道故障熔断微信实时告警"
+                                    valuePropName="checked"
+                                    extra="开启后，当任意模型渠道因 1 分钟内连续请求失败达到阈值触发系统自动熔断时，机器人会第一时间向微信群推送红色紧急告警，包含渠道名称、连续失败次数与熔断冷却时间。"
                                 >
                                     <Switch checkedChildren="开启" unCheckedChildren="关闭" />
                                 </Form.Item>

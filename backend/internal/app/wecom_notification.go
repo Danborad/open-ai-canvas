@@ -22,39 +22,42 @@ import (
 const wecomSettingKey = "wecom_notification"
 
 type WecomSettingRequest struct {
-	Enabled       bool   `json:"enabled"`
-	WebhookURL    string `json:"webhookUrl"`
-	ScheduleTime  string `json:"scheduleTime"`
-	TargetDomain  string `json:"targetDomain"`
-	MentionAll    bool   `json:"mentionAll"`
-	NotifyNewUser *bool  `json:"notifyNewUser"`
-	NotifyPayment *bool  `json:"notifyPayment"`
+	Enabled              bool   `json:"enabled"`
+	WebhookURL           string `json:"webhookUrl"`
+	ScheduleTime         string `json:"scheduleTime"`
+	TargetDomain         string `json:"targetDomain"`
+	MentionAll           bool   `json:"mentionAll"`
+	NotifyNewUser        *bool  `json:"notifyNewUser"`
+	NotifyPayment        *bool  `json:"notifyPayment"`
+	NotifyCircuitBreaker *bool  `json:"notifyCircuitBreaker"`
 }
 
 type PublicWecomSetting struct {
-	Enabled        bool      `json:"enabled"`
-	WebhookURL     string    `json:"webhookUrl"`
-	HasWebhookURL  bool      `json:"hasWebhookUrl"`
-	ScheduleTime   string    `json:"scheduleTime"`
-	TargetDomain   string    `json:"targetDomain"`
-	MentionAll     bool      `json:"mentionAll"`
-	NotifyNewUser  bool      `json:"notifyNewUser"`
-	NotifyPayment  bool      `json:"notifyPayment"`
-	LastSentAt     string    `json:"lastSentAt,omitempty"`
-	LastSentStatus string    `json:"lastSentStatus,omitempty"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	Enabled              bool      `json:"enabled"`
+	WebhookURL           string    `json:"webhookUrl"`
+	HasWebhookURL        bool      `json:"hasWebhookUrl"`
+	ScheduleTime         string    `json:"scheduleTime"`
+	TargetDomain         string    `json:"targetDomain"`
+	MentionAll           bool      `json:"mentionAll"`
+	NotifyNewUser        bool      `json:"notifyNewUser"`
+	NotifyPayment        bool      `json:"notifyPayment"`
+	NotifyCircuitBreaker bool      `json:"notifyCircuitBreaker"`
+	LastSentAt           string    `json:"lastSentAt,omitempty"`
+	LastSentStatus       string    `json:"lastSentStatus,omitempty"`
+	UpdatedAt            time.Time `json:"updatedAt"`
 }
 
 type wecomSettingValue struct {
-	Enabled        bool   `json:"enabled"`
-	WebhookURL     string `json:"webhookUrl"`
-	ScheduleTime   string `json:"scheduleTime"`
-	TargetDomain   string `json:"targetDomain"`
-	MentionAll     bool   `json:"mentionAll"`
-	NotifyNewUser  bool   `json:"notifyNewUser"`
-	NotifyPayment  bool   `json:"notifyPayment"`
-	LastSentAt     string `json:"lastSentAt"`
-	LastSentStatus string `json:"lastSentStatus"`
+	Enabled              bool   `json:"enabled"`
+	WebhookURL           string `json:"webhookUrl"`
+	ScheduleTime         string `json:"scheduleTime"`
+	TargetDomain         string `json:"targetDomain"`
+	MentionAll           bool   `json:"mentionAll"`
+	NotifyNewUser        bool   `json:"notifyNewUser"`
+	NotifyPayment        bool   `json:"notifyPayment"`
+	NotifyCircuitBreaker bool   `json:"notifyCircuitBreaker"`
+	LastSentAt           string `json:"lastSentAt"`
+	LastSentStatus       string `json:"lastSentStatus"`
 }
 
 type ModelUsageStat struct {
@@ -108,8 +111,9 @@ func defaultWecomSetting() wecomSettingValue {
 		ScheduleTime:  "22:00",
 		TargetDomain:  "art.960916.xyz",
 		MentionAll:    false,
-		NotifyNewUser: true,
-		NotifyPayment: true,
+		NotifyNewUser:        true,
+		NotifyPayment:        true,
+		NotifyCircuitBreaker: true,
 	}
 }
 
@@ -131,6 +135,9 @@ func (s *Service) readWecomSetting() (*model.SystemSetting, wecomSettingValue, e
 			if _, exists := rawMap["notifyPayment"]; !exists {
 				value.NotifyPayment = true
 			}
+			if _, exists := rawMap["notifyCircuitBreaker"]; !exists {
+				value.NotifyCircuitBreaker = true
+			}
 		}
 		if err := json.Unmarshal([]byte(setting.ValueJSON), &value); err != nil {
 			return nil, wecomSettingValue{}, errors.New("企业微信通知配置格式无效")
@@ -141,6 +148,9 @@ func (s *Service) readWecomSetting() (*model.SystemSetting, wecomSettingValue, e
 			}
 			if _, exists := rawMap["notifyPayment"]; !exists {
 				value.NotifyPayment = true
+			}
+			if _, exists := rawMap["notifyCircuitBreaker"]; !exists {
+				value.NotifyCircuitBreaker = true
 			}
 		}
 	}
@@ -212,11 +222,12 @@ func (s *Service) AdminWecomNotificationSetting(actor *model.User) (*PublicWecom
 		ScheduleTime:   value.ScheduleTime,
 		TargetDomain:   value.TargetDomain,
 		MentionAll:     value.MentionAll,
-		NotifyNewUser:  value.NotifyNewUser,
-		NotifyPayment:  value.NotifyPayment,
-		LastSentAt:     value.LastSentAt,
-		LastSentStatus: value.LastSentStatus,
-		UpdatedAt:      updatedAt,
+		NotifyNewUser:        value.NotifyNewUser,
+		NotifyPayment:        value.NotifyPayment,
+		NotifyCircuitBreaker: value.NotifyCircuitBreaker,
+		LastSentAt:           value.LastSentAt,
+		LastSentStatus:       value.LastSentStatus,
+		UpdatedAt:            updatedAt,
 	}, nil
 }
 
@@ -246,8 +257,11 @@ func (s *Service) UpdateWecomNotificationSetting(actor *model.User, req WecomSet
 	if req.NotifyPayment != nil {
 		next.NotifyPayment = *req.NotifyPayment
 	}
+	if req.NotifyCircuitBreaker != nil {
+		next.NotifyCircuitBreaker = *req.NotifyCircuitBreaker
+	}
 
-	if (next.Enabled || next.NotifyNewUser || next.NotifyPayment) && next.WebhookURL == "" {
+	if (next.Enabled || next.NotifyNewUser || next.NotifyPayment || next.NotifyCircuitBreaker) && next.WebhookURL == "" {
 		return nil, BadAuthRequest("启用企业微信通知必须配置 Webhook 地址")
 	}
 
@@ -895,6 +909,112 @@ func (s *Service) TestWecomUserRegisterNotification(actor *model.User) (*WecomTe
 		Sent:    true,
 		Content: content,
 		Message: "发送成功",
+	}, nil
+}
+
+func (s *Service) FormatWecomCircuitBreakerMarkdown(channelName, channelID, proxyURL string, failureCount int, openSeconds int) string {
+	var b strings.Builder
+	loc := chinaTimeZone()
+	nowStr := time.Now().In(loc).Format("2006-01-02 15:04:05")
+
+	displayName := channelName
+	if strings.TrimSpace(displayName) == "" {
+		displayName = channelID
+	}
+
+	b.WriteString("### 🚨 模型渠道熔断告警\n")
+	b.WriteString(fmt.Sprintf("> **告警渠道**：<font color=\"warning\">%s</font>\n", displayName))
+	if channelID != "" && channelID != displayName {
+		b.WriteString(fmt.Sprintf("> **渠道标识**：`%s`\n", channelID))
+	}
+	if proxyURL != "" {
+		b.WriteString(fmt.Sprintf("> **上游接口**：`%s`\n", proxyURL))
+	}
+	b.WriteString(fmt.Sprintf("> **触发原因**：1 分钟内连续请求失败达 <font color=\"warning\">%d 次</font>\n", failureCount))
+	b.WriteString("> **保护策略**：<font color=\"comment\">系统已自动切断流量开启熔断阻断</font>\n")
+	b.WriteString(fmt.Sprintf("> **熔断时长**：**%d 秒**（期间自动阻断新请求以保护配额与系统）\n", openSeconds))
+	b.WriteString(fmt.Sprintf("> **告警时间**：`%s`\n", nowStr))
+	b.WriteString("\n※ 提示：请管理员及时检查该渠道上游服务、API Key 余额或网络连通！可在「系统设置-资源与策略」调整熔断参数。")
+	return b.String()
+}
+
+func (s *Service) NotifyWecomChannelCircuitBreaker(channelID string, failureCount int, openSeconds int) {
+	if s == nil || strings.TrimSpace(channelID) == "" {
+		return
+	}
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("[WeCom] panic in NotifyWecomChannelCircuitBreaker: %v", r)
+			}
+		}()
+
+		_, setting, err := s.readWecomSetting()
+		if err != nil {
+			return
+		}
+		cleanURL := strings.TrimSpace(setting.WebhookURL)
+		if cleanURL == "" || !setting.NotifyCircuitBreaker {
+			return
+		}
+
+		channelName := channelID
+		proxyURL := ""
+		if ch, err := s.adminSystemChannel(channelID); err == nil && ch != nil {
+			if strings.TrimSpace(ch.Name) != "" {
+				channelName = ch.Name
+			}
+			proxyURL = ch.BaseURL
+		} else if strings.HasPrefix(channelID, "custom:") {
+			channelName = "自定义外部渠道 (" + strings.TrimPrefix(channelID, "custom:") + ")"
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		content := s.FormatWecomCircuitBreakerMarkdown(channelName, channelID, proxyURL, failureCount, openSeconds)
+		if err := s.sendWecomMarkdownMessage(ctx, cleanURL, content); err != nil {
+			log.Printf("[WeCom] 发送渠道熔断告警 Markdown 失败，降级为纯文本: %v", err)
+			_ = s.sendWecomTextMessage(ctx, cleanURL, content, setting.MentionAll)
+		} else {
+			log.Printf("[WeCom] 成功推送渠道熔断告警: 渠道=%s, 失败阈值=%d, 熔断冷却=%ds", channelName, failureCount, openSeconds)
+		}
+	}()
+}
+
+func (s *Service) TestWecomCircuitBreakerNotification(actor *model.User) (*WecomTestResult, error) {
+	if err := s.RequireAdmin(actor); err != nil {
+		return nil, err
+	}
+	_, setting, err := s.readWecomSetting()
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(setting.WebhookURL) == "" {
+		return nil, BadAuthRequest("请先配置企业微信 Webhook 地址")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	sampleChannelName := "SiliconFlow (测试渠道示例)"
+	sampleChannelID := "chan_siliconflow_sample"
+	sampleBaseURL := "https://api.siliconflow.cn/v1"
+	content := s.FormatWecomCircuitBreakerMarkdown(sampleChannelName, sampleChannelID, sampleBaseURL, 5, 180)
+	if err := s.sendWecomMarkdownMessage(ctx, setting.WebhookURL, content); err != nil {
+		if txtErr := s.sendWecomTextMessage(ctx, setting.WebhookURL, content, false); txtErr != nil {
+			return &WecomTestResult{
+				Sent:    false,
+				Content: content,
+				Message: fmt.Sprintf("企业微信推送失败: %v", txtErr),
+			}, nil
+		}
+	}
+
+	return &WecomTestResult{
+		Sent:    true,
+		Content: content,
+		Message: "测试渠道熔断告警已成功发送至企业微信群",
 	}, nil
 }
 

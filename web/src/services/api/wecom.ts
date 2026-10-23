@@ -9,6 +9,7 @@ export interface WecomSetting {
     mentionAll: boolean;
     notifyNewUser: boolean;
     notifyPayment: boolean;
+    notifyCircuitBreaker: boolean;
     lastSentAt?: string;
     lastSentStatus?: string;
     updatedAt: string;
@@ -22,6 +23,7 @@ export interface WecomSettingRequest {
     mentionAll?: boolean;
     notifyNewUser?: boolean;
     notifyPayment?: boolean;
+    notifyCircuitBreaker?: boolean;
 }
 
 export interface ModelUsageStat {
@@ -92,6 +94,10 @@ export function testWecomRegisterNotification() {
 
 export function testWecomPaymentNotification() {
     return http.post<WecomTestResult>("/admin/wecom/test-payment-notice", {});
+}
+
+export function testWecomCircuitBreakerNotification() {
+    return http.post<WecomTestResult>("/admin/wecom/test-circuit-breaker-notice", {});
 }
 
 export function previewWecomReport(signal?: AbortSignal) {

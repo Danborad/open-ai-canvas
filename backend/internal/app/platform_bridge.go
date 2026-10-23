@@ -148,7 +148,18 @@ func (s *Service) AcquireCustomRelaySlot(ctx context.Context, userID string, lim
 }
 
 func (s *Service) RecordChannelResult(ctx context.Context, channelID string, failed bool) error {
-	return s.platformDomain().RecordChannelResult(ctx, channelID, failed)
+	tripped, err := s.platformDomain().RecordChannelResult(ctx, channelID, failed)
+	if err == nil && tripped {
+		policy, policyErr := s.RuntimePolicy()
+		failureCount := 5
+		openSeconds := 180
+		if policyErr == nil {
+			failureCount = policy.Request.ChannelCircuitFailureCount
+			openSeconds = policy.Request.ChannelCircuitOpenSeconds
+		}
+		s.NotifyWecomChannelCircuitBreaker(channelID, failureCount, openSeconds)
+	}
+	return err
 }
 
 func (s *Service) Close() error {
