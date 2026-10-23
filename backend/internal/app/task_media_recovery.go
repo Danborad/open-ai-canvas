@@ -42,7 +42,11 @@ type mediaRecoveryError struct {
 type mediaExecutionTaskKey struct{}
 
 func (e *mediaRecoveryError) Error() string {
-	return "作品已生成，但保存未完成：" + mediaStageLabel(e.stage)
+	msg := "作品已生成，但保存未完成：" + mediaStageLabel(e.stage)
+	if e.cause != nil && strings.TrimSpace(e.cause.Error()) != "" {
+		msg += "：" + e.cause.Error()
+	}
+	return msg
 }
 func (e *mediaRecoveryError) Unwrap() error { return e.cause }
 
