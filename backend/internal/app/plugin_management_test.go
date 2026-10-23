@@ -32,7 +32,7 @@ func TestApplicationPluginUsesUserStateUnderPlatformAvailability(t *testing.T) {
 		t.Fatal(err)
 	}
 	initial := states[WorkflowPluginRunningHub]
-	if !initial.PlatformAvailable || initial.UserEnabled || initial.EffectiveEnabled || !initial.CanToggle {
+	if !initial.PlatformAvailable || !initial.UserEnabled || !initial.EffectiveEnabled || !initial.CanToggle || initial.UserConfigured {
 		t.Fatalf("initial RunningHub state = %#v", initial)
 	}
 

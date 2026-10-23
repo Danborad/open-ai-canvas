@@ -1,6 +1,6 @@
 import { Button, Input, InputNumber, Segmented, Slider } from "antd";
 import { Tooltip } from "@/components/ui/base/tooltip";
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, useMemo, type CSSProperties, type ReactNode } from "react";
 import { ChevronDown, Dice5, Image as ImageIcon, LoaderCircle, MessageSquare, Music2, Play, Sparkles, Video, Workflow as WorkflowIcon } from "lucide-react";
 
 import { Switch } from "@/components/ui/base/switch";
@@ -9,7 +9,7 @@ import { configuredModelMatchesCapability, defaultConfig, modelOptionName, norma
 import { canvasThemes } from "@/lib/canvas-theme";
 import { normalizeVideoDuration, normalizeVideoResolution } from "@/lib/video-generation-options";
 import { defaultModelCapabilityConfig, modelCapabilityConfigFor, normalizeImageValue, normalizeVideoValue, workflowFieldChoiceValues, workflowFieldCurrentValue, workflowFieldIsRatioChoices, workflowFieldKey, workflowFieldNumberBounds, workflowFieldOptionValue, workflowFieldRandomKey, workflowFieldSubmissionValue, workflowFieldValueError, workflowImageCapabilityConfig, workflowOutputSizeValue, workflowParameterFields, workflowVideoCapabilityConfig, workflowVideoFieldsFromJson, type WorkflowVideoFieldLike } from "@/lib/model-capabilities";
-import { defaultImageParamsForModel, modelCompatibilityError, modelRequestOptions, resolveCompatibleModel, resolveModelGenerationDefaults, type ModelRequirements } from "@/lib/model-selection";
+import { defaultImageParamsForModel, defaultVideoParamsForModel, modelCompatibilityError, modelRequestOptions, resolveCompatibleModel, resolveModelGenerationDefaults, type ModelRequirements } from "@/lib/model-selection";
 import { resolveCanvasWorkflowProvider } from "@/lib/canvas/canvas-workflow";
 import { canonicalGenerationMetadata, nodeGenerationPrompt } from "@/lib/canvas/generation-contract";
 import type { CanvasAudioSettingKey } from "./canvas-audio-settings-popover";
@@ -18,6 +18,11 @@ import { workflowProviderPluginEnabled } from "@/lib/plugins/builtin/workflows";
 import { usePluginStore } from "@/stores/use-plugin-store";
 import type { CanvasGenerationMode, CanvasNodeData, CanvasNodeMetadata, CanvasVideoEditOperation, CanvasWorkspaceMode } from "@/types/canvas";
 import { Select } from "@/components/ui/base/select";
+import { ModelPicker } from "@/components/model-picker";
+import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
+import { CanvasVideoSettingsPopover } from "./canvas-video-settings-popover";
+import { CanvasAudioSettingsPopover } from "./canvas-audio-settings-popover";
+import { imageResolutionChoices } from "@/lib/image-resolution-tiers";
 
 type CanvasConfigNodePanelProps = {
     node: CanvasNodeData;
@@ -95,6 +100,47 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
         }, mode),
     };
     const config = buildNodeConfig(globalConfig, node, mode, requirements);
+
+    const imageProfile = mode === "image" ? modelCapabilityConfigFor(config, config.model || config.imageModel).image : undefined;
+    const videoProfile = mode === "video" ? modelCapabilityConfigFor(config, config.model || config.videoModel).video : undefined;
+
+    const imageResolutionOptions = useMemo(() => {
+        const values = imageProfile?.size?.values || [];
+        const choices = values.length ? imageResolutionChoices(values) : [];
+        if (!choices.length) return [{ label: "自动", value: "auto" }];
+        return choices.map((choice) => ({ label: choice.toUpperCase(), value: choice }));
+    }, [imageProfile]);
+
+    const imageRatioOptions = useMemo(() => {
+        const values = imageProfile?.size?.values || [];
+        const ratios = Array.from(new Set(values.map((value) => value.trim()).filter((value) => /^\d+:\d+$/.test(value))));
+        return (ratios.length ? ratios : ["1:1", "16:9", "9:16", "4:3", "3:4"]).map((ratio) => ({ label: ratio, value: ratio }));
+    }, [imageProfile]);
+
+    const imageQualityOptions = useMemo(() => {
+        if (!imageProfile?.quality?.supported) return [];
+        const values = imageProfile.quality.values?.length ? imageProfile.quality.values : ["auto", "standard", "high"];
+        return values.map((quality) => ({ label: quality, value: quality }));
+    }, [imageProfile]);
+
+    const videoResolutionOptions = useMemo(() => {
+        const list = videoProfile?.resolutions?.length ? videoProfile.resolutions : ["1080P", "720P", "480P"];
+        return list.map((resolution) => ({ label: resolution, value: resolution }));
+    }, [videoProfile]);
+
+    const videoRatioOptions = useMemo(() => {
+        const list = videoProfile?.ratios?.length ? videoProfile.ratios : ["16:9", "9:16", "1:1"];
+        return list.map((ratio) => ({ label: ratio, value: ratio }));
+    }, [videoProfile]);
+
+    const videoDurationOptions = useMemo(() => {
+        const durations = [5, 10, 15, 20];
+        return durations.map((seconds) => ({ label: `${seconds}秒`, value: seconds }));
+    }, []);
+
+    const currentImageCount = Math.max(1, Number(node.metadata?.count || config.count || 1));
+    const maxOutputs = imageProfile?.maxOutputs || 4;
+
     const defaultWorkflowCapability = normalizeRunningHubCapability(globalConfig.runningHub.capability);
     const selectedRunningHubWorkflow = globalConfig.runningHub.workflows.find((item) => (
         item.workflowId.trim() === node.metadata?.runningHubWorkflowId?.trim()
@@ -252,6 +298,146 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
                         />
                     </div>
                     <div data-canvas-no-zoom className="grid min-w-0 cursor-default items-center gap-3" onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+                    {workflowProvider === "model" ? (
+                        <div className="flex flex-col gap-2.5">
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[var(--fs-tiny)] font-medium" style={{ color: theme.node.muted }}>模型</span>
+                                <ModelPicker
+                                    className="!h-8 !w-full !min-w-0 !rounded-lg text-xs"
+                                    fullWidth
+                                    config={config}
+                                    value={config.model}
+                                    onChange={(model) =>
+                                        onConfigChange(
+                                            node.id,
+                                            mode === "image"
+                                                ? {
+                                                      model,
+                                                      ...defaultImageParamsForModel(config, model, {
+                                                          size: node.metadata?.size || config.size,
+                                                          quality: node.metadata?.quality || config.quality,
+                                                          transparentBackground: node.metadata?.transparentBackground || config.transparentBackground,
+                                                      }),
+                                                  }
+                                                : mode === "video"
+                                                  ? {
+                                                        model,
+                                                        ...defaultVideoParamsForModel(config, model, {
+                                                            size: node.metadata?.size || config.size,
+                                                            vquality: node.metadata?.vquality || config.vquality,
+                                                            videoSeconds: node.metadata?.seconds || config.videoSeconds,
+                                                        }),
+                                                    }
+                                                  : { model },
+                                        )
+                                    }
+                                    capability={mode}
+                                    requirements={requirements}
+                                    showConfiguredModelName
+                                    variant="creation"
+                                    showOptionPrices
+                                />
+                            </div>
+
+                            {mode === "image" ? (
+                                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                    <Select
+                                        size="small"
+                                        className="canvas-compact-control canvas-control-select !h-7 !w-[74px]"
+                                        value={node.metadata?.imageResolution || config.imageResolution || imageResolutionOptions[0]?.value}
+                                        options={imageResolutionOptions}
+                                        onChange={(val) => onConfigChange(node.id, { imageResolution: val as string })}
+                                        title="图像分辨率"
+                                    />
+                                    <Select
+                                        size="small"
+                                        className="canvas-compact-control canvas-control-select !h-7 !w-[70px]"
+                                        value={node.metadata?.size || config.size || imageRatioOptions[0]?.value}
+                                        options={imageRatioOptions}
+                                        onChange={(val) => onConfigChange(node.id, { size: val as string })}
+                                        title="画幅比例"
+                                    />
+                                    {imageQualityOptions.length > 0 ? (
+                                        <Select
+                                            size="small"
+                                            className="canvas-compact-control canvas-control-select !h-7 !w-[86px]"
+                                            value={node.metadata?.quality || config.quality || "auto"}
+                                            options={imageQualityOptions}
+                                            onChange={(val) => onConfigChange(node.id, { quality: val as string })}
+                                            title="画质质量"
+                                        />
+                                    ) : null}
+                                    <div className="flex h-7 items-center rounded-md border text-xs" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
+                                        <button
+                                            type="button"
+                                            className="px-1.5 opacity-60 hover:opacity-100 disabled:opacity-20 cursor-pointer"
+                                            disabled={currentImageCount <= 1}
+                                            onClick={() => onConfigChange(node.id, { count: Math.max(1, currentImageCount - 1) })}
+                                            title="减少张数"
+                                        >
+                                            &lt;
+                                        </button>
+                                        <span className="w-5 text-center font-semibold text-[11px]">{currentImageCount}</span>
+                                        <button
+                                            type="button"
+                                            className="px-1.5 opacity-60 hover:opacity-100 disabled:opacity-20 cursor-pointer"
+                                            disabled={currentImageCount >= maxOutputs}
+                                            onClick={() => onConfigChange(node.id, { count: Math.min(maxOutputs, currentImageCount + 1) })}
+                                            title="增加张数"
+                                        >
+                                            &gt;
+                                        </button>
+                                    </div>
+                                    <CanvasImageSettingsPopover
+                                        config={config}
+                                        buttonClassName="!h-7 !text-[11px] !rounded-md !px-2 ml-auto"
+                                        onConfigChange={(key, value) => onConfigChange(node.id, key === "count" ? { count: Number(value) || 1 } : { [key]: value })}
+                                        showCount={false}
+                                    />
+                                </div>
+                            ) : mode === "video" ? (
+                                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                    <Select
+                                        size="small"
+                                        className="canvas-compact-control canvas-control-select !h-7 !w-[86px]"
+                                        value={node.metadata?.vquality || config.vquality || "720P"}
+                                        options={videoResolutionOptions}
+                                        onChange={(val) => onConfigChange(node.id, { vquality: val as string })}
+                                        title="清晰度"
+                                    />
+                                    <Select
+                                        size="small"
+                                        className="canvas-compact-control canvas-control-select !h-7 !w-[70px]"
+                                        value={node.metadata?.size || config.size || "16:9"}
+                                        options={videoRatioOptions}
+                                        onChange={(val) => onConfigChange(node.id, { size: val as string })}
+                                        title="画幅比例"
+                                    />
+                                    <Select
+                                        size="small"
+                                        className="canvas-compact-control canvas-control-select !h-7 !w-[70px]"
+                                        value={Number(node.metadata?.seconds || config.videoSeconds || 5)}
+                                        options={videoDurationOptions}
+                                        onChange={(val) => onConfigChange(node.id, { seconds: String(val) })}
+                                        title="视频时长"
+                                    />
+                                    <CanvasVideoSettingsPopover
+                                        config={config}
+                                        buttonClassName="!h-7 !text-[11px] !rounded-md !px-2 ml-auto"
+                                        onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))}
+                                    />
+                                </div>
+                            ) : mode === "audio" ? (
+                                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                    <CanvasAudioSettingsPopover
+                                        config={config}
+                                        buttonClassName="!h-7 !text-[11px] !rounded-md !px-2"
+                                        onConfigChange={(key, value) => onConfigChange(node.id, audioConfigPatch(key, value))}
+                                    />
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : null}
                     {workflowProvider === "runninghub" ? (
                         <Select<string, WorkflowSelectOption>
                             className="canvas-compact-control !h-9 w-full"
@@ -297,14 +483,13 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
                 onClick={() => onGenerate(node.id)}
             >
                 <span className="inline-flex items-center gap-1.5">
-                        {isRunning ? (
-                            <>
-                                <LoaderCircle className="size-4 animate-spin" />
-                                <span>生成中</span>
+                    {isRunning ? (
+                        <>
+                            <LoaderCircle className="size-4 animate-spin" />
+                            <span>生成中</span>
                         </>
                     ) : (
                         <>
-                            <span>生成</span>
                             <Play className="size-4" />
                             <span>开始生成</span>
                         </>

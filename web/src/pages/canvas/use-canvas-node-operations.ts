@@ -136,9 +136,9 @@ export function useCanvasNodeOperations({
             return;
         }
         const selectedWorkflowProvider = type === CanvasNodeType.Config
-            ? workflowProvider || (workflowProviderPluginEnabled(runtimeStatuses, "runninghub") ? "runninghub" : undefined)
+            ? workflowProvider || "model"
             : undefined;
-        if (selectedWorkflowProvider && !workflowProviderPluginEnabled(runtimeStatuses, selectedWorkflowProvider)) {
+        if (selectedWorkflowProvider === "runninghub" && !workflowProviderPluginEnabled(runtimeStatuses, selectedWorkflowProvider)) {
             message.error("RunningHub 工作流插件未启用");
             return;
         }

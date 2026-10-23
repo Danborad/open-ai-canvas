@@ -281,7 +281,9 @@ func (s *Service) pluginStateForUser(actor *model.User, pluginID string, items [
 		// explicitly saves a personal choice. Other official applications were
 		// already controlled by each user's local installation state.
 		if !userConfigured {
-			if pluginID == PluginMediaConversion || pluginID == PluginUserStorageStatus || pluginID == PluginUserFeedback {
+			// 本地策略：内置工作流（RunningHub）与常用官方应用默认可用，
+			// 避免升级后工作流模板在画布中整块消失；用户仍可在插件页单独关闭。
+			if pluginID == PluginMediaConversion || pluginID == PluginUserStorageStatus || pluginID == PluginUserFeedback || pluginID == WorkflowPluginRunningHub {
 				userEnabled = true
 			} else if hasRuntime && pluginID == WorkflowPluginRunningHub {
 				userEnabled = runtimePlugin.Status == "enabled"

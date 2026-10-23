@@ -263,9 +263,9 @@ export function useCanvasConnectionController({
             ? batchSourceNodeIds.length ? batchScriptPrompt : sourceNode?.type === CanvasNodeType.Text ? (sourceNode.metadata?.content || sourceNode.metadata?.prompt || "").trim() : ""
             : "";
         const selectedWorkflowProvider = nodeType === CanvasNodeType.Config
-            ? workflowProvider || (workflowProviderPluginEnabled(runtimeStatuses, "runninghub") ? "runninghub" : undefined)
+            ? workflowProvider || "model"
             : undefined;
-        if (selectedWorkflowProvider && !workflowProviderPluginEnabled(runtimeStatuses, selectedWorkflowProvider)) {
+        if (selectedWorkflowProvider === "runninghub" && !workflowProviderPluginEnabled(runtimeStatuses, selectedWorkflowProvider)) {
             message.error("RunningHub 工作流插件未启用");
             closeConnectionCreateMenu();
             setConnecting(null);
