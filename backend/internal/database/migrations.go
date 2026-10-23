@@ -232,7 +232,6 @@ func migratePromotionCenter(tx *gorm.DB) error {
 	}
 	return nil
 }
-}
 
 func migratePrefixedIDSequenceReconcile(tx *gorm.DB) error {
 	if err := tx.AutoMigrate(&model.IDSequence{}); err != nil {
