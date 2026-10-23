@@ -22,10 +22,12 @@ import { ModelPicker } from "@/components/model-picker";
 import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
 import { CanvasVideoSettingsPopover } from "./canvas-video-settings-popover";
 import { CanvasAudioSettingsPopover } from "./canvas-audio-settings-popover";
-import { imageResolutionChoices } from "@/lib/image-resolution-tiers";
+
+import type { NodeGenerationInput } from "./canvas-node-generation";
 
 type CanvasConfigNodePanelProps = {
     node: CanvasNodeData;
+    inputs?: NodeGenerationInput[];
     isRunning: boolean;
     inputSummary: { textCount: number; imageCount: number; videoCount: number; audioCount: number; characterCount: number };
     onConfigChange: (nodeId: string, patch: Partial<CanvasNodeMetadata>) => void;
@@ -68,7 +70,7 @@ function runningHubWorkflowEntryKey(workflow: RunningHubWorkflow): string {
     return `${runningHubWorkflowKind(workflow)}:${workflow.workflowId.trim()}`;
 }
 
-export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigChange, onGenerate, onComposerToggle, workspaceMode = "professional" }: CanvasConfigNodePanelProps) {
+export function CanvasConfigNodePanel({ node, inputs = [], isRunning, inputSummary, onConfigChange, onGenerate, onComposerToggle, workspaceMode = "professional" }: CanvasConfigNodePanelProps) {
     const globalConfig = useEffectiveConfig();
     const runtimeStatuses = usePluginStore((state) => state.runtimeStatuses);
     const theme = canvasThemes[useActiveTheme()];
@@ -101,45 +103,17 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
     };
     const config = buildNodeConfig(globalConfig, node, mode, requirements);
 
-    const imageProfile = mode === "image" ? modelCapabilityConfigFor(config, config.model || config.imageModel).image : undefined;
-    const videoProfile = mode === "video" ? modelCapabilityConfigFor(config, config.model || config.videoModel).video : undefined;
-
-    const imageResolutionOptions = useMemo(() => {
-        const values = imageProfile?.size?.values || [];
-        const choices = values.length ? imageResolutionChoices(values) : [];
-        if (!choices.length) return [{ label: "自动", value: "auto" }];
-        return choices.map((choice) => ({ label: choice.toUpperCase(), value: choice }));
-    }, [imageProfile]);
-
-    const imageRatioOptions = useMemo(() => {
-        const values = imageProfile?.size?.values || [];
-        const ratios = Array.from(new Set(values.map((value) => value.trim()).filter((value) => /^\d+:\d+$/.test(value))));
-        return (ratios.length ? ratios : ["1:1", "16:9", "9:16", "4:3", "3:4"]).map((ratio) => ({ label: ratio, value: ratio }));
-    }, [imageProfile]);
-
-    const imageQualityOptions = useMemo(() => {
-        if (!imageProfile?.quality?.supported) return [];
-        const values = imageProfile.quality.values?.length ? imageProfile.quality.values : ["auto", "standard", "high"];
-        return values.map((quality) => ({ label: quality, value: quality }));
-    }, [imageProfile]);
-
-    const videoResolutionOptions = useMemo(() => {
-        const list = videoProfile?.resolutions?.length ? videoProfile.resolutions : ["1080P", "720P", "480P"];
-        return list.map((resolution) => ({ label: resolution, value: resolution }));
-    }, [videoProfile]);
-
-    const videoRatioOptions = useMemo(() => {
-        const list = videoProfile?.ratios?.length ? videoProfile.ratios : ["16:9", "9:16", "1:1"];
-        return list.map((ratio) => ({ label: ratio, value: ratio }));
-    }, [videoProfile]);
-
-    const videoDurationOptions = useMemo(() => {
-        const durations = [5, 10, 15, 20];
-        return durations.map((seconds) => ({ label: `${seconds}秒`, value: seconds }));
-    }, []);
-
-    const currentImageCount = Math.max(1, Number(node.metadata?.count || config.count || 1));
-    const maxOutputs = imageProfile?.maxOutputs || 4;
+    const connectedImages = useMemo(
+        () =>
+            inputs
+                .filter((input) => input.type === "image")
+                .map((input, index) => ({
+                    key: `${input.nodeId}-${index}`,
+                    name: input.title || input.image?.name || `参考图 ${index + 1}`,
+                    src: input.image?.dataUrl || input.image?.url || input.previewUrl,
+                })),
+        [inputs],
+    );
 
     const defaultWorkflowCapability = normalizeRunningHubCapability(globalConfig.runningHub.capability);
     const selectedRunningHubWorkflow = globalConfig.runningHub.workflows.find((item) => (
@@ -260,6 +234,30 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
                 <ChevronDown className="size-3.5 -rotate-90 opacity-45 transition-transform group-hover:translate-x-0.5" />
             </button>
 
+            {hasComposerContent ? (
+                <div
+                    className="cursor-pointer rounded-lg px-3 py-2 text-[var(--fs-label)] leading-relaxed"
+                    style={{ background: theme.node.fill, color: theme.node.text }}
+                    data-canvas-no-zoom
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={onComposerToggle}
+                    title="点击编辑提示词"
+                >
+                    <span className="line-clamp-4 whitespace-pre-wrap break-words">{nodeGenerationPrompt(node)}</span>
+                </div>
+            ) : null}
+
+            {connectedImages.length ? (
+                <div className="flex min-w-0 flex-wrap gap-1.5" data-canvas-no-zoom onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+                    {connectedImages.map((image) => (
+                        <div key={image.key} className="flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1" style={{ background: theme.node.fill, color: theme.node.muted }} title={image.name}>
+                            {image.src ? <img src={image.src} alt="" className="size-7 shrink-0 rounded object-cover" draggable={false} /> : <span className="grid size-7 shrink-0 place-items-center rounded" style={{ background: theme.node.panel }}><ImageIcon className="size-3.5" /></span>}
+                            <span className="max-w-[90px] truncate text-[var(--fs-tiny)]">{image.name}</span>
+                        </div>
+                    ))}
+                </div>
+            ) : null}
+
             {mode === "video" && !simpleMode ? (
                 <div className="cursor-default" data-canvas-no-zoom onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
                     <div className="flex h-9 min-w-0 items-center gap-2 rounded-lg border px-2 text-[var(--fs-label)]" style={{ background: theme.node.fill, borderColor: theme.node.stroke, color: theme.node.text }} title="已连接的图片、视频和音频会按当前工作流字段映射自动传入">
@@ -341,89 +339,18 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
 
                             {mode === "image" ? (
                                 <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                                    <Select
-                                        size="small"
-                                        className="canvas-compact-control canvas-control-select !h-7 !w-[74px]"
-                                        value={node.metadata?.imageResolution || config.imageResolution || imageResolutionOptions[0]?.value}
-                                        options={imageResolutionOptions}
-                                        onChange={(val) => onConfigChange(node.id, { imageResolution: val as string })}
-                                        title="图像分辨率"
-                                    />
-                                    <Select
-                                        size="small"
-                                        className="canvas-compact-control canvas-control-select !h-7 !w-[70px]"
-                                        value={node.metadata?.size || config.size || imageRatioOptions[0]?.value}
-                                        options={imageRatioOptions}
-                                        onChange={(val) => onConfigChange(node.id, { size: val as string })}
-                                        title="画幅比例"
-                                    />
-                                    {imageQualityOptions.length > 0 ? (
-                                        <Select
-                                            size="small"
-                                            className="canvas-compact-control canvas-control-select !h-7 !w-[86px]"
-                                            value={node.metadata?.quality || config.quality || "auto"}
-                                            options={imageQualityOptions}
-                                            onChange={(val) => onConfigChange(node.id, { quality: val as string })}
-                                            title="画质质量"
-                                        />
-                                    ) : null}
-                                    <div className="flex h-7 items-center rounded-md border text-xs" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
-                                        <button
-                                            type="button"
-                                            className="px-1.5 opacity-60 hover:opacity-100 disabled:opacity-20 cursor-pointer"
-                                            disabled={currentImageCount <= 1}
-                                            onClick={() => onConfigChange(node.id, { count: Math.max(1, currentImageCount - 1) })}
-                                            title="减少张数"
-                                        >
-                                            &lt;
-                                        </button>
-                                        <span className="w-5 text-center font-semibold text-[11px]">{currentImageCount}</span>
-                                        <button
-                                            type="button"
-                                            className="px-1.5 opacity-60 hover:opacity-100 disabled:opacity-20 cursor-pointer"
-                                            disabled={currentImageCount >= maxOutputs}
-                                            onClick={() => onConfigChange(node.id, { count: Math.min(maxOutputs, currentImageCount + 1) })}
-                                            title="增加张数"
-                                        >
-                                            &gt;
-                                        </button>
-                                    </div>
                                     <CanvasImageSettingsPopover
                                         config={config}
-                                        buttonClassName="!h-7 !text-[11px] !rounded-md !px-2 ml-auto"
+                                        buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
                                         onConfigChange={(key, value) => onConfigChange(node.id, key === "count" ? { count: Number(value) || 1 } : { [key]: value })}
                                         showCount={false}
                                     />
                                 </div>
                             ) : mode === "video" ? (
                                 <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                                    <Select
-                                        size="small"
-                                        className="canvas-compact-control canvas-control-select !h-7 !w-[86px]"
-                                        value={node.metadata?.vquality || config.vquality || "720P"}
-                                        options={videoResolutionOptions}
-                                        onChange={(val) => onConfigChange(node.id, { vquality: val as string })}
-                                        title="清晰度"
-                                    />
-                                    <Select
-                                        size="small"
-                                        className="canvas-compact-control canvas-control-select !h-7 !w-[70px]"
-                                        value={node.metadata?.size || config.size || "16:9"}
-                                        options={videoRatioOptions}
-                                        onChange={(val) => onConfigChange(node.id, { size: val as string })}
-                                        title="画幅比例"
-                                    />
-                                    <Select
-                                        size="small"
-                                        className="canvas-compact-control canvas-control-select !h-7 !w-[70px]"
-                                        value={Number(node.metadata?.seconds || config.videoSeconds || 5)}
-                                        options={videoDurationOptions}
-                                        onChange={(val) => onConfigChange(node.id, { seconds: String(val) })}
-                                        title="视频时长"
-                                    />
                                     <CanvasVideoSettingsPopover
                                         config={config}
-                                        buttonClassName="!h-7 !text-[11px] !rounded-md !px-2 ml-auto"
+                                        buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
                                         onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))}
                                     />
                                 </div>
@@ -431,7 +358,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
                                 <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                                     <CanvasAudioSettingsPopover
                                         config={config}
-                                        buttonClassName="!h-7 !text-[11px] !rounded-md !px-2"
+                                        buttonClassName="canvas-node-composer-settings-trigger [&>span]:min-w-0 [&_.lucide]:!size-3"
                                         onConfigChange={(key, value) => onConfigChange(node.id, audioConfigPatch(key, value))}
                                     />
                                 </div>
@@ -475,27 +402,26 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, onConfigC
 
             {capabilityError ? <div className="rounded-lg px-3 py-2 text-[var(--fs-tiny)]" style={{ background: theme.accent.danger + "18", color: theme.accent.danger }}>{capabilityError}</div> : null}
 
-            <Button
-                type="primary"
-                className="mt-auto !h-9 !w-full !cursor-pointer !rounded-lg"
+            <button
+                type="button"
+                className="mt-auto inline-flex !h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg text-[var(--fs-label)] font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+                style={{ background: theme.accent.primary, color: theme.accent.onPrimary }}
                 disabled={isRunning || !canGenerate}
                 onMouseDown={(event) => event.stopPropagation()}
                 onClick={() => onGenerate(node.id)}
             >
-                <span className="inline-flex items-center gap-1.5">
-                    {isRunning ? (
-                        <>
-                            <LoaderCircle className="size-4 animate-spin" />
-                            <span>生成中</span>
-                        </>
-                    ) : (
-                        <>
-                            <Play className="size-4" />
-                            <span>开始生成</span>
-                        </>
-                    )}
-                </span>
-            </Button>
+                {isRunning ? (
+                    <>
+                        <LoaderCircle className="size-4 animate-spin" />
+                        <span>生成中</span>
+                    </>
+                ) : (
+                    <>
+                        <Play className="size-4" />
+                        <span>开始生成</span>
+                    </>
+                )}
+            </button>
         </div>
     );
 }

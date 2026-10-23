@@ -2382,6 +2382,7 @@ function CanvasViewportPage() {
             return (
                 <CanvasConfigNodePanel
                     node={contentNode}
+                    inputs={configInputsById.get(contentNode.id) || []}
                     isRunning={isCanvasNodeGenerating(contentNode, runningNodeId)}
                     inputSummary={getInputSummary(configInputsById.get(contentNode.id) || [])}
                     onConfigChange={handleConfigNodeChange}
