@@ -803,7 +803,6 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.defaultOperation = "enhance";
         video.processing = { fpsPolicy: "keep_source", maxSourceSeconds: DEFAULT_VIDEO_PROCESSING_MAX_SOURCE_SECONDS };
     }
-    }
     return { version: 1, text, image: defaultImageCapabilityConfig(protocol, model), video };
 }
 
