@@ -18,13 +18,7 @@ export function FloatingFeedbackWidget({ className }: FloatingFeedbackWidgetProp
 
     return (
         <>
-            <div
-                className={cn(
-                    "fixed bottom-6 right-6 z-40 select-none print:hidden transition-all duration-200",
-                    open ? "opacity-0 pointer-events-none scale-90" : "opacity-100 scale-100",
-                    className,
-                )}
-            >
+            <div className={cn("fixed bottom-6 right-6 z-40 select-none print:hidden transition-all duration-200", open ? "opacity-0 pointer-events-none scale-90" : "opacity-100 scale-100", className)}>
                 <Tooltip title="反馈问题或提议新功能" placement="left" trigger={["hover"]}>
                     <button
                         type="button"

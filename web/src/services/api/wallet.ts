@@ -302,7 +302,6 @@ export function updateAdminBillingAutoRefund(enabled: boolean) {
 export function runAdminBillingAutoReconcile() {
     return http.post<{ stats: BillingReconcileStats }>("/admin/settings/billing-auto-refund/run");
 }
-
 export function getAdminLinuxDOSetting() {
     return http.get<{ setting: LinuxDOSetting }>("/admin/settings/linuxdo");
 }

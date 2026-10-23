@@ -39,24 +39,13 @@ export function FeedbackInboxPane() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
                 <div>
                     <h3 className="text-base font-semibold text-foreground">我的反馈与建议</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                        查看您提交的问题缺陷、功能提议、官方回复进展与历史归档。
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">查看您提交的问题缺陷、功能提议、官方回复进展与历史归档。</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button
-                        size="small"
-                        icon={<RefreshCw className={cn("size-3.5", loading && "animate-spin")} />}
-                        onClick={() => void loadData()}
-                    >
+                    <Button size="small" icon={<RefreshCw className={cn("size-3.5", loading && "animate-spin")} />} onClick={() => void loadData()}>
                         刷新
                     </Button>
-                    <Button
-                        type="primary"
-                        size="small"
-                        icon={<Plus className="size-3.5" />}
-                        onClick={() => setSubmitModalOpen(true)}
-                    >
+                    <Button type="primary" size="small" icon={<Plus className="size-3.5" />} onClick={() => setSubmitModalOpen(true)}>
                         新建反馈
                     </Button>
                 </div>
@@ -88,9 +77,7 @@ export function FeedbackInboxPane() {
                     <Inbox className="size-10 text-muted-foreground/30" />
                     <div className="text-center">
                         <p className="font-medium text-foreground">暂无提交记录</p>
-                        <p className="text-[11px] text-muted-foreground/80 mt-1">
-                            遇到 Bug 或有好玩的想法？欢迎随时提交反馈！
-                        </p>
+                        <p className="text-[11px] text-muted-foreground/80 mt-1">遇到 Bug 或有好玩的想法？欢迎随时提交反馈！</p>
                     </div>
                     <Button type="primary" size="small" onClick={() => setSubmitModalOpen(true)}>
                         提交第一条反馈
@@ -103,11 +90,7 @@ export function FeedbackInboxPane() {
                             <CheckCircle2 className="size-8 text-green-500/80" />
                             <div className="text-center">
                                 <p className="font-medium text-foreground">当前没有进行中的反馈</p>
-                                {archivedFeedbacks.length > 0 ? (
-                                    <p className="text-[11px] text-muted-foreground/80 mt-1">
-                                        您有 {archivedFeedbacks.length} 条已归档的历史反馈
-                                    </p>
-                                ) : null}
+                                {archivedFeedbacks.length > 0 ? <p className="text-[11px] text-muted-foreground/80 mt-1">您有 {archivedFeedbacks.length} 条已归档的历史反馈</p> : null}
                             </div>
                             {archivedFeedbacks.length > 0 ? (
                                 <Button size="small" onClick={() => setActiveTab("archived")}>
@@ -125,11 +108,7 @@ export function FeedbackInboxPane() {
             ) : (
                 <div className="space-y-3">
                     {displayedFeedbacks.map((item) => (
-                        <FeedbackDetailCard
-                            key={item.id}
-                            item={item}
-                            onPreviewVideo={(url) => setPreviewVideoUrl(url)}
-                        />
+                        <FeedbackDetailCard key={item.id} item={item} onPreviewVideo={(url) => setPreviewVideoUrl(url)} />
                     ))}
                 </div>
             )}
@@ -143,14 +122,7 @@ export function FeedbackInboxPane() {
             />
 
             {previewVideoUrl ? (
-                <Modal
-                    open={Boolean(previewVideoUrl)}
-                    onCancel={() => setPreviewVideoUrl(null)}
-                    footer={null}
-                    width={720}
-                    destroyOnClose
-                    title="附件视频预览"
-                >
+                <Modal open={Boolean(previewVideoUrl)} onCancel={() => setPreviewVideoUrl(null)} footer={null} width={720} destroyOnClose title="附件视频预览">
                     <div className="py-2">
                         <video src={previewVideoUrl} controls autoPlay className="w-full max-h-[60vh] rounded-lg bg-black" />
                     </div>
@@ -160,13 +132,7 @@ export function FeedbackInboxPane() {
     );
 }
 
-function FeedbackDetailCard({
-    item,
-    onPreviewVideo,
-}: {
-    item: FeedbackItem;
-    onPreviewVideo: (url: string) => void;
-}) {
+function FeedbackDetailCard({ item, onPreviewVideo }: { item: FeedbackItem; onPreviewVideo: (url: string) => void }) {
     let parsedAttachments: FeedbackAttachment[] = [];
     try {
         if (item.attachments) parsedAttachments = JSON.parse(item.attachments);
@@ -224,9 +190,7 @@ function FeedbackDetailCard({
                 </div>
             </div>
 
-            <div className="text-foreground/80 leading-relaxed whitespace-pre-wrap rounded-lg bg-muted/20 p-3">
-                {item.content}
-            </div>
+            <div className="text-foreground/80 leading-relaxed whitespace-pre-wrap rounded-lg bg-muted/20 p-3">{item.content}</div>
 
             {parsedAttachments.length > 0 ? (
                 <div className="space-y-1.5">
@@ -240,16 +204,14 @@ function FeedbackDetailCard({
                                 {att.type === "image" ? (
                                     <AntImage src={att.url} alt={att.name} width={28} height={28} className="rounded object-cover" />
                                 ) : (
-                                    <button
-                                        type="button"
-                                        onClick={() => onPreviewVideo(att.url)}
-                                        className="size-7 rounded bg-black/60 flex items-center justify-center text-primary hover:bg-black/80 transition-colors"
-                                    >
+                                    <button type="button" onClick={() => onPreviewVideo(att.url)} className="size-7 rounded bg-black/60 flex items-center justify-center text-primary hover:bg-black/80 transition-colors">
                                         <Play className="size-3 fill-current ml-0.5" />
                                     </button>
                                 )}
                                 <div className="min-w-0 pr-1">
-                                    <p className="max-w-[150px] truncate font-medium text-foreground" title={att.name}>{att.name}</p>
+                                    <p className="max-w-[150px] truncate font-medium text-foreground" title={att.name}>
+                                        {att.name}
+                                    </p>
                                     <p className="text-[10px] text-muted-foreground/60">{(att.size / (1024 * 1024)).toFixed(1)} MB</p>
                                 </div>
                             </div>
@@ -265,11 +227,7 @@ function FeedbackDetailCard({
                             <CheckCircle2 className="size-3.5" />
                             <span>官方处理答复</span>
                         </span>
-                        {item.repliedAt ? (
-                            <span className="font-normal opacity-80 text-[11px]">
-                                {new Date(item.repliedAt).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                            </span>
-                        ) : null}
+                        {item.repliedAt ? <span className="font-normal opacity-80 text-[11px]">{new Date(item.repliedAt).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</span> : null}
                     </div>
                     <p className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{item.adminReply}</p>
                 </div>

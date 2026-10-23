@@ -2,14 +2,7 @@ import { useEffect, useState, useCallback, useRef, type ClipboardEvent } from "r
 import { App, Button, Checkbox, Input, Modal, Radio, Tag, Tooltip, Image as AntImage, Segmented } from "antd";
 import { AlertCircle, Archive, Bug, CheckCircle2, Clock, Inbox, Lightbulb, MessageSquare, Paperclip, Play, Plus, RefreshCw, Send, Sparkles, Trash2, UploadCloud, X } from "lucide-react";
 
-import {
-    submitFeedback,
-    getMyFeedbacks,
-    uploadFeedbackAttachment,
-    type FeedbackItem,
-    type FeedbackType,
-    type FeedbackAttachment,
-} from "@/services/api/feedback";
+import { submitFeedback, getMyFeedbacks, uploadFeedbackAttachment, type FeedbackItem, type FeedbackType, type FeedbackAttachment } from "@/services/api/feedback";
 import { useUserStore } from "@/stores/use-user-store";
 import { cn } from "@/lib/utils";
 
@@ -216,9 +209,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                             onClick={() => setActiveTab("submit")}
                             className={cn(
                                 "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all whitespace-nowrap shrink-0",
-                                activeTab === "submit"
-                                    ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 shadow-sm"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-transparent",
+                                activeTab === "submit" ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-transparent",
                             )}
                         >
                             <Plus className="size-3.5 shrink-0" />
@@ -230,33 +221,23 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                             onClick={() => setActiveTab("inbox")}
                             className={cn(
                                 "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all relative whitespace-nowrap shrink-0",
-                                activeTab === "inbox"
-                                    ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 shadow-sm"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-transparent",
+                                activeTab === "inbox" ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-transparent",
                             )}
                         >
                             <Inbox className="size-3.5 shrink-0" />
-                            <span><span className="hidden sm:inline">我的</span>反馈收件箱</span>
+                            <span>
+                                <span className="hidden sm:inline">我的</span>反馈收件箱
+                            </span>
                             {myFeedbacks.length > 0 ? (
-                                <span className={cn(
-                                    "px-1.5 py-0.2 rounded-full text-[10px] font-bold leading-tight shrink-0",
-                                    activeTab === "inbox" ? "bg-blue-500/25 text-blue-600 dark:text-blue-300" : "bg-muted text-muted-foreground"
-                                )}>
+                                <span className={cn("px-1.5 py-0.2 rounded-full text-[10px] font-bold leading-tight shrink-0", activeTab === "inbox" ? "bg-blue-500/25 text-blue-600 dark:text-blue-300" : "bg-muted text-muted-foreground")}>
                                     {activeFeedbacks.length > 0 ? activeFeedbacks.length : archivedFeedbacks.length}
                                 </span>
                             ) : null}
-                            {countWithReply > 0 && activeTab !== "inbox" ? (
-                                <span className="absolute -top-1 -right-1 size-2 rounded-full bg-blue-500 animate-pulse" />
-                            ) : null}
+                            {countWithReply > 0 && activeTab !== "inbox" ? <span className="absolute -top-1 -right-1 size-2 rounded-full bg-blue-500 animate-pulse" /> : null}
                         </button>
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors shrink-0 ml-1"
-                        aria-label="关闭"
-                    >
+                    <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors shrink-0 ml-1" aria-label="关闭">
                         <X className="size-4" />
                     </button>
                 </div>
@@ -284,9 +265,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                                                 onClick={() => setType(item.value as FeedbackType)}
                                                 className={cn(
                                                     "flex flex-col items-start p-2 sm:p-2.5 rounded-xl border text-left transition-all",
-                                                    selected
-                                                        ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/40"
-                                                        : "border-border/60 bg-muted/20 hover:border-border text-muted-foreground hover:text-foreground",
+                                                    selected ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/40" : "border-border/60 bg-muted/20 hover:border-border text-muted-foreground hover:text-foreground",
                                                 )}
                                             >
                                                 <div className="flex items-center gap-1.5 font-medium text-xs mb-1">
@@ -308,13 +287,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                                 <Input
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
-                                    placeholder={
-                                        type === "bug"
-                                            ? "例如：在画布中拖拽连线时偶尔出现闪烁"
-                                            : type === "feature"
-                                              ? "例如：希望在工作台增加批量导出全部镜头功能"
-                                              : "简明扼要概括您的反馈内容"
-                                    }
+                                    placeholder={type === "bug" ? "例如：在画布中拖拽连线时偶尔出现闪烁" : type === "feature" ? "例如：希望在工作台增加批量导出全部镜头功能" : "简明扼要概括您的反馈内容"}
                                     maxLength={200}
                                     className="rounded-lg h-9 text-xs"
                                 />
@@ -332,11 +305,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                                     value={content}
                                     onChange={(e) => setContent(e.target.value)}
                                     rows={4}
-                                    placeholder={
-                                        type === "bug"
-                                            ? "请尽可能描述问题发生时的操作步骤、实际现象与预期结果，有助于我们快速复现和修复..."
-                                            : "请描述具体的使用场景或期望的效果，便于评估并纳入产品路线图..."
-                                    }
+                                    placeholder={type === "bug" ? "请尽可能描述问题发生时的操作步骤、实际现象与预期结果，有助于我们快速复现和修复..." : "请描述具体的使用场景或期望的效果，便于评估并纳入产品路线图..."}
                                     maxLength={10000}
                                     className="rounded-lg py-2 text-xs"
                                 />
@@ -364,18 +333,10 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                                 {attachments.length > 0 ? (
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-2.5">
                                         {attachments.map((att) => (
-                                            <div
-                                                key={att.id}
-                                                className="group relative flex items-center gap-2 rounded-lg border border-border/80 bg-muted/30 p-2 overflow-hidden"
-                                            >
+                                            <div key={att.id} className="group relative flex items-center gap-2 rounded-lg border border-border/80 bg-muted/30 p-2 overflow-hidden">
                                                 {att.type === "image" ? (
                                                     <div className="size-10 rounded shrink-0 overflow-hidden bg-black/40 flex items-center justify-center">
-                                                        <AntImage
-                                                            src={att.url}
-                                                            alt={att.name}
-                                                            className="size-10 object-cover"
-                                                            preview={{ mask: "预览" }}
-                                                        />
+                                                        <AntImage src={att.url} alt={att.name} className="size-10 object-cover" preview={{ mask: "预览" }} />
                                                     </div>
                                                 ) : (
                                                     <button
@@ -430,12 +391,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                             {/* Contact Info */}
                             <div>
                                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">联系方式 (选填)</label>
-                                <Input
-                                    value={contact}
-                                    onChange={(e) => setContact(e.target.value)}
-                                    placeholder="留下邮箱或微信号，方便我们进一步反馈处理进展"
-                                    className="rounded-lg h-9 text-xs"
-                                />
+                                <Input value={contact} onChange={(e) => setContact(e.target.value)} placeholder="留下邮箱或微信号，方便我们进一步反馈处理进展" className="rounded-lg h-9 text-xs" />
                             </div>
                         </div>
                     ) : (
@@ -452,11 +408,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                                     ]}
                                     className="bg-muted/40 text-xs"
                                 />
-                                <Button
-                                    size="small"
-                                    icon={<RefreshCw className={cn("size-3", loadingInbox && "animate-spin")} />}
-                                    onClick={() => void fetchInbox()}
-                                >
+                                <Button size="small" icon={<RefreshCw className={cn("size-3", loadingInbox && "animate-spin")} />} onClick={() => void fetchInbox()}>
                                     刷新
                                 </Button>
                             </div>
@@ -496,11 +448,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                             ) : (
                                 <div className="space-y-3">
                                     {displayedFeedbacks.map((item) => (
-                                        <FeedbackInboxCard
-                                            key={item.id}
-                                            item={item}
-                                            onPreviewVideo={(url) => setPreviewVideoUrl(url)}
-                                        />
+                                        <FeedbackInboxCard key={item.id} item={item} onPreviewVideo={(url) => setPreviewVideoUrl(url)} />
                                     ))}
                                 </div>
                             )}
@@ -512,22 +460,14 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
                 {activeTab === "submit" ? (
                     <div className="border-t border-border/60 px-4 py-3 sm:px-6 sm:py-3.5 bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-muted-foreground">
-                            <Checkbox
-                                checked={includeEnv}
-                                onChange={(e) => setIncludeEnv(e.target.checked)}
-                            />
+                            <Checkbox checked={includeEnv} onChange={(e) => setIncludeEnv(e.target.checked)} />
                             <span>附带诊断环境信息（推荐）</span>
                         </label>
                         <div className="flex items-center justify-end gap-2 w-full sm:w-auto">
-                            <Button onClick={onClose} className="flex-1 sm:flex-none">取消</Button>
-                            <Button
-                                id="feedback-submit-btn"
-                                type="primary"
-                                loading={submitting || uploading}
-                                onClick={handleSubmit}
-                                icon={<Send className="size-3.5" />}
-                                className="flex-1 sm:flex-none font-medium"
-                            >
+                            <Button onClick={onClose} className="flex-1 sm:flex-none">
+                                取消
+                            </Button>
+                            <Button id="feedback-submit-btn" type="primary" loading={submitting || uploading} onClick={handleSubmit} icon={<Send className="size-3.5" />} className="flex-1 sm:flex-none font-medium">
                                 提交反馈
                             </Button>
                         </div>
@@ -537,14 +477,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
 
             {/* Video Preview Modal */}
             {previewVideoUrl ? (
-                <Modal
-                    open={Boolean(previewVideoUrl)}
-                    onCancel={() => setPreviewVideoUrl(null)}
-                    footer={null}
-                    width={720}
-                    destroyOnClose
-                    title="附件视频预览"
-                >
+                <Modal open={Boolean(previewVideoUrl)} onCancel={() => setPreviewVideoUrl(null)} footer={null} width={720} destroyOnClose title="附件视频预览">
                     <div className="py-2">
                         <video src={previewVideoUrl} controls autoPlay className="w-full max-h-[60vh] rounded-lg bg-black" />
                     </div>
@@ -554,13 +487,7 @@ export function FeedbackModal({ open, onClose, initialTab = "submit" }: Feedback
     );
 }
 
-function FeedbackInboxCard({
-    item,
-    onPreviewVideo,
-}: {
-    item: FeedbackItem;
-    onPreviewVideo: (url: string) => void;
-}) {
+function FeedbackInboxCard({ item, onPreviewVideo }: { item: FeedbackItem; onPreviewVideo: (url: string) => void }) {
     const [expanded, setExpanded] = useState(false);
 
     let parsedAttachments: FeedbackAttachment[] = [];
@@ -627,9 +554,7 @@ function FeedbackInboxCard({
             </div>
 
             {/* Brief / Expanded Content */}
-            <div className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">
-                {expanded ? item.content : item.content.length > 120 ? `${item.content.slice(0, 120)}...` : item.content}
-            </div>
+            <div className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{expanded ? item.content : item.content.length > 120 ? `${item.content.slice(0, 120)}...` : item.content}</div>
 
             {/* Attachments preview */}
             {parsedAttachments.length > 0 ? (
@@ -648,7 +573,9 @@ function FeedbackInboxCard({
                                     <span>视频</span>
                                 </button>
                             )}
-                            <span className="max-w-[140px] truncate" title={att.name}>{att.name}</span>
+                            <span className="max-w-[140px] truncate" title={att.name}>
+                                {att.name}
+                            </span>
                         </div>
                     ))}
                 </div>
@@ -662,11 +589,7 @@ function FeedbackInboxCard({
                             <CheckCircle2 className="size-3.5" />
                             <span>官方答复</span>
                         </span>
-                        {item.repliedAt ? (
-                            <span className="font-normal opacity-80 text-[10px]">
-                                {new Date(item.repliedAt).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                            </span>
-                        ) : null}
+                        {item.repliedAt ? <span className="font-normal opacity-80 text-[10px]">{new Date(item.repliedAt).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</span> : null}
                     </div>
                     <p className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{item.adminReply}</p>
                 </div>

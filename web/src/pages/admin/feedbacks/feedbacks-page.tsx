@@ -1,35 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { App, Button, Drawer, Input, Modal, Popconfirm, Select, Space, Table, Tag, Image as AntImage, Segmented } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import {
-    AlertCircle,
-    Archive,
-    ArchiveRestore,
-    Bug,
-    CheckCircle2,
-    Clock,
-    FileText,
-    Inbox,
-    Lightbulb,
-    MessageSquare,
-    Paperclip,
-    Play,
-    RefreshCw,
-    Search,
-    Send,
-    Sparkles,
-    UserRound,
-} from "lucide-react";
+import { AlertCircle, Archive, ArchiveRestore, Bug, CheckCircle2, Clock, FileText, Inbox, Lightbulb, MessageSquare, Paperclip, Play, RefreshCw, Search, Send, Sparkles, UserRound } from "lucide-react";
 
-import {
-    getAdminFeedbacks,
-    updateAdminFeedback,
-    archiveAdminFeedback,
-    type FeedbackItem,
-    type FeedbackType,
-    type FeedbackStatus,
-    type FeedbackAttachment,
-} from "@/services/api/feedback";
+import { getAdminFeedbacks, updateAdminFeedback, archiveAdminFeedback, type FeedbackItem, type FeedbackType, type FeedbackStatus, type FeedbackAttachment } from "@/services/api/feedback";
 import { AdminPageFrame } from "../components/admin-shell";
 import { cn } from "@/lib/utils";
 
@@ -177,11 +151,7 @@ export default function AdminFeedbacksPage() {
                             <span className="font-semibold text-foreground hover:text-primary cursor-pointer" onClick={() => handleOpenDetail(record)}>
                                 {record.title}
                             </span>
-                            {record.archived ? (
-                                <Tag className="text-[10px] px-1.5 m-0 bg-muted/60 text-muted-foreground border-border/60">
-                                    已归档
-                                </Tag>
-                            ) : null}
+                            {record.archived ? <Tag className="text-[10px] px-1.5 m-0 bg-muted/60 text-muted-foreground border-border/60">已归档</Tag> : null}
                             {attCount > 0 ? (
                                 <Tag className="text-[10px] px-1 m-0 flex items-center gap-0.5 border-dashed">
                                     <Paperclip className="size-2.5" />
@@ -195,9 +165,7 @@ export default function AdminFeedbacksPage() {
                                 </Tag>
                             ) : null}
                         </div>
-                        <p className="text-xs text-muted-foreground line-clamp-1 max-w-xl">
-                            {record.content}
-                        </p>
+                        <p className="text-xs text-muted-foreground line-clamp-1 max-w-xl">{record.content}</p>
                     </div>
                 );
             },
@@ -226,7 +194,9 @@ export default function AdminFeedbacksPage() {
                 const conf = statusConfig[val] || { label: val, tagColor: "default" };
                 return (
                     <div className="flex items-center gap-1">
-                        <Tag color={conf.tagColor} className="m-0 text-xs font-medium">{conf.label}</Tag>
+                        <Tag color={conf.tagColor} className="m-0 text-xs font-medium">
+                            {conf.label}
+                        </Tag>
                     </div>
                 );
             },
@@ -263,12 +233,7 @@ export default function AdminFeedbacksPage() {
                         okText={record.archived ? "移出归档" : "归档"}
                         cancelText="取消"
                     >
-                        <Button
-                            size="small"
-                            type="text"
-                            icon={record.archived ? <ArchiveRestore className="size-3.5" /> : <Archive className="size-3.5" />}
-                            className={cn(record.archived ? "text-primary" : "text-muted-foreground hover:text-foreground")}
-                        >
+                        <Button size="small" type="text" icon={record.archived ? <ArchiveRestore className="size-3.5" /> : <Archive className="size-3.5" />} className={cn(record.archived ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
                             {record.archived ? "移出归档" : "归档"}
                         </Button>
                     </Popconfirm>
@@ -288,11 +253,7 @@ export default function AdminFeedbacksPage() {
     } catch {}
 
     return (
-        <AdminPageFrame
-            title="用户反馈收件箱"
-            description="集中查阅全站用户提交的 Bug 缺陷、功能提议与体验建议，支持收件箱式答复与历史归档管理"
-            scroll
-        >
+        <AdminPageFrame title="用户反馈收件箱" description="集中查阅全站用户提交的 Bug 缺陷、功能提议与体验建议，支持收件箱式答复与历史归档管理" scroll>
             <div className="space-y-4">
                 {/* Metrics Cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -331,7 +292,10 @@ export default function AdminFeedbacksPage() {
                     <div className="flex flex-wrap items-center gap-2">
                         <Segmented
                             value={archivedTab}
-                            onChange={(v) => { setArchivedTab(v as "active" | "archived" | "all"); setPage(1); }}
+                            onChange={(v) => {
+                                setArchivedTab(v as "active" | "archived" | "all");
+                                setPage(1);
+                            }}
                             options={[
                                 { label: "进行中反馈", value: "active" },
                                 { label: "历史归档", value: "archived" },
@@ -344,13 +308,19 @@ export default function AdminFeedbacksPage() {
                             prefix={<Search className="size-3.5 text-muted-foreground mr-1" />}
                             value={keyword}
                             onChange={(e) => setKeyword(e.target.value)}
-                            onPressEnter={() => { setPage(1); void loadData(); }}
+                            onPressEnter={() => {
+                                setPage(1);
+                                void loadData();
+                            }}
                             allowClear
                             className="w-56 h-8 text-xs"
                         />
                         <Select
                             value={typeFilter}
-                            onChange={(v) => { setTypeFilter(v); setPage(1); }}
+                            onChange={(v) => {
+                                setTypeFilter(v);
+                                setPage(1);
+                            }}
                             className="w-28 h-8 text-xs"
                             options={[
                                 { label: "全部类型", value: "all" },
@@ -362,7 +332,10 @@ export default function AdminFeedbacksPage() {
                         />
                         <Select
                             value={statusFilter}
-                            onChange={(v) => { setStatusFilter(v); setPage(1); }}
+                            onChange={(v) => {
+                                setStatusFilter(v);
+                                setPage(1);
+                            }}
                             className="w-28 h-8 text-xs"
                             options={[
                                 { label: "全部状态", value: "all" },
@@ -372,7 +345,14 @@ export default function AdminFeedbacksPage() {
                                 { label: "已关闭", value: "closed" },
                             ]}
                         />
-                        <Button size="small" type="primary" onClick={() => { setPage(1); void loadData(); }}>
+                        <Button
+                            size="small"
+                            type="primary"
+                            onClick={() => {
+                                setPage(1);
+                                void loadData();
+                            }}
+                        >
                             查询
                         </Button>
                     </div>
@@ -424,52 +404,52 @@ export default function AdminFeedbacksPage() {
                             <div className="flex items-center justify-between">
                                 <span className="font-semibold text-sm text-foreground">{selectedItem.title}</span>
                                 <div className="flex items-center gap-1.5">
-                                    {selectedItem.archived ? (
-                                        <Tag className="m-0 text-xs bg-muted/80 text-muted-foreground border-border/80">已归档</Tag>
-                                    ) : null}
+                                    {selectedItem.archived ? <Tag className="m-0 text-xs bg-muted/80 text-muted-foreground border-border/80">已归档</Tag> : null}
                                     <Tag color={statusConfig[selectedItem.status]?.tagColor || "default"} className="m-0 text-xs">
                                         {statusConfig[selectedItem.status]?.label || selectedItem.status}
                                     </Tag>
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-muted-foreground pt-1 border-t border-border/40 text-[11px]">
-                                <div>提交用户：<span className="text-foreground">{selectedItem.userName}</span></div>
-                                <div>联系方式：<span className="text-foreground">{selectedItem.contact || "未填写"}</span></div>
-                                <div>反馈类型：<span className="text-foreground">{typeConfig[selectedItem.type]?.label || selectedItem.type}</span></div>
-                                <div>提交时间：<span className="text-foreground">{new Date(selectedItem.createdAt).toLocaleString("zh-CN")}</span></div>
+                                <div>
+                                    提交用户：<span className="text-foreground">{selectedItem.userName}</span>
+                                </div>
+                                <div>
+                                    联系方式：<span className="text-foreground">{selectedItem.contact || "未填写"}</span>
+                                </div>
+                                <div>
+                                    反馈类型：<span className="text-foreground">{typeConfig[selectedItem.type]?.label || selectedItem.type}</span>
+                                </div>
+                                <div>
+                                    提交时间：<span className="text-foreground">{new Date(selectedItem.createdAt).toLocaleString("zh-CN")}</span>
+                                </div>
                             </div>
                         </div>
 
                         {/* Content */}
                         <div>
                             <label className="block text-xs font-semibold text-foreground mb-1.5">反馈内容说明</label>
-                            <div className="rounded-xl border border-border/70 bg-muted/10 p-3 text-xs leading-relaxed whitespace-pre-wrap text-foreground/90">
-                                {selectedItem.content}
-                            </div>
+                            <div className="rounded-xl border border-border/70 bg-muted/10 p-3 text-xs leading-relaxed whitespace-pre-wrap text-foreground/90">{selectedItem.content}</div>
                         </div>
 
                         {/* Attachments */}
                         {selectedAttachments.length > 0 ? (
                             <div>
-                                <label className="block text-xs font-semibold text-foreground mb-1.5">
-                                    附件清单 ({selectedAttachments.length})
-                                </label>
+                                <label className="block text-xs font-semibold text-foreground mb-1.5">附件清单 ({selectedAttachments.length})</label>
                                 <div className="grid grid-cols-2 gap-2">
                                     {selectedAttachments.map((att) => (
                                         <div key={att.id} className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/25 p-2">
                                             {att.type === "image" ? (
                                                 <AntImage src={att.url} alt={att.name} width={36} height={36} className="rounded object-cover" />
                                             ) : (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setPreviewVideoUrl(att.url)}
-                                                    className="size-9 rounded bg-black/70 flex items-center justify-center text-primary hover:bg-black transition-colors"
-                                                >
+                                                <button type="button" onClick={() => setPreviewVideoUrl(att.url)} className="size-9 rounded bg-black/70 flex items-center justify-center text-primary hover:bg-black transition-colors">
                                                     <Play className="size-4 fill-current ml-0.5" />
                                                 </button>
                                             )}
                                             <div className="min-w-0 flex-1">
-                                                <p className="truncate text-xs font-medium" title={att.name}>{att.name}</p>
+                                                <p className="truncate text-xs font-medium" title={att.name}>
+                                                    {att.name}
+                                                </p>
                                                 <p className="text-[10px] text-muted-foreground">{(att.size / (1024 * 1024)).toFixed(1)} MB</p>
                                             </div>
                                         </div>
@@ -481,9 +461,7 @@ export default function AdminFeedbacksPage() {
                         {/* Environment Info */}
                         {Object.keys(selectedEnv).length > 0 ? (
                             <details className="rounded-lg border border-border/50 bg-muted/10 p-2.5 text-[11px] text-muted-foreground">
-                                <summary className="cursor-pointer font-medium hover:text-foreground">
-                                    客户端诊断环境快照
-                                </summary>
+                                <summary className="cursor-pointer font-medium hover:text-foreground">客户端诊断环境快照</summary>
                                 <div className="mt-2 space-y-1 font-mono text-[10px] bg-black/20 p-2 rounded">
                                     {Object.entries(selectedEnv).map(([k, v]) => (
                                         <div key={k} className="flex gap-2">
@@ -515,33 +493,17 @@ export default function AdminFeedbacksPage() {
                             </div>
 
                             <div>
-                                <label className="block text-xs text-muted-foreground mb-1">
-                                    官方处理答复 (用户可在其收件箱与历史归档中直接查看)
-                                </label>
-                                <Input.TextArea
-                                    rows={4}
-                                    value={replyText}
-                                    onChange={(e) => setReplyText(e.target.value)}
-                                    placeholder="输入回复内容，例如：已定位问题并将在下一版本发布修复；或者感谢提议，该需求已排入排期计划..."
-                                    className="rounded-lg"
-                                />
+                                <label className="block text-xs text-muted-foreground mb-1">官方处理答复 (用户可在其收件箱与历史归档中直接查看)</label>
+                                <Input.TextArea rows={4} value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="输入回复内容，例如：已定位问题并将在下一版本发布修复；或者感谢提议，该需求已排入排期计划..." className="rounded-lg" />
                             </div>
 
                             <div className="flex items-center justify-between pt-1">
-                                <Button
-                                    icon={selectedItem.archived ? <ArchiveRestore className="size-3.5" /> : <Archive className="size-3.5" />}
-                                    onClick={() => handleArchive(selectedItem.id, !selectedItem.archived)}
-                                >
+                                <Button icon={selectedItem.archived ? <ArchiveRestore className="size-3.5" /> : <Archive className="size-3.5" />} onClick={() => handleArchive(selectedItem.id, !selectedItem.archived)}>
                                     {selectedItem.archived ? "移出归档" : "归档此反馈"}
                                 </Button>
                                 <div className="flex items-center gap-2">
                                     <Button onClick={() => setDrawerOpen(false)}>取消</Button>
-                                    <Button
-                                        type="primary"
-                                        loading={saving}
-                                        onClick={handleSaveReply}
-                                        icon={<Send className="size-3.5" />}
-                                    >
+                                    <Button type="primary" loading={saving} onClick={handleSaveReply} icon={<Send className="size-3.5" />}>
                                         保存并答复
                                     </Button>
                                 </div>
@@ -553,14 +515,7 @@ export default function AdminFeedbacksPage() {
 
             {/* Video Preview Modal */}
             {previewVideoUrl ? (
-                <Modal
-                    open={Boolean(previewVideoUrl)}
-                    onCancel={() => setPreviewVideoUrl(null)}
-                    footer={null}
-                    width={720}
-                    destroyOnClose
-                    title="附件视频预览"
-                >
+                <Modal open={Boolean(previewVideoUrl)} onCancel={() => setPreviewVideoUrl(null)} footer={null} width={720} destroyOnClose title="附件视频预览">
                     <div className="py-2">
                         <video src={previewVideoUrl} controls autoPlay className="w-full max-h-[60vh] rounded-lg bg-black" />
                     </div>

@@ -366,9 +366,15 @@ func (r *Repository) settleBillingOrder(id string, providerRequestID string, aud
 		quantity := order.Quantity
 		refund := int64(0)
 		supplement := int64(0)
-		if order.BillingMode == "per_second" && order.Capability == "audio" {
+		// 音频始终按实测时长结算；视频处理任务（画质增强等）由调用方显式传入输出时长，
+		// 普通视频生成仍传 nil，保持按请求时长一次扣定。
+		if order.BillingMode == "per_second" && (order.Capability == "audio" || (order.Capability == "video" && audioDurationMs != nil)) {
+			mediaLabel := "音频"
+			if order.Capability == "video" {
+				mediaLabel = "视频"
+			}
 			if audioDurationMs == nil || *audioDurationMs <= 0 {
-				return errors.New("音频实际时长不可用，无法按秒结算")
+				return errors.New(mediaLabel + "实际时长不可用，无法按秒结算")
 			}
 			// 音频时长四舍五入到整秒计费；不足 1 秒按 1 秒计费
 			quantity = (*audioDurationMs + 500) / 1000
@@ -381,7 +387,7 @@ func (r *Repository) settleBillingOrder(id string, providerRequestID string, aud
 				return err
 			}
 			if billingChargeLimitApplies(order) && actual > order.ChargeLimitMicrocredits {
-				return errors.New("音频实际费用超过本次授权上限，需人工核对")
+				return errors.New(mediaLabel + "实际费用超过本次授权上限，需人工核对")
 			}
 			reserved := order.ReservedAmountMicrocredits
 			if reserved <= 0 {
@@ -401,7 +407,7 @@ func (r *Repository) settleBillingOrder(id string, providerRequestID string, aud
 				return updated.Error
 			}
 			if updated.RowsAffected != 1 {
-				return errors.New("预留积分不足以完成音频实际结算")
+				return errors.New("预留积分不足以完成" + mediaLabel + "实际结算")
 			}
 			var account model.CreditAccount
 			if err := tx.First(&account, "user_id = ?", order.UserID).Error; err != nil {
@@ -419,7 +425,7 @@ func (r *Repository) settleBillingOrder(id string, providerRequestID string, aud
 			if err := tx.Model(&order).Updates(orderUpdates).Error; err != nil {
 				return err
 			}
-			note := "音频按实际输出时长结算"
+			note := mediaLabel + "按实际输出时长结算"
 			if supplement > 0 {
 				note += "，已补扣差额"
 			}
@@ -433,7 +439,7 @@ func (r *Repository) settleBillingOrder(id string, providerRequestID string, aud
 				if err := tx.Create(&model.CreditLedgerEntry{ID: newRepositoryID(), UserID: order.UserID, Type: model.CreditLedgerRefund,
 					AmountMicrocredits: refund, AvailableDeltaMicrocredits: refund,
 					AvailableAfterMicrocredits: account.AvailableMicrocredits, ReservedAfterMicrocredits: account.ReservedMicrocredits,
-					BillingOrderID: order.ID, Model: order.Model, ChannelID: order.ChannelID, Scene: order.Scene, Note: "音频实际时长短于预授权，差额退回"}).Error; err != nil {
+					BillingOrderID: order.ID, Model: order.Model, ChannelID: order.ChannelID, Scene: order.Scene, Note: mediaLabel + "实际时长短于预授权，差额退回"}).Error; err != nil {
 					return err
 				}
 			}

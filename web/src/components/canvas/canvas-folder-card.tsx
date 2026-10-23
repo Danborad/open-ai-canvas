@@ -1,4 +1,5 @@
-import { App, Dropdown, Input } from "antd";
+import { App, Input } from "antd";
+import { CanvasAnchoredDropdown as Dropdown } from "./canvas-anchored-dropdown";
 import { Download, Eye, EyeOff, Image as ImageIcon, LoaderCircle, MoreHorizontal, Pencil, Trash2, Video } from "lucide-react";
 import type { KeyboardEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
