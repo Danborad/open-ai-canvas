@@ -5,6 +5,7 @@ import { clampAgentLauncherPosition, moveAgentLauncher, restoreAgentLauncherPosi
 
 const viewport = { width: 1280, height: 800 };
 const start = { right: 20, bottom: 20 };
+const defaultPosition = { right: 24, bottom: 110 };
 
 test("Live2D bounds use actual rectangular dimensions when restoring and dragging", () => {
     const size = { width: 180, height: 240 };
@@ -16,7 +17,7 @@ test("Live2D bounds use actual rectangular dimensions when restoring and draggin
 test("launcher restores a valid position and defaults safely for corrupt preferences", () => {
     expect(restoreAgentLauncherPosition('{"right":240,"bottom":180}', viewport)).toEqual({ right: 240, bottom: 180 });
     for (const raw of [null, "invalid", "null", "{}", '{"right":"20","bottom":20}', '{"right":1e999,"bottom":20}']) {
-        expect(restoreAgentLauncherPosition(raw, viewport)).toEqual(start);
+        expect(restoreAgentLauncherPosition(raw, viewport)).toEqual(defaultPosition);
     }
 });
 
@@ -140,8 +141,8 @@ test("production handlers preserve click and suppress drag-release activation", 
     h.fire("onPointerUp", { clientX: 400, clientY: 450 });
     h.fire("onClick");
     expect(h.opens).toBe(1);
-    expect(h.state.position).toEqual({ right: 120, bottom: 70 });
-    expect(h.saved).toEqual([{ right: 120, bottom: 70 }]);
+    expect(h.state.position).toEqual({ right: 124, bottom: 160 });
+    expect(h.saved).toEqual([{ right: 124, bottom: 160 }]);
     expect(h.captured).toBe(null);
     h.fire("onClick", { detail: 0 });
     expect(h.opens).toBe(2);
@@ -158,12 +159,12 @@ for (const ending of ["onPointerCancel", "onLostPointerCapture"]) {
         expect(h.captured).toBe(null);
         h.fire("onPointerDown", { pointerType: "touch" });
         h.fire("onPointerMove", { pointerId: 2, clientX: 100 });
-        expect(h.state.position).toEqual(start);
+        expect(h.state.position).toEqual(defaultPosition);
         h.fire("onPointerMove", { clientX: 300 });
         h.fire(ending);
         h.fire("onPointerMove", { clientX: 100 });
         h.fire("onClick");
-        expect(h.state.position).toEqual({ right: 220, bottom: 20 });
+        expect(h.state.position).toEqual({ right: 224, bottom: 110 });
         expect(h.state.dragging).toBe(false);
         expect(h.captured).toBe(null);
         expect(h.opens).toBe(0);
@@ -174,7 +175,7 @@ test("production handlers support keyboard movement and viewport resizing", () =
     const h = harness();
     h.fire("onKeyDown", { key: "ArrowLeft" });
     h.fire("onKeyDown", { key: "ArrowUp", shiftKey: true });
-    expect(h.state.position).toEqual({ right: 30, bottom: 60 });
+    expect(h.state.position).toEqual({ right: 34, bottom: 150 });
     h.resize(100, 100);
     expect(h.state.position).toEqual({ right: 12, bottom: 12 });
     h.fire("onClick", { detail: 0 });

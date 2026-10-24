@@ -5,6 +5,12 @@ export type AgentLauncherGesture = { x: number; y: number; start: AgentLauncherP
 export const AGENT_LAUNCHER_POSITION_KEY = "canvas:agent-launcher-position:v1";
 export const AGENT_LAUNCHER_SIZE = 76;
 const MARGIN = 20; // Includes the label below the orb.
+export const DEFAULT_LAUNCHER_RIGHT = 24;
+export const DEFAULT_LAUNCHER_BOTTOM = 110;
+export const DEFAULT_AGENT_LAUNCHER_POSITION: AgentLauncherPosition = {
+    right: DEFAULT_LAUNCHER_RIGHT,
+    bottom: DEFAULT_LAUNCHER_BOTTOM,
+};
 
 export function clampAgentLauncherPosition(position: AgentLauncherPosition, viewport: AgentLauncherViewport, size = { width: AGENT_LAUNCHER_SIZE, height: AGENT_LAUNCHER_SIZE }): AgentLauncherPosition {
     const clamp = (value: number, extent: number, dimension: number) => {
@@ -19,12 +25,19 @@ export function restoreAgentLauncherPosition(raw: string | null, viewport: Agent
     if (raw) {
         try {
             const value = JSON.parse(raw);
-            if (value && Number.isFinite(value.right) && Number.isFinite(value.bottom)) return clampAgentLauncherPosition(value, viewport, size);
+            if (value && Number.isFinite(value.right) && Number.isFinite(value.bottom)) {
+                // 旧版本默认值为 right:20, bottom:20，会与右下角“反馈建议”悬浮按钮重叠；
+                // 检测到旧默认值时平滑迁移至新默认位置。
+                if (value.bottom <= 30 && value.right <= 30) {
+                    return clampAgentLauncherPosition(DEFAULT_AGENT_LAUNCHER_POSITION, viewport, size);
+                }
+                return clampAgentLauncherPosition(value, viewport, size);
+            }
         } catch {
             // Damaged UI preferences must not hide the launcher.
         }
     }
-    return clampAgentLauncherPosition({ right: MARGIN, bottom: MARGIN }, viewport, size);
+    return clampAgentLauncherPosition(DEFAULT_AGENT_LAUNCHER_POSITION, viewport, size);
 }
 
 export function moveAgentLauncher(gesture: AgentLauncherGesture, x: number, y: number, viewport: AgentLauncherViewport, size?: AgentLauncherViewport) {
