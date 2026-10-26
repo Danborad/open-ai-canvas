@@ -74,6 +74,7 @@ import { appendAgentError, appendUniqueMessage, applyAgentEvent, positiveNumber,
 import { AgentContextRing, AgentConversation, AgentHeader, AgentHistory, AgentLauncher, ComposerControls } from "./canvas-cloud-agent-panel-parts";
 import { AgentConnectorsBar } from "./canvas-cloud-agent-connectors";
 import { useGlobalAgentStore, type AgentPrefillRequest } from "@/stores/use-global-agent-store";
+import { useAgentModelPreferencesStore } from "@/stores/use-agent-model-preferences";
 
 type AgentPanelView = "chat" | "history" | "settings";
 
@@ -551,7 +552,7 @@ export const CanvasCloudAgentPanel = memo(function CanvasCloudAgentPanel() {
         const restoreScope = `${userId}:${accountScope}`;
         if (historyRestoreScope.current !== restoreScope) setPrompt("");
         historyRestoreScope.current = restoreScope;
-        void waitForCanvasSync(loadCloudAgentConversations(accountScope))
+        void waitForCanvasSync(loadCloudAgentConversations(canvasId, accountScope))
             .then(async (document) => {
                 if (!active) return;
                 const current = document.conversations.find((conversation) => conversation.id === document.activeId) || document.conversations[0];
@@ -598,7 +599,7 @@ export const CanvasCloudAgentPanel = memo(function CanvasCloudAgentPanel() {
                     setConversations([initialConversation]);
                     setSelectedSkillIds(initialSkillIds);
                     pendingSubmission.current = null;
-                    await saveCloudAgentConversations(initialConversationId, [initialConversation], accountScope);
+                    await saveCloudAgentConversations(initialConversationId, [initialConversation], canvasId, accountScope);
                 }
                 if (active) setPendingHydrated(true);
             })
@@ -735,7 +736,7 @@ export const CanvasCloudAgentPanel = memo(function CanvasCloudAgentPanel() {
 
     useEffect(() => {
         if (!historyHydrated || !pendingHydrated || hydratedAccount.current !== `${userId}:${accountScope}`) return;
-        void saveCloudAgentConversations(activeConversationId, conversations, accountScope).catch((cause) => {
+        void saveCloudAgentConversations(activeConversationId, conversations, canvasId, accountScope).catch((cause) => {
             if (accountIsCurrent()) setCloudHistoryError(cause instanceof Error ? cause.message : "本机对话缓存保存失败");
         });
     }, [activeConversationId, conversations, historyHydrated, pendingHydrated, userId, accountScope]);
@@ -884,9 +885,18 @@ export const CanvasCloudAgentPanel = memo(function CanvasCloudAgentPanel() {
                 const agentConfig = { ...config, model: effectiveModel };
                 const requestConfig = resolveModelRequestConfig(agentConfig, effectiveModel);
                 const logicalModelId = logicalModelIDForConfig(agentConfig);
+                let promptPayload = value;
+                const { auto: prefAuto, imageModel: prefImage, videoModel: prefVideo } = useAgentModelPreferencesStore.getState();
+                if (!prefAuto && (prefImage || prefVideo)) {
+                    const prefNotes: string[] = [];
+                    if (prefImage) prefNotes.push(`图片模型偏好：${prefImage}`);
+                    if (prefVideo) prefNotes.push(`视频模型偏好：${prefVideo}`);
+                    promptPayload = `${value}\n\n[系统提示：用户设定的生成偏好为 ${prefNotes.join("，")}。如需调用 generate_media 创作图片或视频，请优先使用对应的偏好模型与渠道。]`;
+                }
+
                 const input = {
                     canvasId,
-                    prompt: value,
+                    prompt: promptPayload,
                     reasoningMode,
                     profileRevision: profileView.revision,
                     model: modelOptionName(effectiveModel) || undefined,
@@ -901,7 +911,7 @@ export const CanvasCloudAgentPanel = memo(function CanvasCloudAgentPanel() {
                 const fingerprint = JSON.stringify({ scope, parent: run?.id, input });
                 if (pending && pending.fingerprint !== fingerprint) throw new Error("上一条请求尚未确认，请恢复原消息与设置后核对，不能覆盖原幂等记录");
                 const key = pending?.key || createClientUUID();
-                const next = { fingerprint, key, request: { ...input, idempotencyKey: key }, parentRunId: run?.id, messageId: `user-${key}`, displayText: options?.displayText, canvasReferenceNodeId: options?.canvasReferenceNodeId };
+                const next = { fingerprint, key, request: { ...input, idempotencyKey: key }, parentRunId: run?.id, messageId: `user-${key}`, displayText: options?.displayText || value, canvasReferenceNodeId: options?.canvasReferenceNodeId };
                 // Persist before sending. A failed local save must not submit a request
                 // whose recovery identity will disappear on reload.
                 await waitForCanvasSync(saveCloudAgentPendingSubmission(activeConversationId, next, accountScope));
@@ -936,7 +946,7 @@ export const CanvasCloudAgentPanel = memo(function CanvasCloudAgentPanel() {
                     updatedAt: now,
                 },
                 ...conversations.filter((item) => item.id !== activeConversationId),
-            ], accountScope));
+            ], canvasId, accountScope));
             if (!accountIsCurrent() || currentScope.current !== scope) return;
             setPrompt("");
             prefilledSubmissionRef.current = null;
@@ -1269,7 +1279,7 @@ export const CanvasCloudAgentPanel = memo(function CanvasCloudAgentPanel() {
         const next = conversations.filter((item) => item.id !== id);
         setConversations(next);
         if (id === activeConversationId) newConversation();
-        void saveCloudAgentConversations(id === activeConversationId ? null : activeConversationId, next, accountScope).catch((cause) => { if (accountIsCurrent()) setCloudHistoryError(String(cause)); });
+        void saveCloudAgentConversations(id === activeConversationId ? null : activeConversationId, next, canvasId, accountScope).catch((cause) => { if (accountIsCurrent()) setCloudHistoryError(String(cause)); });
     };
 
     return (
@@ -1278,35 +1288,27 @@ export const CanvasCloudAgentPanel = memo(function CanvasCloudAgentPanel() {
             <AnimatePresence>
                 {open ? (
                     <motion.aside
-                        initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 20, scale: 0.975 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.985 }}
-                        transition={{ duration: reducedMotion ? 0 : 0.26, ease: [0.16, 1, 0.3, 1] }}
-                        className="canvas-agent-panel fixed z-[calc(var(--z-toast)+1)] flex min-w-0 flex-col overflow-hidden"
+                        initial={reducedMotion ? { opacity: 0 } : { opacity: 0, x: 440 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={reducedMotion ? { opacity: 0 } : { opacity: 0, x: 440 }}
+                        transition={{ duration: reducedMotion ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] }}
+                        className="canvas-agent-panel fixed top-0 bottom-0 right-0 z-[calc(var(--z-toast)+1)] flex w-[440px] max-w-[calc(100vw-32px)] flex-col overflow-hidden border-l shadow-2xl backdrop-blur-2xl"
                         style={
-                            { ...panelLayout.style, "--agent-surface-base": theme.node.panel, "--agent-ink": theme.node.text, "--agent-accent": theme.accent.primary, "--agent-shadow-color": theme.spatial.shadow } as CSSProperties &
-                                Record<`--${string}`, string>
+                            {
+                                "--agent-surface-base": theme.node.panel,
+                                "--agent-ink": theme.node.text,
+                                "--agent-accent": theme.accent.primary,
+                                "--agent-shadow-color": theme.spatial.shadow,
+                                borderColor: theme.toolbar.border,
+                                borderRadius: 0,
+                            } as CSSProperties & Record<`--${string}`, string>
                         }
                         aria-label="Agent 工作台"
                         data-popover-anchor-container
                         data-canvas-no-zoom
                         data-canvas-wheel-scroll
-                        {...panelLayout.pointerHandlers}
                         onWheel={(event) => event.stopPropagation()}
                     >
-                        <div data-agent-resize="north" className="absolute inset-x-5 top-0 z-10 hidden h-2 cursor-n-resize touch-none sm:block" />
-                        <div data-agent-resize="west" className="absolute bottom-5 left-0 top-5 z-10 hidden w-2 cursor-w-resize touch-none sm:block" />
-                        <button
-                            type="button"
-                            aria-label="调整 Agent 面板大小"
-                            title="拖动调整宽高，也可用方向键调整"
-                            data-agent-resize="northwest"
-                            className="agent-panel-resize-corner absolute left-2 top-2 z-10 hidden size-5 cursor-nw-resize touch-none place-items-center rounded-md opacity-60 transition-opacity hover:opacity-100 focus-visible:outline focus-visible:outline-2 sm:grid"
-                            onKeyDown={panelLayout.onResizeKeyDown}
-                            style={{ color: theme.node.muted }}
-                        >
-                            <MoveDiagonal2 className="size-3" aria-hidden="true" />
-                        </button>
                         <AnimatePresence mode="wait" initial={false}>
                             {view === "settings" ? (
                                 <motion.div key="settings" className="flex min-h-0 flex-1" initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 18 }} transition={{ duration: reducedMotion ? 0 : 0.18 }}>

@@ -18,11 +18,10 @@
     container-type: inline-size;
     overscroll-behavior: contain;
     isolation: isolate;
-    border: 0;
-    border-radius: var(--agent-radius-shell);
+    border-radius: 0;
     background: var(--agent-material-solid);
     color: var(--agent-ink);
-    box-shadow: var(--agent-material-shadow);
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.28);
 }
 
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {

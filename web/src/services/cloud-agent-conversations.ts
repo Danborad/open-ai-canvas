@@ -59,9 +59,9 @@ export type CloudAgentPendingSubmission = CloudAgentMessagePresentation & {
 
 const CLOUD_AGENT_CONVERSATIONS_KEY = "cloud-agent-conversations-v2";
 
-// 平台只有一个 Agent：对话按账号保存，不再按画布分桶。每轮绑定哪个画布由发送时所在页面决定。
-export async function loadCloudAgentConversations(scope = getActiveUserScope()): Promise<CloudAgentConversationDocument> {
-    const value = await localForageStorageForScope(scope).getItem(storageKey());
+// 对话按画布隔离保存，进入特定画布只展示该画布专属的会话流。
+export async function loadCloudAgentConversations(canvasId?: string, scope = getActiveUserScope()): Promise<CloudAgentConversationDocument> {
+    const value = await localForageStorageForScope(scope).getItem(storageKey(canvasId));
     if (!value) return emptyDocument();
 
     let parsed: unknown;
@@ -75,7 +75,7 @@ export async function loadCloudAgentConversations(scope = getActiveUserScope()):
 }
 
 const documentWrites = new Map<string, Promise<unknown>>();
-export async function saveCloudAgentConversations(activeId: string | null, conversations: CloudAgentConversation[], scope = getActiveUserScope()) {
+export async function saveCloudAgentConversations(activeId: string | null, conversations: CloudAgentConversation[], canvasId?: string, scope = getActiveUserScope()) {
     // 流式标记只属于内存中的观察状态。若网络在最后一个 delta 后断开，
     // 也不能让下次恢复把思考卡片误判为仍在实时展开。
     const persistedConversations = conversations.map((conversation) => ({
@@ -83,7 +83,7 @@ export async function saveCloudAgentConversations(activeId: string | null, conve
         messages: conversation.messages.map((message) => ({ ...message, streaming: false })),
     }));
     const document: CloudAgentConversationDocument = { version: 1, activeId, conversations: persistedConversations };
-    const write = (documentWrites.get(scope) || Promise.resolve()).catch(() => undefined).then(() => localForageStorageForScope(scope).setItem(storageKey(), JSON.stringify(document)));
+    const write = (documentWrites.get(scope) || Promise.resolve()).catch(() => undefined).then(() => localForageStorageForScope(scope).setItem(storageKey(canvasId), JSON.stringify(document)));
     documentWrites.set(scope, write);
     try { await write; } finally { if (documentWrites.get(scope) === write) documentWrites.delete(scope); }
 }
@@ -136,8 +136,9 @@ function displayConversationTitle(value: string) {
     return markdownPlainText(value.replace(/@\[skill:[^\]]+\]/gu, "技能包")) || "新对话";
 }
 
-function storageKey() {
-    return `${CLOUD_AGENT_CONVERSATIONS_KEY}:global`;
+function storageKey(canvasId?: string) {
+    const trimmed = canvasId?.trim();
+    return trimmed ? `${CLOUD_AGENT_CONVERSATIONS_KEY}:canvas:${encodeURIComponent(trimmed)}` : `${CLOUD_AGENT_CONVERSATIONS_KEY}:global`;
 }
 
 function pendingStorageKey(conversationId: string) {

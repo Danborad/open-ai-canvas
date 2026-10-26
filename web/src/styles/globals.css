@@ -4750,7 +4750,7 @@ html:not(.dark) .creation-studio-control[aria-expanded="true"] { background: #e7
         position: absolute;
         z-index: 4;
         bottom: 12px;
-        right: 12px;
+        left: 12px;
         display: grid;
         width: 30px;
         height: 30px;

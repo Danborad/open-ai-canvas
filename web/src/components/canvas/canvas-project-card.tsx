@@ -459,13 +459,18 @@ function buildNodePreviewLayout(nodes: CanvasNodeData[]) {
 }
 
 function getNodeMediaUrl(node: CanvasNodeData) {
-    const raw = node.metadata?.previewContent || node.metadata?.content;
-    if (typeof raw !== "string" || !raw.trim()) return "";
-    const trimmed = raw.trim();
-    const resourceId = resourceIdFromStorageKey(trimmed) || resourceIdFromStorageKey(node.metadata?.storageKey);
+    const storageKey = node.metadata?.storageKey;
+    const resourceId = resourceIdFromStorageKey(storageKey);
     if (resourceId) return resourceFileUrl(resourceId);
-    if (trimmed.startsWith("api/")) return resolveBackendApiUrl(trimmed);
-    return trimmed;
+    const raw = node.metadata?.previewContent || node.metadata?.content;
+    if (typeof raw === "string" && raw.trim()) {
+        const trimmed = raw.trim();
+        const resId = resourceIdFromStorageKey(trimmed);
+        if (resId) return resourceFileUrl(resId);
+        if (trimmed.startsWith("api/") || trimmed.startsWith("/api/")) return resolveBackendApiUrl(trimmed);
+        return trimmed;
+    }
+    return "";
 }
 
 function isPreviewUrl(url: string) {

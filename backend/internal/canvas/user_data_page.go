@@ -104,6 +104,12 @@ func (s *Service) UserCanvasProjectsPage(userID string, page int, pageSize int, 
 				if key, ok := original["storageKey"].(string); ok && len(key) <= 512 {
 					metadata["storageKey"] = key
 				}
+				if content, ok := original["content"].(string); ok && len(content) <= 1024 && !strings.HasPrefix(content, "data:") {
+					metadata["content"] = content
+				}
+				if previewContent, ok := original["previewContent"].(string); ok && len(previewContent) <= 1024 && !strings.HasPrefix(previewContent, "data:") {
+					metadata["previewContent"] = previewContent
+				}
 			}
 			item["metadata"] = metadata
 			preview = append(preview, item)

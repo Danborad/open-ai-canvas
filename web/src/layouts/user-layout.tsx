@@ -34,11 +34,13 @@ export default function UserLayout({ children }: { children: ReactNode }) {
         };
     }, [adminWorkspace, spatialWorkbench, productWorkspace]);
 
-    // Agent 浮动入口仅在首页创作台与画布页面展示，避免在任务、资产、设置与管理后台等页面造成遮挡。
-    const isHomeOrCanvas = pathname === "/" || pathname === "/create" || pathname === "/canvas" || pathname.startsWith("/canvas/");
-    const globalAgent = userId && isHomeOrCanvas ? (
+    // Agent 仅在具体画布编辑器内（/canvas/:id）加载，不同画布按 canvasId 彻底隔离，其它页面不展示。
+    const canvasMatch = pathname.match(/^\/canvas\/([^/]+)/);
+    const canvasId = canvasMatch ? canvasMatch[1] : "";
+    const isCanvasEditor = Boolean(canvasId);
+    const globalAgent = userId && isCanvasEditor ? (
         <Suspense fallback={null}>
-            <GlobalAgentPanel key={userId} />
+            <GlobalAgentPanel key={`${userId}:${canvasId}`} />
         </Suspense>
     ) : null;
 
