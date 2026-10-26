@@ -101,6 +101,9 @@ export function isolateCopiedNodeMetadata(node: CanvasNodeData, idMap: ReadonlyM
     delete metadata.failedPromptFingerprint;
     delete metadata.resourceReloadAvailable;
 
+    // 副本从当前媒体重新开始自己的版本历史。
+    delete metadata.mediaVersions;
+    delete metadata.currentMediaVersionId;
     metadata.copiedFromNodeId = node.id;
     const hasMedia = Boolean(node.metadata?.content || node.metadata?.storageKey || (node.metadata?.naturalWidth && node.metadata?.naturalHeight));
     if (!metadata.size && hasMedia && (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video)) {

@@ -1,5 +1,5 @@
-import { Check, Clapperboard, CloudUpload, Download, Eye, EyeOff, FileText, Frame, Image as ImageIcon, LoaderCircle, MoreHorizontal, Music2, Pencil, Plus, Settings2, Sparkles, Trash2, Video, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { Check, Clapperboard, CloudUpload, Download, Eye, EyeOff, FileText, Frame, Image as ImageIcon, LoaderCircle, MoreHorizontal, Music2, Pencil, Play, Plus, Settings2, Sparkles, SquareDashed, Trash2, Video, X } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { App, Dropdown, Input } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -20,7 +20,9 @@ import { useCanvasPrivacyStore } from "@/stores/use-canvas-privacy-store";
 import { useSyncProgressStore } from "@/stores/use-sync-progress-store";
 import { getCanvasProjectStats } from "@/services/api/user-data";
 import { formatCredits } from "@/constant/credits";
+import { resolveMediaUrl } from "@/services/file-storage";
 import { hasRemoteUserDataSyncSession, loadCanvasProjectForEditing, saveRemoteUserDataNow } from "@/services/user-data-sync";
+import { RelativeTime } from "@/components/ui/product/relative-time";
 
 type ProjectPreviewMedia = { node: CanvasNodeData; url: string; storageKey?: string };
 const projectPreviewMediaCache = new WeakMap<CanvasNodeData[], { first?: ProjectPreviewMedia; latest?: ProjectPreviewMedia }>();
@@ -220,6 +222,8 @@ export function CanvasProjectCard({
                             </span>
                         </>
                     ) : null}
+                    <span aria-hidden="true">·</span>
+                    <RelativeTime value={project.updatedAt} suffix="修改" />
                 </div>
                 {footer ? (
                     <div className="canvas-project-card-footer" onClick={(event) => event.stopPropagation()}>
@@ -231,21 +235,36 @@ export function CanvasProjectCard({
     );
 }
 
-export function ProjectPreview({ project, preferLatestImage = false, isBlurred }: { project: Pick<CanvasProject, "id" | "nodes"> & { coverBlurred?: boolean }; preferLatestImage?: boolean; isBlurred?: boolean }) {
+/**
+ * quiet：内容库卡片用的安静占位。空白画布与仅视频画布共用同一张浅渐变底 + 42px 图标 tile，
+ * 不再输出「空白画布 / 等待第一幕」文案；其他调用方保持原有占位。
+ */
+export function ProjectPreview({ project, preferLatestImage = false, quiet = false, mosaic = false, isBlurred }: { project: Pick<CanvasProject, "id" | "nodes"> & { coverBlurred?: boolean }; preferLatestImage?: boolean; quiet?: boolean; mosaic?: boolean; isBlurred?: boolean }) {
     const syncProgress = useSyncProgressStore((state) => state.syncingProjects[project.id]);
     const isSyncing = Boolean(syncProgress && (syncProgress.phase === "uploading" || syncProgress.phase === "saving"));
     const coverBlurPluginEnabled = usePluginStore((state) => state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled));
     const shouldBlur = coverBlurPluginEnabled && (isBlurred !== undefined ? isBlurred : Boolean(project.coverBlurred ?? useCanvasPrivacyStore.getState().isProjectBlurred(project.id)));
-    const mediaNodes = project.nodes.flatMap((node) => {
-        if (node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video) return [];
-        const url = getNodeMediaUrl(node);
-        const storageKey = node.metadata?.storageKey;
-        return isPreviewUrl(url) || Boolean(storageKey) ? [{ node, url, storageKey }] : [];
-    });
-    const imageNodes = mediaNodes.filter(({ node }) => node.type === CanvasNodeType.Image);
-    const media = preferLatestImage ? imageNodes[imageNodes.length - 1] || mediaNodes[mediaNodes.length - 1] : imageNodes[0] || mediaNodes[0];
+    const media = projectPreviewMedia(project.nodes, preferLatestImage);
+    const mosaicItems = mosaic ? projectPreviewMediaList(project.nodes, 3, preferLatestImage) : [];
+    const quietPlaceholder = (icon: ReactNode, kind: "empty" | "video") => (
+        <div className="canvas-project-placeholder size-full" data-kind={kind}>
+            <span className="canvas-project-placeholder-tile">{icon}</span>
+        </div>
+    );
 
-    const content = media ? (
+    const content = mosaicItems.length ? (
+        <div className={cn("canvas-project-mosaic size-full", shouldBlur && "canvas-cover-privacy-blur is-blurred")} data-count={mosaicItems.length}>
+            {mosaicItems.map((item, index) => (
+                <span key={item.node.id || index} className="canvas-project-mosaic-cell">
+                    <ProjectPreviewTile media={item} />
+                </span>
+            ))}
+        </div>
+    ) : quiet && media?.node.type === CanvasNodeType.Video ? (
+        quietPlaceholder(<Video aria-hidden="true" />, "video")
+    ) : quiet && !media && !project.nodes.length ? (
+        quietPlaceholder(<SquareDashed aria-hidden="true" />, "empty")
+    ) : media ? (
         <div className={cn("canvas-project-media size-full", shouldBlur && "canvas-cover-privacy-blur is-blurred")}>
             {media.node.type === CanvasNodeType.Video ? (
                 <div className="canvas-project-video size-full">
@@ -266,7 +285,7 @@ export function ProjectPreview({ project, preferLatestImage = false, isBlurred }
             {buildNodePreviewLayout(project.nodes.slice(0, 8)).map(({ node, style }) => {
                 const presentation = getNodePresentation(node);
                 return (
-                    <span key={node.id} className="canvas-project-preview-node absolute flex min-w-0 items-center gap-1.5 overflow-hidden" style={style}>
+                    <span key={node.id} className="canvas-project-preview-node absolute flex min-w-0 items-center gap-2 overflow-hidden" style={style}>
                         <span className="canvas-project-preview-node-icon">{presentation.icon}</span>
                         <span className="canvas-project-preview-node-label">{node.title || presentation.label}</span>
                     </span>
@@ -279,15 +298,15 @@ export function ProjectPreview({ project, preferLatestImage = false, isBlurred }
         <div className="relative size-full overflow-hidden">
             {content}
             {isSyncing && syncProgress ? (
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-stone-950/75 p-3 text-center backdrop-blur-sm transition-all duration-300 pointer-events-none select-none" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center gap-1.5 text-amber-400">
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-stone-950/75 p-3 text-center backdrop-blur-sm transition-opacity duration-200 pointer-events-none select-none" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-2 text-amber-400">
                         <CloudUpload className="size-4 animate-bounce" />
                         <span className="text-xs font-medium tracking-wide">云端同步中</span>
                     </div>
                     <div className="w-full max-w-[150px] space-y-1">
                         {syncProgress.total > 0 ? (
                             <>
-                                <div className="flex items-center justify-between text-[10px] text-white/80">
+                                <div className="flex items-center justify-between text-[var(--fs-label)] text-white/80">
                                     <span>媒体上传</span>
                                     <span className="font-mono text-amber-300">
                                         {syncProgress.completed}/{syncProgress.total}
@@ -303,9 +322,9 @@ export function ProjectPreview({ project, preferLatestImage = false, isBlurred }
                                 </div>
                             </>
                         ) : (
-                            <div className="text-[10px] text-white/80">正在写入云端结构...</div>
+                            <div className="text-[var(--fs-label)] text-white/80">正在写入云端结构...</div>
                         )}
-                        <div className="text-[9px] text-white/60">请勿关闭或刷新浏览器</div>
+                        <div className="text-[var(--fs-label)] text-white/60">请勿关闭或刷新浏览器</div>
                     </div>
                 </div>
             ) : null}
@@ -322,6 +341,95 @@ function getNodePresentation(node: CanvasNodeData) {
     if (node.type === "storyboard") return { label: "分镜", icon: <Clapperboard className="size-3.5" /> };
     if (node.type === "config") return { label: "配置", icon: <Settings2 className="size-3.5" /> };
     return { label: "节点", icon: <Sparkles className="size-3.5" /> };
+}
+
+export function projectPreviewMedia(nodes: CanvasNodeData[], preferLatestImage = false) {
+    let cached = projectPreviewMediaCache.get(nodes);
+    if (!cached) {
+        let firstMedia: ProjectPreviewMedia | undefined;
+        let firstImage: ProjectPreviewMedia | undefined;
+        let latestMedia: ProjectPreviewMedia | undefined;
+        let latestImage: ProjectPreviewMedia | undefined;
+        for (const node of nodes) {
+            if (node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video) continue;
+            const url = getNodeMediaUrl(node);
+            if (!isPreviewUrl(url)) continue;
+            const media = { node, url, storageKey: node.metadata?.storageKey };
+            firstMedia ||= media;
+            latestMedia = media;
+            if (node.type === CanvasNodeType.Image) {
+                firstImage ||= media;
+                latestImage = media;
+            }
+        }
+        cached = { first: firstImage || firstMedia, latest: latestImage || latestMedia };
+        projectPreviewMediaCache.set(nodes, cached);
+    }
+    return preferLatestImage ? cached.latest : cached.first;
+}
+
+/** 封面拼图用：图片优先（视频首帧依赖浏览器解码，不稳定），同类型内按 preferLatest 决定先新后旧。 */
+export function projectPreviewMediaList(nodes: CanvasNodeData[], limit: number, preferLatest = false) {
+    const items: ProjectPreviewMedia[] = [];
+    for (const node of nodes) {
+        if (node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video) continue;
+        const url = getNodeMediaUrl(node);
+        if (isPreviewUrl(url)) items.push({ node, url, storageKey: node.metadata?.storageKey });
+    }
+    if (preferLatest) items.reverse();
+    const images = items.filter((item) => item.node.type === CanvasNodeType.Image);
+    const videos = items.filter((item) => item.node.type === CanvasNodeType.Video);
+    return [...images, ...videos].slice(0, limit);
+}
+
+function ProjectPreviewTile({ media }: { media: ProjectPreviewMedia }) {
+    if (media.node.type !== CanvasNodeType.Video) {
+        return <CachedResourceImage storageKey={media.storageKey} src={media.url} alt="" loading="lazy" decoding="async" fallback={<MediaPlaceholder failed />} loadingFallback={<span className="canvas-project-mosaic-loading" />} />;
+    }
+    return <ProjectPreviewVideoFrame media={media} />;
+}
+
+/** 视频封面：远程资源先换取授权播放地址，再只加载 metadata 并解码首帧。 */
+function ProjectPreviewVideoFrame({ media }: { media: ProjectPreviewMedia }) {
+    const identity = media.storageKey || media.url;
+    const [resolved, setResolved] = useState<{ identity: string; url: string; failed: boolean }>({ identity: "", url: "", failed: false });
+    const [failedIdentity, setFailedIdentity] = useState("");
+    useEffect(() => {
+        let cancelled = false;
+        void resolveMediaUrl(media.storageKey, media.url, "playback")
+            .catch(() => resolveMediaUrl(media.storageKey, media.url, "original"))
+            .then((url) => { if (!cancelled) setResolved({ identity, url: url || "", failed: !url }); })
+            .catch(() => { if (!cancelled) setResolved({ identity, url: "", failed: true }); });
+        return () => { cancelled = true; };
+    }, [identity, media.storageKey, media.url]);
+    const current = resolved.identity === identity ? resolved : null;
+    if (current?.failed || failedIdentity === identity) {
+        return (
+            <span className="canvas-project-placeholder size-full" data-kind="video">
+                <span className="canvas-project-placeholder-tile"><Video aria-hidden="true" /></span>
+            </span>
+        );
+    }
+    if (!current?.url) return <span className="canvas-project-mosaic-loading" />;
+    return (
+        <>
+            <video
+                src={current.url}
+                muted
+                playsInline
+                preload="metadata"
+                tabIndex={-1}
+                aria-hidden="true"
+                onLoadedMetadata={(event) => {
+                    // 仅加载 metadata 时部分浏览器不绘制首帧；轻微 seek 强制解码一帧作为封面。
+                    const video = event.currentTarget;
+                    if (video.currentTime === 0 && Number.isFinite(video.duration) && video.duration > 0) video.currentTime = Math.min(0.001, video.duration);
+                }}
+                onError={() => setFailedIdentity(identity)}
+            />
+            <span className="canvas-project-mosaic-play" aria-hidden="true"><Play /></span>
+        </>
+    );
 }
 
 function buildNodePreviewLayout(nodes: CanvasNodeData[]) {

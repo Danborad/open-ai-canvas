@@ -583,7 +583,7 @@ export function AssetLibraryPickerModal({
                                                 setFolderId("all");
                                             }}
                                         >
-                                            <span className="assets-filter-item-label flex items-center gap-1.5">
+                                            <span className="assets-filter-item-label flex items-center gap-2">
                                                 <Trash2 className="size-3.5" />
                                                 <span>回收站</span>
                                             </span>

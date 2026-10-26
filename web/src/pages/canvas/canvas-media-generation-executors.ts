@@ -6,6 +6,7 @@ import { nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
 import { nextCanvasVersionLabel } from "@/lib/canvas/canvas-layout";
 import { buildAudioGenerationMetadata, buildVideoGenerationMetadata, generationReferenceUrls, resetGenerationTaskMetadata, runCanvasGenerationTaskToConsumer } from "@/lib/canvas/canvas-project-generation";
 import { canvasGenerationPromptMetadata } from "@/lib/canvas/canvas-generation-submission";
+import { mediaVersionFieldsBeforeReplace } from "@/lib/canvas/canvas-media-versions";
 import { producedModelCandidateForGeneration } from "@/lib/canvas/produced-model";
 import { isDoubaoAudioConfig } from "@/lib/audio-generation";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
@@ -37,8 +38,7 @@ export async function executeVideoGeneration({
     taskContext,
     retryContext,
 }: CanvasGenerationExecution) {
-    const effectiveRatio = generationConfig.vquality?.includes("竖") ? "9:16" : generationConfig.vquality?.includes("横") ? "16:9" : generationConfig.vquality?.includes("(1:1)") || generationConfig.vquality?.includes("1:1") ? "1:1" : generationConfig.size || generationConfig.vquality;
-    const spec = nodeSizeFromRatio(effectiveRatio, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
+    const spec = nodeSizeFromRatio(generationConfig.size, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
     const reuseSourceNode = canGenerateMediaInPlace(sourceNode, CanvasNodeType.Video);
     const isExistingVideoNode = sourceNode?.type === CanvasNodeType.Video && Boolean(sourceNode.metadata?.content) && !reuseSourceNode;
     const videoId = reuseSourceNode ? nodeId : nanoid();
@@ -55,6 +55,7 @@ export async function executeVideoGeneration({
         metadata: {
             // 就地重生成不能继承旧任务的计时字段；媒体内容与提示词不在清理范围内。
             ...resetGenerationTaskMetadata(reuseSourceNode ? sourceNode?.metadata : undefined, NODE_STATUS_LOADING),
+            ...(reuseSourceNode ? mediaVersionFieldsBeforeReplace(sourceNode) : {}),
             taskCreatedAt: new Date().toISOString(),
             ...canvasGenerationPromptMetadata(prompt, effectivePrompt),
             status: NODE_STATUS_LOADING,
@@ -86,16 +87,7 @@ export async function executeVideoGeneration({
         return [
             ...current.map((node) => {
                 if ((node.metadata?.versionOfNodeId || node.id) !== rootId) return node;
-                return {
-                    ...node,
-                    metadata: {
-                        ...node.metadata,
-                        versionOfNodeId: rootId,
-                        versionLabel: node.metadata?.versionLabel || "A",
-                        versionPrimary: node.metadata?.versionPrimary || (!hasPrimaryVersion && node.id === sourceNode.id),
-                        status: node.id === nodeId ? NODE_STATUS_SUCCESS : node.metadata?.status,
-                    },
-                };
+                return { ...node, metadata: { ...node.metadata, versionOfNodeId: rootId, versionLabel: node.metadata?.versionLabel || "A", versionPrimary: node.metadata?.versionPrimary || (!hasPrimaryVersion && node.id === sourceNode.id), status: node.id === nodeId ? NODE_STATUS_SUCCESS : node.metadata?.status } };
             }),
             { ...videoNode, metadata: { ...videoNode.metadata, versionOfNodeId: rootId, versionLabel: nextLabel, versionPrimary: false } },
         ];
@@ -147,7 +139,6 @@ export async function executeVideoGeneration({
 export async function executeAudioGeneration({
     nodeId,
     sourceNode,
-    canvasConnections,
     prompt,
     effectivePrompt,
     generationConfig,
@@ -166,10 +157,10 @@ export async function executeAudioGeneration({
     retryContext,
 }: CanvasGenerationExecution) {
     const spec = NODE_DEFAULT_SIZE[CanvasNodeType.Audio];
+    // 空音频节点与已有生成结果都原位产出；旧音频进入版本历史，生成期间仍可试听。
     const reuseSourceNode = canGenerateMediaInPlace(sourceNode, CanvasNodeType.Audio);
-    const isExistingAudioNode = sourceNode?.type === CanvasNodeType.Audio && Boolean(sourceNode.metadata?.content) && !reuseSourceNode;
+    const isExistingAudioNode = sourceNode?.type === CanvasNodeType.Audio && Boolean(sourceNode.metadata?.content);
     const audioId = reuseSourceNode ? nodeId : nanoid();
-    const versionRootId = isExistingAudioNode && sourceNode ? sourceNode.metadata?.versionOfNodeId || sourceNode.id : undefined;
     const parent = sourceNode?.position || { x: 0, y: 0 };
     const audioNode: CanvasNodeData = {
         id: audioId,
@@ -179,51 +170,18 @@ export async function executeAudioGeneration({
         width: reuseSourceNode ? sourceNode!.width : spec.width,
         height: reuseSourceNode ? sourceNode!.height : spec.height,
         metadata: {
-            ...(reuseSourceNode ? sourceNode?.metadata || {} : {}),
+            ...(reuseSourceNode && isExistingAudioNode ? { ...resetGenerationTaskMetadata(sourceNode?.metadata, NODE_STATUS_LOADING), ...mediaVersionFieldsBeforeReplace(sourceNode) } : {}),
             ...canvasGenerationPromptMetadata(prompt, effectivePrompt),
             status: NODE_STATUS_LOADING,
-            errorDetails: undefined,
-            generationErrorCode: undefined,
-            resourceReloadAvailable: undefined,
-            failedPromptFingerprint: undefined,
-            content: reuseSourceNode ? "" : undefined,
-            storageKey: undefined,
-            assetId: undefined,
             ...buildAudioGenerationMetadata(generationConfig),
             ...skillMetadata,
         },
     };
     registerPendingNodeIds([audioId]);
-    setNodes((current) => {
-        if (reuseSourceNode) return current.map((node) => (node.id === nodeId ? { ...node, ...audioNode } : node));
-        if (!isExistingAudioNode || !sourceNode) return [...current.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS } } : node)), audioNode];
-        const rootId = versionRootId!;
-        const nextLabel = nextCanvasVersionLabel(rootId, current);
-        const hasPrimaryVersion = current.some((node) => (node.metadata?.versionOfNodeId || node.id) === rootId && node.metadata?.versionPrimary);
-        return [
-            ...current.map((node) => {
-                if ((node.metadata?.versionOfNodeId || node.id) !== rootId) return node;
-                return {
-                    ...node,
-                    metadata: {
-                        ...node.metadata,
-                        versionOfNodeId: rootId,
-                        versionLabel: node.metadata?.versionLabel || "A",
-                        versionPrimary: node.metadata?.versionPrimary || (!hasPrimaryVersion && node.id === sourceNode.id),
-                        status: node.id === nodeId ? NODE_STATUS_SUCCESS : node.metadata?.status,
-                    },
-                };
-            }),
-            { ...audioNode, metadata: { ...audioNode.metadata, versionOfNodeId: rootId, versionLabel: nextLabel, versionPrimary: false } },
-        ];
-    });
-    // 重新生成已有音频时，新节点继承源音频的上游连接，与源音频保持并行关系，而不是作为其下游子节点。
-    if (!reuseSourceNode) {
-        setConnections((current) => {
-            if (!isExistingAudioNode) return [...current, { id: nanoid(), fromNodeId: nodeId, toNodeId: audioId }];
-            return [...current, ...canvasConnections.filter((connection) => connection.toNodeId === nodeId).map((connection) => ({ ...connection, id: nanoid(), toNodeId: audioId }))];
-        });
-    }
+    setNodes((current) =>
+        reuseSourceNode ? current.map((node) => (node.id === nodeId ? { ...node, ...audioNode } : node)) : [...current.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS } } : node)), audioNode],
+    );
+    if (!reuseSourceNode && !isExistingAudioNode) setConnections((current) => [...current, { id: nanoid(), fromNodeId: nodeId, toNodeId: audioId }]);
 
     startGenerationRequest(audioId, nodeId, nodeId, controller);
     try {
