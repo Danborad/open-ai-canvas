@@ -36,8 +36,9 @@ export default function UserLayout({ children }: { children: ReactNode }) {
         };
     }, [adminWorkspace, spatialWorkbench, productWorkspace]);
 
-    // 所有登录页面共用同一个面板实例：跨路由不卸载，对话、运行和事件流都不中断。
-    const globalAgent = userId ? (
+    // Agent 浮动入口仅在首页创作台与画布页面展示，避免在任务、资产、设置与管理后台等页面造成遮挡。
+    const isHomeOrCanvas = pathname === "/" || pathname === "/create" || pathname === "/canvas" || pathname.startsWith("/canvas/");
+    const globalAgent = userId && isHomeOrCanvas ? (
         <Suspense fallback={null}>
             <GlobalAgentPanel key={userId} />
         </Suspense>

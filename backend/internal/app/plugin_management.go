@@ -283,7 +283,14 @@ func (s *Service) pluginStateForUser(actor *model.User, pluginID string, items [
 		if !userConfigured {
 			// 本地策略：内置工作流（RunningHub）与常用官方应用默认可用，
 			// 避免升级后工作流模板在画布中整块消失；用户仍可在插件页单独关闭。
-			if pluginID == PluginMediaConversion || pluginID == PluginUserStorageStatus || pluginID == PluginUserFeedback || pluginID == WorkflowPluginRunningHub {
+			if pluginID == PluginMediaConversion ||
+				pluginID == PluginUserStorageStatus ||
+				pluginID == PluginUserFeedback ||
+				pluginID == WorkflowPluginRunningHub ||
+				pluginID == PluginCanvasProjectStats ||
+				pluginID == PluginCanvasNodeModelBadge ||
+				pluginID == PluginCanvasCoverBlur ||
+				pluginID == PluginComposerImagePaste {
 				userEnabled = true
 			} else if hasRuntime && pluginID == WorkflowPluginRunningHub {
 				userEnabled = runtimePlugin.Status == "enabled"
