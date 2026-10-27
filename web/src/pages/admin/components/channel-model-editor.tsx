@@ -91,13 +91,12 @@ export function ChannelModelEditor({
         // 3. 上游模型 ID (providerModelKey) 保持不变，满足用户明确要求：
         // “渠道获取的模型iD不变，直接选择预设名字和参数”
 
-        // 4. 确保能力切换为文本
-        if (form.getFieldValue("capability") !== "text") {
-            form.setFieldValue("capability", "text");
-        }
+        // 4. 调用协议 (protocol) 保持自定义配置不变，满足用户明确要求：
+        // “匹配的时候不要改调用协议，协议还是自己自定义”
+        const currentProtocol = form.getFieldValue("protocol");
 
         // 5. 组装并更新文本能力配置 (上下文、输出上限、多模态输入引用)
-        const currentConfig = form.getFieldValue("capabilityConfig") || defaultModelCapabilityConfig(modelProtocol, providerModelKey || modelKey);
+        const currentConfig = form.getFieldValue("capabilityConfig") || defaultModelCapabilityConfig(currentProtocol || modelProtocol, providerModelKey || modelKey);
         const currentText = currentConfig.text || {
             streaming: true,
             contextWindowTokens: 128_000,
@@ -129,6 +128,11 @@ export function ChannelModelEditor({
             version: 1,
             text: nextText,
         });
+
+        // 保证 protocol 绝对不被修改
+        if (currentProtocol) {
+            form.setFieldValue("protocol", currentProtocol);
+        }
 
         // 6. 自动扩充特性标签（去重合并）
         const existingTags: ModelTag[] = form.getFieldValue("tags") || [];
@@ -177,7 +181,7 @@ export function ChannelModelEditor({
         }
 
         setConfigurationChanged(true);
-        message.success(`已应用预设【${preset.name}】参数！展示名、上下文限制及能力已填充，上游模型 ID 保持不变。`);
+        message.success(`已应用预设【${preset.name}】参数！展示名、上下文限制及能力已填充，上游模型 ID 与调用协议保持不变。`);
     };
 
     const requestClose = () => {

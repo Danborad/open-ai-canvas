@@ -95,18 +95,15 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
             },
         };
 
-        const nextProtocol = availableProtocols.find((item) => item.value === activeProtocol && item.capability === "text")?.value || availableProtocols.find((item) => item.capability === "text" && item.enabled !== false)?.value || defaultProtocolForCapability("text", availableProtocols);
-
+        // 严格保持原有的 protocol，不覆盖用户自定义的调用协议
         updateCost(activeModel, {
-            capability: "text",
             displayName: preset.name,
-            protocol: nextProtocol,
             capabilityConfig: {
                 version: 1,
                 text: nextText,
             },
         });
-        message.success(`已应用预设【${preset.name}】参数！`);
+        message.success(`已应用预设【${preset.name}】参数！展示名、上下文限制及能力已填充，调用协议保持不变。`);
     };
 
     return (

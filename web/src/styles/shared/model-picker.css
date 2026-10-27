@@ -583,6 +583,7 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     color: inherit;
     text-align: left;
     cursor: pointer;
+    overflow: hidden;
 }
 /* 覆盖菜单外壳的透明底色，选中状态不依赖 hover。 */
 .canvas-model-picker-menu .canvas-model-picker-brand[aria-pressed="true"],
@@ -625,10 +626,11 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
     color: color-mix(in srgb, currentColor 55%, transparent);
     font-size: 11px;
     line-height: 1.4;
+    min-width: 0;
 }
 .canvas-model-picker-brand-subtext {
     overflow: hidden;
@@ -640,6 +642,12 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
 .canvas-model-picker-brand-copy .model-picker-availability-track {
     flex-shrink: 0;
     padding: 0;
+    gap: 2px;
+}
+.canvas-model-picker-brand-copy .model-picker-availability-pill {
+    width: 3px;
+    height: 3px;
+    flex: 0 0 3px;
 }
 .canvas-model-picker-brand-arrow {
     width: 14px;
@@ -809,26 +817,24 @@ html:not(.dark) .creation-home .creation-chat-composer .creation-model-picker.ca
 .model-picker-availability-track {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     padding: 0 1px;
 }
 
 .model-picker-availability-pill {
-    width: 5px;
-    height: 5px;
-    flex: 0 0 5px;
+    width: 3.5px;
+    height: 3.5px;
+    flex: 0 0 3.5px;
     border-radius: 50%;
     transition: transform 150ms ease, background-color 150ms ease;
 }
 
 .model-picker-availability-pill.is-success {
     background: #34c759;
-    box-shadow: 0 0 0 1px color-mix(in srgb, #34c759 25%, transparent);
 }
 
 .model-picker-availability-pill.is-failed {
     background: #ff3b30;
-    box-shadow: 0 0 0 1px color-mix(in srgb, #ff3b30 25%, transparent);
 }
 
 .model-picker-availability-pill.is-empty {

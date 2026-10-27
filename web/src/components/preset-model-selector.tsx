@@ -134,7 +134,7 @@ export function PresetModelSelector({
                                 </Tag>
                             </div>
                             <p className="text-xs text-muted-foreground font-normal mt-0.5">
-                                参考 coulsontl/ai-toolbox · 一键填充模型名称、上下文窗口、输出限制与多模态能力参数（上游模型 ID 保持不变）
+                                参考 coulsontl/ai-toolbox · 一键填充模型名称、上下文窗口、输出限制与多模态能力参数（上游模型 ID 与调用协议保持不变）
                             </p>
                         </div>
                     </div>
@@ -173,42 +173,48 @@ export function PresetModelSelector({
                             { key: "tools", label: "工具调用" },
                             { key: "vision", label: "视觉理解" },
                             { key: "long_ctx", label: "1M+上下文" },
-                        ].map((chip) => (
-                            <button
-                                key={chip.key}
-                                type="button"
-                                onClick={() => setFeatureFilter(chip.key as any)}
-                                className={cn(
-                                    "px-2 py-0.5 text-xs rounded-full border transition-colors cursor-pointer",
-                                    featureFilter === chip.key
-                                        ? "bg-primary text-primary-foreground border-primary"
-                                        : "bg-muted/40 hover:bg-muted text-muted-foreground border-transparent",
-                                )}
-                            >
-                                {chip.label}
-                            </button>
-                        ))}
+                        ].map((chip) => {
+                            const isSelected = featureFilter === chip.key;
+                            return (
+                                <button
+                                    key={chip.key}
+                                    type="button"
+                                    onClick={() => setFeatureFilter(chip.key as any)}
+                                    className={cn(
+                                        "px-2.5 py-0.5 text-xs rounded-full border transition-all cursor-pointer font-medium",
+                                        isSelected
+                                            ? "!bg-blue-600 !text-white !border-blue-600 shadow-sm"
+                                            : "bg-muted/40 hover:bg-muted text-muted-foreground border-transparent hover:text-foreground",
+                                    )}
+                                >
+                                    {chip.label}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
                 {/* Brands Bar */}
                 <div className="flex flex-wrap items-center gap-1.5 pt-1 pb-2 border-b border-[var(--border)]">
                     <span className="text-xs text-muted-foreground mr-1">品牌:</span>
-                    {(Object.keys(PRESET_BRAND_LABELS) as PresetBrand[]).map((brandKey) => (
-                        <button
-                            key={brandKey}
-                            type="button"
-                            onClick={() => setSelectedBrand(brandKey)}
-                            className={cn(
-                                "px-2.5 py-1 text-xs rounded-md border transition-colors cursor-pointer font-medium",
-                                selectedBrand === brandKey
-                                    ? "bg-foreground text-background border-foreground shadow-sm"
-                                    : "bg-muted/30 hover:bg-muted text-muted-foreground border-transparent hover:text-foreground",
-                            )}
-                        >
-                            {PRESET_BRAND_LABELS[brandKey]}
-                        </button>
-                    ))}
+                    {(Object.keys(PRESET_BRAND_LABELS) as PresetBrand[]).map((brandKey) => {
+                        const isSelected = selectedBrand === brandKey;
+                        return (
+                            <button
+                                key={brandKey}
+                                type="button"
+                                onClick={() => setSelectedBrand(brandKey)}
+                                className={cn(
+                                    "px-2.5 py-1 text-xs rounded-md border transition-all cursor-pointer font-medium",
+                                    isSelected
+                                        ? "!bg-blue-600 !text-white !border-blue-600 shadow-sm"
+                                        : "bg-muted/30 hover:bg-muted text-muted-foreground border-transparent hover:text-foreground",
+                                )}
+                            >
+                                {PRESET_BRAND_LABELS[brandKey]}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {/* Smart Match Recommendation Banner */}
@@ -374,7 +380,7 @@ export function PresetModelSelector({
                     <div className="min-w-0 flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-foreground">预设模型库</span>
                         <span className="text-muted-foreground">
-                            {models.length} 款模型参数已就绪 · 不改变渠道上游模型 ID
+                            {models.length} 款模型参数已就绪 · 不改变渠道上游模型 ID 与调用协议
                         </span>
                         {matchedPreset ? (
                             <button
