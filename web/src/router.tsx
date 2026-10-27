@@ -177,7 +177,14 @@ export const router = createBrowserRouter([
             },
             { path: "/settings", element: <RequireAuth>{deferred(<SettingsPage />)}</RequireAuth> },
             { path: "/referral", element: <RequireAuth>{deferred(<ReferralPage />)}</RequireAuth> },
-            { path: "/promotion", element: <Navigate to="/referral" replace /> },
+            {
+                path: "/promotion",
+                element: (
+                    <RequireAuth>
+                        <RequireFeature feature="promotionEnabled">{deferred(<PromotionPage />)}</RequireFeature>
+                    </RequireAuth>
+                ),
+            },
             { path: "/test-voice-recording", element: <RequireAuth>{deferred(<TestVoiceRecording />)}</RequireAuth> },
             {
                 path: "/projects",
@@ -254,7 +261,7 @@ export const router = createBrowserRouter([
                     { path: "credit-operations", element: <CreditOperationsPage /> },
                     { path: "redemption-codes", element: <RedemptionCodesPage /> },
                     { path: "referral", element: <AdminReferralPage /> },
-                    { path: "promotion", element: <Navigate to="/admin/referral" replace /> },
+                    { path: "promotion", element: <AdminPromotionPage /> },
                     { path: "logs", element: <LogsPage /> },
                     { path: "settings", element: <Navigate to="runtime-policy" replace /> },
                     { path: "settings/appearance", element: <AppearanceSettingsPage /> },

@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { App, Button, Input, Skeleton } from "antd";
-import { Copy, RefreshCw } from "lucide-react";
+import { Copy, Gift, RefreshCw, Share2 } from "lucide-react";
 import { useState } from "react";
-import { Navigate } from "react-router";
+import { Navigate, useNavigate } from "react-router";
 import { PageHeader, PaginationBar, WorkspacePage } from "@/components/layout/workspace-page";
 import { SegmentedControl } from "@/components/ui/base/segmented-control";
 import { ApiError } from "@/services/api/request";
@@ -16,7 +16,9 @@ const PAGE_SIZE = 20;
 
 export default function ReferralPage() {
     const { message } = App.useApp();
+    const navigate = useNavigate();
     const referralAvailable = useUserStore((state) => state.referralAvailable);
+    const promotionEnabled = useUserStore((state) => state.features.promotionEnabled);
     const hydrated = useUserStore((state) => state.hydrated);
     const [tab, setTab] = useState<RecordTab>("invitees");
     const [page, setPage] = useState(1);
@@ -24,8 +26,33 @@ export default function ReferralPage() {
     const invitees = useQuery({ queryKey: ["referral", "invitees", page], queryFn: () => listReferralInvitees({ page, pageSize: PAGE_SIZE }), enabled: referralAvailable && tab === "invitees" });
     const commissions = useQuery({ queryKey: ["referral", "commissions", page], queryFn: () => listReferralCommissions({ page, pageSize: PAGE_SIZE }), enabled: referralAvailable && tab === "commissions" });
 
-    // 入口不可见时直接访问 URL 也不展示页面；后端同样会拒绝。
-    if (hydrated && !referralAvailable) return <Navigate to="/" replace />;
+    // 入口不可见时提示
+    if (hydrated && !referralAvailable) {
+        return (
+            <WorkspacePage className="referral-page">
+                <PageHeader
+                    title="推广返佣"
+                    description="被邀请用户在线充值积分后，你将按比例获得积分返佣。"
+                />
+                <div className="py-20 text-center max-w-md mx-auto">
+                    <div className="inline-grid size-12 place-items-center rounded-2xl bg-muted text-muted-foreground mb-3">
+                        <Gift className="size-6" />
+                    </div>
+                    <h3 className="text-base font-semibold text-foreground">推广返佣功能暂未开启</h3>
+                    <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                        管理员尚未在后台开启充值返佣，或当前账号未在开放名单中。
+                    </p>
+                    {promotionEnabled ? (
+                        <div className="mt-5 flex justify-center gap-2">
+                            <Button type="primary" onClick={() => navigate("/promotion")}>
+                                前往邀请注册中心
+                            </Button>
+                        </div>
+                    ) : null}
+                </div>
+            </WorkspacePage>
+        );
+    }
     const forbidden = overview.error instanceof ApiError && overview.error.status === 403;
     if (forbidden) return <Navigate to="/" replace />;
 
@@ -49,12 +76,19 @@ export default function ReferralPage() {
     return (
         <WorkspacePage className="referral-page">
             <PageHeader
-                title="推广中心"
+                title="推广返佣"
                 description="分享专属链接邀请新用户注册。被邀请用户在线充值积分后，你将按比例获得积分返佣。"
                 actions={
-                    <Button icon={<RefreshCw className="size-3.5" />} loading={overview.isFetching} onClick={refresh}>
-                        刷新
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        {promotionEnabled ? (
+                            <Button icon={<Share2 className="size-3.5" />} onClick={() => navigate("/promotion")}>
+                                邀请注册送积分
+                            </Button>
+                        ) : null}
+                        <Button icon={<RefreshCw className="size-3.5" />} loading={overview.isFetching} onClick={refresh}>
+                            刷新
+                        </Button>
+                    </div>
                 }
             />
             <div className="mt-4 grid gap-4">

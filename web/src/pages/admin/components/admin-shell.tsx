@@ -103,7 +103,8 @@ const adminNavigation: Array<{ label: string; items: AdminNavigationItem[] }> = 
             { path: "/admin/payments", label: "支付充值", shortLabel: "支付", description: "支付渠道、订单与对账", icon: <CreditCard className="size-4" /> },
             { path: "/admin/credit-operations", label: "积分运营", shortLabel: "积分", description: "人工调账与异常计费", icon: <Coins className="size-4" /> },
             { path: "/admin/redemption-codes", label: "兑换码", shortLabel: "兑换", description: "生成与查看兑换码批次", icon: <TicketCheck className="size-4" /> },
-            { path: "/admin/referral", label: "推广中心", shortLabel: "推广", description: "开放方式、返佣比例与记录", icon: <Gift className="size-4" /> },
+            { path: "/admin/promotion", label: "邀请中心", shortLabel: "邀请", description: "拉新注册双方赠送积分设置", icon: <Share2 className="size-4" /> },
+            { path: "/admin/referral", label: "推广返佣", shortLabel: "返佣", description: "充值返佣比例与推广人管理", icon: <Gift className="size-4" /> },
         ],
     },
     {
