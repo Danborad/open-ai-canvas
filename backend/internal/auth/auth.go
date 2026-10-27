@@ -39,7 +39,8 @@ type RegisterRequest struct {
 	DisplayName   string       `json:"displayName"`
 	Password      string       `json:"password"`
 	AcceptedTerms bool         `json:"acceptedTerms"`
-	InviteCode    string       `json:"inviteCode"`
+	InviteCode    string       `json:"inviteCode,omitempty"`
+	ReferralCode  string       `json:"referralCode,omitempty"`
 }
 
 type LoginRequest struct {
@@ -261,6 +262,13 @@ func (s *Service) Register(req RegisterRequest) (*AuthSessionResult, error) {
 	}
 	if err := s.host.EnsureSignupBonus(user.ID); err != nil {
 		return nil, err
+	}
+	if count > 0 {
+		refCode := req.ReferralCode
+		if refCode == "" {
+			refCode = req.InviteCode
+		}
+		s.host.BindReferral(user.ID, refCode)
 	}
 	s.host.NotifyUserRegistered(&user)
 	event := NewLoginLog("password", "registration", req.LoginContext)
