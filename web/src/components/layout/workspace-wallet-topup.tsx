@@ -1,4 +1,5 @@
 import { Button, Skeleton } from "antd";
+import { AlipayCircleFilled, WechatFilled } from "@ant-design/icons";
 import { Check, CircleAlert, Coins, CreditCard, FolderOpen, HardDrive } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 
@@ -232,12 +233,17 @@ export function WalletTopupPanel({
                     </div>
                     {providers.length ? (
                         <div className="workspace-wallet-providers" role="radiogroup" aria-label="支付方式">
-                            {providers.map((provider) => (
-                                <button key={provider.id} type="button" role="radio" aria-checked={selectedProviderId === provider.id} className={selectedProviderId === provider.id ? "is-selected" : ""} onClick={() => onSelectProvider(provider.id)}>
-                                    <CreditCard />
-                                    {provider.name}
-                                </button>
-                            ))}
+                            {providers.map((provider) => {
+                                const isAlipay = provider.id === "alipay-page-pay" || provider.id === "zhifufm-pay" || provider.name.includes("支付宝") || provider.name.includes("支付FM");
+                                const isWechat = provider.id === "wechat-native" || provider.name.includes("微信");
+                                const displayName = (provider.id === "zhifufm-pay" || provider.name.includes("支付FM")) ? "支付宝支付" : provider.name;
+                                return (
+                                    <button key={provider.id} type="button" role="radio" aria-checked={selectedProviderId === provider.id} className={selectedProviderId === provider.id ? "is-selected" : ""} onClick={() => onSelectProvider(provider.id)}>
+                                        {isAlipay ? <AlipayCircleFilled className="text-[#1677ff] text-base" /> : isWechat ? <WechatFilled className="text-[#07c160] text-base" /> : <CreditCard />}
+                                        {displayName}
+                                    </button>
+                                );
+                            })}
                         </div>
                     ) : (
                         <span className="wallet-topup-checkout-hint">暂无可用支付渠道，请联系管理员</span>

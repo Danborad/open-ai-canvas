@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Popover, Switch } from "antd";
-import { Check, ChevronRight, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Popover, Switch, Tooltip } from "antd";
+import { Check, ChevronRight, SlidersHorizontal, Sparkles, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { ModelLogo } from "@/components/model-logo";
@@ -83,21 +83,33 @@ export function AgentModelPreferencesPopover({ children }: { children?: ReactNod
         } else {
             setVideoModel(id);
         }
+        setAuto(false);
+        setOpen(false);
     };
 
     const content = (
         <div className="w-[330px] p-1 font-sans text-foreground select-none" onMouseDown={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className="flex items-center justify-between pb-2.5">
+            <div className="flex items-center justify-between pb-2">
                 <span className="text-sm font-semibold tracking-tight">模型偏好</span>
-                <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground font-medium">
-                    <span>自动</span>
-                    <Switch
-                        size="small"
-                        checked={auto}
-                        onChange={(checked) => setAuto(checked)}
-                    />
-                </label>
+                <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground font-medium">
+                        <span>自动</span>
+                        <Switch
+                            size="small"
+                            checked={auto}
+                            onChange={(checked) => setAuto(checked)}
+                        />
+                    </label>
+                    <button
+                        type="button"
+                        className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground transition-colors cursor-pointer"
+                        onClick={() => setOpen(false)}
+                        aria-label="关闭"
+                    >
+                        <X className="size-3.5" />
+                    </button>
+                </div>
             </div>
 
             <p className="text-[11px] text-muted-foreground leading-normal pb-3">
@@ -185,17 +197,21 @@ export function AgentModelPreferencesPopover({ children }: { children?: ReactNod
             arrow={false}
         >
             {children || (
-                <button
-                    type="button"
-                    className={cn(
-                        "flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-[var(--fs-label)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/25",
-                        !auto ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground",
-                    )}
-                    title={auto ? "模型偏好：自动" : `模型偏好：自定义`}
-                >
-                    <SlidersHorizontal className="size-3.5" />
-                    <span className="max-w-24 truncate">{auto ? "偏好(自动)" : "模型偏好"}</span>
-                </button>
+                <Tooltip title={auto ? "模型偏好：自动" : "模型偏好：自定义"} placement="top">
+                    <button
+                        type="button"
+                        className={cn(
+                            "relative grid size-8 shrink-0 place-items-center rounded-lg border border-transparent transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/25",
+                            !auto
+                                ? "bg-primary/10 border-primary/20 text-primary"
+                                : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground",
+                        )}
+                        aria-label={auto ? "模型偏好：自动" : "模型偏好：自定义"}
+                    >
+                        <SlidersHorizontal className="size-4" />
+                        {!auto ? <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-primary" /> : null}
+                    </button>
+                </Tooltip>
             )}
         </Popover>
     );

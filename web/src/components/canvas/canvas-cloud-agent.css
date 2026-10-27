@@ -1693,13 +1693,21 @@
 
 .agent-composer-selection > .w-full {
     min-width: 0;
-    max-width: 13rem;
-    flex: 1 1 13rem;
+    flex: 0 0 auto;
 }
 
 .agent-composer-selection .agent-composer-model-trigger,
 .agent-composer-selection .canvas-model-picker-label {
     min-width: 0;
+}
+
+.agent-composer-selection .canvas-model-picker-label > span.truncate {
+    display: none;
+}
+
+.agent-composer-selection .canvas-composer-model-picker {
+    padding-inline: 4px;
+    border-radius: var(--r-md);
 }
 
 .agent-composer-selection > button {

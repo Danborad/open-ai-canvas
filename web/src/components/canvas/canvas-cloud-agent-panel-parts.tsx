@@ -16,7 +16,7 @@ import { agentAvatarBundleFileURL, live2DModelURL } from "@/services/api/appeara
 import { AgentAvatarVideo } from "@/components/canvas/agent-avatar-video";
 import { FluidOrb } from "@/components/ui/fluid-orb";
 import { ArrowLeft, Check, CircleDot, Clock3, Download, History, LoaderCircle, Maximize2, MessageSquarePlus, Minus, RotateCcw, Settings2, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
-import { Button, Input, Popover } from "antd";
+import { Button, Input, Popover, Tooltip } from "antd";
 import { CanvasAnchoredDropdown as Dropdown } from "./canvas-anchored-dropdown";
 import type { AgentContextPhase, AgentContextUsageView } from "@/lib/canvas/agent-context-usage";
 import { cloudAgentConversationServerId, type CloudAgentConversation } from "@/services/cloud-agent-conversations";
@@ -385,7 +385,7 @@ export function AgentContextRing({ view, theme }: { view: AgentContextUsageView;
                 </div>
             }
         >
-            <button type="button" className={`agent-context-ring is-${view.phase}`} aria-label={`${usageHeading}，${phaseLabel}。点击查看明细`} aria-expanded={open} title="查看上下文用量" onPointerDown={(event) => event.stopPropagation()}>
+            <button type="button" className={`agent-context-ring is-${view.phase} !min-w-0 !px-1.5 !h-8 !gap-1.5 !rounded-lg`} aria-label={`${usageHeading}，${phaseLabel}。点击查看明细`} aria-expanded={open} title={`上下文用量：${meterLabel}（点击查看明细）`} onPointerDown={(event) => event.stopPropagation()}>
                 <span
                     className="agent-context-ring-visual"
                     aria-hidden="true"
@@ -398,9 +398,8 @@ export function AgentContextRing({ view, theme }: { view: AgentContextUsageView;
                 >
                     {marker ? <span className="agent-context-ring-marker" /> : null}
                 </span>
-                <span className="agent-context-meter-copy">
-                    <strong>{meterLabel}</strong>
-                    <small>上下文</small>
+                <span className="agent-context-meter-copy !pr-0.5">
+                    <strong className="!text-[11px]">{meterLabel}</strong>
                 </span>
             </button>
         </Popover>
@@ -647,45 +646,54 @@ export function ComposerControls({
     const permissionVisual = agentPermissionVisual(permissionMode);
     const PermissionIcon = permissionVisual.icon;
     return (
-        <div className="agent-composer-selection flex min-w-0 flex-1 flex-nowrap items-center gap-0.5">
+        <div className="agent-composer-selection flex min-w-0 flex-1 flex-nowrap items-center gap-1">
             <ModelPicker
                 config={config}
                 value={selectedModel}
                 capability="text"
                 onChange={onModelChange}
                 variant="creation"
-                fullWidth
-                className="agent-composer-model-trigger !h-8 !min-w-0 !w-full !max-w-full !border-0 !bg-transparent !px-2 !shadow-none"
+                fullWidth={false}
+                className="agent-composer-model-trigger !h-8 !min-w-0 !w-auto !border-0 !bg-transparent !px-1.5 !shadow-none"
                 popoverClassName="agent-model-picker-popover"
                 showSelectedPrice={false}
                 showOptionPrices
-                placeholder="选择文本模型"
+                placeholder="选择模型"
             />
             <Dropdown trigger={["click"]} placement="topLeft" menu={{ items: agentPermissionMenuItems(permissionMode, onPermissionChange) }}>
-                <button
-                    type="button"
-                    className="grid size-8 shrink-0 place-items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/25"
-                    style={{ color: theme.node.muted, background: "transparent" }}
-                    aria-label={`执行权限：${agentPermissionLabel(permissionMode)}，点击切换`}
-                    title={`执行权限：${agentPermissionLabel(permissionMode)}，点击切换`}
-                >
-                    <PermissionIcon className="size-3.5" style={{ color: permissionVisual.color }} aria-hidden="true" />
-                </button>
+                <Tooltip title={`执行权限：${agentPermissionLabel(permissionMode)}（点击切换）`} placement="top">
+                    <button
+                        type="button"
+                        className="grid size-8 shrink-0 place-items-center rounded-lg hover:bg-foreground/[0.06] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/25 cursor-pointer"
+                        style={{ color: theme.node.muted, background: "transparent" }}
+                        aria-label={`执行权限：${agentPermissionLabel(permissionMode)}，点击切换`}
+                    >
+                        <PermissionIcon className="size-4" style={{ color: permissionVisual.color }} aria-hidden="true" />
+                    </button>
+                </Tooltip>
             </Dropdown>
             <AgentModelPreferencesPopover />
-            <button
-                type="button"
-                className="flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-[var(--fs-label)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/25"
-                style={{ color: selectedSkillCount ? theme.accent.primary : theme.node.muted, background: skillsOpen ? theme.node.fill : "transparent" }}
-                aria-label={`打开 Skills 技能库${selectedSkillCount ? `，已启用 ${selectedSkillCount} 个` : ""}`}
-                aria-expanded={skillsOpen}
-                aria-haspopup="dialog"
-                title="打开 Skills 技能库"
-                onClick={() => onSkillsOpenChange(true)}
-            >
-                <Sparkles className="size-3.5" />
-                <span className="max-w-28 truncate">Skills({selectedSkillCount})</span>
-            </button>
+            <Tooltip title={selectedSkillCount ? `Skills 技能库（已启用 ${selectedSkillCount} 项）` : "Skills 技能库"} placement="top">
+                <button
+                    type="button"
+                    className={cn(
+                        "relative grid size-8 shrink-0 place-items-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/25 cursor-pointer",
+                        selectedSkillCount ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground",
+                        skillsOpen && "bg-foreground/[0.08]",
+                    )}
+                    aria-label={`打开 Skills 技能库${selectedSkillCount ? `，已启用 ${selectedSkillCount} 个` : ""}`}
+                    aria-expanded={skillsOpen}
+                    aria-haspopup="dialog"
+                    onClick={() => onSkillsOpenChange(true)}
+                >
+                    <Sparkles className="size-4" />
+                    {selectedSkillCount > 0 ? (
+                        <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground leading-none">
+                            {selectedSkillCount}
+                        </span>
+                    ) : null}
+                </button>
+            </Tooltip>
         </div>
     );
 }

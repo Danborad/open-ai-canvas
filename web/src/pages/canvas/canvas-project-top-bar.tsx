@@ -13,6 +13,7 @@ import type { CanvasShortDramaProgress } from "@/lib/canvas/canvas-short-drama";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useCanvasThemeStore } from "@/stores/canvas/use-canvas-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
+import { useGlobalAgentStore } from "@/stores/use-global-agent-store";
 import { CanvasShortcutsModal } from "./canvas-shortcuts-modal";
 
 export type CanvasProjectView = "canvas" | "assets";
@@ -81,6 +82,7 @@ export function CanvasTopBar({
     const { availableMicrocredits, refreshing } = useWalletBalance(user?.id, creditsEnabled);
     const titleRef = useRef<HTMLDivElement>(null);
     const [shortcutsOpen, setShortcutsOpen] = useState(false);
+    const isAgentOpen = useGlobalAgentStore((state) => state.open);
 
     const handleShortDramaGuideToggle = () => {
         shortDramaGuide?.onToggle();
@@ -101,7 +103,10 @@ export function CanvasTopBar({
 
     return (
         <>
-            <div className="canvas-topbar pointer-events-none absolute inset-x-0 top-0 z-[var(--z-toolbar)] flex h-[var(--canvas-topbar-h)] items-center justify-between px-4 sm:px-5">
+            <div
+                className="canvas-topbar pointer-events-none absolute left-0 top-0 z-[var(--z-toolbar)] flex h-[var(--canvas-topbar-h)] items-center justify-between px-4 transition-[right] duration-250 ease-out sm:px-5"
+                style={{ right: isAgentOpen ? "min(440px, calc(100vw - 32px))" : "0" }}
+            >
                 <div className="canvas-topbar-cluster canvas-topbar-project-cluster pointer-events-auto flex min-w-0 items-center gap-2" style={dockStyle}>
                     <CanvasTopBarTooltip label="打开画布菜单">
                         <Dropdown
@@ -212,9 +217,13 @@ export function CanvasTopBar({
                                 ],
                             }}
                         >
-                            <Button type="text" className="canvas-topbar-action canvas-topbar-import-button !h-10 !rounded-xl !px-2 !font-medium" style={{ color: theme.node.text }} icon={<CloudDownload className="size-4" />} aria-label="导入第三方画布">
-                                <span className="hidden lg:inline">导入第三方画布</span>
-                            </Button>
+                            <Button
+                                type="text"
+                                className="canvas-topbar-action canvas-topbar-import-button !h-10 !w-10 !min-w-10 !rounded-xl !p-0"
+                                style={{ color: theme.node.text }}
+                                icon={<CloudDownload className="size-4" />}
+                                aria-label="导入第三方画布"
+                            />
                         </Dropdown>
                     </CanvasTopBarTooltip>
                     {user && creditsEnabled ? (
