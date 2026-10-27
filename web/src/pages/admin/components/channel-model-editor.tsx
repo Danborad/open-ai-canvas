@@ -7,13 +7,16 @@ import { ModelIconPicker } from "@/components/model-logo";
 import { ModelIcon } from "@/components/model-picker";
 import { ModelProtocolBrowser } from "@/components/model-protocol-browser";
 import { ModelCapabilityEditor } from "@/components/model-capability-editor";
-import { defaultModelCapabilityConfig, normalizeModelCapabilityConfig, type ModelCapabilityConfig } from "@/lib/model-capabilities";
+import { defaultModelCapabilityConfig, normalizeModelCapabilityConfig, type ModelCapabilityConfig, type TextCapabilityConfig } from "@/lib/model-capabilities";
 import type { ModelProtocolDefinition } from "@/lib/model-protocols";
 import { createAdminChannelModel, testAdminChannelModel, updateAdminChannelModel, type ChannelModel } from "@/services/api/wallet";
 import type { ModelChannel } from "@/stores/use-config-store";
 import { defaultPriceTier, normalizeUpstreamModelKey, priceTierPayloadFromForm } from "./channel-model-price-tier-form";
 import { PriceTierFields } from "./channel-model-price-tier-fields";
 import { ChannelModelTagsEditor } from "./channel-model-tags-editor";
+import { PresetModelSelector } from "@/components/preset-model-selector";
+import { formatTokenLimit, type PresetModel } from "@/lib/preset-models";
+import type { ModelTag } from "@/lib/model-tags";
 import {
     changeChannelModelCapability,
     changeChannelModelProtocol,
@@ -72,6 +75,110 @@ export function ChannelModelEditor({
     const tiersWithOwnUpstream = priceTiers.filter((tier) => tier.providerModelKey?.trim());
     const modelUpstream = normalizeUpstreamModelKey(providerModelKey || modelKey);
     const busy = saving || testing;
+
+    const applyPreset = (preset: PresetModel) => {
+        dirtyRef.current = true;
+
+        // 1. 设置展示名
+        form.setFieldValue("displayName", preset.name);
+
+        // 2. 产品模型标识：仅在当前为空时填充预设 ID
+        const currentModelKey = form.getFieldValue("modelKey");
+        if (!currentModelKey?.trim()) {
+            form.setFieldValue("modelKey", preset.id);
+        }
+
+        // 3. 上游模型 ID (providerModelKey) 保持不变，满足用户明确要求：
+        // “渠道获取的模型iD不变，直接选择预设名字和参数”
+
+        // 4. 确保能力切换为文本
+        if (form.getFieldValue("capability") !== "text") {
+            form.setFieldValue("capability", "text");
+        }
+
+        // 5. 组装并更新文本能力配置 (上下文、输出上限、多模态输入引用)
+        const currentConfig = form.getFieldValue("capabilityConfig") || defaultModelCapabilityConfig(modelProtocol, providerModelKey || modelKey);
+        const currentText = currentConfig.text || {
+            streaming: true,
+            contextWindowTokens: 128_000,
+            maxOutputTokens: 16_384,
+            references: { promptMaxChars: 32000, maxImages: 0, maxImageBytes: 0, maxVideos: 0, maxVideoBytes: 0 },
+        };
+
+        const hasVision = Boolean(preset.modalities?.input?.includes("image"));
+        const hasVideo = Boolean(preset.modalities?.input?.includes("video"));
+
+        const nextText: TextCapabilityConfig = {
+            ...currentText,
+            streaming: true,
+            thinking: Boolean(preset.reasoning),
+            contextWindowTokens: preset.contextLimit || currentText.contextWindowTokens || 128_000,
+            maxOutputTokens: preset.outputLimit || currentText.maxOutputTokens || 16_384,
+            references: {
+                ...currentText.references,
+                promptMaxChars: preset.contextLimit ? Math.min(preset.contextLimit * 4, 500_000) : (currentText.references?.promptMaxChars || 32000),
+                maxImages: hasVision ? Math.max(currentText.references?.maxImages || 0, 10) : 0,
+                maxImageBytes: hasVision ? (currentText.references?.maxImageBytes || 20 * 1024 * 1024) : 0,
+                maxVideos: hasVideo ? Math.max(currentText.references?.maxVideos || 0, 3) : 0,
+                maxVideoBytes: hasVideo ? (currentText.references?.maxVideoBytes || 100 * 1024 * 1024) : 0,
+            },
+        };
+
+        form.setFieldValue("capabilityConfig", {
+            ...currentConfig,
+            version: 1,
+            text: nextText,
+        });
+
+        // 6. 自动扩充特性标签（去重合并）
+        const existingTags: ModelTag[] = form.getFieldValue("tags") || [];
+        const existingTextSet = new Set(existingTags.map((t) => t.text));
+        const tagsToAdd: ModelTag[] = [];
+
+        if (preset.reasoning && !existingTextSet.has("深度思考")) {
+            tagsToAdd.push({ text: "深度思考", color: "purple" });
+            existingTextSet.add("深度思考");
+        }
+        if (preset.tool_call && !existingTextSet.has("工具调用")) {
+            tagsToAdd.push({ text: "工具调用", color: "blue" });
+            existingTextSet.add("工具调用");
+        }
+        if (hasVision && !existingTextSet.has("视觉理解")) {
+            tagsToAdd.push({ text: "视觉理解", color: "green" });
+            existingTextSet.add("视觉理解");
+        }
+        if (hasVideo && !existingTextSet.has("视频理解")) {
+            tagsToAdd.push({ text: "视频理解", color: "orange" });
+            existingTextSet.add("视频理解");
+        }
+        if (preset.contextLimit && preset.contextLimit >= 128_000) {
+            const ctxTag = `${Math.round(preset.contextLimit / 1000)}k 上下文`;
+            if (!existingTextSet.has(ctxTag)) {
+                tagsToAdd.push({ text: ctxTag, color: "blue" });
+                existingTextSet.add(ctxTag);
+            }
+        }
+
+        if (tagsToAdd.length > 0) {
+            form.setFieldValue("tags", [...existingTags, ...tagsToAdd]);
+        }
+
+        // 7. 描述：若当前为空则生成专业规格描述
+        const currentDesc = form.getFieldValue("description") || "";
+        if (!currentDesc.trim()) {
+            const specs: string[] = [];
+            if (preset.contextLimit) specs.push(`上下文 ${formatTokenLimit(preset.contextLimit)}`);
+            if (preset.outputLimit) specs.push(`最大输出 ${formatTokenLimit(preset.outputLimit)}`);
+            if (preset.reasoning) specs.push("支持深度思考");
+            if (preset.tool_call) specs.push("支持工具调用");
+            if (hasVision) specs.push("支持视觉理解");
+            if (hasVideo) specs.push("支持视频理解");
+            form.setFieldValue("description", `${preset.name}，${specs.join("，")}。`);
+        }
+
+        setConfigurationChanged(true);
+        message.success(`已应用预设【${preset.name}】参数！展示名、上下文限制及能力已填充，上游模型 ID 保持不变。`);
+    };
 
     const requestClose = () => {
         if (busyRef.current) return;
@@ -264,6 +371,12 @@ export function ChannelModelEditor({
                             forceRender: true,
                             children: (
                                 <div className="admin-model-editor-tab-content">
+                                    <PresetModelSelector
+                                        currentModelId={providerModelKey || modelKey}
+                                        capability={modelCapability}
+                                        onSelectPreset={applyPreset}
+                                        className="mb-4"
+                                    />
                                     <section className="admin-model-editor-section">
                                         <SectionHeading title="模型身份" description="区分产品侧展示标识与上游实际调用 ID。" />
                                         <div className="admin-model-editor-section-content admin-model-identity-grid admin-model-identity-grid-with-icon">

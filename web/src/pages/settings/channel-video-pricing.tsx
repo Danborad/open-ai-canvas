@@ -7,10 +7,12 @@ import { ModelProtocolBrowser } from "@/components/model-protocol-browser";
 import { testChannelModelConnection } from "@/lib/model-connection-test";
 import { ModelCapabilityEditor } from "@/components/model-capability-editor";
 import { type ModelCapabilityChoice } from "@/components/model-protocol-picker";
-import { defaultModelCapabilityConfig } from "@/lib/model-capabilities";
+import { defaultModelCapabilityConfig, type TextCapabilityConfig } from "@/lib/model-capabilities";
 import { modelProtocolCapability, modelProtocolDefinition, type ModelProtocol, type ModelProtocolDefinition } from "@/lib/model-protocols";
 import { fetchPluginProviderCatalog } from "@/services/api/plugin-catalog";
 import { modelOptionName, type ModelChannel } from "@/stores/use-config-store";
+import { PresetModelSelector } from "@/components/preset-model-selector";
+import type { PresetModel } from "@/lib/preset-models";
 
 type ModelCost = NonNullable<ModelChannel["modelCosts"]>[number];
 
@@ -64,6 +66,48 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
     const inferredProtocol = activeModel ? defaultProtocolForModel(activeModel, availableProtocols) : "";
     const activeProtocol = activeModelCost?.protocol || inferredProtocol;
     const activeCapability = activeModelCost?.capability || modelProtocolCapability(activeProtocol, availableProtocols) || (activeModel ? inferCapabilityFromModel(activeModel) : "text");
+
+    const handleApplyPresetInUserChannel = (preset: PresetModel) => {
+        if (!activeModel) return;
+        const currentCapabilityConfig = activeModelCost?.capabilityConfig || defaultModelCapabilityConfig(activeProtocol, activeModel);
+        const currentText = currentCapabilityConfig.text || {
+            streaming: true,
+            contextWindowTokens: 128_000,
+            maxOutputTokens: 16_384,
+            references: { promptMaxChars: 32000, maxImages: 0, maxImageBytes: 0, maxVideos: 0, maxVideoBytes: 0 },
+        };
+        const hasVision = Boolean(preset.modalities?.input?.includes("image"));
+        const hasVideo = Boolean(preset.modalities?.input?.includes("video"));
+
+        const nextText: TextCapabilityConfig = {
+            ...currentText,
+            streaming: true,
+            thinking: Boolean(preset.reasoning),
+            contextWindowTokens: preset.contextLimit || 128_000,
+            maxOutputTokens: preset.outputLimit || 16_384,
+            references: {
+                ...currentText.references,
+                promptMaxChars: preset.contextLimit ? Math.min(preset.contextLimit * 4, 500_000) : 32000,
+                maxImages: hasVision ? 10 : 0,
+                maxImageBytes: hasVision ? 20 * 1024 * 1024 : 0,
+                maxVideos: hasVideo ? 3 : 0,
+                maxVideoBytes: hasVideo ? 100 * 1024 * 1024 : 0,
+            },
+        };
+
+        const nextProtocol = availableProtocols.find((item) => item.value === activeProtocol && item.capability === "text")?.value || availableProtocols.find((item) => item.capability === "text" && item.enabled !== false)?.value || defaultProtocolForCapability("text", availableProtocols);
+
+        updateCost(activeModel, {
+            capability: "text",
+            displayName: preset.name,
+            protocol: nextProtocol,
+            capabilityConfig: {
+                version: 1,
+                text: nextText,
+            },
+        });
+        message.success(`已应用预设【${preset.name}】参数！`);
+    };
 
     return (
         <div className="mt-4">
@@ -135,6 +179,11 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
                         key: "protocol",
                         label: "基本信息",
                         children: <div className="space-y-4" inert={Boolean(testingModel)}>
+                            <PresetModelSelector
+                                currentModelId={activeModel}
+                                capability={activeCapability}
+                                onSelectPreset={handleApplyPresetInUserChannel}
+                            />
                             <section className="space-y-2">
                                 <div className="text-xs font-medium">模型能力</div>
                                 <Segmented<ModelCapabilityChoice>

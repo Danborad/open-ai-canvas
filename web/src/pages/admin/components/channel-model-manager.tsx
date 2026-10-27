@@ -16,7 +16,11 @@ import { ChannelOrderDialog } from "./channel-order-dialog";
 import { ChannelModelCostSummary } from "./channel-model-cost-summary";
 import { ChannelModelRepriceDialog } from "./channel-model-reprice-dialog";
 import { deselectVisibleModels, filterImportModels, normalizeFetchModelKey, selectExistingImportModels, selectVisibleModels } from "./channel-model-import-selection";
-import { duplicateChannelModelValues, type ChannelModelFormValues } from "./channel-model-editor-form";
+import { duplicateChannelModelValues, initialChannelModelValues, type ChannelModelFormValues } from "./channel-model-editor-form";
+import { PresetModelSelector } from "@/components/preset-model-selector";
+import { formatTokenLimit, type PresetModel } from "@/lib/preset-models";
+import type { ModelTag } from "@/lib/model-tags";
+import type { TextCapabilityConfig } from "@/lib/model-capabilities";
 import { Select } from "@/components/ui/base/select";
 
 export function ChannelModelManager({ channel, onChanged }: { channel: ModelChannel; onChanged: () => void | Promise<void> }) {
@@ -142,6 +146,53 @@ export function ChannelModelManager({ channel, onChanged }: { channel: ModelChan
     const startCreate = () => {
         setEditing(null);
         setCopyDraft(null);
+        setEditorOpen(true);
+    };
+    const startCreateWithPreset = (preset: PresetModel) => {
+        const initial = initialChannelModelValues(null, availableProtocols);
+        const hasVision = Boolean(preset.modalities?.input?.includes("image"));
+        const hasVideo = Boolean(preset.modalities?.input?.includes("video"));
+
+        const textConfig: TextCapabilityConfig = {
+            streaming: true,
+            thinking: Boolean(preset.reasoning),
+            contextWindowTokens: preset.contextLimit || 128_000,
+            maxOutputTokens: preset.outputLimit || 16_384,
+            references: {
+                promptMaxChars: preset.contextLimit ? Math.min(preset.contextLimit * 4, 500_000) : 32000,
+                maxImages: hasVision ? 10 : 0,
+                maxImageBytes: hasVision ? 20 * 1024 * 1024 : 0,
+                maxVideos: hasVideo ? 3 : 0,
+                maxVideoBytes: hasVideo ? 100 * 1024 * 1024 : 0,
+            },
+        };
+
+        const tags: ModelTag[] = [];
+        if (preset.reasoning) tags.push({ text: "深度思考", color: "purple" });
+        if (preset.tool_call) tags.push({ text: "工具调用", color: "blue" });
+        if (hasVision) tags.push({ text: "视觉理解", color: "green" });
+        if (hasVideo) tags.push({ text: "视频理解", color: "orange" });
+        if (preset.contextLimit && preset.contextLimit >= 128_000) {
+            tags.push({ text: `${Math.round(preset.contextLimit / 1000)}k 上下文`, color: "blue" });
+        }
+
+        const draft: ChannelModelFormValues = {
+            ...initial,
+            modelKey: preset.id,
+            providerModelKey: preset.id,
+            displayName: preset.name,
+            channelLabel: preset.id,
+            tags,
+            description: `${preset.name}，上下文 ${formatTokenLimit(preset.contextLimit)}，最大输出 ${formatTokenLimit(preset.outputLimit)}。`,
+            capability: "text",
+            capabilityConfig: {
+                version: 1,
+                text: textConfig,
+            },
+        };
+
+        setEditing(null);
+        setCopyDraft(draft);
         setEditorOpen(true);
     };
     const startEdit = (item: ChannelModel) => {
@@ -288,6 +339,7 @@ export function ChannelModelManager({ channel, onChanged }: { channel: ModelChan
                             await onChanged();
                         }}
                     />
+                    <PresetModelSelector variant="button" onSelectPreset={startCreateWithPreset} />
                     <Button loading={fetching} icon={<RefreshCw className="size-4" />} onClick={() => void fetchModels()}>
                         拉取模型
                     </Button>
