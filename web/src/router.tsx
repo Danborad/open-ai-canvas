@@ -176,7 +176,7 @@ export const router = createBrowserRouter([
                 element: <RequireAuth>{null}</RequireAuth>,
             },
             { path: "/settings", element: <RequireAuth>{deferred(<SettingsPage />)}</RequireAuth> },
-            { path: "/referral", element: <RequireAuth>{deferred(<ReferralPage />)}</RequireAuth> },
+            { path: "/referral", element: <Navigate to="/promotion" replace /> },
             {
                 path: "/promotion",
                 element: (
@@ -260,7 +260,7 @@ export const router = createBrowserRouter([
                     { path: "notifications", element: <Navigate to="/admin/wecom" replace /> },
                     { path: "credit-operations", element: <CreditOperationsPage /> },
                     { path: "redemption-codes", element: <RedemptionCodesPage /> },
-                    { path: "referral", element: <AdminReferralPage /> },
+                    { path: "referral", element: <Navigate to="/admin/promotion" replace /> },
                     { path: "promotion", element: <AdminPromotionPage /> },
                     { path: "logs", element: <LogsPage /> },
                     { path: "settings", element: <Navigate to="runtime-policy" replace /> },

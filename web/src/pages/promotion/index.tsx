@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
 import { App, Button, Input, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Check, Coins, Copy, Gift, Link2, Sparkles, Users } from "lucide-react";
 
-import { useUserStore } from "@/stores/use-user-store";
 import { PaginationBar, TableSurface } from "@/components/layout/workspace-page";
 import { WorkspaceState } from "@/components/layout/workspace-state";
 import {
@@ -17,8 +15,6 @@ import {
 
 export default function PromotionPage() {
     const { message } = App.useApp();
-    const navigate = useNavigate();
-    const referralAvailable = useUserStore((state) => state.referralAvailable);
     const [overview, setOverview] = useState<PromotionOverview | null>(null);
     const [loadingOverview, setLoadingOverview] = useState(true);
     const [copiedCode, setCopiedCode] = useState(false);
@@ -134,7 +130,7 @@ export default function PromotionPage() {
     return (
         <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-6 overflow-y-auto p-6 md:p-8">
             {/* 顶栏标题与介绍 */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2.5">
                     <div className="flex size-9 items-center justify-center rounded-[var(--r-md)] bg-[var(--accent-surface)] text-[var(--accent)]">
                         <Gift className="size-5" />
@@ -146,11 +142,6 @@ export default function PromotionPage() {
                         </p>
                     </div>
                 </div>
-                {referralAvailable ? (
-                    <Button icon={<Coins className="size-4" />} onClick={() => navigate("/referral")}>
-                        查看充值返佣
-                    </Button>
-                ) : null}
             </div>
 
             {/* 核心邀请工具卡片与规则 Banner */}
