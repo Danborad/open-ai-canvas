@@ -93,7 +93,7 @@ export function assertCanvasImageReferenceLimit(config: AiConfig, referenceImage
 
 export { backendProviderConfig };
 // 兼容故事板执行器的旧导入路径。
-export { logicalModelIDForConfig };
+export { logicalModelIDForConfig, resolveModelGenerationDefaults };
 
 const generationOperationLocks = new Map<string, Promise<unknown>>();
 
@@ -221,6 +221,8 @@ export function buildImageGenerationMetadata(type: CanvasImageGenerationType, co
         producedModelCandidate: producedModelCandidateForGeneration(config),
         size: config.size,
         quality: config.quality,
+        imageResolution: config.imageResolution,
+        imageParameters: config.imageParameters,
         transparentBackground: config.transparentBackground,
         watermark: config.videoWatermark,
         count,

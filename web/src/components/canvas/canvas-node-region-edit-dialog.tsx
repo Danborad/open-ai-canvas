@@ -40,7 +40,7 @@ export type CanvasImageRegionEditPayload = {
     annotatedDataUrl: string;
     /** 透明像素为可编辑区域；仅在模型支持蒙版时提交。 */
     maskDataUrl: string;
-    generationConfig?: Partial<Pick<AiConfig, "model" | "imageModel" | "size" | "quality" | "count" | "transparentBackground">>;
+    generationConfig?: Partial<Pick<AiConfig, "model" | "imageModel" | "size" | "quality" | "imageResolution" | "imageParameters" | "count" | "transparentBackground">>;
 };
 
 type RegionEditorProps = {
@@ -285,8 +285,8 @@ function RegionEditor({ image, config, onClose, onConfirm }: RegionEditorProps) 
             setError(failure instanceof Error ? failure.message : "区域标注导出失败");
             return;
         }
-        const { model, quality, count, transparentBackground } = settings;
-        onConfirm({ prompt: trimmedPrompt, regions: orderedRegions, size, annotatedDataUrl, maskDataUrl, generationConfig: { model, imageModel: model, size: settings.size, quality, count, transparentBackground } });
+        const { model, quality, imageResolution, imageParameters, count, transparentBackground } = settings;
+        onConfirm({ prompt: trimmedPrompt, regions: orderedRegions, size, annotatedDataUrl, maskDataUrl, generationConfig: { model, imageModel: model, size: settings.size, quality, imageResolution, imageParameters, count, transparentBackground } });
     };
 
     const percentStyle = (rect: Omit<ImageEditRegion, "index">): CSSProperties =>

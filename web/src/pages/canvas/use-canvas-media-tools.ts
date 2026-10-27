@@ -34,7 +34,7 @@ import { buildAngleLabel, buildAnglePrompt, createCanvasNode } from "@/lib/canva
 import { validateVideoSegmentBatch } from "@/lib/canvas/canvas-video-regeneration";
 import { listVideoEnhanceModels, VIDEO_ENHANCE_OPERATION, videoEnhanceSourceReference, videoEnhanceTaskInput, type VideoEnhanceParams } from "@/lib/canvas/canvas-video-enhance";
 import { resolveCanvasStyleExecution } from "@/lib/canvas/canvas-style-execution";
-import { buildGenerationConfig, buildImageGenerationMetadata, nodeReferenceImage, isGenerationCanceled, runBackendCanvasGenerationTask, runCanvasGenerationTaskToConsumer } from "@/lib/canvas/canvas-project-generation";
+import { buildGenerationConfig, buildImageGenerationMetadata, nodeReferenceImage, isGenerationCanceled, resolveModelGenerationDefaults, runBackendCanvasGenerationTask, runCanvasGenerationTaskToConsumer } from "@/lib/canvas/canvas-project-generation";
 import { fitImageNodeSize, fitNodeSize, preserveImageNodeSize, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
 import { compositeEmotionImage, emotionGenerationSize, emotionProviderMask, normalizeEmotionPromptForProvider, resolveEmotionEditPlan } from "@/lib/canvas/canvas-emotion";
 import { DEFAULT_PORTRAIT_TEXTURE_SETTINGS } from "@/lib/canvas/canvas-portrait-texture";
@@ -63,13 +63,8 @@ import { resolveImageRequestSize } from "@/services/api/image-validation";
 import { resetGenerationTaskMetadata } from "@/lib/canvas/canvas-task-state";
 import type { GenerationTask } from "@/services/api/task-center";
 
-function normalizeRegionEditQuality(quality: string | undefined, size: string | undefined) {
-    const value = String(quality || "").trim().toLowerCase();
-    if (value && value !== "auto" && value !== "any") return value;
-    const match = String(size || "").trim().toLowerCase().match(/^(\d+)x(\d+)$/);
-    if (!match) return quality || "auto";
-    const pixels = Number(match[1]) * Number(match[2]);
-    return pixels <= 2_000_000 ? "1k" : pixels <= 4_300_000 ? "2k" : pixels <= 8_294_400 ? "4k" : quality || "auto";
+function normalizeRegionEditQuality(quality: string | undefined, size: string | undefined, profile?: ImageCapabilityConfig) {
+    return normalizeMaskEditQuality(quality, size, profile);
 }
 import { defaultConfig, resolveModelRequestConfig, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type ContextMenuState } from "@/types/canvas";
@@ -739,15 +734,37 @@ export function useCanvasMediaTools({
         // 能收两张参考图时附带编号标注图；支持蒙版时再用蒙版锁住框外像素。坐标始终写进提示词，单图模型也能定位。
         const useAnnotatedReference = maxReferenceImages >= 2;
         const useMask = Boolean(selectedImageProfile?.references.maskSupported);
-        const generationConfig = {
+        const rawGenerationConfig: AiConfig = {
             ...baseGenerationConfig,
             ...payload.generationConfig,
             model: selectedModel,
             imageModel: selectedModel,
-            quality: normalizeRegionEditQuality(payload.generationConfig?.quality || node.metadata?.quality || baseGenerationConfig.quality || modelDefaults.quality, payload.generationConfig?.size || node.metadata?.size || baseGenerationConfig.size || modelDefaults.size),
+            quality: payload.generationConfig?.quality || node.metadata?.quality || baseGenerationConfig.quality || modelDefaults.quality,
+            imageResolution: payload.generationConfig?.imageResolution || node.metadata?.imageResolution || baseGenerationConfig.imageResolution || modelDefaults.imageResolution,
+            imageParameters: payload.generationConfig?.imageParameters || node.metadata?.imageParameters || baseGenerationConfig.imageParameters,
             count: String(payload.generationConfig?.count || 1),
             // 原图像素尺寸不是模型的输出尺寸合同；非高级设置时使用模型默认尺寸，避免把节点尺寸误发给上游。
             size: payload.generationConfig?.size || node.metadata?.size || modelDefaults.size,
+        };
+        const generationDefaults = resolveModelGenerationDefaults(
+            baseGenerationConfig,
+            selectedModel,
+            "image",
+            {
+                size: rawGenerationConfig.size,
+                imageResolution: rawGenerationConfig.imageResolution,
+                imageParameters: rawGenerationConfig.imageParameters,
+                quality: rawGenerationConfig.quality,
+                transparentBackground: rawGenerationConfig.transparentBackground,
+                count: rawGenerationConfig.count,
+            },
+            rawGenerationConfig,
+        );
+        const generationConfig: AiConfig = {
+            ...rawGenerationConfig,
+            ...generationDefaults,
+            model: selectedModel,
+            imageModel: selectedModel,
         };
         if (!isAiConfigReady(generationConfig, generationConfig.model)) {
             navigateToSettings({ continueCreation: true });

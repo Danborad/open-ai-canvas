@@ -91,8 +91,11 @@ export function imageParameterRequest(profile: ImageCapabilityConfig, config: { 
     }
     const size = profile.parameters.find((p) => p.name === "size" && p.enabled !== false);
     if (size && values.size !== undefined && !imageParameterAccepts(size, values.size)) {
-        const preset = profile.size.presets?.find((p) => p.size === values.size && (!values.imageResolution || p.tier === values.imageResolution));
+        const preset =
+            profile.size.presets?.find((p) => (p.size === values.size || p.ratio === values.size) && (!values.imageResolution || p.tier === values.imageResolution)) ||
+            profile.size.presets?.find((p) => p.size === values.size || p.ratio === values.size);
         if (preset && imageParameterAccepts(size, preset.ratio)) values.size = preset.ratio;
+        else if (preset && imageParameterAccepts(size, preset.size)) values.size = preset.size;
     }
     if (strict) {
         for (const field of profile.parameters) {
