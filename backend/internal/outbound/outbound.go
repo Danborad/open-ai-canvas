@@ -306,7 +306,7 @@ func blockedOutboundHeader(name string) bool {
 }
 
 func newOutboundTransport(resolveHost func(context.Context, string) ([]net.IP, error)) *http.Transport {
-	dialer := &net.Dialer{Timeout: 15 * time.Second, KeepAlive: 30 * time.Second}
+	dialer := &net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}
 	return &http.Transport{
 		Proxy: outboundProxyFromEnvironment,
 		DialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
@@ -328,7 +328,7 @@ func newOutboundTransport(resolveHost func(context.Context, string) ([]net.IP, e
 		MaxIdleConns:          100,
 		MaxIdleConnsPerHost:   20,
 		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   15 * time.Second,
+		TLSHandshakeTimeout:   45 * time.Second,
 		ExpectContinueTimeout: time.Second,
 	}
 }
@@ -351,14 +351,14 @@ func newOutboundTransportWithProxy(proxyURL string) *http.Transport {
 		return nil
 	}
 	scheme := strings.ToLower(parsed.Scheme)
-	forwardDialer := &net.Dialer{Timeout: 15 * time.Second, KeepAlive: 30 * time.Second}
+	forwardDialer := &net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}
 
 	transport := &http.Transport{
 		ForceAttemptHTTP2:     true,
 		MaxIdleConns:          100,
 		MaxIdleConnsPerHost:   20,
 		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   15 * time.Second,
+		TLSHandshakeTimeout:   45 * time.Second,
 		ExpectContinueTimeout: time.Second,
 	}
 
