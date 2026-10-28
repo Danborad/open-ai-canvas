@@ -1,4 +1,4 @@
-import { Check, Clapperboard, CloudUpload, Download, Eye, EyeOff, FileText, Frame, Image as ImageIcon, LoaderCircle, MoreHorizontal, Music2, Pencil, Play, Plus, Settings2, Sparkles, SquareDashed, Trash2, Video, X } from "lucide-react";
+import { Blocks, Check, Clapperboard, CloudUpload, Download, Eye, EyeOff, FileText, Frame, Image as ImageIcon, LoaderCircle, MoreHorizontal, Music2, Pencil, Play, Plus, Settings2, Sparkles, SquareDashed, Trash2, Video, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { App, Dropdown, Input } from "antd";
@@ -332,15 +332,19 @@ export function ProjectPreview({ project, preferLatestImage = false, quiet = fal
     );
 }
 
-function getNodePresentation(node: CanvasNodeData) {
-    if (node.type === CanvasNodeType.Image) return { label: "图片", icon: <ImageIcon className="size-3.5" /> };
-    if (node.type === CanvasNodeType.Video) return { label: "视频", icon: <Video className="size-3.5" /> };
-    if (node.type === CanvasNodeType.Audio) return { label: "音频", icon: <Music2 className="size-3.5" /> };
-    if (node.type === CanvasNodeType.Text) return { label: "文本", icon: <FileText className="size-3.5" /> };
-    if (node.type === "section") return { label: "分节", icon: <Frame className="size-3.5" /> };
-    if (node.type === "storyboard") return { label: "分镜", icon: <Clapperboard className="size-3.5" /> };
-    if (node.type === "config") return { label: "配置", icon: <Settings2 className="size-3.5" /> };
-    return { label: "节点", icon: <Sparkles className="size-3.5" /> };
+function getNodeMediaUrl(node: CanvasNodeData) {
+    const storageKey = node.metadata?.storageKey;
+    const resourceId = resourceIdFromStorageKey(storageKey);
+    if (resourceId) return resourceFileUrl(resourceId);
+    const raw = node.metadata?.previewContent || node.metadata?.content;
+    if (typeof raw === "string" && raw.trim()) {
+        const trimmed = raw.trim();
+        const resId = resourceIdFromStorageKey(trimmed);
+        if (resId) return resourceFileUrl(resId);
+        if (trimmed.startsWith("api/") || trimmed.startsWith("/api/")) return resolveBackendApiUrl(trimmed);
+        return trimmed;
+    }
+    return "";
 }
 
 export function projectPreviewMedia(nodes: CanvasNodeData[], preferLatestImage = false) {
@@ -458,19 +462,27 @@ function buildNodePreviewLayout(nodes: CanvasNodeData[]) {
     });
 }
 
-function getNodeMediaUrl(node: CanvasNodeData) {
-    const storageKey = node.metadata?.storageKey;
-    const resourceId = resourceIdFromStorageKey(storageKey);
-    if (resourceId) return resourceFileUrl(resourceId);
-    const raw = node.metadata?.previewContent || node.metadata?.content;
-    if (typeof raw === "string" && raw.trim()) {
-        const trimmed = raw.trim();
-        const resId = resourceIdFromStorageKey(trimmed);
-        if (resId) return resourceFileUrl(resId);
-        if (trimmed.startsWith("api/") || trimmed.startsWith("/api/")) return resolveBackendApiUrl(trimmed);
-        return trimmed;
+function getNodePresentation(node: CanvasNodeData) {
+    switch (node.type) {
+        case CanvasNodeType.Text:
+            return { label: "文本", icon: <FileText className="size-3.5" /> };
+        case CanvasNodeType.Script:
+            return { label: "分镜脚本", icon: <Clapperboard className="size-3.5" /> };
+        case CanvasNodeType.Image:
+            return { label: "图片", icon: <ImageIcon className="size-3.5" /> };
+        case CanvasNodeType.Video:
+            return { label: "视频", icon: <Video className="size-3.5" /> };
+        case CanvasNodeType.Audio:
+            return { label: "音频", icon: <Music2 className="size-3.5" /> };
+        case CanvasNodeType.Drawing:
+            return { label: "绘图", icon: <Pencil className="size-3.5" /> };
+        case CanvasNodeType.Frame:
+            return { label: "背板", icon: <Frame className="size-3.5" /> };
+        case CanvasNodeType.Config:
+            return { label: "生成配置", icon: <Settings2 className="size-3.5" /> };
+        default:
+            return { label: "技能", icon: <Blocks className="size-3.5" /> };
     }
-    return "";
 }
 
 function isPreviewUrl(url: string) {

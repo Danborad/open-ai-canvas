@@ -85,7 +85,7 @@ export function WorkspaceSidebarCheckin({ collapsed }: { collapsed: boolean }) {
         >
             <div className="app-workspace-sidebar-checkin-copy">
                 <strong className="app-workspace-sidebar-checkin-title dark:!text-white">
-                    今日 <span className="text-emerald-500 dark:text-emerald-400 font-bold">{amount}</span> 积分
+                    今日<em>{amount}</em>积分
                 </strong>
                 <span className="app-workspace-sidebar-checkin-offer dark:!text-neutral-400">
                     {checkedIn ? "今日签到已完成" : "每日签到免费领"}

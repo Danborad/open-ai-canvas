@@ -6,6 +6,8 @@
 .workspace-account-card-identity > div { flex: 1; min-width: 0; }
 .workspace-account-card-identity strong, .workspace-account-card-identity span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-account-card-identity strong { font-size: 14px; line-height: 24px; }
+.workspace-account-card-identity .workspace-account-card-name { display: flex; align-items: center; gap: 6px; }
+.workspace-account-card-identity .workspace-account-card-name > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; font-size: inherit; }
 .workspace-account-card-identity span { color: var(--user-ink-muted); font-size: 12px; }
 .workspace-account-card-identity .workspace-account-card-email { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--user-ink-soft); margin-top: 1px; }
 .workspace-account-card-identity .workspace-account-card-email svg { width: 12px; height: 12px; flex-shrink: 0; opacity: 0.7; }

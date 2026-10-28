@@ -6,6 +6,7 @@ import { useAdminContext } from "./admin-context";
 import { AdminPageFrame } from "./components/admin-shell";
 import { readAnnouncementPendingReview } from "./components/admin-announcement-safety";
 import { BillingAutoRefundToggle } from "./components/billing-auto-refund-toggle";
+import { AdminSegmented } from "./ui/controls";
 
 const AnalyticsPanel = lazy(() => import("./components/analytics-panel"));
 const AdminAnnouncementsPanel = lazy(() => import("./components/admin-announcements-panel"));
@@ -18,6 +19,7 @@ const StorageResourcesPanel = lazy(() => import("./components/storage-resources-
 const ESAMonitoringPanel = lazy(() => import("./esa/esa-monitoring-page"));
 const WecomNotificationPanel = lazy(() => import("./notifications/wecom-notification-page"));
 const AgentLessonsPanel = lazy(() => import("./components/agent-lessons-panel"));
+const AgentMemoryDocumentsPanel = lazy(() => import("./components/agent-memory-documents-panel"));
 
 export function AnalyticsPage() {
     const { references } = useAdminContext();
@@ -143,9 +145,25 @@ export function WecomNotificationPage() {
 }
 
 export function AgentLessonsPage() {
+    const [view, setView] = useState<"documents" | "lessons">("documents");
     return (
-        <AdminPageFrame title="Agent 记忆" description="按用户查看个人记忆；批准仍由用户自己处理" scroll>
-            <AgentLessonsPanel />
+        <AdminPageFrame
+            title="Agent 记忆"
+            description="按用户只读查看记忆文件；编辑、撤销和确认由用户本人处理"
+            actions={
+                <AdminSegmented<"documents" | "lessons">
+                    ariaLabel="记忆视图"
+                    value={view}
+                    onChange={setView}
+                    options={[
+                        { value: "documents", label: "记忆文件" },
+                        { value: "lessons", label: "旧版经验" },
+                    ]}
+                />
+            }
+            scroll
+        >
+            {view === "documents" ? <AgentMemoryDocumentsPanel /> : <AgentLessonsPanel />}
         </AdminPageFrame>
     );
 }

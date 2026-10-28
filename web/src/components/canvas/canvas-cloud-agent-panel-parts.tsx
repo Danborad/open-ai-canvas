@@ -6,7 +6,7 @@
 import type { CanvasTheme } from "@/lib/canvas-theme";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
 import { agentAvatarClipForState, agentAvatarStateForRunStatus, agentCopy, DEFAULT_CANVAS_APPEARANCE, isAgentAvatarBundleManifest, type AgentAvatarBundleManifest } from "@/lib/canvas/agent-appearance";
-import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePopoverAnchorAlign } from "@/hooks/use-popover-anchor-align";
 import { useAgentLauncherPosition } from "./use-agent-launcher-position";
 import { motion } from "motion/react";
@@ -15,7 +15,7 @@ import { Live2DAvatar } from "./live2d-avatar";
 import { agentAvatarBundleFileURL, live2DModelURL } from "@/services/api/appearance";
 import { AgentAvatarVideo } from "@/components/canvas/agent-avatar-video";
 import { FluidOrb } from "@/components/ui/fluid-orb";
-import { ArrowLeft, Check, CircleDot, Clock3, Download, History, LoaderCircle, Maximize2, MessageSquarePlus, Minus, RotateCcw, Settings2, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, Blocks, Check, CircleDot, Clock3, Download, History, LoaderCircle, Maximize2, MessageSquarePlus, Minus, PanelRight, PictureInPicture2, RotateCcw, Settings2, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import { Button, Input, Popover, Tooltip } from "antd";
 import { CanvasAnchoredDropdown as Dropdown } from "./canvas-anchored-dropdown";
 import type { AgentContextPhase, AgentContextUsageView } from "@/lib/canvas/agent-context-usage";
@@ -36,11 +36,13 @@ import { agentApprovalPresentation } from "@/lib/canvas/agent-approval-presentat
 import { CanvasAgentImageApprovalSettings } from "./canvas-agent-image-approval-settings";
 import { CanvasAgentVideoApprovalSettings } from "./canvas-agent-video-approval-settings";
 import { markdownPlainText } from "@/lib/markdown-plain-text";
+import { extractAgentReplyOptions, type AgentReplyOptions } from "@/lib/canvas/agent-reply-options";
 import type { ApprovalState } from "./canvas-cloud-agent-events";
 
 // hidden 为 true 时入口保持挂载但不显示：Live2D 模型加载开销大，面板开合不能卸载它，
-// 否则每次重新挂载都要重新下载模型并重建渲染上下文。
-export function AgentLauncher({
+// 否则每次重新挂载都要重新下载模型并重建渲染上下文。隐藏期间形象动画暂停。
+// props 都是基本值或稳定回调，memo 后面板输入、流式输出都不会带着它重渲染。
+export const AgentLauncher = memo(function AgentLauncher({
     theme,
     statusColor,
     approvalPending,
@@ -154,7 +156,7 @@ export function AgentLauncher({
                         onError={setLive2DError}
                     />
                 ) : mediaURL && !mediaError ? (
-                    <AgentAvatarVideo src={mediaURL} loop={!["completed", "failed", "cancelled", "rejected"].includes(avatarState)} onError={() => setMediaError(true)} />
+                    <AgentAvatarVideo src={mediaURL} loop={!["completed", "failed", "cancelled", "rejected"].includes(avatarState)} paused={hidden} onError={() => setMediaError(true)} />
                 ) : bundleManifestLoading || !appearanceResolved ? (
                     <span role="status" aria-busy="true">
                         <LoaderCircle className={reducedMotion ? "size-6" : "size-6 motion-safe:animate-spin"} aria-hidden="true" />
@@ -192,7 +194,7 @@ export function AgentLauncher({
             ) : null}
         </>
     );
-}
+});
 
 const AGENT_LAUNCHER_COLLAPSED_KEY = "canvas:agent-launcher-collapsed:v1";
 const AGENT_LAUNCHER_COLLAPSED_SIZE = 48;
@@ -215,6 +217,8 @@ export function AgentHeader({
     onHistory,
     onSettings,
     onResetLayout,
+    docked = false,
+    onToggleDock,
     onCollapse,
     onExport,
     exporting,
@@ -228,6 +232,9 @@ export function AgentHeader({
     onHistory: () => void;
     onSettings: () => void;
     onResetLayout: () => void;
+    docked?: boolean;
+    /** 只在画布里、视口够宽时提供：在“停靠右侧”和“浮动窗口”之间切换。 */
+    onToggleDock?: () => void;
     onCollapse: () => void;
     onExport: () => void;
     exporting: boolean;
@@ -502,6 +509,55 @@ export function AgentHistory({
     );
 }
 
+/** 消息只用引用表做节点链接和提及标签；节点正文（text）变了不影响消息展示。 */
+function sameAgentLinkReference(left: CanvasResourceReference, right: CanvasResourceReference) {
+    return (
+        left === right ||
+        (left.id === right.id &&
+            left.nodeId === right.nodeId &&
+            left.kind === right.kind &&
+            left.label === right.label &&
+            left.title === right.title &&
+            left.previewUrl === right.previewUrl &&
+            left.mentionToken === right.mentionToken &&
+            left.sourceType === right.sourceType &&
+            left.assetId === right.assetId &&
+            left.skill === right.skill)
+    );
+}
+
+/**
+ * 画布里改节点正文时引用表会变，但消息里的链接没变。链接字段都相同就沿用上一份引用表，
+ * 消息不会因此重新解析 Markdown；输入框的 @ 菜单仍拿最新的完整引用表。
+ */
+function useLinkStableReferences(references: CanvasResourceReference[]) {
+    const previousRef = useRef(references);
+    const stable = useMemo(() => {
+        const previous = previousRef.current;
+        return previous.length === references.length && previous.every((item, index) => sameAgentLinkReference(item, references[index])) ? previous : references;
+    }, [references]);
+    useLayoutEffect(() => {
+        previousRef.current = stable;
+    }, [stable]);
+    return stable;
+}
+
+/**
+ * 只有对话停在 Agent 的最后一条回复上（之后没有用户发言）时，这条回复末尾的编号选项
+ * 才变成可点击卡片；更早的回复保持原文，便于回看。
+ */
+function agentReplyOptionsTarget(messages: readonly CloudAgentChatMessage[]): { id: string; options: AgentReplyOptions } | null {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+        const message = messages[index];
+        if (message.role === "user") return null;
+        // 调用方只在本轮已停下（非运行、无审批）时启用，这里的最后一条回复一定是完整的。
+        if (message.role !== "assistant" || message.reasoning) continue;
+        const options = extractAgentReplyOptions(message.text);
+        return options ? { id: message.id, options } : null;
+    }
+    return null;
+}
+
 export function AgentConversation({
     theme,
     messages,
@@ -511,7 +567,9 @@ export function AgentConversation({
     approvalTargetGenerating,
     approvalSubmitting,
     nodeCount,
+    installedSkillCount,
     onChooseSkill,
+    onOpenSkillRecommendations,
     onDraftPrompt,
     onFocusNode,
     onUndo,
@@ -521,6 +579,8 @@ export function AgentConversation({
     onReject,
     onWithdrawInterjection,
     withdrawingInterjectionId,
+    onReplyOption,
+    replyOptionsDisabled = false,
 }: {
     theme: CanvasTheme;
     messages: CloudAgentChatMessage[];
@@ -530,7 +590,10 @@ export function AgentConversation({
     approvalTargetGenerating?: CanvasNodeData;
     approvalSubmitting: boolean;
     nodeCount: number | null;
+    /** null 表示技能库还没读到，此时不提示安装推荐，避免闪现。 */
+    installedSkillCount: number | null;
     onChooseSkill: () => void;
+    onOpenSkillRecommendations: () => void;
     onDraftPrompt: (prompt: string) => void;
     onFocusNode?: (nodeId: string) => void;
     onUndo?: (target: AgentCanvasUndoTarget) => void;
@@ -540,6 +603,9 @@ export function AgentConversation({
     onReject: () => void;
     onWithdrawInterjection?: (messageId: string) => void;
     withdrawingInterjectionId?: string | null;
+    /** 不传表示当前不该出现选项卡片（例如 ask_user 提问条已在展示）。 */
+    onReplyOption?: (text: string) => void;
+    replyOptionsDisabled?: boolean;
 }) {
     const appearance = useAppearanceStore((state) => state.appearance.canvas) || DEFAULT_CANVAS_APPEARANCE;
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -549,6 +615,18 @@ export function AgentConversation({
     // 连续的工具记录折成一行（只报最新一步），计划/提问载体由输入区上方的固定条渲染。
     const segments = useMemo(() => buildAgentFeedSegments(messages), [messages]);
     const lastMessage = messages.at(-1);
+    const replyOptionsEnabled = Boolean(onReplyOption) && !busy && !approval;
+    const replyTarget = useMemo(() => (replyOptionsEnabled ? agentReplyOptionsTarget(messages) : null), [messages, replyOptionsEnabled]);
+    // 父组件每次渲染（例如输入框每敲一个字）都会传入新的回调和引用表。消息组件已 memo，
+    // 这里换成稳定的回调和“只看链接字段”的引用表，消息才能跳过与它无关的重渲染。
+    const handlersRef = useRef({ onUndo, onWithdrawInterjection, onReplyOption });
+    useLayoutEffect(() => {
+        handlersRef.current = { onUndo, onWithdrawInterjection, onReplyOption };
+    });
+    const stableUndo = useCallback((target: AgentCanvasUndoTarget) => handlersRef.current.onUndo?.(target), []);
+    const stableWithdraw = useCallback((messageId: string) => handlersRef.current.onWithdrawInterjection?.(messageId), []);
+    const stableReply = useCallback((text: string) => handlersRef.current.onReplyOption?.(text), []);
+    const linkReferences = useLinkStableReferences(references);
 
     // 自己发送时恢复跟随；阅读旧消息时不让流式输出抢走滚动位置。
     useLayoutEffect(() => {
@@ -580,12 +658,23 @@ export function AgentConversation({
                 followRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48;
             }}
         >
-            {!messages.length ? <AgentWelcome appearance={appearance} nodeCount={nodeCount} onChooseSkill={onChooseSkill} onDraftPrompt={onDraftPrompt} /> : null}
+            {!messages.length ? (
+                <AgentWelcome appearance={appearance} nodeCount={nodeCount} installedSkillCount={installedSkillCount} onChooseSkill={onChooseSkill} onOpenSkillRecommendations={onOpenSkillRecommendations} onDraftPrompt={onDraftPrompt} />
+            ) : null}
             <div ref={contentRef} className="agent-conversation-messages">
                 {segments.map((segment, index) =>
                     segment.kind === "operations" ? (
                         // 只有"对话末尾那一段 + 还在跑"才流光：历史段落留在静态态，任务完成即停。
-                        <AgentOperationFeed key={segment.key} items={segment.items} theme={theme} references={references} onFocusNode={onFocusNode} onUndo={onUndo} undoStates={undoStates} live={busy && index === segments.length - 1} />
+                        <AgentOperationFeed
+                            key={segment.key}
+                            items={segment.items}
+                            theme={theme}
+                            references={linkReferences}
+                            onFocusNode={onFocusNode}
+                            onUndo={onUndo ? stableUndo : undefined}
+                            undoStates={undoStates}
+                            live={busy && index === segments.length - 1}
+                        />
                     ) : segment.kind === "reasoning" ? (
                         <AgentReasoningFeed key={segment.key} items={segment.items} theme={theme} />
                     ) : (
@@ -593,13 +682,16 @@ export function AgentConversation({
                             key={segment.key}
                             item={segment.item}
                             theme={theme}
-                            references={references}
+                            references={linkReferences}
                             onFocusNode={onFocusNode}
-                            onUndo={onUndo}
+                            onUndo={onUndo ? stableUndo : undefined}
                             undoStates={undoStates}
-                            onWithdrawInterjection={onWithdrawInterjection}
+                            onWithdrawInterjection={onWithdrawInterjection ? stableWithdraw : undefined}
                             withdrawing={withdrawingInterjectionId === segment.item.id}
                             isStreaming={busy && !approval && segment.item.streaming === true && segment.item === lastMessage}
+                            replyOptions={replyTarget?.id === segment.item.id ? replyTarget.options : null}
+                            onReplyOption={replyTarget?.id === segment.item.id && onReplyOption ? stableReply : undefined}
+                            replyOptionsDisabled={replyOptionsDisabled}
                         />
                     ),
                 )}
@@ -658,7 +750,7 @@ export function ComposerControls({
                 popoverClassName="agent-model-picker-popover"
                 showSelectedPrice={false}
                 showOptionPrices
-                placeholder="选择模型"
+                placeholder="选择文本模型"
             />
             <Dropdown trigger={["click"]} placement="topLeft" menu={{ items: agentPermissionMenuItems(permissionMode, onPermissionChange) }}>
                 <Tooltip title={`执行权限：${agentPermissionLabel(permissionMode)}（点击切换）`} placement="top">
@@ -806,7 +898,9 @@ export function ApprovalPreviewItemView({ item, theme, onFocusNode }: { item: Re
                         ? "创建角色卡"
                         : item.operation === "plan_step"
                           ? "计划"
-                          : "生成";
+                          : item.operation === "adopt_drama_media"
+                            ? "采用到短剧"
+                            : "生成";
     const renderNode = (title: string | undefined, id: string | undefined, typeLabel: string | undefined, role: "source" | "target" | "node") => {
         if (!title) return null;
         const content = (
