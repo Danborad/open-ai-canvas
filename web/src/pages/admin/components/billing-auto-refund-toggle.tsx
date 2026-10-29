@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { App, Button, Modal } from "antd";
+import { App, Button } from "antd";
 import { Play } from "lucide-react";
+import { AdminModal } from "@/pages/admin/ui/overlays";
 
 import { Switch } from "@/components/ui/base/switch";
 import { getAdminBillingAutoRefund, runAdminBillingAutoReconcile, updateAdminBillingAutoRefund } from "@/services/api/wallet";
@@ -96,7 +97,7 @@ export function BillingAutoRefundToggle({ onReconciled }: BillingAutoRefundToggl
                     }}
                 />
             </label>
-            <Modal
+            <AdminModal
                 title="开启定时自动对账退还"
                 open={confirmOpen}
                 okText="确认开启"
@@ -110,7 +111,6 @@ export function BillingAutoRefundToggle({ onReconciled }: BillingAutoRefundToggl
                 }}
                 onOk={() => void save(true)}
                 destroyOnHidden
-                rootClassName="admin-modal-root"
             >
                 <p className="admin-operation-confirmation-copy">
                     开启后，系统每 1 小时自动对账巡检一次“待核对队列”。
@@ -118,7 +118,7 @@ export function BillingAutoRefundToggle({ onReconciled }: BillingAutoRefundToggl
                 <p className="admin-operation-confirmation-copy">
                     系统将以用户是否实际拿到有效媒体文件为准：未出片订单（524网关超时、协议未返回地址、任务失败）自动全额退还预扣积分；已恢复出片订单自动结算。
                 </p>
-            </Modal>
+            </AdminModal>
         </div>
     );
 }
