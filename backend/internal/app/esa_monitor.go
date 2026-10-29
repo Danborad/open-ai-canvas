@@ -55,6 +55,11 @@ type ESATopSite struct {
 	Traffic  int64  `json:"traffic"`
 }
 
+type ESATopHostItem struct {
+	Host    string `json:"host"`
+	Traffic int64  `json:"traffic"`
+}
+
 type ESATimePoint struct {
 	Time     string `json:"time"`
 	Traffic  int64  `json:"traffic"`
@@ -249,6 +254,20 @@ func (s *Service) ESAOverview(actor *model.User, rangeKey string, siteID string,
 		return res, nil
 	}
 
+	// 7天与30天统计：阿里云免费/基础套餐不提供，从本地累积数据库中聚合查询
+	if rangeKey == "7d" || rangeKey == "30d" {
+		localOverview, localErr := s.queryESALocalOverview(siteID, rangeKey)
+		if localErr == nil && localOverview != nil {
+			esaCacheMu.Lock()
+			esaCache[cacheKey] = esaCacheItem{
+				data:      *localOverview,
+				expiresAt: time.Now().Add(5 * time.Minute),
+			}
+			esaCacheMu.Unlock()
+			return localOverview, nil
+		}
+	}
+
 	// 带重试请求阿里云
 	var overview *ESAOverviewResponse
 	var fetchErr error
@@ -294,6 +313,11 @@ func (s *Service) ESAOverview(actor *model.User, rangeKey string, siteID string,
 		expiresAt: time.Now().Add(5 * time.Minute),
 	}
 	esaCacheMu.Unlock()
+
+	// 每次从阿里云拉取数据成功后，异步将小时粒度数据与 Top Host 固化入库
+	if rangeKey == "today" || rangeKey == "yesterday" {
+		go s.archiveESATodayMetrics(current.AccessKeyID, current.AccessKeySecret, siteID)
+	}
 
 	return overview, nil
 }
@@ -832,4 +856,285 @@ func (s *Service) FetchESADomainStats(ctx context.Context, targetDomain string, 
 		}
 	}
 	return traffic, requests, true, nil
+}
+
+func (s *Service) archiveESATodayMetrics(akID, akSecret, siteID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	defer cancel()
+
+	sites, err := fetchESASiteList(ctx, akID, akSecret)
+	if err != nil || len(sites) == 0 {
+		return
+	}
+
+	targetSites := make([]ESASiteInfo, 0)
+	if siteID == "" || siteID == "all" {
+		targetSites = sites
+	} else {
+		for _, st := range sites {
+			if st.SiteID == siteID {
+				targetSites = append(targetSites, st)
+				break
+			}
+		}
+	}
+	if len(targetSites) == 0 {
+		return
+	}
+
+	now := time.Now().UTC()
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	startStr := start.Format("2006-01-02T15:04:05Z")
+	endStr := now.Format("2006-01-02T15:04:05Z")
+
+	var allMetrics []model.ESASiteMetric
+
+	for _, st := range targetSites {
+		tsParams := map[string]string{
+			"Action":    "DescribeSiteTimeSeriesData",
+			"SiteId":    st.SiteID,
+			"StartTime": startStr,
+			"EndTime":   endStr,
+			"Interval":  "3600",
+			"Fields":    `[{"FieldName":"Traffic","Dimension":["SiteId"]},{"FieldName":"Requests","Dimension":["SiteId"]}]`,
+		}
+		tsBytes, tsErr := doAliyunPopRequest(ctx, "GET", tsParams, akID, akSecret)
+		if tsErr != nil {
+			continue
+		}
+
+		type tsPoint struct {
+			TimeStamp string `json:"TimeStamp"`
+			Value     int64  `json:"Value"`
+		}
+		var tsResp struct {
+			Data []struct {
+				FieldName  string    `json:"FieldName"`
+				DetailData []tsPoint `json:"DetailData"`
+			} `json:"Data"`
+		}
+		if err := json.Unmarshal(tsBytes, &tsResp); err != nil {
+			continue
+		}
+
+		topHostsJSON := "[]"
+		topParams := map[string]string{
+			"Action":    "DescribeSiteTopData",
+			"SiteId":    st.SiteID,
+			"StartTime": startStr,
+			"EndTime":   endStr,
+			"Limit":     "10",
+			"Fields":    `[{"FieldName":"Traffic","Dimension":["ClientRequestHost"]}]`,
+		}
+		topBytes, topErr := doAliyunPopRequest(ctx, "GET", topParams, akID, akSecret)
+		if topErr == nil {
+			var topResp struct {
+				Data []struct {
+					FieldName  string `json:"FieldName"`
+					DetailData []struct {
+						DimensionValue string `json:"DimensionValue"`
+						Value          int64  `json:"Value"`
+					} `json:"DetailData"`
+				} `json:"Data"`
+			}
+			if json.Unmarshal(topBytes, &topResp) == nil {
+				var hostItems []ESATopHostItem
+				for _, dataItem := range topResp.Data {
+					for _, d := range dataItem.DetailData {
+						if d.DimensionValue != "" {
+							hostItems = append(hostItems, ESATopHostItem{
+								Host:    d.DimensionValue,
+								Traffic: d.Value,
+							})
+						}
+					}
+				}
+				if len(hostItems) > 0 {
+					if b, err := json.Marshal(hostItems); err == nil {
+						topHostsJSON = string(b)
+					}
+				}
+			}
+		}
+
+		hourlyMap := make(map[time.Time]*model.ESASiteMetric)
+		for _, dataItem := range tsResp.Data {
+			for _, pt := range dataItem.DetailData {
+				t, err := time.Parse("2006-01-02T15:04:05Z", pt.TimeStamp)
+				if err != nil {
+					continue
+				}
+				bucket := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, time.UTC)
+				metric, exists := hourlyMap[bucket]
+				if !exists {
+					metric = &model.ESASiteMetric{
+						ID:           fmt.Sprintf("esa_%s_%d", st.SiteID, bucket.Unix()),
+						SiteID:       st.SiteID,
+						TimeBucket:   bucket,
+						TopHostsJSON: topHostsJSON,
+					}
+					hourlyMap[bucket] = metric
+				}
+				if dataItem.FieldName == "Traffic" {
+					metric.TrafficBytes += pt.Value
+				} else if dataItem.FieldName == "Requests" {
+					metric.RequestCount += pt.Value
+				}
+			}
+		}
+
+		for _, m := range hourlyMap {
+			allMetrics = append(allMetrics, *m)
+		}
+	}
+
+	if len(allMetrics) > 0 {
+		if err := s.repo.UpsertESASiteMetrics(allMetrics); err != nil {
+			log.Printf("[ESA Archive] Upsert error: %v", err)
+		}
+	}
+}
+
+func (s *Service) queryESALocalOverview(siteID string, rangeKey string) (*ESAOverviewResponse, error) {
+	now := time.Now().UTC()
+	var start time.Time
+	is30d := rangeKey == "30d"
+	if is30d {
+		start = now.AddDate(0, 0, -30)
+	} else {
+		start = now.AddDate(0, 0, -7)
+	}
+
+	metrics, err := s.repo.QueryESAMetricsBetween(siteID, start, now)
+	if err != nil {
+		return nil, err
+	}
+
+	var totalTraffic int64
+	var totalRequests int64
+	topHostsMap := make(map[string]int64)
+
+	type timeSlot struct {
+		Traffic  int64
+		Requests int64
+	}
+	slots := make(map[string]*timeSlot)
+	slotKeys := make([]string, 0)
+
+	if is30d {
+		for d := 30; d >= 0; d-- {
+			dayT := now.AddDate(0, 0, -d)
+			key := time.Date(dayT.Year(), dayT.Month(), dayT.Day(), 0, 0, 0, 0, time.UTC).Format("2006-01-02T15:04:05Z")
+			slots[key] = &timeSlot{}
+			slotKeys = append(slotKeys, key)
+		}
+	} else {
+		for h := 7 * 24; h >= 0; h-- {
+			hT := now.Add(-time.Duration(h) * time.Hour)
+			key := time.Date(hT.Year(), hT.Month(), hT.Day(), hT.Hour(), 0, 0, 0, time.UTC).Format("2006-01-02T15:04:05Z")
+			slots[key] = &timeSlot{}
+			slotKeys = append(slotKeys, key)
+		}
+	}
+
+	for _, m := range metrics {
+		totalTraffic += m.TrafficBytes
+		totalRequests += m.RequestCount
+
+		var slotKey string
+		if is30d {
+			slotKey = time.Date(m.TimeBucket.Year(), m.TimeBucket.Month(), m.TimeBucket.Day(), 0, 0, 0, 0, time.UTC).Format("2006-01-02T15:04:05Z")
+		} else {
+			slotKey = time.Date(m.TimeBucket.Year(), m.TimeBucket.Month(), m.TimeBucket.Day(), m.TimeBucket.Hour(), 0, 0, 0, time.UTC).Format("2006-01-02T15:04:05Z")
+		}
+
+		if slot, ok := slots[slotKey]; ok {
+			slot.Traffic += m.TrafficBytes
+			slot.Requests += m.RequestCount
+		}
+
+		if m.TopHostsJSON != "" {
+			var hosts []ESATopHostItem
+			if json.Unmarshal([]byte(m.TopHostsJSON), &hosts) == nil {
+				for _, h := range hosts {
+					topHostsMap[h.Host] += h.Traffic
+				}
+			}
+		}
+	}
+
+	timeseries := make([]ESATimePoint, 0, len(slotKeys))
+	for _, k := range slotKeys {
+		if slot, ok := slots[k]; ok {
+			timeseries = append(timeseries, ESATimePoint{
+				Time:     k,
+				Traffic:  slot.Traffic,
+				Requests: slot.Requests,
+			})
+		}
+	}
+
+	topSitesList := make([]ESATopSite, 0, len(topHostsMap))
+	for host, traf := range topHostsMap {
+		topSitesList = append(topSitesList, ESATopSite{
+			SiteID:   host,
+			SiteName: host,
+			Traffic:  traf,
+		})
+	}
+	sort.Slice(topSitesList, func(i, j int) bool {
+		return topSitesList[i].Traffic > topSitesList[j].Traffic
+	})
+	if len(topSitesList) > 5 {
+		topSitesList = topSitesList[:5]
+	}
+
+	earliest, _ := s.repo.QueryESAEarliestMetricTime(siteID)
+	accumulatedDays := 1
+	if !earliest.IsZero() {
+		accumulatedDays = int(now.Sub(earliest).Hours()/24) + 1
+	}
+
+	return &ESAOverviewResponse{
+		Range:            rangeKey,
+		SiteID:           siteID,
+		Configured:       true,
+		Traffic:          totalTraffic,
+		Requests:         totalRequests,
+		SecurityRequests: 0,
+		PagesRequests:    0,
+		TopSites:         topSitesList,
+		Timeseries:       timeseries,
+		UpdatedAt:        fmt.Sprintf("本地自建统计（已累积 %d 天数据）", accumulatedDays),
+	}, nil
+}
+
+func (s *Service) startESAMetricsCollector(ctx context.Context) {
+	s.runWorkerLoop(func(ctx context.Context) {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(15 * time.Second):
+			s.runESAMetricsCollection(ctx)
+		}
+
+		ticker := time.NewTicker(30 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				s.runESAMetricsCollection(ctx)
+			}
+		}
+	})
+}
+
+func (s *Service) runESAMetricsCollection(ctx context.Context) {
+	_, current, err := s.readESASetting()
+	if err != nil || !current.Enabled || current.AccessKeyID == "" || current.AccessKeySecret == "" {
+		return
+	}
+	s.archiveESATodayMetrics(current.AccessKeyID, current.AccessKeySecret, "all")
 }

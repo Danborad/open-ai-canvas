@@ -235,7 +235,13 @@ export default function ESAMonitoringPage() {
                         <div className="flex items-center justify-between text-xs text-foreground/50 px-1">
                             <div className="flex items-center gap-2">
                                 <span className={cn("inline-block size-2 rounded-full", overview?.error ? "bg-amber-500" : "bg-emerald-500 animate-pulse")} />
-                                <span>{overview?.error ? "数据拉取异常（已展示当前缓存）" : "监控运行中（每 5 分钟自动更新）"}</span>
+                                <span>
+                                    {timeRange === "7d" || timeRange === "30d"
+                                        ? "本地自建历史统计（系统每 30 分钟自动归档落盘）"
+                                        : overview?.error
+                                          ? "数据拉取异常（已展示当前缓存）"
+                                          : "监控运行中（每 5 分钟自动更新）"}
+                                </span>
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <Clock3 className="size-3.5" />
