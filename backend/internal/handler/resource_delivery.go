@@ -49,7 +49,7 @@ func serveResourceDelivery(c *gin.Context, delivery *service.ResourceDelivery, c
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.Header("Accept-Ranges", "bytes")
 	if access.Delivery == assets.DeliveryCDN || access.Delivery == assets.DeliveryOrigin {
-		c.Header("Cache-Control", "private, no-store")
+		c.Header("Cache-Control", "private, max-age=86400")
 		// Do not let Gin generate its default HTML redirect body. A media request
 		// should transfer only the redirect metadata; the actual bytes must be
 		// fetched from the CDN/origin selected by the access contract.

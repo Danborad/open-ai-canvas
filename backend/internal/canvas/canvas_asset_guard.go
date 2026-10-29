@@ -42,10 +42,9 @@ func (s *Service) ValidateCanvasMediaAssets(userID string, raw json.RawMessage) 
 	assetIDSet := make(map[string]struct{}, len(references))
 	resourceIDSet := make(map[string]struct{}, len(references)+len(allResourceReferences))
 	for _, reference := range references {
-		if reference.AssetID == "" {
-			return canvasMediaAssetsPendingError()
+		if reference.AssetID != "" {
+			assetIDSet[reference.AssetID] = struct{}{}
 		}
-		assetIDSet[reference.AssetID] = struct{}{}
 		resourceIDSet[reference.ResourceID] = struct{}{}
 	}
 	for _, reference := range allResourceReferences {
@@ -88,6 +87,17 @@ func (s *Service) ValidateCanvasMediaAssets(userID string, raw json.RawMessage) 
 		if !exists {
 			// 对于历史遗留节点或已清理的媒体，若资源表中已无此记录，不阻断画布工程的持久化保存
 			continue
+		}
+		if reference.AssetID == "" {
+			// 节点上未填写 assetId，先查该资源是否已有素材记录
+			if matched, err := s.repo.AssetForUserReferencingResource(userID, reference.ResourceID); err == nil && matched != nil {
+				continue
+			}
+			// 素材库中尚无该资源，自动为其补建素材记录，确保画布不被阻断
+			if err := s.ensureAssetRecordForResourceWithID(userID, "", resource); err == nil {
+				continue
+			}
+			return canvasMediaAssetsPendingError()
 		}
 		resourceIDs, assetExists := assetResources[reference.AssetID]
 		if !assetExists {

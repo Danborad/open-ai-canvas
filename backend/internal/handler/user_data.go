@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -322,7 +323,7 @@ func RegisterUserDataRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		serveResourceDelivery(c, delivery, "private, no-cache", "")
+		serveResourceDelivery(c, delivery, "private, max-age=2592000, immutable", "")
 	})
 	publicResourceHandler := func(c *gin.Context) {
 		options := resourceAccessOptions(c)
@@ -331,7 +332,7 @@ func RegisterUserDataRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		serveResourceDelivery(c, delivery, "public, max-age=0, must-revalidate", "")
+		serveResourceDelivery(c, delivery, "public, max-age=2592000, immutable", "")
 	}
 	r.GET("/public/resources/:id/file", publicResourceHandler)
 	r.GET("/public/resources/:id/file/:filename", publicResourceHandler)
@@ -620,11 +621,13 @@ func RegisterUserDataRoutes(r *gin.RouterGroup, svc *service.Service) {
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 5<<20)
 		var req service.CanvasOperationsRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
+			log.Printf("[Canvas Operations] ShouldBindJSON error: %v", err)
 			fail(c, http.StatusBadRequest, service.BadAuthRequest("画布操作请求格式错误"))
 			return
 		}
 		project, err := svc.ApplyUserCanvasOperations(user.ID, c.Param("id"), req)
 		if err != nil {
+			log.Printf("[Canvas Operations] ApplyUserCanvasOperations error for %s: %v", c.Param("id"), err)
 			failService(c, err)
 			return
 		}

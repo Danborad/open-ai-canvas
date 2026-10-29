@@ -57,9 +57,7 @@ export function repairMissingCanvasAssets(projectIds?: Set<string>, partialAsset
             }
         }
         const repaired = repairProject(project, knownAssetIds, assetIdByStorageKey, storageKeyByAssetId, (node) => {
-            // 受管生成结果由完成流程绑定身份，后台修复不能另建随机素材。
-            if (node.metadata?.taskId && node.metadata.storageKey?.startsWith("resource:")) return undefined;
-            const input = canvasNodeToAsset(node, { canvasId: project.id, source: "canvas-upload" });
+            const input = canvasNodeToAsset(node, { canvasId: project.id, source: node.metadata?.taskId ? "canvas-generation" : "canvas-upload" });
             if (!input) return undefined;
             const assetId = useAssetStore.getState().addAsset(input);
             knownAssetIds.add(assetId);
