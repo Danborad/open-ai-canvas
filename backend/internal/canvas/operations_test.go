@@ -625,3 +625,40 @@ func TestApplyCanvasOperationsConvergesAlreadyAppliedTargets(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyCanvasOperationsReordersConnections(t *testing.T) {
+	svc := newCanvasOperationTestService(t)
+	if err := svc.repo.Create(&model.CanvasProject{
+		ID: "canvas", UserID: "user",
+		PayloadJSON: `{"nodes":[{"id":"a"},{"id":"b"},{"id":"c"}],"connections":[{"id":"c1","fromNodeId":"a","toNodeId":"c"},{"id":"c2","fromNodeId":"b","toNodeId":"c"}]}`,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	reorderReq := CanvasOperationsRequest{
+		MutationID: "reorder",
+		Operations: []CanvasOperation{
+			{
+				Type:  "reorder_connections",
+				Value: json.RawMessage(`["c2","c1"]`),
+			},
+		},
+	}
+	if _, err := svc.ApplyUserCanvasOperations("user", "canvas", reorderReq); err != nil {
+		t.Fatalf("reorder failed: %v", err)
+	}
+	project, err := svc.repo.CanvasProjectForUser("user", "canvas")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload struct {
+		Connections []struct {
+			ID string `json:"id"`
+		} `json:"connections"`
+	}
+	if err := json.Unmarshal([]byte(project.PayloadJSON), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Connections) != 2 || payload.Connections[0].ID != "c2" || payload.Connections[1].ID != "c1" {
+		t.Fatalf("expected connections [c2, c1], got %+v", payload.Connections)
+	}
+}

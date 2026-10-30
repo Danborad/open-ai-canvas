@@ -94,6 +94,21 @@ func DiffCanvasDocuments(before, after map[string]any) []CanvasOperation {
 			operations = append(operations, CanvasOperation{Type: "remove_connection", ID: id, Expected: jsonRawValue(edge)})
 		}
 	}
+	beforeOrder := make([]string, 0, len(beforeEdges))
+	for _, edge := range orderedCanvasObjects(before["connections"]) {
+		beforeOrder = append(beforeOrder, canvasString(edge["id"]))
+	}
+	afterOrder := make([]string, 0, len(afterEdges))
+	for _, edge := range orderedCanvasObjects(after["connections"]) {
+		afterOrder = append(afterOrder, canvasString(edge["id"]))
+	}
+	if !jsonEqual(beforeOrder, afterOrder) {
+		operations = append(operations, CanvasOperation{
+			Type:        "reorder_connections",
+			Value:       jsonRawValue(afterOrder),
+			BeforeValue: jsonRawValue(beforeOrder),
+		})
+	}
 	for _, field := range canvasOperationFields {
 		if !jsonEqual(before[field], after[field]) {
 			operations = append(operations, CanvasOperation{Type: "set_field", Field: field, Value: jsonRawValue(after[field]), BeforeValue: jsonRawValue(before[field])})
@@ -501,6 +516,30 @@ func applyCanvasOperations(payload map[string]json.RawMessage, operations []Canv
 				return canvasOperationConflict("连线 %q 已被其他写入修改，拒绝删除", op.ID)
 			}
 			connections = append(connections[:index], connections[index+1:]...)
+		case "reorder_connections":
+			var orderedIDs []string
+			if err := json.Unmarshal(op.Value, &orderedIDs); err != nil {
+				return fmt.Errorf("连线重排操作缺少有效 ID 列表")
+			}
+			connectionMap := make(map[string]map[string]any, len(connections))
+			for _, edge := range connections {
+				connectionMap[canvasString(edge["id"])] = edge
+			}
+			reordered := make([]map[string]any, 0, len(connections))
+			seen := make(map[string]bool, len(orderedIDs))
+			for _, id := range orderedIDs {
+				if edge, ok := connectionMap[id]; ok && !seen[id] {
+					reordered = append(reordered, edge)
+					seen[id] = true
+				}
+			}
+			for _, edge := range connections {
+				id := canvasString(edge["id"])
+				if !seen[id] {
+					reordered = append(reordered, edge)
+				}
+			}
+			connections = reordered
 		case "set_field":
 			if !allowedCanvasOperationField(op.Field) {
 				return fmt.Errorf("不支持的画布字段操作: 字段 %q", op.Field)

@@ -1180,6 +1180,15 @@ export function buildCanvasOperations(base: CanvasProject | undefined, next: Can
     for (const connection of base?.connections || []) {
         if (!nextConnections.has(connection.id)) operations.push({ type: "remove_connection", id: connection.id, expected: connection });
     }
+    const baseConnectionOrder = (base?.connections || []).map((connection) => connection.id);
+    const nextConnectionOrder = next.connections.map((connection) => connection.id);
+    if (base && !canvasOperationValueEqual(baseConnectionOrder, nextConnectionOrder)) {
+        operations.push({
+            type: "reorder_connections",
+            value: canvasOperationValue(nextConnectionOrder),
+            beforeValue: canvasOperationValue(baseConnectionOrder),
+        });
+    }
     // 新画布的字段已由 create_canvas.patch 写入；再追加 set_field(beforeValue=null)
     // 会在服务端看到刚创建的字段而判定冲突，所以只有已有基线时才生成字段操作。
     if (!base) return operations;

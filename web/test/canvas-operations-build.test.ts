@@ -131,4 +131,19 @@ describe("画布 operations 生成", () => {
         const repaired = repairPendingCanvasMutationRequest(legacy, canvas(), canvas());
         expect(repaired.operations).toEqual([{ type: "set_field", field: "timeline", value: { tracks: [] }, beforeValue: null }]);
     });
+
+    test("连线顺序调整生成 reorder_connections 操作", () => {
+        const c1 = { id: "c1", fromNodeId: "n1", toNodeId: "target" };
+        const c2 = { id: "c2", fromNodeId: "n2", toNodeId: "target" };
+        const before = canvas({ connections: [c1, c2] });
+        const after = canvas({ connections: [c2, c1] });
+        const operations = buildCanvasOperations(before, after);
+        expect(operations).toEqual([
+            {
+                type: "reorder_connections",
+                value: ["c2", "c1"],
+                beforeValue: ["c1", "c2"],
+            },
+        ]);
+    });
 });
