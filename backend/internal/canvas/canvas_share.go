@@ -13,26 +13,29 @@ import (
 	"time"
 	"yingce/backend/internal/assets"
 	"yingce/backend/internal/kernel"
-
 	"yingce/backend/internal/model"
+	"yingce/backend/internal/repository"
 
 	"gorm.io/gorm"
 )
 
 type CanvasShareRequest struct {
-	ExpiresDays int  `json:"expiresDays"`
-	Rotate      bool `json:"rotate"`
+	ExpiresDays int   `json:"expiresDays"`
+	Rotate      bool  `json:"rotate"`
+	AllowCopy   *bool `json:"allowCopy"`
 }
 
 type CanvasShareStatus struct {
 	Enabled   bool       `json:"enabled"`
 	Token     string     `json:"token,omitempty"`
+	AllowCopy bool       `json:"allowCopy"`
 	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
 }
 
 type PublicCanvasShare struct {
 	Project   map[string]any `json:"project"`
+	AllowCopy bool           `json:"allowCopy"`
 	ExpiresAt *time.Time     `json:"expiresAt,omitempty"`
 }
 
@@ -82,9 +85,11 @@ func (s *Service) CreateCanvasShare(userID string, projectID string, req CanvasS
 	if _, err := s.repo.CanvasProjectForUser(userID, projectID); err != nil {
 		return CanvasShareStatus{}, err
 	}
+	isNew := false
 	share, err := s.repo.CanvasShareForProject(userID, projectID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		share = &model.CanvasShare{ID: kernel.NewID(), UserID: userID, ProjectID: projectID}
+		isNew = true
+		share = &model.CanvasShare{ID: kernel.NewID(), UserID: userID, ProjectID: projectID, AllowCopy: true}
 	} else if err != nil {
 		return CanvasShareStatus{}, err
 	}
@@ -100,6 +105,11 @@ func (s *Service) CreateCanvasShare(userID string, projectID string, req CanvasS
 		}
 	}
 	share.Enabled = true
+	if req.AllowCopy != nil {
+		share.AllowCopy = *req.AllowCopy
+	} else if isNew {
+		share.AllowCopy = true
+	}
 	share.ExpiresAt = nil
 	if req.ExpiresDays > 0 {
 		expiresAt := time.Now().Add(time.Duration(req.ExpiresDays) * 24 * time.Hour)
@@ -127,7 +137,7 @@ func (s *Service) PublicCanvasShare(token string) (PublicCanvasShare, error) {
 	if err != nil {
 		return PublicCanvasShare{}, err
 	}
-	return PublicCanvasShare{Project: publicProject, ExpiresAt: share.ExpiresAt}, nil
+	return PublicCanvasShare{Project: publicProject, AllowCopy: share.AllowCopy, ExpiresAt: share.ExpiresAt}, nil
 }
 
 func (s *Service) OpenSharedCanvasResource(token string, resourceID string) (*model.Resource, io.ReadCloser, error) {
@@ -201,7 +211,7 @@ func (s *Service) canvasShareStatus(share *model.CanvasShare) (CanvasShareStatus
 		return CanvasShareStatus{}, err
 	}
 	createdAt := share.CreatedAt
-	return CanvasShareStatus{Enabled: true, Token: token, ExpiresAt: share.ExpiresAt, CreatedAt: &createdAt}, nil
+	return CanvasShareStatus{Enabled: true, Token: token, AllowCopy: share.AllowCopy, ExpiresAt: share.ExpiresAt, CreatedAt: &createdAt}, nil
 }
 
 func newCanvasShareToken() (string, error) {
@@ -318,4 +328,199 @@ func scrubPublicCanvasValue(value any) any {
 
 func sharedCanvasResourceURL(token string, resourceID string) string {
 	return "/api/public/canvas-shares/" + token + "/resources/" + resourceID + "/file"
+}
+
+type ForkCanvasShareResult struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+func (s *Service) ForkPublicCanvasShare(targetUserID string, token string, customTitle string) (ForkCanvasShareResult, error) {
+	if targetUserID == "" {
+		return ForkCanvasShareResult{}, kernel.BadAuthRequest("目标用户无效")
+	}
+	share, project, err := s.sharedCanvasProject(token)
+	if err != nil {
+		return ForkCanvasShareResult{}, err
+	}
+	if !share.AllowCopy {
+		return ForkCanvasShareResult{}, kernel.Forbidden("该分享为只读模式，不支持复制项目到当前账号")
+	}
+
+	title := strings.TrimSpace(customTitle)
+	if title == "" {
+		title = project.Title
+		if title == "" {
+			title = "复制的项目"
+		} else {
+			title = title + " (副本)"
+		}
+	}
+
+	quota, err := s.host.CanvasQuotaCheck(targetUserID)
+	if err != nil {
+		return ForkCanvasShareResult{}, err
+	}
+
+	var newProjectID string
+	err = s.host.WithStorageLock(func() error {
+		return s.repo.Transaction(func(tx *repository.Repository) error {
+			rawJSONStr := project.PayloadJSON
+			docRefs, err := assets.CollectDocumentResourceReferences(rawJSONStr)
+			if err != nil {
+				return kernel.BadAuthRequest("原画布资源引用无效")
+			}
+
+			resourceIDs := make(map[string]struct{}, len(docRefs))
+			for _, ref := range docRefs {
+				if ref.ResourceID != "" {
+					resourceIDs[ref.ResourceID] = struct{}{}
+				}
+			}
+
+			now := time.Now().UTC()
+			resourceMap := make(map[string]string) // oldResourceID -> newResourceID
+			assetMap := make(map[string]string)    // oldResourceID -> newAssetID
+
+			if len(resourceIDs) > 0 {
+				oldResources, err := s.repo.ResourcesForUserIDs(share.UserID, assets.SortedIDs(resourceIDs))
+				if err != nil {
+					return err
+				}
+				for _, oldRes := range oldResources {
+					newResID := kernel.NewID()
+					resourceMap[oldRes.ID] = newResID
+					newRes := model.Resource{
+						ID:                newResID,
+						UserID:            targetUserID,
+						Kind:              oldRes.Kind,
+						Status:            oldRes.Status,
+						Provider:          oldRes.Provider,
+						Endpoint:          oldRes.Endpoint,
+						Bucket:            oldRes.Bucket,
+						StorageSettingID:  oldRes.StorageSettingID,
+						ObjectKey:         oldRes.ObjectKey,
+						PublicURL:         oldRes.PublicURL,
+						MimeType:          oldRes.MimeType,
+						Size:              oldRes.Size,
+						Width:             oldRes.Width,
+						Height:            oldRes.Height,
+						DurationMs:        oldRes.DurationMs,
+						ETag:              oldRes.ETag,
+						PlaybackStatus:    oldRes.PlaybackStatus,
+						PlaybackObjectKey: oldRes.PlaybackObjectKey,
+						PlaybackError:     oldRes.PlaybackError,
+						ThumbnailStatus:   oldRes.ThumbnailStatus,
+						ThumbnailMimeType: oldRes.ThumbnailMimeType,
+						ThumbnailSize:     oldRes.ThumbnailSize,
+						ThumbnailWidth:    oldRes.ThumbnailWidth,
+						ThumbnailHeight:   oldRes.ThumbnailHeight,
+						CreatedAt:         now,
+						UpdatedAt:         now,
+					}
+					if err := tx.CreateResource(&newRes); err != nil {
+						return err
+					}
+
+					newAssetID := kernel.NewID()
+					if err := New(tx, s.host).ensureAssetRecordForResourceWithID(targetUserID, newAssetID, newRes); err != nil {
+						return err
+					}
+					assetMap[oldRes.ID] = newAssetID
+				}
+			}
+
+			var payload map[string]any
+			if err := json.Unmarshal([]byte(rawJSONStr), &payload); err != nil {
+				return err
+			}
+
+			newProjectID = kernel.NewID()
+			payload["id"] = newProjectID
+			payload["title"] = title
+			payload["createdAt"] = now.Format(time.RFC3339Nano)
+			payload["updatedAt"] = now.Format(time.RFC3339Nano)
+			delete(payload, "revision")
+			delete(payload, "remoteContentHash")
+			delete(payload, "projectId") // 复制为独立自由画布
+
+			// 深度替换 payload 内引用的所有旧 ResourceID 和 AssetID
+			replacePayloadResources(payload, resourceMap, assetMap)
+
+			newPayloadBytes, err := json.Marshal(payload)
+			if err != nil {
+				return err
+			}
+
+			newProject := model.CanvasProject{
+				ID:          newProjectID,
+				UserID:      targetUserID,
+				Title:       title,
+				Revision:    0,
+				PayloadJSON: string(newPayloadBytes),
+				CreatedAt:   now,
+				UpdatedAt:   now,
+			}
+
+			if err := quota(tx, true, int64(len(newPayloadBytes))); err != nil {
+				return err
+			}
+
+			return tx.UpsertCanvasProject(&newProject)
+		})
+	})
+	if err != nil {
+		return ForkCanvasShareResult{}, err
+	}
+
+	return ForkCanvasShareResult{
+		ID:    newProjectID,
+		Title: title,
+	}, nil
+}
+
+func replacePayloadResources(data any, resourceMap map[string]string, assetMap map[string]string) {
+	switch v := data.(type) {
+	case map[string]any:
+		if metadata, ok := v["metadata"].(map[string]any); ok {
+			delete(metadata, "taskId")
+			delete(metadata, "taskStatus")
+			delete(metadata, "taskProgress")
+			delete(metadata, "taskStage")
+			delete(metadata, "taskCreatedAt")
+			delete(metadata, "taskUpdatedAt")
+			delete(metadata, "taskCompletedAt")
+			delete(metadata, "errorDetails")
+
+			oldResID := assets.ResourceID(kernel.StringValue(metadata["storageKey"]))
+			if oldResID == "" {
+				oldResID = assets.ResourceID(kernel.StringValue(metadata["content"]))
+			}
+			if newResID, ok := resourceMap[oldResID]; ok {
+				metadata["storageKey"] = "resource:" + newResID
+				metadata["content"] = "/api/resources/" + newResID + "/file"
+				if newAssetID, ok := assetMap[oldResID]; ok {
+					metadata["assetId"] = newAssetID
+				}
+			}
+		}
+
+		for k, val := range v {
+			if str, ok := val.(string); ok {
+				for oldID, newID := range resourceMap {
+					if strings.Contains(str, oldID) {
+						str = strings.ReplaceAll(str, "/api/public/canvas-shares/", "/api/resources/")
+						str = strings.ReplaceAll(str, oldID, newID)
+						v[k] = str
+					}
+				}
+			} else {
+				replacePayloadResources(val, resourceMap, assetMap)
+			}
+		}
+	case []any:
+		for _, item := range v {
+			replacePayloadResources(item, resourceMap, assetMap)
+		}
+	}
 }

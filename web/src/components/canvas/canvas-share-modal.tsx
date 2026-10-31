@@ -12,6 +12,7 @@ export function CanvasShareModal({ projectId, open, onClose, beforeCreate }: { p
     const theme = canvasThemes[useActiveTheme()];
     const [share, setShare] = useState<CanvasShareStatus>({ enabled: false });
     const [expiresDays, setExpiresDays] = useState(0);
+    const [allowCopy, setAllowCopy] = useState(true);
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const shareUrl = useMemo(() => share.token ? `${window.location.origin}/share/canvas/${share.token}` : "", [share.token]);
@@ -21,6 +22,9 @@ export function CanvasShareModal({ projectId, open, onClose, beforeCreate }: { p
         try {
             const result = await getCanvasShare(projectId);
             setShare(result.share);
+            if (result.share.allowCopy !== undefined) {
+                setAllowCopy(result.share.allowCopy);
+            }
         } catch (error) {
             message.error(error instanceof Error ? error.message : "读取分享状态失败");
         } finally {
@@ -43,12 +47,27 @@ export function CanvasShareModal({ projectId, open, onClose, beforeCreate }: { p
         try {
             const saved = await beforeCreate();
             if (saved === false) return;
-            const result = await createCanvasShare(projectId, { expiresDays, rotate });
+            const result = await createCanvasShare(projectId, { expiresDays, rotate, allowCopy });
             setShare(result.share);
             const url = result.share.token ? `${window.location.origin}/share/canvas/${result.share.token}` : "";
             await copy(url);
         } catch (error) {
             message.error(error instanceof Error ? error.message : "创建分享链接失败");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const updatePermission = async (newAllowCopy: boolean) => {
+        setAllowCopy(newAllowCopy);
+        if (!share.enabled) return;
+        setSubmitting(true);
+        try {
+            const result = await createCanvasShare(projectId, { expiresDays, rotate: false, allowCopy: newAllowCopy });
+            setShare(result.share);
+            message.success(newAllowCopy ? "已设为允许复制：获得链接的用户可复制项目到自己账号" : "已设为仅供浏览：访客不可复制到自己账号");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "更新分享权限失败");
         } finally {
             setSubmitting(false);
         }
@@ -72,11 +91,29 @@ export function CanvasShareModal({ projectId, open, onClose, beforeCreate }: { p
             <Spin spinning={loading}>
                 <div className="border-t pt-5" style={{ borderColor: theme.node.stroke }}>
                     <p className="mb-4 text-sm leading-6" style={{ color: theme.node.muted }}>
-                        获得链接的人无需登录即可查看。访客可拖动画布节点并临时添加节点，但刷新后会恢复，不能修改原画布或执行生成。
+                        获得链接的人无需登录即可查看。你可设置链接权限为「允许复制项目」（可克隆副本到自己工作区继续创作）或「仅只读浏览」。
                     </p>
                     {share.enabled && shareUrl ? (
                         <div className="space-y-4">
                             <Input value={shareUrl} readOnly suffix={<Button type="text" className="!h-7 !w-7 !min-w-7 !p-0" icon={<Copy className="size-3.5" />} onClick={() => void copy()} aria-label="复制分享链接" />} />
+                            <div className="rounded-xl border p-3 flex flex-col gap-2 bg-foreground/[0.02]" style={{ borderColor: theme.node.stroke }}>
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="font-medium text-foreground">分享权限：</span>
+                                    <Select
+                                        value={allowCopy}
+                                        onChange={(val) => void updatePermission(val)}
+                                        disabled={submitting}
+                                        className="min-w-44"
+                                        options={[
+                                            { value: true, label: "允许复制项目（公开分享）" },
+                                            { value: false, label: "仅供浏览（只读不可复制）" },
+                                        ]}
+                                    />
+                                </div>
+                                <div className="text-[11px] text-muted-foreground">
+                                    {allowCopy ? "访客可一键将画布项目克隆到当前登录账号的工作区。" : "访客仅能浏览画布内容，无法导入或复制到自己的账号。"}
+                                </div>
+                            </div>
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <span className="text-xs" style={{ color: theme.node.muted }}>{share.expiresAt ? `有效至 ${new Date(share.expiresAt).toLocaleString("zh-CN")}` : "长期有效，直至手动停止分享"}</span>
                                 <div className="flex gap-2">
@@ -86,9 +123,31 @@ export function CanvasShareModal({ projectId, open, onClose, beforeCreate }: { p
                             </div>
                         </div>
                     ) : (
-                        <div className="flex items-center gap-2">
-                            <Select value={expiresDays} onChange={setExpiresDays} className="min-w-40" options={[{ value: 0, label: "长期有效" }, { value: 7, label: "7 天有效" }, { value: 30, label: "30 天有效" }]} />
-                            <Button type="primary" icon={<Link2 className="size-4" />} loading={submitting} onClick={() => void create(false)}>创建并复制链接</Button>
+                        <div className="space-y-4">
+                            <div className="rounded-xl border p-3 flex flex-col gap-2 bg-foreground/[0.02]" style={{ borderColor: theme.node.stroke }}>
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="font-medium text-foreground">分享权限：</span>
+                                    <Select
+                                        value={allowCopy}
+                                        onChange={setAllowCopy}
+                                        className="min-w-44"
+                                        options={[
+                                            { value: true, label: "允许复制项目（公开分享）" },
+                                            { value: false, label: "仅供浏览（只读不可复制）" },
+                                        ]}
+                                    />
+                                </div>
+                                <div className="text-[11px] text-muted-foreground">
+                                    {allowCopy ? "访客可一键将画布项目克隆到当前登录账号的工作区。" : "访客仅能浏览画布内容，无法导入或复制到自己的账号。"}
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground">有效期：</span>
+                                    <Select value={expiresDays} onChange={setExpiresDays} className="min-w-32" options={[{ value: 0, label: "长期有效" }, { value: 7, label: "7 天有效" }, { value: 30, label: "30 天有效" }]} />
+                                </div>
+                                <Button type="primary" icon={<Link2 className="size-4" />} loading={submitting} onClick={() => void create(false)}>创建并复制链接</Button>
+                            </div>
                         </div>
                     )}
                 </div>

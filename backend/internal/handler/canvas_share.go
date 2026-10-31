@@ -87,4 +87,22 @@ func RegisterCanvasShareRoutes(r *gin.RouterGroup, svc *service.Service) {
 		c.Header("X-Robots-Tag", "noindex, nofollow")
 		serveResourceDelivery(c, delivery, "no-store", "")
 	})
+
+	r.POST("/public/canvas-shares/:token/fork", func(c *gin.Context) {
+		user, err := currentUser(c, svc)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		var req struct {
+			Title string `json:"title"`
+		}
+		_ = c.ShouldBindJSON(&req)
+		result, err := svc.ForkPublicCanvasShare(user.ID, c.Param("token"), req.Title)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, result)
+	})
 }

@@ -500,3 +500,7 @@ Schema 32 为 `channel_models` 新增 `tags`（TEXT、NOT NULL、默认 `'[]'`�
 Schema 59 新增推广中心相关数据表：`invite_codes`、`invitations`、`commission_records`、`commission_allocations`、`withdrawal_requests`，用于维护邀请关系、注册奖励与推广流水。
 
 Schema 60 新增 `wechat_qr_tickets` 表，记录微信小程序扫码登录票据（Ticket）、6位短码、绑定操作（login/bind）、关联用户 ID、微信 OpenID、UnionID、授权状态及过期时间。微信登录配置由 `system_settings` 中的 `wechat_login` 统一托管，支持后台热配置。
+
+Schema 79 新增 `esa_site_metrics` 表，存储小时粒度的 ESA 站点流量与请求快照，用于支持自建 7 天与 30 天历史统计。
+
+Schema 80 为 `canvas_shares` 表新增 `allow_copy` 列，记录分享画布是否允许复制项目到当前账号，默认 true（允许复制），只读分享为 false。

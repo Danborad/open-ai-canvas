@@ -403,6 +403,7 @@ type CanvasShare struct {
 	TokenHash   string     `json:"-" gorm:"uniqueIndex;size:64"`
 	TokenCipher string     `json:"-" gorm:"type:text"`
 	Enabled     bool       `json:"enabled" gorm:"index"`
+	AllowCopy   bool       `json:"allowCopy"`
 	ExpiresAt   *time.Time `json:"expiresAt" gorm:"index"`
 	CreatedAt   time.Time  `json:"createdAt"`
 	UpdatedAt   time.Time  `json:"updatedAt"`

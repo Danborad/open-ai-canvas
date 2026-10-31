@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { App, Button } from "antd";
-import { Clapperboard, Eye, FileText, Image as ImageIcon, LockKeyhole, LogIn, Send, Share2, Video } from "lucide-react";
-import { Link, useParams } from "react-router";
+import { Clapperboard, CopyPlus, Eye, FileText, Image as ImageIcon, LockKeyhole, LogIn, Send, Share2, Video } from "lucide-react";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { nanoid } from "nanoid";
 
 import { ConnectionPath } from "@/components/canvas/canvas-connections";
@@ -19,8 +19,9 @@ import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
 import { FOLDER_COLLAPSED_HEIGHT, FOLDER_COLLAPSED_WIDTH, isCanvasFolderNode, isFrameNode, isNodeHiddenByCollapsedFrame, resolveFrameConnection } from "@/lib/canvas/canvas-frame";
 import { ensureMediaNodeMinimumSize } from "@/lib/canvas/canvas-node-size";
 import { getContextResourceNodes } from "@/lib/canvas/canvas-resource-references";
-import { getPublicCanvasShare } from "@/services/api/canvas-share";
+import { forkPublicCanvasShare, getPublicCanvasShare } from "@/services/api/canvas-share";
 import { useCanvasThemeStore, useCanvasThemeScope } from "@/stores/canvas/use-canvas-theme-store";
+import { useUserStore } from "@/stores/use-user-store";
 import { CanvasNodeType, type CanvasNodeData, type Position, type ViewportTransform } from "@/types/canvas";
 import { nodeGenerationPrompt } from "@/lib/canvas/generation-contract";
 type ContextMenu = { x: number; y: number; world: Position; nodeId?: string };
@@ -30,6 +31,9 @@ export default function SharedCanvasPage() {
     useCanvasThemeScope();
     const { token = "" } = useParams();
     const { message } = App.useApp();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const user = useUserStore((state) => state.user);
     const colorTheme = useCanvasThemeStore((state) => state.theme);
     const theme = canvasThemes[colorTheme];
     const containerRef = useRef<HTMLDivElement>(null);
@@ -37,6 +41,8 @@ export default function SharedCanvasPage() {
     const dragRef = useRef<DragState | null>(null);
     const toolbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [title, setTitle] = useState("共享画布");
+    const [allowCopy, setAllowCopy] = useState(true);
+    const [forking, setForking] = useState(false);
     const [nodes, setNodes] = useState<CanvasNodeData[]>([]);
     const [connections, setConnections] = useState<Awaited<ReturnType<typeof getPublicCanvasShare>>["project"]["connections"]>([]);
     const [appearance, setAppearance] = useState<CanvasAppearance>(() => canvasAppearanceForTheme(colorTheme));
@@ -87,9 +93,10 @@ export default function SharedCanvasPage() {
             if (appliedShareTheme && state.theme !== previous.theme && state.theme !== appliedShareTheme) themeChangedAfterApply = true;
         });
         setLoading(true);
-        getPublicCanvasShare(token).then(({ project }) => {
+        getPublicCanvasShare(token).then(({ project, allowCopy: canCopy = true }) => {
             if (!active) return;
             setTitle(project.title || "共享画布");
+            setAllowCopy(canCopy);
             setNodes((project.nodes || []).map(ensureMediaNodeMinimumSize));
             setConnections(project.connections || []);
             const nextAppearance = project.appearance ? normalizeCanvasAppearance(project.appearance, themeBeforeShare) : canvasAppearanceForTheme(themeBeforeShare);
@@ -244,6 +251,24 @@ export default function SharedCanvasPage() {
     const toolbarNodeKey = selectedNodeId;
     const toolbarNode = toolbarNodeKey ? nodeById.get(toolbarNodeKey) || null : null;
 
+    const handleForkProject = async () => {
+        if (!user) {
+            message.info("请先登录后再复制项目到你的工作区");
+            navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+            return;
+        }
+        setForking(true);
+        try {
+            const result = await forkPublicCanvasShare(token);
+            message.success(`已复制项目「${result.title}」到你的工作区`);
+            navigate(`/canvas/${encodeURIComponent(result.id)}`);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "复制项目失败，请稍后重试");
+        } finally {
+            setForking(false);
+        }
+    };
+
     if (loading) return <FullScreenLoader label="正在打开共享画布" detail="读取节点、连线和视图状态" />;
     if (loadError) return <div className="grid h-screen place-items-center px-5" style={{ background: theme.canvas.background }}><WorkspaceState icon="error" title="分享链接不可用" description={loadError} action={<Link to="/"><Button>返回首页</Button></Link>} /></div>;
 
@@ -252,10 +277,48 @@ export default function SharedCanvasPage() {
             <header className="pointer-events-none absolute inset-x-0 top-0 z-[var(--z-panel-floating)] flex h-16 items-center justify-between px-5">
                 <div className="pointer-events-auto flex min-w-0 items-center gap-3">
                     <Share2 className="size-4" style={{ color: theme.node.muted }} />
-                    <span className="max-w-[45vw] truncate text-base font-semibold">{title}</span>
-                    <span className="inline-flex items-center gap-1 text-xs" style={{ color: theme.node.muted }}><Eye className="size-3.5" />只读分享</span>
+                    <span className="max-w-[40vw] truncate text-base font-semibold">{title}</span>
+                    {allowCopy ? (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: theme.toolbar.itemHover, color: theme.node.muted }}>
+                            <Share2 className="size-3.5" />公开分享
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: theme.toolbar.itemHover, color: theme.node.muted }}>
+                            <Eye className="size-3.5" />只读分享
+                        </span>
+                    )}
                 </div>
-                <Link className="pointer-events-auto" to="/login"><Button type="text" icon={<LogIn className="size-4" />}>登录</Button></Link>
+                <div className="pointer-events-auto flex items-center gap-2.5">
+                    {allowCopy ? (
+                        <Button
+                            type="default"
+                            icon={<CopyPlus className="size-4" />}
+                            loading={forking}
+                            onClick={() => void handleForkProject()}
+                            className="!rounded-xl !h-9 !px-3.5 !font-medium shadow-sm transition hover:scale-[1.02]"
+                            style={{
+                                background: theme.spatial.elevated,
+                                borderColor: theme.toolbar.border,
+                                color: theme.node.text,
+                            }}
+                        >
+                            复制项目
+                        </Button>
+                    ) : null}
+                    {user ? (
+                        <Link to="/canvas">
+                            <Button type="text" className="!rounded-xl !h-9">
+                                我的画布
+                            </Button>
+                        </Link>
+                    ) : (
+                        <Link to={`/login?redirect=${encodeURIComponent(location.pathname)}`}>
+                            <Button type="text" icon={<LogIn className="size-4" />} className="!rounded-xl !h-9">
+                                登录
+                            </Button>
+                        </Link>
+                    )}
+                </div>
             </header>
 
             <CanvasViewport containerRef={containerRef} viewport={viewport} appearance={appearance} backgroundMode={backgroundMode} onViewportChange={onViewportChange} onViewportPreviewChange={(next) => { viewportRef.current = next; }} onCanvasDeselect={() => { setSelectedNodeId(null); setContextMenu(null); }} onContextMenu={(event) => openContextMenu(event)} onDrop={(event) => { event.preventDefault(); unauthorized(); }}>
@@ -285,7 +348,9 @@ export default function SharedCanvasPage() {
             <CanvasNodeToolbar node={dragRef.current ? null : toolbarNode} viewport={viewport} containerRef={containerRef} onKeep={keepToolbar} onLeave={hideToolbar} onInfo={(node) => setInfoNodeId(node.id)} onEditText={unauthorized} onDecreaseFont={unauthorized} onIncreaseFont={unauthorized} onToggleDialog={unauthorized} onAnnotate={unauthorized} onAnnotationEdit={unauthorized} onTextEdit={unauthorized} onGenerateImage={unauthorized} onUpload={unauthorized} onDownload={unauthorized} onSaveAsset={unauthorized} onRegionEdit={unauthorized} onRemoveBackground={unauthorized} onLayerDecomposition={unauthorized} onEmotion={unauthorized} onPortraitTexture={unauthorized} onCrop={unauthorized} onSplit={unauthorized} onUpscale={unauthorized} onSuperResolve={unauthorized} onAngle={unauthorized} onLighting={unauthorized} onPanorama={unauthorized} onPrevis={unauthorized} onViewImage={unauthorized} onExtractVideoFrames={unauthorized} onExtractAudioFromVideo={unauthorized} onTrimVideoSegments={unauthorized} extractingVideoFrames={false} extractingAudio={false} trimmingVideo={false} onSubtitles={unauthorized} onTimeline={unauthorized} onReversePrompt={unauthorized} onRetry={unauthorized} onToggleFreeResize={unauthorized} onToggleLocked={unauthorized} onDelete={unauthorized} onNineGrid={unauthorized} />
 
             <div className="absolute bottom-5 left-5 z-[var(--z-panel-floating)]"><CanvasZoomControls scale={viewport.k} containerRef={containerRef} onScaleChange={setZoom} onFitContent={resetViewport} isMiniMapOpen={false} onToggleMiniMap={unauthorized} onOpenShortcuts={unauthorized} /></div>
-            <div className="pointer-events-none absolute bottom-5 right-5 z-[var(--z-panel-floating)] max-w-[340px] text-right text-xs leading-5" style={{ color: theme.node.muted }}>访客操作仅在当前页面临时生效</div>
+            <div className="pointer-events-none absolute bottom-5 right-5 z-[var(--z-panel-floating)] max-w-[340px] text-right text-xs leading-5" style={{ color: theme.node.muted }}>
+                {allowCopy ? "公开分享 · 点击右上角「复制项目」可克隆到当前账号" : "只读分享 · 访客操作仅在当前页面临时生效"}
+            </div>
 
             {contextMenu ? <SharedContextMenu menu={contextMenu} onAdd={addNode} onInfo={() => { if (contextMenu.nodeId) setInfoNodeId(contextMenu.nodeId); setContextMenu(null); }} onUnauthorized={() => { setContextMenu(null); unauthorized(); }} /> : null}
             <CanvasNodeInfoModal node={infoNode} open={Boolean(infoNode)} onClose={() => setInfoNodeId(null)} readOnly onUnauthorized={unauthorized} />

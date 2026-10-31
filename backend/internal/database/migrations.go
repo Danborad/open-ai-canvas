@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const CurrentSchemaVersion int64 = 79
+const CurrentSchemaVersion int64 = 80
 
 const baselineSchemaChecksum = "sha256:open-ai-canvas-schema-v1-20260830"
 const schemaMigrationAppliedAtIndexChecksum = "sha256:schema-migrations-applied-at-index-v2-20260830"
@@ -26,6 +26,7 @@ const creationRuntimeChecksum = "sha256:creation-runtime-v10-20260909"
 const promotionCenterChecksum = "sha256:promotion-center-v59-20261021"
 const wechatQRTicketsChecksum = "sha256:wechat-qr-tickets-v60-20261022"
 const esaSiteMetricsChecksum = "sha256:esa-site-metrics-v79-20261029"
+const canvasShareAllowCopyChecksum = "sha256:canvas-share-allow-copy-v80-20261031"
 const authNotificationsChecksum = "sha256:auth-notifications-v35-20260924"
 const cloudAgentGeminiCacheChecksum = "sha256:cloud-agent-gemini-cache-v36-20260924"
 const cloudAgentGeminiCacheIdentityChecksum = "sha256:cloud-agent-gemini-cache-identity-v37-20260925"
@@ -283,6 +284,17 @@ var schemaMigrations = []migration{
 	{version: 79, name: "esa_site_metrics", checksum: esaSiteMetricsChecksum, apply: func(tx *gorm.DB) error {
 		return tx.AutoMigrate(&model.ESASiteMetric{})
 	}},
+	{version: 80, name: "canvas_share_allow_copy", checksum: canvasShareAllowCopyChecksum, apply: migrateCanvasShareAllowCopy},
+}
+
+// migrateCanvasShareAllowCopy 增加分享画布是否允许复制项目到当前账号的标记，旧分享记录默认允许复制。
+func migrateCanvasShareAllowCopy(tx *gorm.DB) error {
+	if !tx.Migrator().HasColumn(&model.CanvasShare{}, "AllowCopy") {
+		if err := tx.Migrator().AddColumn(&model.CanvasShare{}, "AllowCopy"); err != nil {
+			return err
+		}
+	}
+	return tx.Model(&model.CanvasShare{}).Where("allow_copy IS NULL").Update("allow_copy", true).Error
 }
 
 // migrateAgentMemoryDocumentColumns 补齐记忆文件的条目序号与修订的工具调用 ID。

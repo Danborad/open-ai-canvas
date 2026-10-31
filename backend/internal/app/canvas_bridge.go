@@ -14,6 +14,7 @@ type (
 	CanvasShareRequest      = canvas.CanvasShareRequest
 	CanvasShareStatus       = canvas.CanvasShareStatus
 	PublicCanvasShare       = canvas.PublicCanvasShare
+	ForkCanvasShareResult   = canvas.ForkCanvasShareResult
 	AssetsSyncRequest       = canvas.AssetsSyncRequest
 	CanvasHistoryList       = canvas.CanvasHistoryList
 	UserDataSummary         = canvas.UserDataSummary
@@ -160,6 +161,10 @@ func (s *Service) DeleteCanvasShare(userID string, projectID string) error {
 
 func (s *Service) PublicCanvasShare(token string) (PublicCanvasShare, error) {
 	return s.canvasDomain().PublicCanvasShare(token)
+}
+
+func (s *Service) ForkPublicCanvasShare(targetUserID string, token string, customTitle string) (ForkCanvasShareResult, error) {
+	return s.canvasDomain().ForkPublicCanvasShare(targetUserID, token, customTitle)
 }
 
 func (s *Service) OpenSharedCanvasResource(token string, resourceID string) (*model.Resource, io.ReadCloser, error) {

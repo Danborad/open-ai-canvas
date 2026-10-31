@@ -72,3 +72,99 @@ func TestPublicCanvasProjectDropsUnmanagedMediaURL(t *testing.T) {
 		t.Fatalf("unexpected public payload: %s", encoded)
 	}
 }
+
+func TestForkPublicCanvasShare(t *testing.T) {
+	svc := newCanvasOperationTestService(t)
+	ownerID := "owner-1"
+	targetUserID := "target-user-1"
+	canvasID := "canvas-test-1"
+
+	// 创建原项目和资源
+	res := model.Resource{
+		ID:        "res-1",
+		UserID:    ownerID,
+		Kind:      "image",
+		Status:    model.ResourceStatusReady,
+		ObjectKey: "res-1.png",
+		MimeType:  "image/png",
+		Size:      1024,
+	}
+	if err := svc.repo.CreateResource(&res); err != nil {
+		t.Fatal(err)
+	}
+	asset := model.Asset{
+		ID:          "asset-1",
+		UserID:      ownerID,
+		Kind:        "image",
+		Title:       "素材1",
+		PayloadJSON: `{"data":{"storageKey":"resource:res-1","url":"/api/resources/res-1/file"}}`,
+	}
+	if err := svc.repo.Create(&asset); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := `{"id":"canvas-test-1","title":"原项目","nodes":[{"id":"node-1","type":"image","metadata":{"content":"/api/resources/res-1/file","storageKey":"resource:res-1","assetId":"asset-1","prompt":"原提示词"}}],"connections":[]}`
+	project := model.CanvasProject{
+		ID:          canvasID,
+		UserID:      ownerID,
+		Title:       "原项目",
+		PayloadJSON: payload,
+	}
+	if err := svc.repo.Create(&project); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. 创建仅只读分享
+	falseVal := false
+	roStatus, err := svc.CreateCanvasShare(ownerID, canvasID, CanvasShareRequest{
+		ExpiresDays: 7,
+		AllowCopy:   &falseVal,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if roStatus.AllowCopy {
+		t.Fatal("expected allowCopy = false")
+	}
+
+	// 尝试 Fork 只读分享，应被拒绝
+	if _, err := svc.ForkPublicCanvasShare(targetUserID, roStatus.Token, ""); err == nil {
+		t.Fatal("expected forbidden error for read-only share fork, got nil")
+	}
+
+	// 2. 更新为允许复制分享
+	trueVal := true
+	rwStatus, err := svc.CreateCanvasShare(ownerID, canvasID, CanvasShareRequest{
+		ExpiresDays: 7,
+		AllowCopy:   &trueVal,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !rwStatus.AllowCopy {
+		t.Fatal("expected allowCopy = true")
+	}
+
+	// Fork 允许复制分享
+	forkResult, err := svc.ForkPublicCanvasShare(targetUserID, rwStatus.Token, "我的克隆项目")
+	if err != nil {
+		t.Fatalf("fork failed: %v", err)
+	}
+	if forkResult.ID == "" || forkResult.Title != "我的克隆项目" {
+		t.Fatalf("unexpected fork result: %+v", forkResult)
+	}
+
+	// 验证克隆后的项目存在于 targetUserID 下
+	forkedProj, err := svc.repo.CanvasProjectForUser(targetUserID, forkResult.ID)
+	if err != nil {
+		t.Fatalf("cloned project not found for target user: %v", err)
+	}
+	if forkedProj.Title != "我的克隆项目" {
+		t.Errorf("cloned title = %q, want '我的克隆项目'", forkedProj.Title)
+	}
+
+	// 验证克隆后的资源和资产已重新归属于 targetUserID
+	if strings.Contains(forkedProj.PayloadJSON, "res-1") {
+		t.Errorf("cloned payload still contains old resource id 'res-1': %s", forkedProj.PayloadJSON)
+	}
+}

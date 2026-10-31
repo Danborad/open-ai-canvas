@@ -257,6 +257,7 @@ type (
 	PublicArkPrivateAssetSetting           = app.PublicArkPrivateAssetSetting
 	PublicAuthSettings                     = app.PublicAuthSettings
 	PublicCanvasShare                      = app.PublicCanvasShare
+	ForkCanvasShareResult                  = app.ForkCanvasShareResult
 	PublicChannelCatalog                   = app.PublicChannelCatalog
 	PublicChannelModel                     = app.PublicChannelModel
 	PublicChannelModelPrice                = app.PublicChannelModelPrice
