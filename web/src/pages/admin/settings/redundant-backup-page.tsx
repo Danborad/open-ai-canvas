@@ -81,16 +81,19 @@ export default function RedundantBackupPage() {
                 </div>
             }
         >
-            <div className="space-y-6">
+            <div className="w-full space-y-6">
                 <SettingsSectionCard
+                    layout="stacked"
+                    className="w-full !max-w-none"
+                    contentClassName="w-full !max-w-none"
                     title="冗余备份仓状态"
                     description="备份仓保存在外部备份目录或独立存储卷中，包含自动还原的数据库快照、全量媒体资源、Docker 编排配置与启动脚本。"
                 >
                     {loading ? (
                         <Skeleton active paragraph={{ rows: 3 }} />
                     ) : (
-                        <div className="space-y-5">
-                            <div className="rounded-xl border border-border/80 bg-background/50 p-4">
+                        <div className="w-full space-y-5">
+                            <div className="w-full rounded-xl border border-border/80 bg-background/50 p-4">
                                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
                                     <div className="flex items-center gap-2">
                                         <Server className="size-4 text-primary" />
@@ -171,10 +174,13 @@ export default function RedundantBackupPage() {
 
                 {/* 恢复使用指南 */}
                 <SettingsSectionCard
+                    layout="stacked"
+                    className="w-full !max-w-none"
+                    contentClassName="w-full !max-w-none"
                     title="异地环境 / 灾难恢复运行指南"
                     description="当当前机器故障、迁移到新服务器或需要在其他 VPS / 主机上运行时，按以下步骤直接启动即可恢复全站。"
                 >
-                    <div className="space-y-4 text-xs leading-6 text-foreground/80">
+                    <div className="w-full space-y-4 text-xs leading-6 text-foreground/80">
                         <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/40 p-3.5">
                             <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                                 1
