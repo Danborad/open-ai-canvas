@@ -1,4 +1,4 @@
-export type OSSProvider = "aliyun" | "tencent" | "qiniu" | "s3";
+export type OSSProvider = "aliyun" | "tencent" | "qiniu" | "s3" | "webdav";
 
 export type S3Preset = "aws" | "r2" | "b2" | "rustfs" | "custom";
 
@@ -74,6 +74,10 @@ export function changesRequireOSSRetest(changedValues: Record<string, unknown>) 
 }
 
 export function validateOSSConnectionDraft(input: OSSConnectionTestDraft) {
+    if (input.provider === "webdav") {
+        if (!trimConnectionValue(input.endpoint)) return "请填写 WebDAV 服务端地址";
+        return "";
+    }
     if (!trimConnectionValue(input.bucket)) return "请填写对象存储 Bucket";
     return "";
 }

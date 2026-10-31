@@ -33,6 +33,7 @@ const (
 	tencentCOSProvider = "tencent"
 	qiniuKodoProvider  = "qiniu"
 	s3Provider         = "s3"
+	webdavProvider     = "webdav"
 )
 
 type OSSSettingRequest struct {
@@ -599,8 +600,8 @@ func ossSettingFromRequest(req OSSSettingRequest, current ossSettingValue) (ossS
 	if next.Delivery.CDNAuthMode != "" && next.Delivery.CDNAuthMode != "public" && next.Delivery.CDNAuthMode != "qiniu" {
 		return next, BadAuthRequest("CDN 鉴权方式无效，仅支持 public 或 qiniu")
 	}
-	if next.Provider != aliyunOSSProvider && next.Provider != tencentCOSProvider && next.Provider != qiniuKodoProvider && next.Provider != s3Provider {
-		return next, BadAuthRequest("仅支持阿里云 OSS、腾讯云 COS、七牛云 Kodo 和通用 S3")
+	if next.Provider != aliyunOSSProvider && next.Provider != tencentCOSProvider && next.Provider != qiniuKodoProvider && next.Provider != s3Provider && next.Provider != webdavProvider {
+		return next, BadAuthRequest("仅支持阿里云 OSS、腾讯云 COS、七牛云 Kodo、通用 S3 和 WebDAV")
 	}
 	if next.Provider == s3Provider {
 		switch next.S3Preset {
@@ -618,7 +619,7 @@ func ossSettingFromRequest(req OSSSettingRequest, current ossSettingValue) (ossS
 		next.SessionToken = current.SessionToken
 	}
 	if next.Enabled {
-		if next.Bucket == "" {
+		if next.Provider != webdavProvider && next.Bucket == "" {
 			return next, BadAuthRequest("请填写对象存储 Bucket")
 		}
 		if next.Endpoint == "" {
@@ -630,6 +631,9 @@ func ossSettingFromRequest(req OSSSettingRequest, current ossSettingValue) (ossS
 			}
 			if next.Provider == s3Provider {
 				return next, BadAuthRequest("请填写 S3 Endpoint 服务根 URL")
+			}
+			if next.Provider == webdavProvider {
+				return next, BadAuthRequest("请填写 WebDAV 服务端根地址")
 			}
 			return next, BadAuthRequest("请填写阿里云 OSS Endpoint")
 		}

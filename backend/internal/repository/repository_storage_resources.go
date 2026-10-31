@@ -67,6 +67,23 @@ func (r *Repository) StorageLocationResourceCount(id string) (int64, error) {
 	return count, err
 }
 
+func (r *Repository) SwitchAllResourcesStorage(targetProvider, targetEndpoint, targetBucket, targetStorageSettingID string) (int64, int64, error) {
+	var total int64
+	if err := r.db.Model(&model.Resource{}).Where("status = ?", model.ResourceStatusReady).Count(&total).Error; err != nil {
+		return 0, 0, err
+	}
+	res := r.db.Model(&model.Resource{}).
+		Where("status = ?", model.ResourceStatusReady).
+		Updates(map[string]any{
+			"provider":           targetProvider,
+			"endpoint":           targetEndpoint,
+			"bucket":             targetBucket,
+			"storage_setting_id": targetStorageSettingID,
+			"updated_at":         time.Now(),
+		})
+	return total, res.RowsAffected, res.Error
+}
+
 func (r *Repository) CreateStorageLocation(location *model.StorageLocation) error {
 	return r.db.Create(location).Error
 }

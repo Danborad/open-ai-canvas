@@ -69,6 +69,7 @@ type (
 	AdminResourceReferenceView             = app.AdminResourceReferenceView
 	AdminStorageResourceView               = app.AdminStorageResourceView
 	AdminStorageStats                      = app.AdminStorageStats
+	StorageSwitchoverResult                = app.StorageSwitchoverResult
 	AdminSystemPerformance                 = app.AdminSystemPerformance
 	AdminTaskPage                          = app.AdminTaskPage
 	AdminUser                              = app.AdminUser
@@ -258,7 +259,8 @@ type (
 	PublicAuthSettings                     = app.PublicAuthSettings
 	PublicCanvasShare                      = app.PublicCanvasShare
 	ForkCanvasShareResult                  = app.ForkCanvasShareResult
-	PortableBackupStatus                   = app.PortableBackupStatus
+	RedundantBackupStatus                  = app.RedundantBackupStatus
+	PortableBackupStatus                   = app.RedundantBackupStatus
 	PublicChannelCatalog                   = app.PublicChannelCatalog
 	PublicChannelModel                     = app.PublicChannelModel
 	PublicChannelModelPrice                = app.PublicChannelModelPrice

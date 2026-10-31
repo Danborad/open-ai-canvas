@@ -52,6 +52,7 @@ services:
       CANVAS_WECHAT_QR_PAGE: ${CANVAS_WECHAT_QR_PAGE:-pages/login/login}
       CANVAS_WECHAT_QR_ENV_VERSION: ${CANVAS_WECHAT_QR_ENV_VERSION:-release}
       CANVAS_WECHAT_QR_MANUAL: ${CANVAS_WECHAT_QR_MANUAL:-false}
+      CANVAS_REDUNDANT_BACKUP_DIR: /backups/redundant
       GIN_MODE: release
     extra_hosts:
       - "mail.smtp2go.com:172.234.246.156"
@@ -62,6 +63,7 @@ services:
     volumes:
       - backend-data:/data
       - /run/open-ai-canvas-updater:/run/open-ai-canvas-updater
+      - /vol02/1000-0-27047199/open-ai-canvas-portable:/backups/redundant
     depends_on:
       postgres:
         condition: service_healthy

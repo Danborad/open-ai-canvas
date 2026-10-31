@@ -330,6 +330,12 @@ func (s *Service) deleteStoredResourceObject(userID string, resource *model.Reso
 			return fmt.Errorf("无法读取 S3 配置：%w", err)
 		}
 		return deleteS3Object(setting, resource.ObjectKey)
+	case webdavProvider:
+		setting, err := s.ossSettingForResource(userID, resource)
+		if err != nil {
+			return fmt.Errorf("无法读取 WebDAV 配置：%w", err)
+		}
+		return deleteWebDAVObject(setting, resource.ObjectKey)
 	default:
 		return fmt.Errorf("资源 %s 使用了不支持的存储类型 %q", resource.ID, resource.Provider)
 	}

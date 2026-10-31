@@ -66,6 +66,9 @@ func PutOSSObjectContext(ctx context.Context, setting Settings, objectKey string
 	if setting.Provider == s3Provider {
 		return putS3Object(ctx, setting, objectKey, mimeType, size, body)
 	}
+	if setting.Provider == webdavProvider {
+		return putWebDAVObject(ctx, setting, objectKey, mimeType, size, body)
+	}
 	return putAliyunOSSObject(ctx, setting, objectKey, mimeType, size, body)
 }
 
@@ -128,6 +131,9 @@ func GetOriginObjectRange(setting Settings, objectKey string, rangeHeader string
 	}
 	if setting.Provider == qiniuKodoProvider {
 		return GetQiniuObjectRange(setting, objectKey, rangeHeader)
+	}
+	if setting.Provider == webdavProvider {
+		return GetWebDAVObjectRange(setting, objectKey, rangeHeader)
 	}
 	return GetAliyunOSSObjectRange(setting, objectKey, rangeHeader)
 }
@@ -244,6 +250,9 @@ func signedOriginObjectURL(setting Settings, objectKey string, signing objectURL
 	}
 	if setting.Provider == tencentCOSProvider {
 		return signedCOSObjectURL(setting, objectKey, signing)
+	}
+	if setting.Provider == webdavProvider {
+		return signedWebDAVObjectURL(setting, objectKey, signing)
 	}
 	// 阿里云 V1 签名只由绝对过期时间决定，过期时间对齐即可得到稳定地址。
 	return signedAliyunOSSObjectURL(setting, objectKey, signing)

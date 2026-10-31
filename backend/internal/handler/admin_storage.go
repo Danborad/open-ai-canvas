@@ -42,6 +42,20 @@ func RegisterAdminStorageRoutes(r *gin.RouterGroup, svc *service.Service) {
 		ok(c, gin.H{"stats": stats})
 	})
 
+	r.POST("/admin/storage/switchover", func(c *gin.Context) {
+		user, err := currentUser(c, svc)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		result, err := svc.SwitchoverHistoricalResources(user)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, result)
+	})
+
 	r.GET("/admin/resources", func(c *gin.Context) {
 		user, err := currentUser(c, svc)
 		if err != nil {

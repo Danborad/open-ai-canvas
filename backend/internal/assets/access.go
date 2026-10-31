@@ -140,6 +140,8 @@ func ResolveAccess(resource *model.Resource, setting storage.Settings, options A
 	}
 	if resource.Provider == "local" {
 		access.Delivery = DeliveryLocal
+	} else if resource.Provider == "webdav" && !storage.CDNEnabled(setting) {
+		access.Delivery = DeliveryProxy
 	} else if !InlineMediaType(resource.MimeType) {
 		// A redirect cannot enforce our attachment and sandbox response headers.
 		access.Delivery = DeliveryProxy

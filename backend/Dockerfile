@@ -68,7 +68,8 @@ RUN npm config set registry https://registry.npmmirror.com && npm ci --omit=dev 
 FROM node:22-alpine
 
 # ffmpeg/ffprobe：短剧抽取剧情段视频最后一帧、时间线合成成片与视频播放转码。
-RUN apk add --no-cache ca-certificates tzdata wget ffmpeg \
+# postgresql17-client / rsync：用于冗余备份数据快照与媒体资源同步。
+RUN apk add --no-cache ca-certificates tzdata wget ffmpeg postgresql17-client rsync \
     && addgroup -S app \
     && adduser -S app -G app
 

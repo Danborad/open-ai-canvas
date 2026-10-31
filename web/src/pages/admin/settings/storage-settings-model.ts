@@ -142,9 +142,9 @@ export function hasStorageChanges(values: Partial<OSSFormValues>, setting: Admin
 export function validateStorageDraft(values: OSSFormValues, setting: AdminOSSSetting) {
     const draft = normalizeStoragePayload(values, setting);
     if (!draft.enabled) return validatePublicBaseURL(draft.publicBaseUrl);
-    if (!draft.bucket) return "请填写对象存储 Bucket";
+    if (draft.provider !== "webdav" && !draft.bucket) return "请填写对象存储 Bucket";
     if (!draft.endpoint)
-        return draft.provider === "tencent" ? "请填写腾讯云 COS Region 或 Endpoint" : draft.provider === "qiniu" ? "请填写七牛云 Kodo 上传 Endpoint" : draft.provider === "s3" ? "请填写 S3 Endpoint 服务根 URL" : "请填写阿里云 OSS Endpoint";
+        return draft.provider === "tencent" ? "请填写腾讯云 COS Region 或 Endpoint" : draft.provider === "qiniu" ? "请填写七牛云 Kodo 上传 Endpoint" : draft.provider === "s3" ? "请填写 S3 Endpoint 服务根 URL" : draft.provider === "webdav" ? "请填写 WebDAV 服务端地址" : "请填写阿里云 OSS Endpoint";
     if (draft.provider === "s3" && !draft.region) return "请填写 S3 Region";
     if (!isHTTPURL(draft.endpoint)) return "Endpoint 必须是完整的 http/https 地址";
     if (draft.cdnBaseUrl && !isValidCDNBaseURL(draft.cdnBaseUrl)) return "CDN 或绑定域名只能填写 http/https 根地址，不能包含认证、路径、查询参数或片段";
@@ -179,7 +179,7 @@ export function isAdminOSSSetting(value: unknown): value is AdminOSSSetting {
     const setting = value as Partial<AdminOSSSetting>;
     return (
         typeof setting.enabled === "boolean" &&
-        ["aliyun", "tencent", "qiniu", "s3"].includes(setting.provider || "") &&
+        ["aliyun", "tencent", "qiniu", "s3", "webdav"].includes(setting.provider || "") &&
         ["aws", "r2", "b2", "rustfs", "custom"].includes(setting.s3Preset || "") &&
         typeof setting.region === "string" &&
         typeof setting.endpoint === "string" &&
@@ -204,10 +204,11 @@ export function storageConfigurationReady(mode: StorageMode, values: StoragePayl
 }
 
 export function storageProviderLabel(provider?: StorageMode) {
-    return provider === "s3" ? "S3 兼容存储" : provider === "tencent" ? "腾讯云 COS" : provider === "qiniu" ? "七牛云 Kodo" : provider === "aliyun" ? "阿里云 OSS" : "服务器本地";
+    return provider === "s3" ? "S3 兼容存储" : provider === "tencent" ? "腾讯云 COS" : provider === "qiniu" ? "七牛云 Kodo" : provider === "aliyun" ? "阿里云 OSS" : provider === "webdav" ? "WebDAV 存储" : "服务器本地";
 }
 
 export function providerGuidance(mode: Exclude<StorageMode, "local">) {
+    if (mode === "webdav") return "填写 WebDAV 完整根 URL、可选子目录/根路径（Bucket）以及 Basic Auth 账号与密码。";
     if (mode === "s3") return "使用预设快速填写 Region 与 Endpoint，也可以选择自定义；自托管 S3 仍受服务端私网主机白名单约束。";
     if (mode === "tencent") return "腾讯云可只填写 Region，由服务端生成标准 COS Endpoint；也可填写完整 Endpoint 覆盖。";
     if (mode === "qiniu") return "七牛上传必须配置上传 Endpoint；绑定域名可选，留空时资源由当前后端使用 AK/SK 代理读取。";
@@ -215,11 +216,11 @@ export function providerGuidance(mode: Exclude<StorageMode, "local">) {
 }
 
 export function accessKeyIdLabel(mode: Exclude<StorageMode, "local"> | AdminOSSSetting["provider"]) {
-    return mode === "tencent" ? "SecretId" : mode === "qiniu" ? "AccessKey" : "AccessKey ID";
+    return mode === "webdav" ? "用户名 (Username)" : mode === "tencent" ? "SecretId" : mode === "qiniu" ? "AccessKey" : "AccessKey ID";
 }
 
 export function accessKeySecretLabel(mode: Exclude<StorageMode, "local"> | AdminOSSSetting["provider"]) {
-    return mode === "tencent" || mode === "qiniu" ? "SecretKey" : "AccessKey Secret";
+    return mode === "webdav" ? "密码 (Password)" : mode === "tencent" || mode === "qiniu" ? "SecretKey" : "AccessKey Secret";
 }
 
 export function isHTTPURL(value: string) {

@@ -204,7 +204,7 @@ func (s *Service) StartWorker() {
 	s.startPromotionWorker(ctx)
 	s.startDramaScheduler()
 	s.startESAMetricsCollector(ctx)
-	s.startPortableBackupWorker(ctx)
+	s.startRedundantBackupWorker(ctx)
 	go s.syncAgentSessionLimit()
 	s.runWorkerLoop(func(ctx context.Context) {
 		ticker := time.NewTicker(3 * time.Second)

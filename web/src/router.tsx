@@ -34,7 +34,7 @@ const RuntimePolicySettingsPage = lazyAdminPage(() => import("@/pages/admin/sett
 const AppearanceSettingsPage = lazyAdminPage(() => import("@/pages/admin/settings/appearance-settings-page"));
 const DrawingEngineSettingsPage = lazyAdminPage(() => import("@/pages/admin/settings/drawing-engine-settings-page"));
 const StorageSettingsPage = lazyAdminPage(() => import("@/pages/admin/settings/storage-settings-page"));
-const PortableBackupPage = lazyAdminPage(() => import("@/pages/admin/settings/portable-backup-page"));
+const RedundantBackupPage = lazyAdminPage(() => import("@/pages/admin/settings/redundant-backup-page"));
 const ArkPrivateAssetsSettingsPage = lazyAdminPage(() => import("@/pages/admin/settings/ark-private-assets-settings-page"));
 const ResponseInterceptionSettingsPage = lazyAdminPage(() => import("@/pages/admin/settings/response-interception-settings-page"));
 const ThirdPartySettingsPage = lazyAdminPage(() => import("@/pages/admin/settings/libtv-settings-page"));
@@ -270,7 +270,8 @@ export const router = createBrowserRouter([
                     { path: "settings/access", element: <AccessSettingsPage /> },
                     { path: "settings/email", element: <EmailSettingsPage /> },
                     { path: "settings/storage", element: <StorageSettingsPage /> },
-                    { path: "settings/portable-backup", element: <PortableBackupPage /> },
+                    { path: "settings/redundant-backup", element: <RedundantBackupPage /> },
+                    { path: "settings/portable-backup", element: <Navigate to="/admin/settings/redundant-backup" replace /> },
                     { path: "settings/ark-private-assets", element: <ArkPrivateAssetsSettingsPage /> },
                     { path: "settings/response-interception", element: <ResponseInterceptionSettingsPage /> },
                     { path: "settings/third-party", element: <ThirdPartySettingsPage /> },

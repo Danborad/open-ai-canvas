@@ -163,6 +163,8 @@ func storageConnectionTestError(provider string, operation string, cause error) 
 		providerName = "七牛云 Kodo"
 	case s3Provider:
 		providerName = "S3 兼容存储"
+	case webdavProvider:
+		providerName = "WebDAV 存储"
 	}
 
 	if errors.Is(cause, context.DeadlineExceeded) {
@@ -282,7 +284,59 @@ func deleteOSSObject(setting ossSettingValue, objectKey string) error {
 		return deleteTencentCOSObject(setting, objectKey)
 	case qiniuKodoProvider:
 		return deleteQiniuObject(setting, objectKey)
+	case webdavProvider:
+		return deleteWebDAVObject(setting, objectKey)
 	default:
 		return deleteAliyunOSSObject(setting, objectKey)
 	}
 }
+
+type StorageSwitchoverResult struct {
+	TotalResources    int64  `json:"totalResources"`
+	SwitchedResources int64  `json:"switchedResources"`
+	TargetProvider    string `json:"targetProvider"`
+	TargetEndpoint    string `json:"targetEndpoint"`
+	TargetBucket      string `json:"targetBucket"`
+}
+
+func (s *Service) SwitchoverHistoricalResources(actor *model.User) (*StorageSwitchoverResult, error) {
+	if err := s.RequireAdmin(actor); err != nil {
+		return nil, err
+	}
+	_, setting, err := s.readOSSSetting()
+	if err != nil {
+		return nil, err
+	}
+
+	targetProvider := "local"
+	targetEndpoint := ""
+	targetBucket := ""
+	targetStorageSettingID := ""
+
+	if setting.Enabled {
+		targetProvider = setting.Provider
+		targetEndpoint = setting.Endpoint
+		targetBucket = setting.Bucket
+		targetStorageSettingID = setting.StorageLocationID
+	}
+
+	total, switched, err := s.repo.SwitchAllResourcesStorage(targetProvider, targetEndpoint, targetBucket, targetStorageSettingID)
+	if err != nil {
+		return nil, fmt.Errorf("切换历史资源存储位置失败：%w", err)
+	}
+
+	_ = s.appendAdminAudit(actor, "storage.switchover", "resources", "all", "批量切换历史资源存储位置", map[string]any{
+		"targetProvider": targetProvider,
+		"switchedCount":  switched,
+		"totalCount":     total,
+	})
+
+	return &StorageSwitchoverResult{
+		TotalResources:    total,
+		SwitchedResources: switched,
+		TargetProvider:    targetProvider,
+		TargetEndpoint:    targetEndpoint,
+		TargetBucket:      targetBucket,
+	}, nil
+}
+

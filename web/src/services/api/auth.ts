@@ -642,6 +642,18 @@ export function testAdminOSSConnection(input: OSSConnectionTestInput) {
     return http.post<OSSConnectionTestResult>("/admin/settings/oss/test", input);
 }
 
+export type StorageSwitchoverResult = {
+    totalResources: number;
+    switchedResources: number;
+    targetProvider: string;
+    targetEndpoint: string;
+    targetBucket: string;
+};
+
+export function switchoverHistoricalResources() {
+    return http.post<StorageSwitchoverResult>("/admin/storage/switchover");
+}
+
 export function getAdminArkPrivateAssetSetting() {
     return http.get<{ setting: AdminArkPrivateAssetSetting }>("/admin/settings/ark-private-assets");
 }

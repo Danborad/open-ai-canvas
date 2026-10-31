@@ -10,6 +10,7 @@ const (
 	tencentCOSProvider   = "tencent"
 	qiniuKodoProvider    = "qiniu"
 	s3Provider           = "s3"
+	webdavProvider       = "webdav"
 	defaultOSSPathPrefix = "open-ai-canvas"
 	resourceAccessURLTTL = 4 * time.Hour
 )

@@ -55,6 +55,7 @@ var (
 	deleteAliyunOSSObject       = storage.DeleteAliyunOSSObject
 	deleteTencentCOSObject      = storage.DeleteTencentCOSObject
 	deleteQiniuObject           = storage.DeleteQiniuObject
+	deleteWebDAVObject          = storage.DeleteWebDAVObject
 	validateStorageEndpoint     = storage.ValidateStorageEndpoint
 	standardAWSS3Endpoint       = storage.StandardAWSS3Endpoint
 	publicHTTPSStorageEndpoint  = storage.PublicHTTPSStorageEndpoint
