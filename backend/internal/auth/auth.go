@@ -60,6 +60,7 @@ type PublicAuthSettings struct {
 	EmailCodeRequired     bool   `json:"emailCodeRequired"`
 	WechatQrLoginEnabled  bool   `json:"wechatQrLoginEnabled"`
 	WechatQrManual        bool   `json:"wechatQrManual"`
+	WechatEnvVersion      string `json:"wechatEnvVersion,omitempty"`
 	AgreementTitle        string `json:"agreementTitle,omitempty"`
 	AgreementContent      string `json:"agreementContent,omitempty"`
 }
@@ -86,12 +87,14 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 	if count == 0 {
 		// 首个管理员同样要看到服务协议，不能因为跳过注册校验就丢失协议字段。
 		agreementTitle, agreementContent := s.RegistrationAgreement()
+		_, _, _, _, envVersion, _ := s.wechatLoginConfig()
 		return &PublicAuthSettings{
 			FirstUser:            true,
 			RegistrationEnabled:  true,
 			LinuxDOEnabled:       false,
 			WechatQrLoginEnabled: s.WechatLoginEnabled(),
 			WechatQrManual:       s.WechatManualMode(),
+			WechatEnvVersion:     envVersion,
 			AgreementTitle:       agreementTitle,
 			AgreementContent:     agreementContent,
 		}, nil
@@ -126,6 +129,7 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 	p.EmailRegistration = p.EmailRegistration && emailEnabled
 	p.SMSAndEmailRegistration = p.SMSAndEmailRegistration && smsRegister && emailEnabled
 	agreementTitle, agreementContent := s.RegistrationAgreement()
+	_, _, _, _, wechatEnv, _ := s.wechatLoginConfig()
 	return &PublicAuthSettings{
 		VerificationPolicy:    p,
 		SMSBindingAvailable:   smsBind,
@@ -137,6 +141,7 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 		EmailCodeRequired:     p.EmailRegistration || p.SMSAndEmailRegistration,
 		WechatQrLoginEnabled:  s.WechatLoginEnabled(),
 		WechatQrManual:        s.WechatManualMode(),
+		WechatEnvVersion:      wechatEnv,
 		AgreementTitle:        agreementTitle,
 		AgreementContent:      agreementContent,
 	}, nil

@@ -523,13 +523,13 @@ export default function AccessSettingsPanel() {
                                         </Form.Item>
                                         <Form.Item
                                             name="envVersion"
-                                            label="小程序运行环境版本"
-                                            extra="开发或提审期选体验版；小程序正式上线后切换为正式版"
+                                            label="默认小程序运行环境版本"
+                                            extra="日常运营推荐正式版 (release)；网页端现已支持『正式版 / 体验版』独立切换，开发者在登录页可随时一键切为体验版自测，两者互不影响。"
                                         >
                                             <Select
                                                 options={[
-                                                    { value: "trial", label: "体验版 (trial) - 适合提审与体验者自测" },
-                                                    { value: "release", label: "正式版 (release) - 适合小程序已过审发布" },
+                                                    { value: "release", label: "正式版 (release) - 默认推荐，面向全站普通用户" },
+                                                    { value: "trial", label: "体验版 (trial) - 适合提审期或开发自测" },
                                                     { value: "develop", label: "开发版 (develop) - 适合本地开发者工具调试" },
                                                 ]}
                                             />

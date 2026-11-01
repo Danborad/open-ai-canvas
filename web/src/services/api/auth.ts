@@ -423,6 +423,7 @@ export function getAuthSettings() {
             agreementContent?: string;
             wechatQrLoginEnabled?: boolean;
             wechatQrManual?: boolean;
+            wechatEnvVersion?: string;
         }
     >("/auth/settings");
 }
@@ -433,6 +434,7 @@ export type WechatQRTicketData = {
     qrImage?: string;
     manual: boolean;
     action: "login" | "bind";
+    envVersion?: string;
     expiresAt: string;
 };
 
@@ -445,8 +447,8 @@ export type WechatTicketStatusResult = {
     error?: string;
 };
 
-export function getWechatQRTicket(action: "login" | "bind" = "login", invite?: string) {
-    return http.get<WechatQRTicketData>("/auth/wechat/qr", { params: { action, invite } });
+export function getWechatQRTicket(action: "login" | "bind" = "login", invite?: string, env?: string) {
+    return http.get<WechatQRTicketData>("/auth/wechat/qr", { params: { action, invite, env } });
 }
 
 export function getWechatTicketStatus(ticket: string) {

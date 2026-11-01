@@ -4,6 +4,7 @@ import { Check, Copy, QrCode, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import { getAuthSession, getWechatQRTicket, getWechatTicketStatus, type WechatQRTicketData } from "@/services/api/auth";
+import { cn } from "@/lib/utils";
 
 export function WechatQRLogin({ next = "/", invite }: { next?: string; invite?: string }) {
     const { message } = App.useApp();
@@ -14,6 +15,7 @@ export function WechatQRLogin({ next = "/", invite }: { next?: string; invite?: 
     const [errorMessage, setErrorMessage] = useState("");
     const [copied, setCopied] = useState(false);
     const [viewMode, setViewMode] = useState<"qr" | "manual">("qr");
+    const [envVersion, setEnvVersion] = useState<"release" | "trial">("release");
     const timerRef = useRef<number | null>(null);
 
     const navRef = useRef({ next, navigate });
@@ -21,23 +23,33 @@ export function WechatQRLogin({ next = "/", invite }: { next?: string; invite?: 
         navRef.current = { next, navigate };
     }, [next, navigate]);
 
-    const loadTicket = useCallback(async () => {
+    const loadTicket = useCallback(async (targetEnv?: "release" | "trial") => {
         setLoading(true);
         setStatus("pending");
         setErrorMessage("");
+        const reqEnv = targetEnv || envVersion;
         try {
-            const data = await getWechatQRTicket("login", invite);
+            const data = await getWechatQRTicket("login", invite, reqEnv);
             setTicketData(data);
+            if (data.envVersion === "release" || data.envVersion === "trial") {
+                setEnvVersion(data.envVersion);
+            }
         } catch (err) {
             setErrorMessage(err instanceof Error ? err.message : "获取微信登录二维码失败");
         } finally {
             setLoading(false);
         }
-    }, [invite]);
+    }, [invite, envVersion]);
+
+    const handleEnvChange = (env: "release" | "trial") => {
+        if (env === envVersion || loading) return;
+        setEnvVersion(env);
+        void loadTicket(env);
+    };
 
     useEffect(() => {
         void loadTicket();
-    }, [loadTicket]);
+    }, []);
 
     // 轮询票据状态
     useEffect(() => {
@@ -94,31 +106,60 @@ export function WechatQRLogin({ next = "/", invite }: { next?: string; invite?: 
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex h-64 flex-col items-center justify-center gap-3">
-                <Spin size="large" />
-                <span className="text-xs text-muted-foreground">正在生成微信登录码…</span>
-            </div>
-        );
-    }
-
-    if (errorMessage && !ticketData) {
-        return (
-            <div className="flex h-64 flex-col items-center justify-center gap-3 text-center">
-                <span className="text-xs text-red-500">{errorMessage}</span>
-                <Button icon={<RefreshCw className="size-3.5" />} onClick={() => void loadTicket()}>
-                    重新获取
-                </Button>
-            </div>
-        );
-    }
-
     const showQR = !ticketData?.manual && Boolean(ticketData?.qrImage) && viewMode === "qr";
 
     return (
         <div className="flex flex-col items-center justify-center gap-4 py-2">
-            {showQR ? (
+            {/* 环境版本独立切换器：正式版 vs 体验版 */}
+            <div className="flex flex-col items-center gap-1.5">
+                <div className="flex items-center rounded-lg bg-muted/60 p-0.5 text-xs">
+                    <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => handleEnvChange("release")}
+                        className={cn(
+                            "rounded-md px-3.5 py-1 font-medium transition-all",
+                            envVersion === "release"
+                                ? "bg-background text-foreground shadow-sm font-semibold"
+                                : "text-muted-foreground hover:text-foreground"
+                        )}
+                    >
+                        正式版
+                    </button>
+                    <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => handleEnvChange("trial")}
+                        className={cn(
+                            "rounded-md px-3.5 py-1 font-medium transition-all",
+                            envVersion === "trial"
+                                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold shadow-sm"
+                                : "text-muted-foreground hover:text-foreground"
+                        )}
+                    >
+                        体验版 (测试)
+                    </button>
+                </div>
+                {envVersion === "trial" ? (
+                    <span className="text-[11px] text-amber-600/90 dark:text-amber-400/90 font-medium text-center">
+                        ⚠️ 体验版小程序码仅供开发者或体验成员扫码测试
+                    </span>
+                ) : null}
+            </div>
+
+            {loading ? (
+                <div className="flex size-52 flex-col items-center justify-center gap-3">
+                    <Spin size="large" />
+                    <span className="text-xs text-muted-foreground">正在生成{envVersion === "trial" ? "体验版" : "正式版"}小程序码…</span>
+                </div>
+            ) : errorMessage && !ticketData ? (
+                <div className="flex size-52 flex-col items-center justify-center gap-3 text-center">
+                    <span className="text-xs text-red-500">{errorMessage}</span>
+                    <Button icon={<RefreshCw className="size-3.5" />} onClick={() => void loadTicket()}>
+                        重新获取
+                    </Button>
+                </div>
+            ) : showQR ? (
                 /* 真码模式：直接展示微信官方小程序码 */
                 <div className="relative flex size-52 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white p-2 shadow-sm">
                     <img src={ticketData?.qrImage} alt="微信扫码登录" className="size-full object-contain" />

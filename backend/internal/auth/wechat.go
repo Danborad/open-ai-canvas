@@ -355,22 +355,31 @@ func newManualCode() string {
 }
 
 type WechatQRTicketResponse struct {
-	Ticket    string `json:"ticket"`
-	Code      string `json:"code,omitempty"`
-	QRImage   string `json:"qrImage,omitempty"`
-	Manual    bool   `json:"manual"`
-	Action    string `json:"action"`
-	ExpiresAt string `json:"expiresAt"`
+	Ticket     string `json:"ticket"`
+	Code       string `json:"code,omitempty"`
+	QRImage    string `json:"qrImage,omitempty"`
+	Manual     bool   `json:"manual"`
+	Action     string `json:"action"`
+	EnvVersion string `json:"envVersion,omitempty"`
+	ExpiresAt  string `json:"expiresAt"`
 }
 
-func (s *Service) CreateWechatQRTicket(action string, userID string, inviteCode string) (*WechatQRTicketResponse, error) {
-	enabled, appID, secret, page, envVersion, manual := s.wechatLoginConfig()
+func (s *Service) CreateWechatQRTicket(action string, userID string, inviteCode string, envs ...string) (*WechatQRTicketResponse, error) {
+	enabled, appID, secret, page, defaultEnv, manual := s.wechatLoginConfig()
 	if !enabled || appID == "" {
 		return nil, kernel.BadAuthRequest("微信扫码登录尚未启用")
 	}
 	if action != model.WechatTicketActionBind {
 		action = model.WechatTicketActionLogin
 	}
+	envVersion := defaultEnv
+	if len(envs) > 0 && strings.TrimSpace(envs[0]) != "" {
+		switch strings.TrimSpace(envs[0]) {
+		case "release", "trial", "develop":
+			envVersion = strings.TrimSpace(envs[0])
+		}
+	}
+
 	ticketID := kernel.NewID()
 	shortCode := newManualCode()
 	expiresAt := time.Now().Add(10 * time.Minute)
@@ -409,12 +418,13 @@ func (s *Service) CreateWechatQRTicket(action string, userID string, inviteCode 
 
 	isManual := manual || qrImage == ""
 	return &WechatQRTicketResponse{
-		Ticket:    ticketID,
-		Code:      shortCode,
-		QRImage:   qrImage,
-		Manual:    isManual,
-		Action:    action,
-		ExpiresAt: expiresAt.Format(time.RFC3339),
+		Ticket:     ticketID,
+		Code:       shortCode,
+		QRImage:    qrImage,
+		Manual:     isManual,
+		Action:     action,
+		EnvVersion: envVersion,
+		ExpiresAt:  expiresAt.Format(time.RFC3339),
 	}, nil
 }
 

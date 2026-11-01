@@ -44,7 +44,8 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 			}
 			userID = user.ID
 		}
-		ticket, err := svc.CreateWechatQRTicket(action, userID, invite)
+		env := c.Query("env")
+		ticket, err := svc.CreateWechatQRTicket(action, userID, invite, env)
 		if err != nil {
 			failService(c, err)
 			return

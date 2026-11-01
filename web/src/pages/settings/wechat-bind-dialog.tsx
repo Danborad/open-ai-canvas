@@ -3,6 +3,7 @@ import { App, Button, Modal, Spin } from "antd";
 import { Check, Copy, QrCode, RefreshCw } from "lucide-react";
 
 import { getWechatQRTicket, getWechatTicketStatus, type WechatQRTicketData } from "@/services/api/auth";
+import { cn } from "@/lib/utils";
 
 export function WechatBindDialog({
     open,
@@ -20,25 +21,36 @@ export function WechatBindDialog({
     const [errorMessage, setErrorMessage] = useState("");
     const [copied, setCopied] = useState(false);
     const [viewMode, setViewMode] = useState<"qr" | "manual">("qr");
+    const [envVersion, setEnvVersion] = useState<"release" | "trial">("release");
 
     const callbacksRef = useRef({ onSuccess, onCancel });
     useEffect(() => {
         callbacksRef.current = { onSuccess, onCancel };
     }, [onSuccess, onCancel]);
 
-    const loadTicket = useCallback(async () => {
+    const loadTicket = useCallback(async (targetEnv?: "release" | "trial") => {
         setLoading(true);
         setStatus("pending");
         setErrorMessage("");
+        const reqEnv = targetEnv || envVersion;
         try {
-            const data = await getWechatQRTicket("bind");
+            const data = await getWechatQRTicket("bind", undefined, reqEnv);
             setTicketData(data);
+            if (data.envVersion === "release" || data.envVersion === "trial") {
+                setEnvVersion(data.envVersion);
+            }
         } catch (err) {
             setErrorMessage(err instanceof Error ? err.message : "获取微信绑定码失败");
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [envVersion]);
+
+    const handleEnvChange = (env: "release" | "trial") => {
+        if (env === envVersion || loading) return;
+        setEnvVersion(env);
+        void loadTicket(env);
+    };
 
     useEffect(() => {
         if (open) {
@@ -113,13 +125,50 @@ export function WechatBindDialog({
             destroyOnHidden
         >
             <div className="flex flex-col items-center justify-center gap-4 py-4 text-center">
+                {/* 运行环境切换：正式版 vs 体验版 */}
+                <div className="flex flex-col items-center gap-1.5">
+                    <div className="flex items-center rounded-lg bg-muted/60 p-0.5 text-xs">
+                        <button
+                            type="button"
+                            disabled={loading}
+                            onClick={() => handleEnvChange("release")}
+                            className={cn(
+                                "rounded-md px-3.5 py-1 font-medium transition-all",
+                                envVersion === "release"
+                                    ? "bg-background text-foreground shadow-sm font-semibold"
+                                    : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            正式版
+                        </button>
+                        <button
+                            type="button"
+                            disabled={loading}
+                            onClick={() => handleEnvChange("trial")}
+                            className={cn(
+                                "rounded-md px-3.5 py-1 font-medium transition-all",
+                                envVersion === "trial"
+                                    ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            体验版 (测试)
+                        </button>
+                    </div>
+                    {envVersion === "trial" ? (
+                        <span className="text-[11px] text-amber-600/90 dark:text-amber-400/90 font-medium">
+                            ⚠️ 体验版仅供开发者或体验成员扫码测试
+                        </span>
+                    ) : null}
+                </div>
+
                 {loading ? (
-                    <div className="flex h-52 flex-col items-center justify-center gap-2">
+                    <div className="flex size-52 flex-col items-center justify-center gap-2">
                         <Spin />
-                        <span className="text-xs text-muted-foreground">正在生成绑定凭证…</span>
+                        <span className="text-xs text-muted-foreground">正在生成{envVersion === "trial" ? "体验版" : "正式版"}绑定码…</span>
                     </div>
                 ) : errorMessage && !ticketData ? (
-                    <div className="flex h-52 flex-col items-center justify-center gap-3">
+                    <div className="flex size-52 flex-col items-center justify-center gap-3">
                         <span className="text-xs text-red-500">{errorMessage}</span>
                         <Button size="small" icon={<RefreshCw className="size-3" />} onClick={() => void loadTicket()}>
                             重新获取

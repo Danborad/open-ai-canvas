@@ -257,8 +257,8 @@ func (s *Service) CompleteLinuxDOLogin(stateValue string, code string, cookieVal
 	return s.authDomain().CompleteLinuxDOLogin(stateValue, code, cookieValue, contexts...)
 }
 
-func (s *Service) CreateWechatQRTicket(action string, userID string, inviteCode string) (*WechatQRTicketResponse, error) {
-	return s.authDomain().CreateWechatQRTicket(action, userID, inviteCode)
+func (s *Service) CreateWechatQRTicket(action string, userID string, inviteCode string, envs ...string) (*WechatQRTicketResponse, error) {
+	return s.authDomain().CreateWechatQRTicket(action, userID, inviteCode, envs...)
 }
 
 func (s *Service) GetWechatQRTicketStatus(ticketID string) (*WechatTicketStatusResult, error) {
