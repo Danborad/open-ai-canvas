@@ -448,40 +448,99 @@ func (s *Service) syncToWebDAV(ctx context.Context, targetDir string, setting Re
 	// 3. 增量上传媒体文件
 	resourcesDir := filepath.Join(targetDir, "data", "resources")
 	if info, err := os.Stat(resourcesDir); err == nil && info.IsDir() {
+		type fileItem struct {
+			localPath string
+			remoteKey string
+			size      int64
+		}
+
+		var files []fileItem
 		_ = filepath.Walk(resourcesDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil || info == nil || info.IsDir() {
 				return nil
-			}
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
 			}
 			rel, err := filepath.Rel(resourcesDir, path)
 			if err != nil {
 				return nil
 			}
-			relSlash := filepath.ToSlash(rel)
-			remoteKey := "data/resources/" + relSlash
-
-			// 检查远端是否已存在（跳过已同步的媒体文件）
-			stream, err := storage.GetWebDAVObjectRange(webdavSetting, remoteKey, "bytes=0-0")
-			if err == nil && stream != nil {
-				_ = stream.Body.Close()
-				if stream.StatusCode == http.StatusOK || stream.StatusCode == http.StatusPartialContent {
-					return nil
-				}
-			}
-
-			// 上传新文件
-			file, err := os.Open(path)
-			if err != nil {
-				return nil
-			}
-			defer file.Close()
-			_, _ = storage.PutWebDAVObject(webdavSetting, remoteKey, "application/octet-stream", info.Size(), file)
+			files = append(files, fileItem{
+				localPath: path,
+				remoteKey: "data/resources/" + filepath.ToSlash(rel),
+				size:      info.Size(),
+			})
 			return nil
 		})
+
+		total := len(files)
+		var completed int64
+		var skipped int64
+		var uploaded int64
+
+		concurrency := 8
+		tasks := make(chan fileItem, concurrency)
+		var wg sync.WaitGroup
+
+		for i := 0; i < concurrency; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for item := range tasks {
+					select {
+					case <-ctx.Done():
+						return
+					default:
+					}
+
+					// 检查远端是否已存在（跳过已同步的媒体文件）
+					stream, err := storage.GetWebDAVObjectRange(webdavSetting, item.remoteKey, "bytes=0-0")
+					if err == nil && stream != nil {
+						_ = stream.Body.Close()
+						if stream.StatusCode == http.StatusOK || stream.StatusCode == http.StatusPartialContent {
+							redundantBackupMu.Lock()
+							skipped++
+							completed++
+							if completed%20 == 0 || completed == int64(total) {
+								redundantBackupStatus = fmt.Sprintf("正在向 WebDAV 增量同步媒体文件 (%d/%d)...", completed, total)
+							}
+							redundantBackupMu.Unlock()
+							continue
+						}
+					}
+
+					// 上传新文件
+					f, err := os.Open(item.localPath)
+					if err == nil {
+						_, putErr := storage.PutWebDAVObject(webdavSetting, item.remoteKey, "application/octet-stream", item.size, f)
+						_ = f.Close()
+						if putErr != nil {
+							slog.Warn("webdav put object failed", "key", item.remoteKey, "error", putErr)
+						} else {
+							redundantBackupMu.Lock()
+							uploaded++
+							redundantBackupMu.Unlock()
+						}
+					}
+
+					redundantBackupMu.Lock()
+					completed++
+					if completed%10 == 0 || completed == int64(total) {
+						redundantBackupStatus = fmt.Sprintf("正在向 WebDAV 增量同步媒体文件 (%d/%d)...", completed, total)
+					}
+					redundantBackupMu.Unlock()
+				}
+			}()
+		}
+
+		for _, item := range files {
+			select {
+			case <-ctx.Done():
+				break
+			case tasks <- item:
+			}
+		}
+		close(tasks)
+		wg.Wait()
+		slog.Info("webdav media sync finished", "total", total, "uploaded", uploaded, "skipped", skipped)
 	}
 
 	// 4. 上传清单文件 manifest.json

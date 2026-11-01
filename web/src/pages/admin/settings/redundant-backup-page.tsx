@@ -43,14 +43,9 @@ export default function RedundantBackupPage() {
     const [savingSetting, setSavingSetting] = useState(false);
     const [form] = Form.useForm<RedundantBackupSetting>();
 
-    const load = useCallback(async (quiet = false) => {
-        if (!quiet) setLoading(true);
+    const loadSetting = useCallback(async (quiet = false) => {
         try {
-            const [statusData, settingData] = await Promise.all([
-                getRedundantBackupStatus(),
-                getRedundantBackupSetting(),
-            ]);
-            setStatus(statusData);
+            const settingData = await getRedundantBackupSetting();
             setSetting(settingData);
             form.setFieldsValue({
                 enabled: settingData.enabled ?? true,
@@ -62,26 +57,37 @@ export default function RedundantBackupPage() {
                 webdavPathPrefix: settingData.webdavPathPrefix || "",
             });
         } catch (error) {
-            if (!quiet) message.error(error instanceof Error ? error.message : "获取冗余备份信息失败");
-        } finally {
-            if (!quiet) setLoading(false);
+            if (!quiet) message.error(error instanceof Error ? error.message : "获取冗余备份设置失败");
         }
     }, [form, message]);
 
+    const loadStatus = useCallback(async (quiet = false) => {
+        if (!quiet) setLoading(true);
+        try {
+            const statusData = await getRedundantBackupStatus();
+            setStatus(statusData);
+        } catch (error) {
+            if (!quiet) message.error(error instanceof Error ? error.message : "获取冗余备份状态失败");
+        } finally {
+            if (!quiet) setLoading(false);
+        }
+    }, [message]);
+
     useEffect(() => {
-        void load();
+        void loadSetting(true);
+        void loadStatus(false);
         const timer = setInterval(() => {
-            void load(true);
-        }, 6000);
+            void loadStatus(true);
+        }, 5000);
         return () => clearInterval(timer);
-    }, [load]);
+    }, [loadSetting, loadStatus]);
 
     const handleRunBackup = async () => {
         setRunning(true);
         try {
             await triggerRedundantBackup();
             message.success("已启动全量冗余备份任务，后台正在增量导出数据库快照与媒体文件！");
-            await load(true);
+            await loadStatus(true);
         } catch (error) {
             message.error(error instanceof Error ? error.message : "启动备份失败");
         } finally {
@@ -102,7 +108,7 @@ export default function RedundantBackupPage() {
             const updated = await updateRedundantBackupSetting(values);
             setSetting(updated);
             message.success("冗余备份策略已保存！后台调度器已更新。");
-            await load(true);
+            await loadStatus(true);
         } catch (error) {
             message.error(error instanceof Error ? error.message : "保存备份策略失败");
         } finally {
@@ -141,7 +147,7 @@ export default function RedundantBackupPage() {
             scroll
             actions={
                 <div className="flex items-center gap-2">
-                    <Button icon={<RefreshCw className="size-3.5" />} onClick={() => void load()}>
+                    <Button icon={<RefreshCw className="size-3.5" />} onClick={() => void loadStatus()}>
                         刷新状态
                     </Button>
                     <Button
