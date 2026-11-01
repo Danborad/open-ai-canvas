@@ -260,6 +260,7 @@ type (
 	PublicCanvasShare                      = app.PublicCanvasShare
 	ForkCanvasShareResult                  = app.ForkCanvasShareResult
 	RedundantBackupStatus                  = app.RedundantBackupStatus
+	RedundantBackupSetting                 = app.RedundantBackupSetting
 	PortableBackupStatus                   = app.RedundantBackupStatus
 	PublicChannelCatalog                   = app.PublicChannelCatalog
 	PublicChannelModel                     = app.PublicChannelModel

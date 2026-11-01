@@ -67,7 +67,7 @@ func TestExecuteRedundantBackupSQLite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := svc.executeRedundantBackup(targetDir); err != nil {
+	if err := svc.executeRedundantBackup(targetDir, RedundantBackupSetting{}); err != nil {
 		t.Fatalf("executeRedundantBackup error: %v", err)
 	}
 
@@ -90,5 +90,36 @@ func TestExecuteRedundantBackupSQLite(t *testing.T) {
 	data, err := os.ReadFile(copiedFile)
 	if err != nil || string(data) != "sample-image-data" {
 		t.Errorf("unexpected copied file content: %s, err: %v", string(data), err)
+	}
+}
+
+func TestRedundantBackupSetting(t *testing.T) {
+	svc, db := newSystemPerformanceTestService(t)
+	_ = db.AutoMigrate(&model.SystemSetting{})
+	admin := &model.User{ID: "admin-1", Role: "admin"}
+
+	// 1. 读取默认设置
+	def, err := svc.AdminRedundantBackupSetting(admin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !def.Enabled || def.IntervalHours != 24 {
+		t.Errorf("unexpected default setting: %+v", def)
+	}
+
+	// 2. 更新周期为 6 小时并开启 WebDAV 同步
+	updated, err := svc.UpdateRedundantBackupSetting(admin, RedundantBackupSetting{
+		Enabled:        true,
+		IntervalHours:  6,
+		WebDAVEnabled:  true,
+		WebDAVEndpoint: "http://127.0.0.1:5005",
+		WebDAVUsername: "test",
+		WebDAVPassword: "password123",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.IntervalHours != 6 || !updated.WebDAVEnabled || !updated.HasWebDAVPassword {
+		t.Errorf("unexpected updated setting: %+v", updated)
 	}
 }

@@ -1,12 +1,14 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,14 +16,33 @@ import (
 	"sync"
 	"time"
 
+	"gorm.io/gorm"
 	"yingce/backend/internal/model"
+	"yingce/backend/internal/storage"
 )
+
+const redundantBackupSettingKey = "redundant_backup"
 
 var (
 	redundantBackupMu      sync.Mutex
 	redundantBackupRunning bool
 	redundantBackupError   string
+	redundantBackupStatus  string
+	redundantBackupNotify  = make(chan struct{}, 1)
 )
+
+type RedundantBackupSetting struct {
+	Enabled           bool       `json:"enabled"`
+	IntervalHours     int        `json:"intervalHours"`
+	TargetDir         string     `json:"targetDir"`
+	WebDAVEnabled     bool       `json:"webdavEnabled"`
+	WebDAVEndpoint    string     `json:"webdavEndpoint"`
+	WebDAVUsername    string     `json:"webdavUsername"`
+	WebDAVPassword    string     `json:"webdavPassword,omitempty"`
+	HasWebDAVPassword bool       `json:"hasWebdavPassword"`
+	WebDAVPathPrefix  string     `json:"webdavPathPrefix"`
+	UpdatedAt         *time.Time `json:"updatedAt,omitempty"`
+}
 
 type RedundantBackupManifest struct {
 	Type               string `json:"type"`
@@ -39,16 +60,155 @@ type RedundantBackupStatus struct {
 	TargetDir          string `json:"targetDir"`
 	Configured         bool   `json:"configured"`
 	LastBackupTime     string `json:"lastBackupTime,omitempty"`
+	NextBackupTime     string `json:"nextBackupTime,omitempty"`
 	Version            string `json:"version"`
 	SchemaVersion      int64  `json:"schemaVersion"`
 	TotalResources     int64  `json:"totalResources"`
 	TotalResourceBytes int64  `json:"totalResourceBytes"`
 	DatabaseSqlBytes   int64  `json:"databaseSqlBytes"`
 	IsRunning          bool   `json:"isRunning"`
+	ProgressText       string `json:"progressText,omitempty"`
 	LastError          string `json:"lastError,omitempty"`
+	// 定时周期设置
+	AutoBackupEnabled  bool   `json:"autoBackupEnabled"`
+	IntervalHours      int    `json:"intervalHours"`
+	WebDAVEnabled      bool   `json:"webdavEnabled"`
+	WebDAVTarget       string `json:"webdavTarget,omitempty"`
+}
+
+func (s *Service) defaultRedundantBackupSetting() RedundantBackupSetting {
+	setting := RedundantBackupSetting{
+		Enabled:       true,
+		IntervalHours: 24,
+	}
+
+	// 尝试从存储服务中继承已配置好的 WebDAV 参数作为备份备选项
+	if _, ossVal, err := s.readOSSSetting(); err == nil {
+		if ossVal.Provider == "webdav" && ossVal.Endpoint != "" {
+			setting.WebDAVEndpoint = ossVal.Endpoint
+			setting.WebDAVUsername = ossVal.AccessKeyID
+			setting.WebDAVPassword = ossVal.AccessKeySecret
+			setting.HasWebDAVPassword = ossVal.AccessKeySecret != ""
+			setting.WebDAVPathPrefix = ossVal.PathPrefix
+		}
+	}
+	return setting
+}
+
+func (s *Service) redundantBackupSetting() (RedundantBackupSetting, error) {
+	setting, err := s.repo.SystemSetting(redundantBackupSettingKey)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return s.defaultRedundantBackupSetting(), nil
+	}
+	if err != nil {
+		return s.defaultRedundantBackupSetting(), err
+	}
+	value := s.defaultRedundantBackupSetting()
+	if strings.TrimSpace(setting.ValueJSON) != "" {
+		if json.Unmarshal([]byte(setting.ValueJSON), &value) != nil {
+			return s.defaultRedundantBackupSetting(), errors.New("冗余备份配置格式无效")
+		}
+	}
+	if value.IntervalHours <= 0 {
+		value.IntervalHours = 24
+	}
+
+	value.HasWebDAVPassword = strings.TrimSpace(value.WebDAVPassword) != ""
+	if decrypted, err := s.decryptSettingSecret(value.WebDAVPassword); err == nil && decrypted != "" {
+		value.WebDAVPassword = decrypted
+	}
+
+	updatedAt := setting.UpdatedAt
+	value.UpdatedAt = &updatedAt
+	return value, nil
+}
+
+func (s *Service) AdminRedundantBackupSetting(actor *model.User) (RedundantBackupSetting, error) {
+	if err := s.RequireAdmin(actor); err != nil {
+		return RedundantBackupSetting{}, err
+	}
+	setting, err := s.redundantBackupSetting()
+	if err != nil {
+		return RedundantBackupSetting{}, err
+	}
+	// 不向前端暴露真实密码明文
+	setting.WebDAVPassword = ""
+	return setting, nil
+}
+
+func (s *Service) UpdateRedundantBackupSetting(actor *model.User, req RedundantBackupSetting) (RedundantBackupSetting, error) {
+	if err := s.RequireAdmin(actor); err != nil {
+		return RedundantBackupSetting{}, err
+	}
+
+	current, _ := s.redundantBackupSetting()
+
+	if req.IntervalHours <= 0 {
+		req.IntervalHours = 24
+	} else if req.IntervalHours > 720 {
+		req.IntervalHours = 720
+	}
+
+	passwordToStore := req.WebDAVPassword
+	if passwordToStore == "" && current.HasWebDAVPassword {
+		passwordToStore = current.WebDAVPassword
+	}
+	if passwordToStore != "" && !strings.HasPrefix(passwordToStore, encryptedSettingPrefix) {
+		encrypted, err := s.encryptSettingSecret(passwordToStore)
+		if err == nil {
+			passwordToStore = encrypted
+		}
+	}
+
+	targetDir := strings.TrimSpace(req.TargetDir)
+	toStore := RedundantBackupSetting{
+		Enabled:          req.Enabled,
+		IntervalHours:    req.IntervalHours,
+		TargetDir:        targetDir,
+		WebDAVEnabled:    req.WebDAVEnabled,
+		WebDAVEndpoint:   strings.TrimRight(strings.TrimSpace(req.WebDAVEndpoint), "/"),
+		WebDAVUsername:   strings.TrimSpace(req.WebDAVUsername),
+		WebDAVPassword:   passwordToStore,
+		WebDAVPathPrefix: strings.Trim(strings.TrimSpace(req.WebDAVPathPrefix), "/"),
+	}
+
+	encoded, err := json.Marshal(toStore)
+	if err != nil {
+		return RedundantBackupSetting{}, err
+	}
+
+	setting := model.SystemSetting{Key: redundantBackupSettingKey, ValueJSON: string(encoded), UpdatedBy: actor.ID}
+	dbSetting, err := s.repo.SystemSetting(redundantBackupSettingKey)
+	if err == nil {
+		setting.CreatedAt = dbSetting.CreatedAt
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return RedundantBackupSetting{}, err
+	}
+
+	if err := s.repo.SaveSystemSetting(&setting); err != nil {
+		return RedundantBackupSetting{}, err
+	}
+
+	_ = s.appendAdminAudit(actor, "redundant_backup.update_setting", "system_setting", redundantBackupSettingKey, "更新冗余备份周期与目标设置", map[string]any{
+		"enabled":       req.Enabled,
+		"intervalHours": req.IntervalHours,
+		"webdavEnabled": req.WebDAVEnabled,
+		"targetDir":     targetDir,
+	})
+
+	select {
+	case redundantBackupNotify <- struct{}{}:
+	default:
+	}
+
+	return s.AdminRedundantBackupSetting(actor)
 }
 
 func (s *Service) getRedundantBackupTargetDir() string {
+	setting, _ := s.redundantBackupSetting()
+	if setting.TargetDir != "" {
+		return setting.TargetDir
+	}
 	dir := strings.TrimSpace(os.Getenv("CANVAS_REDUNDANT_BACKUP_DIR"))
 	if dir != "" {
 		return dir
@@ -65,16 +225,27 @@ func (s *Service) GetRedundantBackupStatus(actor *model.User) (*RedundantBackupS
 		return nil, err
 	}
 
+	setting, _ := s.redundantBackupSetting()
 	targetDir := s.getRedundantBackupTargetDir()
 	manifestPath := filepath.Join(targetDir, "manifest.json")
 
 	status := &RedundantBackupStatus{
-		TargetDir:  targetDir,
-		Configured: true,
+		TargetDir:         targetDir,
+		Configured:        true,
+		AutoBackupEnabled: setting.Enabled,
+		IntervalHours:     setting.IntervalHours,
+		WebDAVEnabled:     setting.WebDAVEnabled,
+	}
+	if setting.WebDAVEnabled && setting.WebDAVEndpoint != "" {
+		status.WebDAVTarget = setting.WebDAVEndpoint
+		if setting.WebDAVPathPrefix != "" {
+			status.WebDAVTarget += "/" + setting.WebDAVPathPrefix
+		}
 	}
 
 	redundantBackupMu.Lock()
 	status.IsRunning = redundantBackupRunning
+	status.ProgressText = redundantBackupStatus
 	status.LastError = redundantBackupError
 	redundantBackupMu.Unlock()
 
@@ -88,6 +259,13 @@ func (s *Service) GetRedundantBackupStatus(actor *model.User) (*RedundantBackupS
 			status.TotalResources = manifest.TotalResources
 			status.TotalResourceBytes = manifest.TotalResourceBytes
 			status.DatabaseSqlBytes = manifest.DatabaseSqlBytes
+
+			if status.AutoBackupEnabled && status.LastBackupTime != "" {
+				if lastT, parseErr := time.Parse(time.RFC3339, status.LastBackupTime); parseErr == nil {
+					nextT := lastT.Add(time.Duration(status.IntervalHours) * time.Hour)
+					status.NextBackupTime = nextT.Format(time.RFC3339)
+				}
+			}
 		}
 	}
 
@@ -106,18 +284,21 @@ func (s *Service) TriggerRedundantBackup(actor *model.User) (*RedundantBackupSta
 	}
 	redundantBackupRunning = true
 	redundantBackupError = ""
+	redundantBackupStatus = "正在初始化备份..."
 	redundantBackupMu.Unlock()
 
 	targetDir := s.getRedundantBackupTargetDir()
+	setting, _ := s.redundantBackupSetting()
 
 	go func() {
 		defer func() {
 			redundantBackupMu.Lock()
 			redundantBackupRunning = false
+			redundantBackupStatus = ""
 			redundantBackupMu.Unlock()
 		}()
 
-		if err := s.executeRedundantBackup(targetDir); err != nil {
+		if err := s.executeRedundantBackup(targetDir, setting); err != nil {
 			errStr := fmt.Sprintf("冗余备份执行失败：%v", err)
 			slog.Error("redundant backup failed", "error", errStr)
 			redundantBackupMu.Lock()
@@ -131,7 +312,7 @@ func (s *Service) TriggerRedundantBackup(actor *model.User) (*RedundantBackupSta
 	return s.GetRedundantBackupStatus(actor)
 }
 
-func (s *Service) executeRedundantBackup(targetDir string) error {
+func (s *Service) executeRedundantBackup(targetDir string, setting RedundantBackupSetting) error {
 	initdbDir := filepath.Join(targetDir, "initdb")
 	resourcesDir := filepath.Join(targetDir, "data", "resources")
 	distDir := filepath.Join(targetDir, "dist")
@@ -147,6 +328,7 @@ func (s *Service) executeRedundantBackup(targetDir string) error {
 	}
 
 	// 1. 导出数据库快照
+	s.setBackupStatus("正在导出数据库完整快照 (PostgreSQL)...")
 	if s.repo.Dialect() == "postgres" {
 		dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 		if dbURL == "" {
@@ -172,7 +354,8 @@ func (s *Service) executeRedundantBackup(targetDir string) error {
 		}
 	}
 
-	// 2. 增量同步媒体文件
+	// 2. 本地增量同步媒体文件
+	s.setBackupStatus("正在增量同步本地媒体资源库...")
 	srcResources := filepath.Join(s.dataDir, "resources")
 	if info, err := os.Stat(srcResources); err == nil && info.IsDir() {
 		if _, err := exec.LookPath("rsync"); err == nil {
@@ -192,7 +375,7 @@ func (s *Service) executeRedundantBackup(targetDir string) error {
 		}
 	}
 
-	// 3. 生成便携式 Docker Compose 与配套脚本
+	// 3. 生成自包含启动编排与脚本
 	writePortableConfigs(targetDir)
 
 	// 4. 统计资源数与体积，生成 manifest.json
@@ -203,6 +386,110 @@ func (s *Service) executeRedundantBackup(targetDir string) error {
 		version = strings.TrimSpace(string(data))
 	}
 	writeRedundantManifest(targetDir, version)
+
+	// 5. 如果启用了 WebDAV 远程备份，同步推送到 WebDAV
+	if setting.WebDAVEnabled && setting.WebDAVEndpoint != "" {
+		s.setBackupStatus("正在向 WebDAV 远程备份仓增量同步快照与媒体...")
+		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Minute)
+		defer cancel()
+		if err := s.syncToWebDAV(ctx, targetDir, setting); err != nil {
+			return fmt.Errorf("WebDAV 远程同步失败：%w", err)
+		}
+	}
+
+	return nil
+}
+
+func (s *Service) setBackupStatus(text string) {
+	redundantBackupMu.Lock()
+	redundantBackupStatus = text
+	redundantBackupMu.Unlock()
+}
+
+func (s *Service) syncToWebDAV(ctx context.Context, targetDir string, setting RedundantBackupSetting) error {
+	password := setting.WebDAVPassword
+	if password == "" {
+		return errors.New("WebDAV 密码为空，无法执行远程备份")
+	}
+
+	webdavSetting := storage.Settings{
+		Provider:        "webdav",
+		Endpoint:        setting.WebDAVEndpoint,
+		Bucket:          "",
+		PathPrefix:      setting.WebDAVPathPrefix,
+		AccessKeyID:     setting.WebDAVUsername,
+		AccessKeySecret: password,
+	}
+
+	// 1. 上传数据库快照
+	sqlPath := filepath.Join(targetDir, "initdb", "01-restore-canvas.sql")
+	if info, err := os.Stat(sqlPath); err == nil && !info.IsDir() {
+		f, err := os.Open(sqlPath)
+		if err == nil {
+			defer f.Close()
+			_, err = storage.PutWebDAVObject(webdavSetting, "initdb/01-restore-canvas.sql", "application/sql", info.Size(), f)
+			if err != nil {
+				return fmt.Errorf("上传数据库快照至 WebDAV 失败: %w", err)
+			}
+		}
+	}
+
+	// 2. 上传 docker-compose.yml 与 start.sh
+	for _, fname := range []string{"docker-compose.yml", "start.sh"} {
+		fpath := filepath.Join(targetDir, fname)
+		if info, err := os.Stat(fpath); err == nil && !info.IsDir() {
+			data, err := os.ReadFile(fpath)
+			if err == nil {
+				_, _ = storage.PutWebDAVObject(webdavSetting, fname, "text/plain", int64(len(data)), bytes.NewReader(data))
+			}
+		}
+	}
+
+	// 3. 增量上传媒体文件
+	resourcesDir := filepath.Join(targetDir, "data", "resources")
+	if info, err := os.Stat(resourcesDir); err == nil && info.IsDir() {
+		_ = filepath.Walk(resourcesDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil || info == nil || info.IsDir() {
+				return nil
+			}
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+			rel, err := filepath.Rel(resourcesDir, path)
+			if err != nil {
+				return nil
+			}
+			relSlash := filepath.ToSlash(rel)
+			remoteKey := "data/resources/" + relSlash
+
+			// 检查远端是否已存在（跳过已同步的媒体文件）
+			stream, err := storage.GetWebDAVObjectRange(webdavSetting, remoteKey, "bytes=0-0")
+			if err == nil && stream != nil {
+				_ = stream.Body.Close()
+				if stream.StatusCode == http.StatusOK || stream.StatusCode == http.StatusPartialContent {
+					return nil
+				}
+			}
+
+			// 上传新文件
+			file, err := os.Open(path)
+			if err != nil {
+				return nil
+			}
+			defer file.Close()
+			_, _ = storage.PutWebDAVObject(webdavSetting, remoteKey, "application/octet-stream", info.Size(), file)
+			return nil
+		})
+	}
+
+	// 4. 上传清单文件 manifest.json
+	manifestPath := filepath.Join(targetDir, "manifest.json")
+	if data, err := os.ReadFile(manifestPath); err == nil {
+		_, _ = storage.PutWebDAVObject(webdavSetting, "manifest.json", "application/json", int64(len(data)), bytes.NewReader(data))
+	}
+
 	return nil
 }
 
@@ -424,23 +711,83 @@ func writeRedundantManifest(targetDir, version string) {
 	}
 }
 
+func (s *Service) getLastBackupTime() time.Time {
+	targetDir := s.getRedundantBackupTargetDir()
+	manifestPath := filepath.Join(targetDir, "manifest.json")
+	manifestData, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return time.Time{}
+	}
+	var manifest RedundantBackupManifest
+	if json.Unmarshal(manifestData, &manifest) != nil || manifest.BackupTime == "" {
+		return time.Time{}
+	}
+	t, err := time.Parse(time.RFC3339, manifest.BackupTime)
+	if err != nil {
+		return time.Time{}
+	}
+	return t
+}
+
 func (s *Service) startRedundantBackupWorker(ctx context.Context) {
 	s.runWorkerLoop(func(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(30 * time.Second):
-			s.runScheduledRedundantBackup()
+		case <-time.After(15 * time.Second):
 		}
 
-		ticker := time.NewTicker(24 * time.Hour)
-		defer ticker.Stop()
 		for {
+			setting, _ := s.redundantBackupSetting()
+			if !setting.Enabled {
+				select {
+				case <-ctx.Done():
+					return
+				case <-redundantBackupNotify:
+					continue
+				case <-time.After(time.Minute):
+					continue
+				}
+			}
+
+			interval := time.Duration(setting.IntervalHours) * time.Hour
+			if interval < time.Hour {
+				interval = 24 * time.Hour
+			}
+
+			lastTime := s.getLastBackupTime()
+			var waitDuration time.Duration
+
+			if lastTime.IsZero() {
+				waitDuration = 0
+			} else {
+				nextRun := lastTime.Add(interval)
+				now := time.Now()
+				if now.After(nextRun) {
+					waitDuration = 0
+				} else {
+					waitDuration = nextRun.Sub(now)
+				}
+			}
+
+			if waitDuration > 0 {
+				select {
+				case <-ctx.Done():
+					return
+				case <-redundantBackupNotify:
+					continue
+				case <-time.After(waitDuration):
+				}
+			}
+
+			s.runScheduledRedundantBackup()
+
 			select {
 			case <-ctx.Done():
 				return
-			case <-ticker.C:
-				s.runScheduledRedundantBackup()
+			case <-redundantBackupNotify:
+				continue
+			case <-time.After(10 * time.Second):
 			}
 		}
 	})
@@ -454,16 +801,19 @@ func (s *Service) runScheduledRedundantBackup() {
 	}
 	redundantBackupRunning = true
 	redundantBackupError = ""
+	redundantBackupStatus = "定时备份执行中..."
 	redundantBackupMu.Unlock()
 
 	defer func() {
 		redundantBackupMu.Lock()
 		redundantBackupRunning = false
+		redundantBackupStatus = ""
 		redundantBackupMu.Unlock()
 	}()
 
 	targetDir := s.getRedundantBackupTargetDir()
-	if err := s.executeRedundantBackup(targetDir); err != nil {
+	setting, _ := s.redundantBackupSetting()
+	if err := s.executeRedundantBackup(targetDir, setting); err != nil {
 		errStr := fmt.Sprintf("定时冗余备份执行失败：%v", err)
 		slog.Error("scheduled redundant backup failed", "error", errStr)
 		redundantBackupMu.Lock()

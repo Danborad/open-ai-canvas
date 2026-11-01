@@ -4,13 +4,32 @@ export type RedundantBackupStatus = {
     targetDir: string;
     configured: boolean;
     lastBackupTime?: string;
+    nextBackupTime?: string;
     version: string;
     schemaVersion: number;
     totalResources: number;
     totalResourceBytes: number;
     databaseSqlBytes: number;
     isRunning: boolean;
+    progressText?: string;
     lastError?: string;
+    autoBackupEnabled: boolean;
+    intervalHours: number;
+    webdavEnabled?: boolean;
+    webdavTarget?: string;
+};
+
+export type RedundantBackupSetting = {
+    enabled: boolean;
+    intervalHours: number;
+    targetDir?: string;
+    webdavEnabled?: boolean;
+    webdavEndpoint?: string;
+    webdavUsername?: string;
+    webdavPassword?: string;
+    hasWebdavPassword?: boolean;
+    webdavPathPrefix?: string;
+    updatedAt?: string;
 };
 
 // 兼容别名
@@ -22,6 +41,14 @@ export function getRedundantBackupStatus() {
 
 export function triggerRedundantBackup() {
     return http.post<RedundantBackupStatus>("/admin/redundant-backup/run");
+}
+
+export function getRedundantBackupSetting() {
+    return http.get<RedundantBackupSetting>("/admin/redundant-backup/setting");
+}
+
+export function updateRedundantBackupSetting(input: Partial<RedundantBackupSetting>) {
+    return http.patch<RedundantBackupSetting>("/admin/redundant-backup/setting", input);
 }
 
 // 兼容别名导出
