@@ -1,5 +1,5 @@
 import { App, Button, Form, Input, InputNumber, Skeleton, Switch } from "antd";
-import { CheckCircle2, Clock3, Database, RefreshCw, Server, ShieldCheck, Play, FolderKanban, Cloud, Save, Settings2, DownloadCloud } from "lucide-react";
+import { CheckCircle2, Clock3, Database, RefreshCw, Server, ShieldCheck, Play, FolderKanban, Cloud, Save, Settings2, DownloadCloud, HardDrive, KeyRound, Globe2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { AdminPageFrame } from "../components/admin-shell";
 import { SettingsSectionCard } from "../components/admin-ui";
@@ -29,9 +29,9 @@ function formatNumber(value?: number) {
 const PRESET_INTERVALS = [
     { label: "每 6 小时", hours: 6 },
     { label: "每 12 小时", hours: 12 },
-    { label: "每天 (24 小时)", hours: 24 },
-    { label: "每 3 天 (72 小时)", hours: 72 },
-    { label: "每周 (168 小时)", hours: 168 },
+    { label: "每天 (24h)", hours: 24 },
+    { label: "每 3 天", hours: 72 },
+    { label: "每周", hours: 168 },
 ];
 
 export default function RedundantBackupPage() {
@@ -308,11 +308,11 @@ export default function RedundantBackupPage() {
                         </div>
                     }
                 >
-                    <Form form={form} layout="vertical" requiredMark={false}>
+                    <Form form={form} layout="vertical" requiredMark={false} className="max-w-4xl">
                         <div className="space-y-6">
                             {/* 周期策略 */}
                             <div className="rounded-xl border border-border/70 bg-card/60 p-4 space-y-4">
-                                <div className="flex items-center justify-between">
+                                <div className="flex items-center justify-between gap-4">
                                     <div>
                                         <div className="text-sm font-semibold text-foreground">自动定时周期备份</div>
                                         <div className="text-xs text-muted-foreground mt-0.5">
@@ -324,40 +324,47 @@ export default function RedundantBackupPage() {
                                     </Form.Item>
                                 </div>
 
-                                <div className="pt-2 border-t border-border/50">
-                                    <div className="text-xs font-medium text-foreground mb-2">常用周期预设快捷选择：</div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {PRESET_INTERVALS.map((item) => (
-                                            <Button
-                                                key={item.hours}
-                                                size="small"
-                                                type={currentIntervalHours === item.hours ? "primary" : "default"}
-                                                onClick={() => form.setFieldValue("intervalHours", item.hours)}
-                                                className="!text-xs"
-                                            >
-                                                {item.label}
-                                            </Button>
-                                        ))}
-                                    </div>
+                                <div className="pt-3 border-t border-border/50">
+                                    <div className="text-xs text-muted-foreground mb-2.5">循环备份周期设置：</div>
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            {PRESET_INTERVALS.map((item) => (
+                                                <Button
+                                                    key={item.hours}
+                                                    size="small"
+                                                    type={currentIntervalHours === item.hours ? "primary" : "default"}
+                                                    onClick={() => form.setFieldValue("intervalHours", item.hours)}
+                                                    className="!text-xs !h-8 !px-3"
+                                                >
+                                                    {item.label}
+                                                </Button>
+                                            ))}
+                                        </div>
 
-                                    <div className="mt-3 flex items-center gap-3">
-                                        <Form.Item
-                                            name="intervalHours"
-                                            label="循环周期（小时）"
-                                            className="!mb-0"
-                                            extra="支持设置 1 ~ 720 小时（最长 30 天循环一次）"
-                                        >
-                                            <InputNumber min={1} max={720} precision={0} className="w-36" addonAfter="小时" />
-                                        </Form.Item>
+                                        <div className="flex items-center gap-2 pl-2 border-l border-border/60">
+                                            <span className="text-xs text-muted-foreground whitespace-nowrap">自定义:</span>
+                                            <Form.Item name="intervalHours" noStyle>
+                                                <InputNumber
+                                                    min={1}
+                                                    max={720}
+                                                    precision={0}
+                                                    className="!w-28"
+                                                    addonAfter="小时"
+                                                />
+                                            </Form.Item>
+                                        </div>
+                                    </div>
+                                    <div className="text-[11px] text-muted-foreground mt-2">
+                                        当前配置：每 {currentIntervalHours} 小时执行一次备份循环（支持设置 1 ~ 720 小时）。
                                     </div>
                                 </div>
                             </div>
 
                             {/* WebDAV 远程备份仓设置 */}
                             <div className="rounded-xl border border-border/70 bg-card/60 p-4 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <Cloud className="size-4 text-blue-500" />
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-2.5">
+                                        <Cloud className="size-4.5 text-blue-500 shrink-0" />
                                         <div>
                                             <div className="text-sm font-semibold text-foreground">同步至 WebDAV 远程备份仓</div>
                                             <div className="text-xs text-muted-foreground mt-0.5">
@@ -372,41 +379,52 @@ export default function RedundantBackupPage() {
 
                                 {watchWebdavEnabled ? (
                                     <div className="pt-3 border-t border-border/50 space-y-4">
-                                        <div className="flex justify-end">
+                                        <div className="flex items-center justify-between gap-2 bg-muted/40 rounded-lg p-2.5">
+                                            <span className="text-xs text-muted-foreground">
+                                                快捷操作：可直接复用存储服务中已填写的 WebDAV 连接参数
+                                            </span>
                                             <Button
                                                 size="small"
+                                                type="dashed"
                                                 icon={<DownloadCloud className="size-3.5" />}
                                                 onClick={() => void handleImportFromOSS()}
                                                 className="!text-xs"
                                             >
-                                                从存储服务一键导入 WebDAV 配置
+                                                从存储服务一键导入
                                             </Button>
                                         </div>
 
-                                        <div className="grid gap-4 sm:grid-cols-2">
+                                        <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
                                             <Form.Item
                                                 name="webdavEndpoint"
                                                 label="WebDAV 服务地址"
                                                 rules={[{ required: true, message: "请填写 WebDAV 服务地址" }]}
                                                 extra="例如 http://192.168.31.141:5002/Life 或 https://dav.example.com"
+                                                className="!mb-3"
                                             >
-                                                <Input placeholder="http://192.168.31.141:5002/Life" />
+                                                <Input
+                                                    prefix={<Globe2 className="size-3.5 text-foreground/40" />}
+                                                    placeholder="http://192.168.31.141:5002/Life"
+                                                />
                                             </Form.Item>
 
                                             <Form.Item
                                                 name="webdavPathPrefix"
                                                 label="远端备份子路径（可选）"
                                                 extra="保存在 WebDAV 下的具体子目录，例如 mexaiai-canvas 或 backups"
+                                                className="!mb-3"
                                             >
-                                                <Input placeholder="mexaiai-canvas" />
+                                                <Input
+                                                    prefix={<FolderKanban className="size-3.5 text-foreground/40" />}
+                                                    placeholder="mexaiai-canvas"
+                                                />
                                             </Form.Item>
-                                        </div>
 
-                                        <div className="grid gap-4 sm:grid-cols-2">
                                             <Form.Item
                                                 name="webdavUsername"
                                                 label="用户名 (Username)"
                                                 rules={[{ required: true, message: "请填写 WebDAV 用户名" }]}
+                                                className="!mb-3"
                                             >
                                                 <Input placeholder="admin" />
                                             </Form.Item>
@@ -415,8 +433,12 @@ export default function RedundantBackupPage() {
                                                 name="webdavPassword"
                                                 label={setting?.hasWebdavPassword ? "密码 (Password，已配置)" : "密码 (Password)"}
                                                 extra={setting?.hasWebdavPassword ? "留空表示保留已有密码" : "填写 WebDAV 访问密码"}
+                                                className="!mb-3"
                                             >
-                                                <Input.Password placeholder={setting?.hasWebdavPassword ? "留空保留原密码" : "输入密码"} />
+                                                <Input.Password
+                                                    prefix={<KeyRound className="size-3.5 text-foreground/40" />}
+                                                    placeholder={setting?.hasWebdavPassword ? "留空保留原密码" : "输入密码"}
+                                                />
                                             </Form.Item>
                                         </div>
                                     </div>
@@ -424,13 +446,18 @@ export default function RedundantBackupPage() {
                             </div>
 
                             {/* 本地挂载路径设置 */}
-                            <Form.Item
-                                name="targetDir"
-                                label="本地备份存储路径（可选自定义）"
-                                extra="留空默认使用系统配置路径（/backups/redundant）。在 Docker 环境中建议挂载外部存储卷到该目录。"
-                            >
-                                <Input placeholder="/backups/redundant" />
-                            </Form.Item>
+                            <div className="max-w-xl">
+                                <Form.Item
+                                    name="targetDir"
+                                    label="本地备份存储路径（可选自定义）"
+                                    extra="留空默认使用系统配置路径（/backups/redundant）。在 Docker 环境中建议挂载外部存储卷到该目录。"
+                                >
+                                    <Input
+                                        prefix={<HardDrive className="size-3.5 text-foreground/40" />}
+                                        placeholder="/backups/redundant"
+                                    />
+                                </Form.Item>
+                            </div>
                         </div>
                     </Form>
                 </SettingsSectionCard>
