@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { App, Button, Modal, Spin } from "antd";
 import { Check, Copy, QrCode, RefreshCw } from "lucide-react";
 
-import { getWechatQRTicket, getWechatTicketStatus, type WechatQRTicketData } from "@/services/api/auth";
+import { getAuthSettings, getWechatQRTicket, getWechatTicketStatus, type WechatQRTicketData } from "@/services/api/auth";
 import { cn } from "@/lib/utils";
 
 export function WechatBindDialog({
@@ -22,11 +22,22 @@ export function WechatBindDialog({
     const [copied, setCopied] = useState(false);
     const [viewMode, setViewMode] = useState<"qr" | "manual">("qr");
     const [envVersion, setEnvVersion] = useState<"release" | "trial">("release");
+    const [allowTrial, setAllowTrial] = useState(false);
 
     const callbacksRef = useRef({ onSuccess, onCancel });
     useEffect(() => {
         callbacksRef.current = { onSuccess, onCancel };
     }, [onSuccess, onCancel]);
+
+    useEffect(() => {
+        if (open) {
+            void getAuthSettings().then((settings) => {
+                if (settings.wechatTrialEnabled) {
+                    setAllowTrial(true);
+                }
+            }).catch(() => {});
+        }
+    }, [open]);
 
     const loadTicket = useCallback(async (targetEnv?: "release" | "trial") => {
         setLoading(true);
@@ -125,42 +136,44 @@ export function WechatBindDialog({
             destroyOnHidden
         >
             <div className="flex flex-col items-center justify-center gap-4 py-4 text-center">
-                {/* 运行环境切换：正式版 vs 体验版 */}
-                <div className="flex flex-col items-center gap-1.5">
-                    <div className="flex items-center rounded-lg bg-muted/60 p-0.5 text-xs">
-                        <button
-                            type="button"
-                            disabled={loading}
-                            onClick={() => handleEnvChange("release")}
-                            className={cn(
-                                "rounded-md px-3.5 py-1 font-medium transition-all",
-                                envVersion === "release"
-                                    ? "bg-background text-foreground shadow-sm font-semibold"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            正式版
-                        </button>
-                        <button
-                            type="button"
-                            disabled={loading}
-                            onClick={() => handleEnvChange("trial")}
-                            className={cn(
-                                "rounded-md px-3.5 py-1 font-medium transition-all",
-                                envVersion === "trial"
-                                    ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold shadow-sm"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            体验版 (测试)
-                        </button>
+                {/* 运行环境切换：仅在开启体验版测试入口时展示 */}
+                {allowTrial ? (
+                    <div className="flex flex-col items-center gap-1.5">
+                        <div className="flex items-center rounded-lg bg-muted/60 p-0.5 text-xs">
+                            <button
+                                type="button"
+                                disabled={loading}
+                                onClick={() => handleEnvChange("release")}
+                                className={cn(
+                                    "rounded-md px-3.5 py-1 font-medium transition-all",
+                                    envVersion === "release"
+                                        ? "bg-background text-foreground shadow-sm font-semibold"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                正式版
+                            </button>
+                            <button
+                                type="button"
+                                disabled={loading}
+                                onClick={() => handleEnvChange("trial")}
+                                className={cn(
+                                    "rounded-md px-3.5 py-1 font-medium transition-all",
+                                    envVersion === "trial"
+                                        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold shadow-sm"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                体验版 (测试)
+                            </button>
+                        </div>
+                        {envVersion === "trial" ? (
+                            <span className="text-[11px] text-amber-600/90 dark:text-amber-400/90 font-medium">
+                                ⚠️ 体验版仅供开发者或体验成员扫码测试
+                            </span>
+                        ) : null}
                     </div>
-                    {envVersion === "trial" ? (
-                        <span className="text-[11px] text-amber-600/90 dark:text-amber-400/90 font-medium">
-                            ⚠️ 体验版仅供开发者或体验成员扫码测试
-                        </span>
-                    ) : null}
-                </div>
+                ) : null}
 
                 {loading ? (
                     <div className="flex size-52 flex-col items-center justify-center gap-2">

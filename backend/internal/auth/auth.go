@@ -61,6 +61,7 @@ type PublicAuthSettings struct {
 	WechatQrLoginEnabled  bool   `json:"wechatQrLoginEnabled"`
 	WechatQrManual        bool   `json:"wechatQrManual"`
 	WechatEnvVersion      string `json:"wechatEnvVersion,omitempty"`
+	WechatTrialEnabled    bool   `json:"wechatTrialEnabled"`
 	AgreementTitle        string `json:"agreementTitle,omitempty"`
 	AgreementContent      string `json:"agreementContent,omitempty"`
 }
@@ -87,7 +88,7 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 	if count == 0 {
 		// 首个管理员同样要看到服务协议，不能因为跳过注册校验就丢失协议字段。
 		agreementTitle, agreementContent := s.RegistrationAgreement()
-		_, _, _, _, envVersion, _ := s.wechatLoginConfig()
+		_, _, _, _, envVersion, _, trialEnabled := s.wechatLoginConfig()
 		return &PublicAuthSettings{
 			FirstUser:            true,
 			RegistrationEnabled:  true,
@@ -95,6 +96,7 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 			WechatQrLoginEnabled: s.WechatLoginEnabled(),
 			WechatQrManual:       s.WechatManualMode(),
 			WechatEnvVersion:     envVersion,
+			WechatTrialEnabled:   trialEnabled,
 			AgreementTitle:       agreementTitle,
 			AgreementContent:     agreementContent,
 		}, nil
@@ -129,7 +131,7 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 	p.EmailRegistration = p.EmailRegistration && emailEnabled
 	p.SMSAndEmailRegistration = p.SMSAndEmailRegistration && smsRegister && emailEnabled
 	agreementTitle, agreementContent := s.RegistrationAgreement()
-	_, _, _, _, wechatEnv, _ := s.wechatLoginConfig()
+	_, _, _, _, wechatEnv, _, trialEnabled := s.wechatLoginConfig()
 	return &PublicAuthSettings{
 		VerificationPolicy:    p,
 		SMSBindingAvailable:   smsBind,
@@ -142,6 +144,7 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 		WechatQrLoginEnabled:  s.WechatLoginEnabled(),
 		WechatQrManual:        s.WechatManualMode(),
 		WechatEnvVersion:      wechatEnv,
+		WechatTrialEnabled:    trialEnabled,
 		AgreementTitle:        agreementTitle,
 		AgreementContent:      agreementContent,
 	}, nil

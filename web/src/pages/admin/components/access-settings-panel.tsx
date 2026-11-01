@@ -79,8 +79,9 @@ export default function AccessSettingsPanel() {
                     appId: wechatData.setting.appId,
                     secret: "",
                     page: wechatData.setting.page || "pages/login/login",
-                    envVersion: wechatData.setting.envVersion || "trial",
+                    envVersion: wechatData.setting.envVersion || "release",
                     manual: wechatData.setting.manual,
+                    trialEnabled: Boolean(wechatData.setting.trialEnabled),
                 });
                 setDraftWechatEnabled(wechatData.setting.enabled);
                 setWechatDirty(false);
@@ -538,14 +539,25 @@ export default function AccessSettingsPanel() {
                                 </div>
 
                                 <div className="admin-access-form-section">
-                                    <FormSectionTitle icon={<ShieldCheck className="size-4" />} title="备用输入码模式" description="微信提审期若审核员无法使用手机真机扫码，可开启 6 位输入码供审核员测试。" />
-                                    <div className="admin-access-switch-field">
-                                        <Form.Item noStyle name="manual" valuePropName="checked">
-                                            <Switch aria-label="开启 6 位登录码备用模式" onChange={() => setWechatDirty(hasWechatChanges(wechatForm.getFieldsValue(true), wechat))} />
-                                        </Form.Item>
-                                        <div>
-                                            <label>6 位验证码备用/审核模式 (CANVAS_WECHAT_QR_MANUAL)</label>
-                                            <p>开启后网页同时展示 6 位短码供小程序端手动输入。日常运营保持关闭，直接展示微信官方葵花码。</p>
+                                    <FormSectionTitle icon={<ShieldCheck className="size-4" />} title="体验版测试入口与备用模式" description="控制是否在登录与绑定页开放体验版切换，以及审核期备用输入码。" />
+                                    <div className="space-y-4">
+                                        <div className="admin-access-switch-field">
+                                            <Form.Item noStyle name="trialEnabled" valuePropName="checked">
+                                                <Switch aria-label="开放体验版切换入口" onChange={() => setWechatDirty(hasWechatChanges(wechatForm.getFieldsValue(true), wechat))} />
+                                            </Form.Item>
+                                            <div>
+                                                <label>开放体验版测试切换入口 (登录与绑定页面)</label>
+                                                <p>开启后，登录页和绑定弹窗会显示『正式版 / 体验版』切换胶囊，方便开发者扫码自测。关闭后界面完全隐藏切换器，只展示干净的正式版小程序码。</p>
+                                            </div>
+                                        </div>
+                                        <div className="admin-access-switch-field">
+                                            <Form.Item noStyle name="manual" valuePropName="checked">
+                                                <Switch aria-label="开启 6 位登录码备用模式" onChange={() => setWechatDirty(hasWechatChanges(wechatForm.getFieldsValue(true), wechat))} />
+                                            </Form.Item>
+                                            <div>
+                                                <label>6 位验证码备用/审核模式 (CANVAS_WECHAT_QR_MANUAL)</label>
+                                                <p>开启后网页同时展示 6 位短码供小程序端手动输入。日常运营保持关闭，直接展示微信官方葵花码。</p>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -895,8 +907,9 @@ function toWechatFormValues(setting: WechatAdminSetting): WechatAdminSettingInpu
         appId: setting.appId || "",
         secret: "",
         page: setting.page || "pages/login/login",
-        envVersion: setting.envVersion || "trial",
+        envVersion: setting.envVersion || "release",
         manual: Boolean(setting.manual),
+        trialEnabled: Boolean(setting.trialEnabled),
     };
 }
 
@@ -906,8 +919,9 @@ function normalizeWechatFormValues(values: WechatAdminSettingInput): WechatAdmin
         appId: values.appId?.trim() || "",
         secret: values.secret?.trim() || "",
         page: values.page?.trim() || "pages/login/login",
-        envVersion: values.envVersion?.trim() || "trial",
+        envVersion: values.envVersion?.trim() || "release",
         manual: Boolean(values.manual),
+        trialEnabled: Boolean(values.trialEnabled),
     };
 }
 
@@ -921,6 +935,7 @@ function hasWechatChanges(values: WechatAdminSettingInput, setting: WechatAdminS
         draft.appId !== saved.appId ||
         draft.page !== saved.page ||
         draft.envVersion !== saved.envVersion ||
-        draft.manual !== saved.manual
+        draft.manual !== saved.manual ||
+        draft.trialEnabled !== saved.trialEnabled
     );
 }

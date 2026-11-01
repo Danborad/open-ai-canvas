@@ -323,6 +323,7 @@ export type WechatAdminSetting = {
     page: string;
     envVersion: "trial" | "release" | "develop";
     manual: boolean;
+    trialEnabled?: boolean;
     updatedAt: string;
 };
 
@@ -333,6 +334,7 @@ export type WechatAdminSettingInput = {
     page: string;
     envVersion: string;
     manual: boolean;
+    trialEnabled?: boolean;
 };
 
 export function getAdminWechatSetting() {

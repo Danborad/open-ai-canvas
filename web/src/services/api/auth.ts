@@ -424,6 +424,7 @@ export function getAuthSettings() {
             wechatQrLoginEnabled?: boolean;
             wechatQrManual?: boolean;
             wechatEnvVersion?: string;
+            wechatTrialEnabled?: boolean;
         }
     >("/auth/settings");
 }
