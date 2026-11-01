@@ -275,6 +275,7 @@ type (
 	PublicLinuxDOSetting                   = app.PublicLinuxDOSetting
 	WechatQRTicketResponse                 = app.WechatQRTicketResponse
 	WechatTicketStatusResult               = app.WechatTicketStatusResult
+	WechatConfirmRequest                   = app.WechatConfirmRequest
 	WechatConfirmResult                    = app.WechatConfirmResult
 	PublicWechatSetting                    = app.PublicWechatSetting
 	WechatSettingRequest                   = app.WechatSettingRequest

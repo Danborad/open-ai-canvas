@@ -3,7 +3,9 @@ package auth
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -458,22 +460,74 @@ func (s *Service) GetWechatQRTicketStatus(ticketID string) (*WechatTicketStatusR
 	return res, nil
 }
 
+type WechatConfirmRequest struct {
+	Ticket       string `json:"ticket"`
+	ManualCode   string `json:"manualCode"`
+	Code         string `json:"code"`
+	Nickname     string `json:"nickname"`
+	AvatarURL    string `json:"avatarUrl"`
+	AvatarBase64 string `json:"avatarBase64"`
+	AvatarBytes  []byte `json:"-"`
+}
+
 type WechatConfirmResult struct {
-	Success bool   `json:"success"`
-	Action  string `json:"action"`
-	Message string `json:"message"`
+	Success bool      `json:"success"`
+	Action  string    `json:"action"`
+	Message string    `json:"message"`
+	User    *AuthUser `json:"user,omitempty"`
+}
+
+func extractAvatarBytes(req WechatConfirmRequest) ([]byte, string) {
+	if len(req.AvatarBytes) > 0 {
+		return req.AvatarBytes, ""
+	}
+	base64Data := req.AvatarBase64
+	if base64Data == "" && strings.HasPrefix(req.AvatarURL, "data:image/") {
+		base64Data = req.AvatarURL
+	}
+	if base64Data != "" {
+		if idx := strings.Index(base64Data, ","); idx != -1 {
+			base64Data = base64Data[idx+1:]
+		}
+		cleanBase64 := strings.TrimSpace(base64Data)
+		decoded, err := base64.StdEncoding.DecodeString(cleanBase64)
+		if err == nil && len(decoded) > 0 {
+			return decoded, ""
+		}
+	}
+	if strings.HasPrefix(req.AvatarURL, "http://") || strings.HasPrefix(req.AvatarURL, "https://") {
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Get(req.AvatarURL)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			defer resp.Body.Close()
+			data, readErr := io.ReadAll(io.LimitReader(resp.Body, MaxProfileAvatarBytes+1))
+			if readErr == nil && len(data) > 0 && int64(len(data)) <= MaxProfileAvatarBytes {
+				return data, req.AvatarURL
+			}
+		}
+		return nil, req.AvatarURL
+	}
+	return nil, ""
 }
 
 func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*WechatConfirmResult, error) {
+	return s.ConfirmWechatTicketWithProfile(WechatConfirmRequest{
+		Ticket:     ticketID,
+		ManualCode: manualCode,
+		Code:       jsCode,
+	})
+}
+
+func (s *Service) ConfirmWechatTicketWithProfile(req WechatConfirmRequest) (*WechatConfirmResult, error) {
 	wechatConfirmMu.Lock()
 	defer wechatConfirmMu.Unlock()
 
 	var ticket *model.WechatQRTicket
 	var err error
 
-	ticketID = strings.TrimSpace(ticketID)
-	manualCode = strings.ToUpper(strings.TrimSpace(manualCode))
-	jsCode = strings.TrimSpace(jsCode)
+	ticketID := strings.TrimSpace(req.Ticket)
+	manualCode := strings.ToUpper(strings.TrimSpace(req.ManualCode))
+	jsCode := strings.TrimSpace(req.Code)
 
 	if ticketID != "" {
 		ticket, err = s.repo.WechatQRTicket(ticketID)
@@ -494,7 +548,14 @@ func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*Wec
 	}
 
 	if ticket.Status == model.WechatTicketStatusConfirmed {
-		return &WechatConfirmResult{Success: true, Action: ticket.Action, Message: "已授权成功"}, nil
+		var authUser *AuthUser
+		if ticket.UserID != "" {
+			if u, uErr := s.repo.User(ticket.UserID); uErr == nil && u != nil {
+				au, _ := s.PublicAuthUser(u)
+				authUser = &au
+			}
+		}
+		return &WechatConfirmResult{Success: true, Action: ticket.Action, Message: "已授权成功", User: authUser}, nil
 	}
 	if ticket.Status != model.WechatTicketStatusPending {
 		return nil, kernel.BadAuthRequest("二维码状态已变更，请刷新")
@@ -511,7 +572,14 @@ func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*Wec
 		if wxErr != nil {
 			// 防抖与幂等兜底：若前置并发请求已成功确认该票据，直接返回成功，避免微信 code 二次兑换报 40029
 			if curTicket, curErr := s.repo.WechatQRTicket(ticket.ID); curErr == nil && curTicket.Status == model.WechatTicketStatusConfirmed {
-				return &WechatConfirmResult{Success: true, Action: curTicket.Action, Message: "已授权成功"}, nil
+				var authUser *AuthUser
+				if curTicket.UserID != "" {
+					if u, uErr := s.repo.User(curTicket.UserID); uErr == nil && u != nil {
+						au, _ := s.PublicAuthUser(u)
+						authUser = &au
+					}
+				}
+				return &WechatConfirmResult{Success: true, Action: curTicket.Action, Message: "已授权成功", User: authUser}, nil
 			}
 			ticket.Status = model.WechatTicketStatusFailed
 			ticket.ErrorMessage = wxErr.Error()
@@ -534,6 +602,23 @@ func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*Wec
 	ticket.OpenID = openID
 	ticket.UnionID = unionID
 
+	// 处理小程序传入的头像与昵称
+	nickname := strings.TrimSpace(req.Nickname)
+	if len(nickname) > 80 {
+		nickname = nickname[:80]
+	}
+
+	avatarRaw, remoteAvatarURL := extractAvatarBytes(req)
+	var normalizedAvatar []byte
+	var avatarVersion string
+	if len(avatarRaw) > 0 {
+		if norm, normErr := normalizeProfileAvatar(avatarRaw); normErr == nil {
+			normalizedAvatar = norm
+			hash := sha256.Sum256(norm)
+			avatarVersion = hex.EncodeToString(hash[:16])
+		}
+	}
+
 	if ticket.Action == model.WechatTicketActionBind {
 		if ticket.UserID == "" {
 			return nil, kernel.BadAuthRequest("绑定请求缺少用户身份")
@@ -547,23 +632,57 @@ func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*Wec
 		}
 
 		if existing == nil {
-			identity := &model.UserIdentity{
-				ID:        kernel.NewID(),
-				UserID:    ticket.UserID,
-				Provider:  "wechat",
-				Subject:   openID,
-				CreatedAt: now,
-				UpdatedAt: now,
+			existing = &model.UserIdentity{
+				ID:               kernel.NewID(),
+				UserID:           ticket.UserID,
+				Provider:         "wechat",
+				Subject:          openID,
+				ProviderUsername: nickname,
+				AvatarURL:        remoteAvatarURL,
+				CreatedAt:        now,
+				UpdatedAt:        now,
 			}
-			if err := s.repo.Save(identity); err != nil {
-				return nil, err
+		} else {
+			if nickname != "" {
+				existing.ProviderUsername = nickname
+			}
+			if remoteAvatarURL != "" {
+				existing.AvatarURL = remoteAvatarURL
+			}
+			existing.UpdatedAt = now
+		}
+		if err := s.repo.Save(existing); err != nil {
+			return nil, err
+		}
+
+		user, err := s.repo.User(ticket.UserID)
+		if err == nil && user != nil {
+			userChanged := false
+			if nickname != "" && (user.DisplayName == "" || strings.HasPrefix(user.DisplayName, "微信用户_") || user.DisplayName == user.Username) {
+				user.DisplayName = nickname
+				userChanged = true
+			}
+			if len(normalizedAvatar) > 0 {
+				_, _ = s.repo.UpdateUserAvatar(user.ID, normalizedAvatar, avatarVersion, "", now)
+				user.AvatarMode = "custom"
+				user.AvatarVersion = avatarVersion
+				userChanged = true
+			}
+			if userChanged {
+				_ = s.repo.Save(user)
 			}
 		}
 
 		ticket.Status = model.WechatTicketStatusConfirmed
 		ticket.ConfirmedAt = &now
 		_ = s.repo.UpdateWechatQRTicket(ticket)
-		return &WechatConfirmResult{Success: true, Action: "bind", Message: "绑定成功"}, nil
+
+		var authUser *AuthUser
+		if user != nil {
+			au, _ := s.PublicAuthUser(user)
+			authUser = &au
+		}
+		return &WechatConfirmResult{Success: true, Action: "bind", Message: "绑定成功", User: authUser}, nil
 	}
 
 	// 场景 1：未登录下的登录/直接注册
@@ -574,6 +693,29 @@ func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*Wec
 		if err != nil {
 			return nil, err
 		}
+
+		userChanged := false
+		if nickname != "" {
+			identity.ProviderUsername = nickname
+			if user.DisplayName == "" || strings.HasPrefix(user.DisplayName, "微信用户_") || user.DisplayName == user.Username {
+				user.DisplayName = nickname
+				userChanged = true
+			}
+		}
+		if len(normalizedAvatar) > 0 {
+			_, _ = s.repo.UpdateUserAvatar(user.ID, normalizedAvatar, avatarVersion, "", now)
+			user.AvatarMode = "custom"
+			user.AvatarVersion = avatarVersion
+			userChanged = true
+		}
+		if remoteAvatarURL != "" {
+			identity.AvatarURL = remoteAvatarURL
+		}
+		identity.UpdatedAt = now
+		_ = s.repo.Save(identity)
+		if userChanged {
+			_ = s.repo.Save(user)
+		}
 	} else {
 		// 未找到绑定，直接注册建号
 		shortID := openID
@@ -582,6 +724,9 @@ func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*Wec
 		}
 		username := fmt.Sprintf("wx_%s", strings.ToLower(shortID))
 		displayName := fmt.Sprintf("微信用户_%s", shortID)
+		if nickname != "" {
+			displayName = nickname
+		}
 
 		role := model.UserRoleUser
 		if count, err := s.repo.UserCount(); err == nil && count == 0 {
@@ -597,18 +742,29 @@ func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*Wec
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		}
+		if len(normalizedAvatar) > 0 {
+			newUser.AvatarMode = "custom"
+			newUser.AvatarVersion = avatarVersion
+		}
+
 		newIdentity := &model.UserIdentity{
-			ID:        kernel.NewID(),
-			UserID:    newUser.ID,
-			Provider:  "wechat",
-			Subject:   openID,
-			CreatedAt: now,
-			UpdatedAt: now,
+			ID:               kernel.NewID(),
+			UserID:           newUser.ID,
+			Provider:         "wechat",
+			Subject:          openID,
+			ProviderUsername: nickname,
+			AvatarURL:        remoteAvatarURL,
+			CreatedAt:        now,
+			UpdatedAt:        now,
 		}
 
 		if err := s.repo.CreateOAuthUser(newUser, newIdentity); err != nil {
 			return nil, fmt.Errorf("创建微信用户失败: %w", err)
 		}
+		if len(normalizedAvatar) > 0 {
+			_, _ = s.repo.UpdateUserAvatar(newUser.ID, normalizedAvatar, avatarVersion, "", now)
+		}
+
 		user = newUser
 		s.host.NotifyUserRegistered(user)
 		_ = s.host.EnsureSignupBonus(user.ID)
@@ -638,7 +794,8 @@ func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*Wec
 	ticket.ConfirmedAt = &now
 	_ = s.repo.UpdateWechatQRTicket(ticket)
 
-	return &WechatConfirmResult{Success: true, Action: "login", Message: "登录成功"}, nil
+	authUser, _ := s.PublicAuthUser(user)
+	return &WechatConfirmResult{Success: true, Action: "login", Message: "登录成功", User: &authUser}, nil
 }
 
 func (s *Service) UnbindWechat(user *model.User) error {

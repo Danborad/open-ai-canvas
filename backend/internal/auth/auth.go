@@ -383,12 +383,15 @@ func (s *Service) PublicAuthUser(user *model.User) (AuthUser, error) {
 	}
 	identity, err := s.repo.UserIdentityForUser(user.ID, "linuxdo")
 	if errors.Is(err, gorm.ErrRecordNotFound) {
+		identity, err = s.repo.UserIdentityForUser(user.ID, "wechat")
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return result, nil
 	}
 	if err != nil {
 		return AuthUser{}, err
 	}
-	if user.AvatarMode == "" {
+	if user.AvatarMode == "" && result.AvatarURL == "" {
 		result.AvatarURL = identity.AvatarURL
 	}
 	result.IdentityProvider = identity.Provider

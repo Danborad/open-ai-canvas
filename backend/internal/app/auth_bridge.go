@@ -50,6 +50,7 @@ type (
 	TapNowImportWarning        = auth.TapNowImportWarning
 	WechatQRTicketResponse     = auth.WechatQRTicketResponse
 	WechatTicketStatusResult   = auth.WechatTicketStatusResult
+	WechatConfirmRequest       = auth.WechatConfirmRequest
 	WechatConfirmResult        = auth.WechatConfirmResult
 	PublicWechatSetting        = auth.PublicWechatSetting
 	WechatSettingRequest       = auth.WechatSettingRequest
@@ -266,6 +267,10 @@ func (s *Service) GetWechatQRTicketStatus(ticketID string) (*WechatTicketStatusR
 
 func (s *Service) ConfirmWechatTicket(ticketID, manualCode, jsCode string) (*WechatConfirmResult, error) {
 	return s.authDomain().ConfirmWechatTicket(ticketID, manualCode, jsCode)
+}
+
+func (s *Service) ConfirmWechatTicketWithProfile(req WechatConfirmRequest) (*WechatConfirmResult, error) {
+	return s.authDomain().ConfirmWechatTicketWithProfile(req)
 }
 
 func (s *Service) UnbindWechat(user *model.User) error {

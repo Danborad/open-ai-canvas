@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -67,17 +68,87 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		ok(c, result)
 	})
 	r.POST("/auth/wechat/confirm", func(c *gin.Context) {
-		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 16<<10)
-		var req struct {
-			Ticket     string `json:"ticket"`
-			ManualCode string `json:"manualCode"`
-			Code       string `json:"code"`
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, (5<<20)+(64<<10))
+		contentType := c.GetHeader("Content-Type")
+
+		var req service.WechatConfirmRequest
+
+		if strings.HasPrefix(contentType, "multipart/form-data") {
+			form, err := c.MultipartForm()
+			if err != nil {
+				fail(c, http.StatusBadRequest, err)
+				return
+			}
+			defer form.RemoveAll()
+
+			firstVal := func(keys ...string) string {
+				for _, k := range keys {
+					if vals := form.Value[k]; len(vals) > 0 && vals[0] != "" {
+						return strings.TrimSpace(vals[0])
+					}
+				}
+				return ""
+			}
+
+			req.Ticket = firstVal("ticket", "ticketId")
+			req.ManualCode = firstVal("manualCode")
+			req.Code = firstVal("code", "jsCode")
+			req.Nickname = firstVal("nickname", "displayName", "nickName", "name")
+			req.AvatarURL = firstVal("avatarUrl", "avatarURL", "avatar")
+			req.AvatarBase64 = firstVal("avatarBase64", "avatarUrlBase64")
+
+			fileHeader := func(keys ...string) *multipart.FileHeader {
+				for _, k := range keys {
+					if files := form.File[k]; len(files) > 0 {
+						return files[0]
+					}
+				}
+				return nil
+			}("avatar", "file", "avatarFile")
+
+			if fileHeader != nil {
+				f, err := fileHeader.Open()
+				if err == nil {
+					data, _ := io.ReadAll(io.LimitReader(f, 5<<20))
+					_ = f.Close()
+					req.AvatarBytes = data
+				}
+			}
+		} else {
+			var jsonReq struct {
+				Ticket       string `json:"ticket"`
+				TicketID     string `json:"ticketId"`
+				ManualCode   string `json:"manualCode"`
+				Code         string `json:"code"`
+				JsCode       string `json:"jsCode"`
+				Nickname     string `json:"nickname"`
+				NickName     string `json:"nickName"`
+				DisplayName  string `json:"displayName"`
+				AvatarURL    string `json:"avatarUrl"`
+				Avatar       string `json:"avatar"`
+				AvatarBase64 string `json:"avatarBase64"`
+			}
+			if err := c.ShouldBindJSON(&jsonReq); err != nil {
+				fail(c, http.StatusBadRequest, err)
+				return
+			}
+			firstNonEmpty := func(vals ...string) string {
+				for _, v := range vals {
+					if strings.TrimSpace(v) != "" {
+						return strings.TrimSpace(v)
+					}
+				}
+				return ""
+			}
+			req.Ticket = firstNonEmpty(jsonReq.Ticket, jsonReq.TicketID)
+			req.ManualCode = jsonReq.ManualCode
+			req.Code = firstNonEmpty(jsonReq.Code, jsonReq.JsCode)
+			req.Nickname = firstNonEmpty(jsonReq.Nickname, jsonReq.NickName, jsonReq.DisplayName)
+			req.AvatarURL = firstNonEmpty(jsonReq.AvatarURL, jsonReq.Avatar)
+			req.AvatarBase64 = jsonReq.AvatarBase64
 		}
-		if err := c.ShouldBindJSON(&req); err != nil {
-			fail(c, http.StatusBadRequest, err)
-			return
-		}
-		res, err := svc.ConfirmWechatTicket(req.Ticket, req.ManualCode, req.Code)
+
+		res, err := svc.ConfirmWechatTicketWithProfile(req)
 		if err != nil {
 			failService(c, err)
 			return
