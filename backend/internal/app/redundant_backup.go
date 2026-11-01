@@ -28,6 +28,10 @@ var (
 	redundantBackupRunning bool
 	redundantBackupError   string
 	redundantBackupStatus  string
+	redundantBackupPercent int
+	redundantBackupStep    string
+	redundantBackupProc    int64
+	redundantBackupTot     int64
 	redundantBackupNotify  = make(chan struct{}, 1)
 )
 
@@ -68,6 +72,10 @@ type RedundantBackupStatus struct {
 	DatabaseSqlBytes   int64  `json:"databaseSqlBytes"`
 	IsRunning          bool   `json:"isRunning"`
 	ProgressText       string `json:"progressText,omitempty"`
+	ProgressPercent    int    `json:"progressPercent,omitempty"`
+	CurrentStep        string `json:"currentStep,omitempty"`
+	ProcessedFiles     int64  `json:"processedFiles,omitempty"`
+	TotalFiles         int64  `json:"totalFiles,omitempty"`
 	LastError          string `json:"lastError,omitempty"`
 	// 定时周期设置
 	AutoBackupEnabled  bool   `json:"autoBackupEnabled"`
@@ -246,6 +254,10 @@ func (s *Service) GetRedundantBackupStatus(actor *model.User) (*RedundantBackupS
 	redundantBackupMu.Lock()
 	status.IsRunning = redundantBackupRunning
 	status.ProgressText = redundantBackupStatus
+	status.ProgressPercent = redundantBackupPercent
+	status.CurrentStep = redundantBackupStep
+	status.ProcessedFiles = redundantBackupProc
+	status.TotalFiles = redundantBackupTot
 	status.LastError = redundantBackupError
 	redundantBackupMu.Unlock()
 
@@ -285,6 +297,10 @@ func (s *Service) TriggerRedundantBackup(actor *model.User) (*RedundantBackupSta
 	redundantBackupRunning = true
 	redundantBackupError = ""
 	redundantBackupStatus = "正在初始化备份..."
+	redundantBackupPercent = 5
+	redundantBackupStep = "初始化"
+	redundantBackupProc = 0
+	redundantBackupTot = 0
 	redundantBackupMu.Unlock()
 
 	targetDir := s.getRedundantBackupTargetDir()
@@ -295,6 +311,10 @@ func (s *Service) TriggerRedundantBackup(actor *model.User) (*RedundantBackupSta
 			redundantBackupMu.Lock()
 			redundantBackupRunning = false
 			redundantBackupStatus = ""
+			redundantBackupPercent = 0
+			redundantBackupStep = ""
+			redundantBackupProc = 0
+			redundantBackupTot = 0
 			redundantBackupMu.Unlock()
 		}()
 
@@ -328,7 +348,7 @@ func (s *Service) executeRedundantBackup(targetDir string, setting RedundantBack
 	}
 
 	// 1. 导出数据库快照
-	s.setBackupStatus("正在导出数据库完整快照 (PostgreSQL)...")
+	s.setBackupProgress("步骤 1/4", "正在全量导出 PostgreSQL 数据库快照至 initdb/01-restore-canvas.sql...", 15, 0, 0)
 	if s.repo.Dialect() == "postgres" {
 		dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 		if dbURL == "" {
@@ -355,13 +375,13 @@ func (s *Service) executeRedundantBackup(targetDir string, setting RedundantBack
 	}
 
 	// 2. 本地增量同步媒体文件
-	s.setBackupStatus("正在增量同步本地媒体资源库...")
+	s.setBackupProgress("步骤 2/4", "正在增量同步本地媒体资源库至备份仓...", 35, 0, 0)
 	srcResources := filepath.Join(s.dataDir, "resources")
 	if info, err := os.Stat(srcResources); err == nil && info.IsDir() {
 		if _, err := exec.LookPath("rsync"); err == nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 			defer cancel()
-			cmd := exec.CommandContext(ctx, "rsync", "-av", "--update", srcResources+"/", resourcesDir+"/")
+			cmd := exec.CommandContext(ctx, "rsync", "-rlDv", "--no-owner", "--no-group", "--no-perms", "--omit-dir-times", "--size-only", srcResources+"/", resourcesDir+"/")
 			if out, err := cmd.CombinedOutput(); err != nil {
 				slog.Warn("rsync failed, falling back to go copy", "error", err, "out", string(out))
 				if copyErr := syncDirectoryGo(srcResources, resourcesDir); copyErr != nil {
@@ -376,6 +396,7 @@ func (s *Service) executeRedundantBackup(targetDir string, setting RedundantBack
 	}
 
 	// 3. 生成自包含启动编排与脚本
+	s.setBackupProgress("步骤 3/4", "正在生成自包含 Docker 编排配置与启动清单...", 55, 0, 0)
 	writePortableConfigs(targetDir)
 
 	// 4. 统计资源数与体积，生成 manifest.json
@@ -389,20 +410,26 @@ func (s *Service) executeRedundantBackup(targetDir string, setting RedundantBack
 
 	// 5. 如果启用了 WebDAV 远程备份，同步推送到 WebDAV
 	if setting.WebDAVEnabled && setting.WebDAVEndpoint != "" {
-		s.setBackupStatus("正在向 WebDAV 远程备份仓增量同步快照与媒体...")
+		s.setBackupProgress("步骤 4/4", "正在准备向 WebDAV 远程备份仓增量同步快照与媒体...", 60, 0, 0)
 		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Minute)
 		defer cancel()
 		if err := s.syncToWebDAV(ctx, targetDir, setting); err != nil {
 			return fmt.Errorf("WebDAV 远程同步失败：%w", err)
 		}
+	} else {
+		s.setBackupProgress("完成", "全量冗余备份已成功就绪！", 100, 0, 0)
 	}
 
 	return nil
 }
 
-func (s *Service) setBackupStatus(text string) {
+func (s *Service) setBackupProgress(step, text string, percent int, proc, total int64) {
 	redundantBackupMu.Lock()
+	redundantBackupStep = step
 	redundantBackupStatus = text
+	redundantBackupPercent = percent
+	redundantBackupProc = proc
+	redundantBackupTot = total
 	redundantBackupMu.Unlock()
 }
 
@@ -422,6 +449,7 @@ func (s *Service) syncToWebDAV(ctx context.Context, targetDir string, setting Re
 	}
 
 	// 1. 上传数据库快照
+	s.setBackupProgress("步骤 4/4", "正在向 WebDAV 上传数据库快照 (01-restore-canvas.sql)...", 62, 0, 0)
 	sqlPath := filepath.Join(targetDir, "initdb", "01-restore-canvas.sql")
 	if info, err := os.Stat(sqlPath); err == nil && !info.IsDir() {
 		f, err := os.Open(sqlPath)
@@ -435,6 +463,7 @@ func (s *Service) syncToWebDAV(ctx context.Context, targetDir string, setting Re
 	}
 
 	// 2. 上传 docker-compose.yml 与 start.sh
+	s.setBackupProgress("步骤 4/4", "正在向 WebDAV 上传启动配置 (docker-compose.yml / start.sh)...", 65, 0, 0)
 	for _, fname := range []string{"docker-compose.yml", "start.sh"} {
 		fpath := filepath.Join(targetDir, fname)
 		if info, err := os.Stat(fpath); err == nil && !info.IsDir() {
@@ -499,6 +528,11 @@ func (s *Service) syncToWebDAV(ctx context.Context, targetDir string, setting Re
 							redundantBackupMu.Lock()
 							skipped++
 							completed++
+							redundantBackupProc = completed
+							redundantBackupTot = int64(total)
+							if total > 0 {
+								redundantBackupPercent = 65 + int(float64(completed)/float64(total)*30)
+							}
 							if completed%20 == 0 || completed == int64(total) {
 								redundantBackupStatus = fmt.Sprintf("正在向 WebDAV 增量同步媒体文件 (%d/%d)...", completed, total)
 							}
@@ -523,6 +557,11 @@ func (s *Service) syncToWebDAV(ctx context.Context, targetDir string, setting Re
 
 					redundantBackupMu.Lock()
 					completed++
+					redundantBackupProc = completed
+					redundantBackupTot = int64(total)
+					if total > 0 {
+						redundantBackupPercent = 65 + int(float64(completed)/float64(total)*30)
+					}
 					if completed%10 == 0 || completed == int64(total) {
 						redundantBackupStatus = fmt.Sprintf("正在向 WebDAV 增量同步媒体文件 (%d/%d)...", completed, total)
 					}
@@ -544,10 +583,12 @@ func (s *Service) syncToWebDAV(ctx context.Context, targetDir string, setting Re
 	}
 
 	// 4. 上传清单文件 manifest.json
+	s.setBackupProgress("步骤 4/4", "正在向 WebDAV 提交 manifest.json 清单...", 98, 0, 0)
 	manifestPath := filepath.Join(targetDir, "manifest.json")
 	if data, err := os.ReadFile(manifestPath); err == nil {
 		_, _ = storage.PutWebDAVObject(webdavSetting, "manifest.json", "application/json", int64(len(data)), bytes.NewReader(data))
 	}
+	s.setBackupProgress("完成", "全量冗余备份已成功就绪并同步至 WebDAV！", 100, 0, 0)
 
 	return nil
 }

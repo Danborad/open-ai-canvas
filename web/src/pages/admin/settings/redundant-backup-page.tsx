@@ -1,8 +1,9 @@
-import { App, Button, Form, Input, InputNumber, Radio, Skeleton, Switch, Tag } from "antd";
+import { App, Button, Form, Input, InputNumber, Progress, Radio, Skeleton, Switch, Tag } from "antd";
 import { CheckCircle2, Clock3, Database, RefreshCw, Server, ShieldCheck, Play, FolderKanban, Cloud, Save, DownloadCloud, HardDrive, KeyRound, Globe2, BadgeCheck } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { AdminPageFrame } from "../components/admin-shell";
 import { AdminStatusBadge, SettingsSectionCard } from "../components/admin-ui";
+import { cn } from "@/lib/utils";
 import {
     getRedundantBackupStatus,
     triggerRedundantBackup,
@@ -187,17 +188,53 @@ export default function RedundantBackupPage() {
                     </Button>
                     <Button
                         type="primary"
-                        icon={<Play className="size-3.5" />}
-                        loading={isBusy}
+                        icon={isBusy ? <RefreshCw className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+                        disabled={isBusy}
                         onClick={() => void handleRunBackup()}
-                        className="!rounded-xl"
+                        className={cn("!rounded-xl", isBusy && "!opacity-90 !cursor-not-allowed")}
                     >
-                        {isBusy ? (status?.progressText || "备份同步中...") : "立即执行全量冗余备份"}
+                        {isBusy ? "备份任务进行中..." : "立即执行全量冗余备份"}
                     </Button>
                 </div>
             }
         >
             <div className="admin-settings-stack">
+                {/* 实时备份进度面板 */}
+                {status?.isRunning ? (
+                    <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 space-y-3 shadow-md backdrop-blur-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5">
+                                <RefreshCw className="size-4 animate-spin text-blue-500" />
+                                <strong className="text-sm font-semibold text-foreground">全量冗余备份正在执行中</strong>
+                                {status.currentStep ? (
+                                    <Tag color="processing" className="!text-xs font-normal">
+                                        {status.currentStep}
+                                    </Tag>
+                                ) : null}
+                            </div>
+                            <span className="font-mono text-sm font-bold text-blue-400">
+                                {status.progressPercent || 5}%
+                            </span>
+                        </div>
+                        <Progress
+                            percent={status.progressPercent || 5}
+                            status="active"
+                            showInfo={false}
+                            strokeColor={{ "0%": "#1677ff", "100%": "#52c41a" }}
+                        />
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <span className="text-blue-300 font-medium">
+                                {status.progressText || "正在执行增量同步..."}
+                            </span>
+                            {status.totalFiles && status.totalFiles > 0 ? (
+                                <span className="font-mono text-muted-foreground">
+                                    媒体传输进度：{formatNumber(status.processedFiles)} / {formatNumber(status.totalFiles)} 文件
+                                </span>
+                            ) : null}
+                        </div>
+                    </div>
+                ) : null}
+
                 {/* 1. 冗余备份仓状态与指标 */}
                 <div id="admin-backup-status" className="admin-settings-anchor">
                     <SettingsSectionCard
@@ -206,8 +243,8 @@ export default function RedundantBackupPage() {
                         description="备份仓保存在外部备份目录或独立存储卷中，包含自动还原的数据库快照、全量媒体资源、Docker 编排配置与启动脚本。"
                         status={
                             <AdminStatusBadge
-                                label={status?.lastBackupTime ? "自包含备份就绪" : "待执行首次同步"}
-                                tone={status?.lastBackupTime ? "success" : "neutral"}
+                                label={status?.isRunning ? "备份同步中..." : status?.lastBackupTime ? "自包含备份就绪" : "待执行首次同步"}
+                                tone={status?.isRunning ? "warning" : status?.lastBackupTime ? "success" : "neutral"}
                             />
                         }
                     >

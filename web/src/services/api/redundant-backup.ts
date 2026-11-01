@@ -12,6 +12,10 @@ export type RedundantBackupStatus = {
     databaseSqlBytes: number;
     isRunning: boolean;
     progressText?: string;
+    progressPercent?: number;
+    currentStep?: string;
+    processedFiles?: number;
+    totalFiles?: number;
     lastError?: string;
     autoBackupEnabled: boolean;
     intervalHours: number;
