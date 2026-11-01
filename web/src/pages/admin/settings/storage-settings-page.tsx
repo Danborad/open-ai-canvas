@@ -162,6 +162,11 @@ export default function StorageSettingsPage() {
         const nextValues: Partial<OSSFormValues> = { mode: nextMode };
         if (nextMode !== "local") {
             Object.assign(nextValues, providerDraftValues(nextMode, setting, current.pathPrefix));
+        } else {
+            const defaultOrigin = typeof window !== "undefined" && window.location.origin ? window.location.origin : "";
+            if (!current.publicBaseUrl && defaultOrigin) {
+                nextValues.publicBaseUrl = defaultOrigin;
+            }
         }
         form.setFieldsValue(nextValues);
         form.setFields([]);
@@ -388,20 +393,9 @@ export default function StorageSettingsPage() {
                                     </button>
                                 ))}
                             </div>
-                            <div className="admin-storage-history-note flex flex-wrap items-center justify-between gap-3">
-                                <div className="flex items-center gap-2">
-                                    <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
-                                    <span>选择后继续完成第 2 步并保存。保存只改变新增资源；历史资源仍按自身记录的 provider、Endpoint 和 Bucket 读取。</span>
-                                </div>
-                                <Button
-                                    size="small"
-                                    loading={switching}
-                                    disabled={loading || refreshing || dirty}
-                                    onClick={handleSwitchover}
-                                    className="!text-xs"
-                                >
-                                    一键切换历史资源至当前存储
-                                </Button>
+                            <div className="admin-storage-history-note">
+                                <ShieldCheck className="size-4" aria-hidden="true" />
+                                <span>选择后继续完成第 2 步并保存。保存只改变新增资源；历史资源仍按自身记录的 provider、Endpoint 和 Bucket 读取。在第 2 步填写参数后可随时点击【测试连接】验证可用性，无需保存即可测试。</span>
                             </div>
                         </div>
                     </SettingsSectionCard>
@@ -630,6 +624,30 @@ export default function StorageSettingsPage() {
                                 </Form.Item>
                             </div>
                         </Form>
+                    </SettingsSectionCard>
+                </div>
+
+                <div id="admin-storage-switchover" className="admin-settings-anchor">
+                    <SettingsSectionCard
+                        className="admin-storage-section"
+                        icon={<RotateCcw className="size-4" aria-hidden="true" />}
+                        title="3. 历史资源存储重定向（高级运维选项）"
+                        description="通常情况下，历史资源会始终按各自创建时的存储位置独立读取，无需迁移。若你已通过冗余备份将媒体库完整同步至新存储，可在此执行全局重定向。"
+                        status={<AdminStatusBadge label="仅需时使用" tone="neutral" />}
+                    >
+                        <div className="p-4 space-y-3 text-xs text-foreground/80">
+                            <p className="text-muted-foreground">
+                                点击下方按钮会将数据库中所有历史已就绪资源（图片、视频、分镜素材）的存储信息一键更新为当前保存的平台存储。如果未完成数据文件同步，请勿执行此操作，以免历史资源无法读取。
+                            </p>
+                            <Button
+                                danger
+                                loading={switching}
+                                disabled={loading || refreshing || dirty}
+                                onClick={handleSwitchover}
+                            >
+                                一键将全部历史资源重定向至当前存储
+                            </Button>
+                        </div>
                     </SettingsSectionCard>
                 </div>
             </div>

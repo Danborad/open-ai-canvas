@@ -49,9 +49,10 @@ export type StoragePayload = Pick<
 >;
 
 export function formValues(setting: AdminOSSSetting): OSSFormValues {
+    const defaultOrigin = typeof window !== "undefined" && window.location.origin ? window.location.origin : "";
     return {
         mode: setting.enabled ? setting.provider : "local",
-        publicBaseUrl: setting.publicBaseUrl || "",
+        publicBaseUrl: setting.publicBaseUrl || defaultOrigin,
         region: setting.region || "",
         endpoint: setting.endpoint || "",
         cdnBaseUrl: setting.cdnBaseUrl || "",
@@ -110,6 +111,10 @@ export function normalizeStoragePayload(values: Partial<OSSFormValues>, setting:
     const region = values.region?.trim() || "";
     let endpoint = trimTrailingSlash(values.endpoint || "");
     if (provider === "tencent" && !endpoint && region) endpoint = `https://cos.${region}.myqcloud.com`;
+    let publicBaseUrl = trimTrailingSlash(values.publicBaseUrl || "");
+    if (mode === "local" && !publicBaseUrl && typeof window !== "undefined" && window.location.origin) {
+        publicBaseUrl = trimTrailingSlash(window.location.origin);
+    }
     return {
         enabled: mode !== "local",
         provider,
@@ -123,7 +128,7 @@ export function normalizeStoragePayload(values: Partial<OSSFormValues>, setting:
         accessKeyId: values.accessKeyId?.trim() || "",
         accessKeySecret: values.accessKeySecret?.trim() || "",
         sessionToken: values.sessionToken?.trim() || "",
-        publicBaseUrl: trimTrailingSlash(values.publicBaseUrl || ""),
+        publicBaseUrl,
         pathPrefix: (values.pathPrefix?.trim() || DEFAULT_OSS_PATH_PREFIX).replace(/^\/+|\/+$/g, ""),
         s3Preset: values.s3Preset || "custom",
         pathStyle: values.pathStyle === true,
@@ -141,7 +146,10 @@ export function hasStorageChanges(values: Partial<OSSFormValues>, setting: Admin
 
 export function validateStorageDraft(values: OSSFormValues, setting: AdminOSSSetting) {
     const draft = normalizeStoragePayload(values, setting);
-    if (!draft.enabled) return validatePublicBaseURL(draft.publicBaseUrl);
+    if (!draft.enabled) {
+        const publicUrl = draft.publicBaseUrl || (typeof window !== "undefined" ? window.location.origin : "");
+        return validatePublicBaseURL(publicUrl);
+    }
     if (draft.provider !== "webdav" && !draft.bucket) return "请填写对象存储 Bucket";
     if (!draft.endpoint)
         return draft.provider === "tencent" ? "请填写腾讯云 COS Region 或 Endpoint" : draft.provider === "qiniu" ? "请填写七牛云 Kodo 上传 Endpoint" : draft.provider === "s3" ? "请填写 S3 Endpoint 服务根 URL" : draft.provider === "webdav" ? "请填写 WebDAV 服务端地址" : "请填写阿里云 OSS Endpoint";

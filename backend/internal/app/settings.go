@@ -113,6 +113,11 @@ func (s *Service) UpdateOSSSetting(actor *model.User, req OSSSettingRequest) (*P
 	}
 	if !next.Enabled {
 		if next.PublicBaseURL == "" {
+			if envURL := strings.TrimSpace(os.Getenv("CANVAS_PUBLIC_BASE_URL")); envURL != "" {
+				next.PublicBaseURL = envURL
+			}
+		}
+		if next.PublicBaseURL == "" {
 			return nil, BadAuthRequest("服务器本地存储需要填写服务器访问地址")
 		}
 		if _, err := validatePublicResourceBaseURL(next.PublicBaseURL); err != nil {
