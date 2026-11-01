@@ -13,8 +13,16 @@ type ResourceCacheMeta = {
     lastAccessedAt: number;
 };
 
-const blobStore = localforage.createInstance({ name: "yingce", storeName: "resource_blobs" });
-const metaStore = localforage.createInstance({ name: "yingce", storeName: "resource_blob_meta" });
+const blobStore = localforage.createInstance({
+    name: "yingce",
+    storeName: "resource_blobs",
+    driver: [localforage.INDEXEDDB, localforage.WEBSQL],
+});
+const metaStore = localforage.createInstance({
+    name: "yingce",
+    storeName: "resource_blob_meta",
+    driver: [localforage.INDEXEDDB, localforage.WEBSQL],
+});
 const objectUrls = new Map<string, string>();
 const sessionBlobs = new Map<string, Blob>();
 const blobInFlight = new Map<string, Promise<Blob | null>>();

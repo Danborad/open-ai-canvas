@@ -32,9 +32,53 @@ export type CanvasDrawingRender = CanvasDrawingRenderDraft & {
     updatedAt: string;
 };
 
-const drawingStore = localforage.createInstance({ name: "yingce", storeName: "drawing_documents" });
-const drawingPreviewStore = localforage.createInstance({ name: "yingce", storeName: "drawing_previews" });
-const drawingRenderStore = localforage.createInstance({ name: "yingce", storeName: "drawing_generation_renders" });
+const drawingStore = localforage.createInstance({
+    name: "yingce_drawing_documents",
+    storeName: "documents",
+    driver: [localforage.INDEXEDDB, localforage.WEBSQL],
+});
+const drawingPreviewStore = localforage.createInstance({
+    name: "yingce_drawing_previews",
+    storeName: "previews",
+    driver: [localforage.INDEXEDDB, localforage.WEBSQL],
+});
+const drawingRenderStore = localforage.createInstance({
+    name: "yingce_drawing_renders",
+    storeName: "renders",
+    driver: [localforage.INDEXEDDB, localforage.WEBSQL],
+});
+
+// 兼容读取旧版本实例（仅用于兜底迁移读取）
+const legacyDrawingStore = localforage.createInstance({ name: "yingce", storeName: "drawing_documents" });
+const legacyPreviewStore = localforage.createInstance({ name: "yingce", storeName: "drawing_previews" });
+const legacyRenderStore = localforage.createInstance({ name: "yingce", storeName: "drawing_generation_renders" });
+
+// 自愈清理：清除历史错误泄露进 window.localStorage 的大对象垃圾，释放用户的 5MB 配额
+function purgeLeakedDrawingLocalStorage() {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    try {
+        const toRemove: string[] = [];
+        for (let i = 0; i < window.localStorage.length; i++) {
+            const key = window.localStorage.key(i);
+            if (
+                key &&
+                (key.startsWith("yingce/drawing_") ||
+                    key.startsWith("yingce/image_files/") ||
+                    key.startsWith("yingce/media_files/") ||
+                    key.startsWith("yingce/resource_blobs/"))
+            ) {
+                toRemove.push(key);
+            }
+        }
+        for (const key of toRemove) {
+            window.localStorage.removeItem(key);
+        }
+    } catch {
+        // 忽略存储访问限制
+    }
+}
+purgeLeakedDrawingLocalStorage();
+
 const INITIAL_DRAWING_RENDER_MAX_DIMENSION = 2048;
 const INITIAL_DRAWING_RENDER_PADDING = 24;
 
@@ -46,7 +90,14 @@ function drawingKey(projectId: string, drawingId: string) {
 
 export async function loadCanvasDrawing(projectId: string, drawingId: string) {
     if (!projectId || !drawingId) return null;
-    const saved = await drawingStore.getItem<CanvasDrawingSnapshot | LegacyCanvasDrawingSnapshot>(drawingKey(projectId, drawingId));
+    const key = drawingKey(projectId, drawingId);
+    let saved = await drawingStore.getItem<CanvasDrawingSnapshot | LegacyCanvasDrawingSnapshot>(key);
+    if (!saved) {
+        saved = await legacyDrawingStore.getItem<CanvasDrawingSnapshot | LegacyCanvasDrawingSnapshot>(key).catch(() => null);
+        if (saved) {
+            await drawingStore.setItem(key, saved).catch(() => null);
+        }
+    }
     return normalizeCanvasDrawingSnapshot(saved);
 }
 
@@ -71,17 +122,37 @@ export async function saveCanvasDrawing(
         shapeCount: summary.shapeCount,
         pageCount: Math.min(summary.pageCount, 1),
     };
-    await drawingStore.setItem(drawingKey(projectId, drawingId), next);
-    if (preview) await drawingPreviewStore.setItem(drawingKey(projectId, drawingId), preview);
-    else if (preview === null) await drawingPreviewStore.removeItem(drawingKey(projectId, drawingId));
+
+    const key = drawingKey(projectId, drawingId);
+    try {
+        await drawingStore.setItem(key, next);
+    } catch (error) {
+        console.warn("保存绘图文档遭遇存储压力，尝试清理临时渲染缓存后重试...", error);
+        await drawingRenderStore.clear().catch(() => null);
+        try {
+            await drawingStore.setItem(key, next);
+        } catch (retryError) {
+            const isQuota = retryError instanceof Error && (
+                retryError.name === "QuotaExceededError" ||
+                retryError.message.includes("quota")
+            );
+            if (isQuota) {
+                throw new Error("浏览器本地存储空间已满，请清理浏览器缓存或关闭无痕模式后重试");
+            }
+            throw retryError;
+        }
+    }
+
+    if (preview) await drawingPreviewStore.setItem(key, preview).catch(() => null);
+    else if (preview === null) await drawingPreviewStore.removeItem(key).catch(() => null);
     if (render) {
-        await drawingRenderStore.setItem<CanvasDrawingRender>(drawingKey(projectId, drawingId), {
+        await drawingRenderStore.setItem<CanvasDrawingRender>(key, {
             ...render,
             version: 1,
             revision,
             updatedAt,
-        });
-    } else if (render === null) await drawingRenderStore.removeItem(drawingKey(projectId, drawingId));
+        }).catch(() => null);
+    } else if (render === null) await drawingRenderStore.removeItem(key).catch(() => null);
     return next;
 }
 
@@ -91,18 +162,26 @@ export async function createCanvasDrawingFromImage(
     engine: CanvasDrawingEngine,
     image: { url: string; storageKey?: string; name: string; mimeType?: string },
 ) {
-    const dataUrl = await imageToDataUrl({ url: image.url, storageKey: image.storageKey, name: image.name, mimeType: image.mimeType });
-    if (!dataUrl?.startsWith("data:image/")) throw new Error("无法读取来源图片");
+    const rawDataUrl = await imageToDataUrl({ url: image.url, storageKey: image.storageKey, name: image.name, mimeType: image.mimeType });
+    if (!rawDataUrl?.startsWith("data:image/")) throw new Error("无法读取来源图片");
 
-    const { width, height, mimeType } = await readImageMeta(dataUrl);
-    const source = { dataUrl, width, height, mimeType: mimeType || image.mimeType || "image/png", name: image.name || "来源图片" };
+    const meta = await readImageMeta(rawDataUrl);
+    // 来源图进入绘图前进行合理的清晰度约束（最长边不超过 1600px），避免数十兆未压缩的巨型 Base64 塞爆快照并导致卡顿
+    const optimized = await optimizeDrawingImageDataUrl(rawDataUrl, meta.width, meta.height, 1600);
+    const source = {
+        dataUrl: optimized.dataUrl,
+        width: optimized.width,
+        height: optimized.height,
+        mimeType: meta.mimeType || image.mimeType || "image/png",
+        name: image.name || "来源图片",
+    };
     const document = engine === "excalidraw"
         ? (await import("@/lib/canvas/canvas-drawing-excalidraw-document")).createExcalidrawDrawingFromImage(source)
         : await (await import("@/lib/canvas/canvas-drawing-tldraw-document")).createTldrawDrawingFromImage(source);
 
     // 来源图必须进入绘图快照本身，不能继续依赖可能被替换或清理的原节点 URL。
     try {
-        const render = await createInitialDrawingRender(dataUrl, width, height, document.pageId);
+        const render = await createInitialDrawingRender(optimized.dataUrl, optimized.width, optimized.height, document.pageId);
         return await saveCanvasDrawing(projectId, drawingId, engine, document.snapshot, null, render.blob, render);
     } catch (error) {
         await removeCanvasDrawing(projectId, drawingId).catch((cleanupError) => console.warn("清理失败的绘图初始化数据失败", cleanupError));
@@ -112,12 +191,18 @@ export async function createCanvasDrawingFromImage(
 
 export async function loadCanvasDrawingPreview(projectId: string, drawingId: string) {
     if (!projectId || !drawingId) return null;
-    return drawingPreviewStore.getItem<Blob>(drawingKey(projectId, drawingId));
+    const key = drawingKey(projectId, drawingId);
+    const saved = await drawingPreviewStore.getItem<Blob>(key);
+    if (saved) return saved;
+    return legacyPreviewStore.getItem<Blob>(key).catch(() => null);
 }
 
 export async function loadCanvasDrawingRender(projectId: string, drawingId: string) {
     if (!projectId || !drawingId) return null;
-    return drawingRenderStore.getItem<CanvasDrawingRender>(drawingKey(projectId, drawingId));
+    const key = drawingKey(projectId, drawingId);
+    const saved = await drawingRenderStore.getItem<CanvasDrawingRender>(key);
+    if (saved) return saved;
+    return legacyRenderStore.getItem<CanvasDrawingRender>(key).catch(() => null);
 }
 
 export async function saveCanvasDrawingRenderPublication(projectId: string, drawingId: string, revision: number, publication: Pick<CanvasDrawingRenderDraft, "storageKey" | "url">) {
@@ -130,10 +215,14 @@ export async function saveCanvasDrawingRenderPublication(projectId: string, draw
 
 export async function removeCanvasDrawing(projectId: string, drawingId: string) {
     if (!projectId || !drawingId) return;
-    await Promise.all([
-        drawingStore.removeItem(drawingKey(projectId, drawingId)),
-        drawingPreviewStore.removeItem(drawingKey(projectId, drawingId)),
-        drawingRenderStore.removeItem(drawingKey(projectId, drawingId)),
+    const key = drawingKey(projectId, drawingId);
+    await Promise.allSettled([
+        drawingStore.removeItem(key),
+        drawingPreviewStore.removeItem(key),
+        drawingRenderStore.removeItem(key),
+        legacyDrawingStore.removeItem(key),
+        legacyPreviewStore.removeItem(key),
+        legacyRenderStore.removeItem(key),
     ]);
 }
 
@@ -234,4 +323,26 @@ function canvasToPngBlob(canvas: HTMLCanvasElement) {
     return new Promise<Blob>((resolve, reject) => {
         canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("无法生成绘图预览")), "image/png");
     });
+}
+
+async function optimizeDrawingImageDataUrl(dataUrl: string, width: number, height: number, maxSide = 1600): Promise<{ dataUrl: string; width: number; height: number }> {
+    if (typeof window === "undefined" || typeof document === "undefined" || Math.max(width, height) <= maxSide) {
+        return { dataUrl, width, height };
+    }
+    const scale = maxSide / Math.max(width, height);
+    const targetWidth = Math.max(1, Math.round(width * scale));
+    const targetHeight = Math.max(1, Math.round(height * scale));
+    try {
+        const image = await loadDrawingImage(dataUrl);
+        const canvas = document.createElement("canvas");
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return { dataUrl, width, height };
+        ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
+        const optimized = canvas.toDataURL("image/png");
+        return { dataUrl: optimized, width: targetWidth, height: targetHeight };
+    } catch {
+        return { dataUrl, width, height };
+    }
 }
