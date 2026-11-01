@@ -540,23 +540,27 @@ export default function AccessSettingsPanel() {
 
                                 <div className="admin-access-form-section">
                                     <FormSectionTitle icon={<ShieldCheck className="size-4" />} title="体验版测试入口与备用模式" description="控制是否在登录与绑定页开放体验版切换，以及审核期备用输入码。" />
-                                    <div className="space-y-4">
-                                        <div className="admin-access-switch-field">
-                                            <Form.Item noStyle name="trialEnabled" valuePropName="checked">
-                                                <Switch aria-label="开放体验版切换入口" onChange={() => setWechatDirty(hasWechatChanges(wechatForm.getFieldsValue(true), wechat))} />
-                                            </Form.Item>
-                                            <div>
-                                                <label>开放体验版测试切换入口 (登录与绑定页面)</label>
-                                                <p>开启后，登录页和绑定弹窗会显示『正式版 / 体验版』切换胶囊，方便开发者扫码自测。关闭后界面完全隐藏切换器，只展示干净的正式版小程序码。</p>
+                                    <div className="space-y-3">
+                                        <div className="admin-access-switch-field flex items-center justify-between gap-4 !p-3.5 !mb-0">
+                                            <div className="min-w-0 flex-1">
+                                                <label className="text-xs font-semibold text-foreground/85 block">开放体验版测试切换入口 (登录与绑定页面)</label>
+                                                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">开启后，登录页和绑定弹窗会显示『正式版 / 体验版』切换胶囊，方便开发者扫码自测。关闭后界面完全隐藏切换器，只展示干净的正式版小程序码。</p>
+                                            </div>
+                                            <div className="shrink-0 flex items-center">
+                                                <Form.Item noStyle name="trialEnabled" valuePropName="checked">
+                                                    <Switch aria-label="开放体验版切换入口" onChange={() => setWechatDirty(hasWechatChanges(wechatForm.getFieldsValue(true), wechat))} />
+                                                </Form.Item>
                                             </div>
                                         </div>
-                                        <div className="admin-access-switch-field">
-                                            <Form.Item noStyle name="manual" valuePropName="checked">
-                                                <Switch aria-label="开启 6 位登录码备用模式" onChange={() => setWechatDirty(hasWechatChanges(wechatForm.getFieldsValue(true), wechat))} />
-                                            </Form.Item>
-                                            <div>
-                                                <label>6 位验证码备用/审核模式 (CANVAS_WECHAT_QR_MANUAL)</label>
-                                                <p>开启后网页同时展示 6 位短码供小程序端手动输入。日常运营保持关闭，直接展示微信官方葵花码。</p>
+                                        <div className="admin-access-switch-field flex items-center justify-between gap-4 !p-3.5 !mb-0">
+                                            <div className="min-w-0 flex-1">
+                                                <label className="text-xs font-semibold text-foreground/85 block">6 位验证码备用/审核模式 (CANVAS_WECHAT_QR_MANUAL)</label>
+                                                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">开启后网页同时展示 6 位短码供小程序端手动输入。日常运营保持关闭，直接展示微信官方葵花码。</p>
+                                            </div>
+                                            <div className="shrink-0 flex items-center">
+                                                <Form.Item noStyle name="manual" valuePropName="checked">
+                                                    <Switch aria-label="开启 6 位登录码备用模式" onChange={() => setWechatDirty(hasWechatChanges(wechatForm.getFieldsValue(true), wechat))} />
+                                                </Form.Item>
                                             </div>
                                         </div>
                                     </div>
