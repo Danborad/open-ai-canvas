@@ -4,6 +4,8 @@ import { Clapperboard, CopyPlus, Eye, FileText, Image as ImageIcon, LockKeyhole,
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { nanoid } from "nanoid";
 
+import { AuthLoginLink } from "@/components/auth/auth-login-link";
+import { useAuthEntry } from "@/hooks/use-auth-entry";
 import { ConnectionPath } from "@/components/canvas/canvas-connections";
 import { CanvasNodeToolbar, CanvasNodeInfoModal } from "@/components/canvas/canvas-node-toolbar";
 import { CanvasFrameNode } from "@/components/canvas/canvas-frame-node";
@@ -33,6 +35,7 @@ export default function SharedCanvasPage() {
     const { message } = App.useApp();
     const navigate = useNavigate();
     const location = useLocation();
+    const { openAuth } = useAuthEntry();
     const user = useUserStore((state) => state.user);
     const colorTheme = useCanvasThemeStore((state) => state.theme);
     const theme = canvasThemes[colorTheme];
@@ -254,7 +257,7 @@ export default function SharedCanvasPage() {
     const handleForkProject = async () => {
         if (!user) {
             message.info("请先登录后再复制项目到你的工作区");
-            navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+            openAuth({ preferDialog: true });
             return;
         }
         setForking(true);
@@ -312,11 +315,11 @@ export default function SharedCanvasPage() {
                             </Button>
                         </Link>
                     ) : (
-                        <Link to={`/login?redirect=${encodeURIComponent(location.pathname)}`}>
+                        <AuthLoginLink className="pointer-events-auto">
                             <Button type="text" icon={<LogIn className="size-4" />} className="!rounded-xl !h-9">
                                 登录
                             </Button>
-                        </Link>
+                        </AuthLoginLink>
                     )}
                 </div>
             </header>

@@ -7,6 +7,7 @@ import { type ModelRequirements, resolveCompatibleModel, resolveModelGenerationD
 import { inferImageRatio } from "@/lib/image-size-presets";
 import { canonicalGenerationMetadata } from "@/lib/canvas/generation-contract";
 import { resolveCanvasGenerationModel } from "@/lib/canvas/canvas-project-generation";
+import { withReferenceImageSize, type ImageDimensions } from "@/lib/canvas/canvas-reference-image-size";
 import { normalizeVideoDuration, normalizeVideoResolution } from "@/lib/video-generation-options";
 import type { CanvasAudioSettingKey } from "./canvas-audio-settings-popover";
 import type { CanvasNodeGenerationMode } from "./canvas-node-prompt-panel";
@@ -22,16 +23,18 @@ export function defaultMode(type: CanvasNodeData["type"]): CanvasNodeGenerationM
     return type === CanvasNodeType.Text || type === CanvasNodeType.Skill ? "text" : type === CanvasNodeType.Video ? "video" : type === CanvasNodeType.Audio ? "audio" : "image";
 }
 
-export function buildNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mode: CanvasNodeGenerationMode, requirements: ModelRequirements): AiConfig {
+export function buildNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mode: CanvasNodeGenerationMode, requirements: ModelRequirements, referenceImage?: ImageDimensions): AiConfig {
     node = { ...node, metadata: canonicalGenerationMetadata(node, mode) };
     const hasMedia = Boolean(node.metadata?.content || node.metadata?.storageKey || (node.metadata?.naturalWidth && node.metadata?.naturalHeight));
     const inferredMediaRatio = !node.metadata?.size && hasMedia && (mode === "image" || mode === "video")
         ? inferImageRatio(undefined, node.metadata?.naturalWidth || node.width, node.metadata?.naturalHeight || node.height)
         : undefined;
-    const effectiveNodeSize = node.metadata?.size || inferredMediaRatio;
     const defaultModel = mode === "image" ? globalConfig.imageModel : mode === "video" ? globalConfig.videoModel : mode === "audio" ? globalConfig.audioModel : globalConfig.textModel;
     const fallbackModel = mode === "image" ? defaultConfig.imageModel : mode === "video" ? defaultConfig.videoModel : mode === "audio" ? defaultConfig.audioModel : defaultConfig.textModel;
     const preferredModel = resolveCanvasGenerationModel(globalConfig, node.metadata?.model, mode) || resolveCanvasGenerationModel(globalConfig, defaultModel, mode) || fallbackModel;
+    // 与 buildGenerationConfig 使用同一规则，面板显示的尺寸就是提交的尺寸。
+    if (mode === "image") node = withReferenceImageSize(globalConfig, node, preferredModel, referenceImage);
+    const effectiveNodeSize = node.metadata?.size || inferredMediaRatio;
     const model = resolveCompatibleModel(globalConfig, preferredModel, mode === "image" ? { ...requirements, imageSize: effectiveNodeSize || globalConfig.size || defaultConfig.size } : requirements) || preferredModel;
     const defaults = resolveModelGenerationDefaults(
         globalConfig,

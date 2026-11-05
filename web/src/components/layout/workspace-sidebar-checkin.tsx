@@ -1,6 +1,7 @@
 import { App } from "antd";
 import { useState } from "react";
 import { Check, Gift, LoaderCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { formatCredits } from "@/constant/credits";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
@@ -12,6 +13,7 @@ import { useAppearanceStore } from "@/stores/use-appearance-store";
 import { useUserStore } from "@/stores/use-user-store";
 
 export function WorkspaceSidebarCheckin({ collapsed }: { collapsed: boolean }) {
+    const { t } = useTranslation();
     const user = useUserStore((state) => state.user);
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
     const brandName = useAppearanceStore((state) => state.appearance.brandName);
@@ -29,7 +31,7 @@ export function WorkspaceSidebarCheckin({ collapsed }: { collapsed: boolean }) {
     const amount = formatCredits(policy.checkinBonusMicrocredits, 2);
     const title = sidebarCheckinTitle(brandName);
     const checkedIn = Boolean(policy.checkedInToday);
-    const summary = checkedIn ? `${title}，今日已领取 ${amount} 积分` : `${title}，今日可领 ${amount} 积分`;
+    const summary = checkedIn ? `${title}，今日已领取 ${amount} 积分` : t("account.layout.checkin.summary", { title, amount });
 
     const claim = async () => {
         if (claiming || checkedIn) return;
@@ -38,13 +40,13 @@ export function WorkspaceSidebarCheckin({ collapsed }: { collapsed: boolean }) {
             await checkinCredits();
             window.dispatchEvent(new CustomEvent("wallet:updated"));
             await refresh();
-            message.success("签到成功，积分已到账");
+            message.success(t("account.layout.checkin.success"));
         } catch (error) {
             const alreadyClaimed = error instanceof ApiError && error.status === 409;
             window.dispatchEvent(new CustomEvent("wallet:updated"));
             await refresh();
             if (alreadyClaimed) return;
-            message.error(error instanceof Error ? error.message : "领取失败");
+            message.error(error instanceof Error ? error.message : t("account.layout.checkin.failed"));
         } finally {
             setClaiming(false);
         }
@@ -59,7 +61,7 @@ export function WorkspaceSidebarCheckin({ collapsed }: { collapsed: boolean }) {
                     checkedIn && "opacity-75"
                 )}
                 title={summary}
-                aria-label={summary}
+                aria-label={t("account.layout.checkin.claimToday", { amount })}
                 aria-busy={claiming}
                 disabled={claiming || checkedIn}
                 onClick={() => void claim()}
@@ -84,11 +86,11 @@ export function WorkspaceSidebarCheckin({ collapsed }: { collapsed: boolean }) {
             aria-label={summary}
         >
             <div className="app-workspace-sidebar-checkin-copy">
-                <strong className="app-workspace-sidebar-checkin-title dark:!text-white">
-                    今日<em>{amount}</em>积分
-                </strong>
+                <strong className="app-workspace-sidebar-checkin-title dark:!text-white">{title}</strong>
                 <span className="app-workspace-sidebar-checkin-offer dark:!text-neutral-400">
-                    {checkedIn ? "今日签到已完成" : "每日签到免费领"}
+                    {t("account.layout.checkin.offerBefore")}
+                    <em>{amount}</em>
+                    {t("account.layout.checkin.offerAfter")}
                 </span>
             </div>
             <button
@@ -99,11 +101,11 @@ export function WorkspaceSidebarCheckin({ collapsed }: { collapsed: boolean }) {
                     checkedIn && "!bg-muted !text-muted-foreground cursor-not-allowed opacity-80 hover:!bg-muted"
                 )}
                 disabled={claiming || checkedIn}
-                aria-label={checkedIn ? "今日已领取" : `立即领取 ${amount} 积分`}
+                aria-label={checkedIn ? "今日已领取" : t("account.layout.checkin.claimAmount", { amount })}
                 onClick={() => void claim()}
             >
                 <span className="font-bold tracking-tight">
-                    {claiming ? "领取中" : checkedIn ? "已领取" : "立即领取"}
+                    {claiming ? t("account.layout.checkin.claiming") : checkedIn ? "已领取" : t("account.layout.checkin.claim")}
                 </span>
             </button>
         </aside>

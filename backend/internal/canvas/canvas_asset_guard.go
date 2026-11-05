@@ -3,14 +3,11 @@ package canvas
 import (
 	"encoding/json"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
-	"unicode/utf8"
-
 	"yingce/backend/internal/assets"
 	"yingce/backend/internal/kernel"
+
 	"yingce/backend/internal/model"
 )
 
@@ -42,9 +39,10 @@ func (s *Service) ValidateCanvasMediaAssets(userID string, raw json.RawMessage) 
 	assetIDSet := make(map[string]struct{}, len(references))
 	resourceIDSet := make(map[string]struct{}, len(references)+len(allResourceReferences))
 	for _, reference := range references {
-		if reference.AssetID != "" {
-			assetIDSet[reference.AssetID] = struct{}{}
+		if reference.AssetID == "" {
+			return canvasMediaAssetsPendingError()
 		}
+		assetIDSet[reference.AssetID] = struct{}{}
 		resourceIDSet[reference.ResourceID] = struct{}{}
 	}
 	for _, reference := range allResourceReferences {
@@ -73,49 +71,29 @@ func (s *Service) ValidateCanvasMediaAssets(userID string, raw json.RawMessage) 
 	if err != nil {
 		return err
 	}
-	readyResources := make(map[string]model.Resource, len(resources))
+	readyResources := make(map[string]struct{}, len(resources))
 	for _, resource := range resources {
 		if resource.Status == model.ResourceStatusReady {
-			readyResources[resource.ID] = resource
+			readyResources[resource.ID] = struct{}{}
 		}
 	}
-	// 对于历史遗留节点或已清理的媒体，若资源表中已无此记录，不阻断画布工程的持久化保存
-	_ = allResourceReferences
+	missing := make([]assets.DocumentResourceReference, 0)
+	for _, reference := range allResourceReferences {
+		if _, exists := readyResources[reference.ResourceID]; !exists {
+			reference.Source = "current"
+			missing = append(missing, reference)
+		}
+	}
+	if len(missing) > 0 {
+		return canvasResourcesMissingError(missing)
+	}
 
 	for _, reference := range references {
-		resource, exists := readyResources[reference.ResourceID]
-		if !exists {
-			// 对于历史遗留节点或已清理的媒体，若资源表中已无此记录，不阻断画布工程的持久化保存
-			continue
-		}
-		if reference.AssetID == "" {
-			// 节点上未填写 assetId，先查该资源是否已有素材记录
-			if matched, err := s.repo.AssetForUserReferencingResource(userID, reference.ResourceID); err == nil && matched != nil {
-				continue
-			}
-			// 素材库中尚无该资源，自动为其补建素材记录，确保画布不被阻断
-			if err := s.ensureAssetRecordForResourceWithID(userID, "", resource); err == nil {
-				continue
-			}
-			return canvasMediaAssetsPendingError()
-		}
 		resourceIDs, assetExists := assetResources[reference.AssetID]
 		if !assetExists {
-			if err := s.ensureAssetRecordForResourceWithID(userID, reference.AssetID, resource); err == nil {
-				assetResources[reference.AssetID] = map[string]struct{}{reference.ResourceID: {}}
-				continue
-			}
 			return canvasMediaAssetsPendingError()
 		}
 		if _, matches := resourceIDs[reference.ResourceID]; !matches {
-			// 节点上记录的 assetId 与当前的云端资源不匹配（例如切换批次主图、删除批次图片或旧节点元数据陈旧），
-			// 检查素材库中是否已存在关联该资源的素材记录；若不存在则自动兜底补齐，不阻断画布保存。
-			if matched, err := s.repo.AssetForUserReferencingResource(userID, reference.ResourceID); err == nil && matched != nil {
-				continue
-			}
-			if err := s.ensureAssetRecordForResourceWithID(userID, "", resource); err == nil {
-				continue
-			}
 			return canvasMediaAssetsPendingError()
 		}
 	}
@@ -138,98 +116,6 @@ func canvasResourcesMissingError(references []assets.DocumentResourceReference) 
 	err.Reason = kernel.ReasonCanvasResourcesMissing
 	err.Details = map[string]any{"resourceIds": assets.SortedIDs(ids), "missingResources": references}
 	return err
-}
-
-func (s *Service) ensureAssetRecordForResourceWithID(userID string, assetID string, resource model.Resource) error {
-	cleanAssetID := strings.TrimSpace(assetID)
-	if cleanAssetID == "" {
-		cleanAssetID = kernel.NewID()
-	}
-	if utf8.RuneCountInString(cleanAssetID) > model.AssetIDMaxLength {
-		cleanAssetID = cleanAssetID[:model.AssetIDMaxLength]
-	}
-	existing, err := s.repo.AssetForUser(userID, cleanAssetID)
-	if err == nil && existing != nil {
-		return nil
-	}
-
-	now := time.Now().UTC()
-	title := strings.TrimSpace(filepath.Base(resource.ObjectKey))
-	if title == "" || title == "." || title == "/" {
-		title = "画布媒体素材"
-	}
-	kind := strings.TrimSpace(resource.Kind)
-	if kind == "" {
-		kind = "image"
-	}
-	category := model.NormalizeAssetCategory(model.AssetCategoryMaterial, kind)
-	storageKey := "resource:" + resource.ID
-	fileURL := "/api/resources/" + resource.ID + "/file"
-	width := resource.Width
-	if width <= 0 {
-		width = 1024
-	}
-	height := resource.Height
-	if height <= 0 {
-		height = 1024
-	}
-	bytes := resource.Size
-	if bytes < 0 {
-		bytes = 0
-	}
-	mimeType := strings.TrimSpace(resource.MimeType)
-	if mimeType == "" {
-		if kind == "video" {
-			mimeType = "video/mp4"
-		} else if kind == "audio" {
-			mimeType = "audio/mpeg"
-		} else {
-			mimeType = "image/png"
-		}
-	}
-	data := map[string]any{
-		"storageKey": storageKey,
-		"url":        fileURL,
-		"dataUrl":    fileURL,
-		"width":      width,
-		"height":     height,
-		"bytes":      bytes,
-		"mimeType":   mimeType,
-	}
-	if kind == "video" || kind == "audio" {
-		if resource.DurationMs > 0 {
-			data["durationMs"] = resource.DurationMs
-		}
-	}
-	payload := map[string]any{
-		"id":        cleanAssetID,
-		"title":     title,
-		"kind":      kind,
-		"category":  string(category),
-		"status":    string(model.AssetVersionStatusConfirmed),
-		"source":    "Canvas",
-		"coverUrl":  fileURL,
-		"tags":      []string{"画布"},
-		"createdAt": now.Format(time.RFC3339Nano),
-		"updatedAt": now.Format(time.RFC3339Nano),
-		"data":      data,
-	}
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-	newAsset := model.Asset{
-		ID:          cleanAssetID,
-		UserID:      userID,
-		Kind:        kind,
-		Category:    category,
-		Status:      model.AssetVersionStatusConfirmed,
-		Title:       title,
-		PayloadJSON: string(payloadBytes),
-		CreatedAt:   now,
-		UpdatedAt:   now,
-	}
-	return s.repo.UpsertAsset(&newAsset)
 }
 
 // validateAssetCanvasReferences prevents an Asset update from changing the

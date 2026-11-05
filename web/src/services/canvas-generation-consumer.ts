@@ -552,7 +552,7 @@ export async function persistCanvasGenerationEffect(input: CanvasGenerationEffec
                     document: durable,
                     baseProjects: [baseProject],
                     localProjects: [delta.localProject],
-                    baseRevision: Math.max(baseRevision, durable.storageRevision),
+                    baseRevision,
                 });
                 // The rebaser already resolves concurrent fields in favor of the
                 // latest durable value and merges unrelated generated fields.
@@ -588,7 +588,7 @@ export async function persistCanvasGenerationEffect(input: CanvasGenerationEffec
                 const finalDocument = parseCanvasStorageDocument(await storage.getItem(CANVAS_STORE_KEY), rebased.document.state.projects);
                 latestDurable = finalDocument;
                 recordCanvasStorageDocument(scope, finalDocument);
-                const persistedProject = rebaseCommittedCanvasGenerationOntoLiveProject(scope, input.projectId, finalDocument, memoryProject, Math.max(baseRevision, finalDocument.storageRevision)) ?? generationCommittedProject;
+                const persistedProject = rebaseCommittedCanvasGenerationOntoLiveProject(scope, input.projectId, finalDocument, memoryProject, baseRevision) ?? generationCommittedProject;
                 if (!persistedProject) throw new Error("画布项目不存在，无法确认生成副作用");
                 if (getActiveUserScope() === scope) {
                     const publish = () => {

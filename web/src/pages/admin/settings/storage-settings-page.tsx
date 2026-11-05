@@ -6,7 +6,7 @@ import { App, Form, Skeleton, Button, Input } from "antd";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useBlocker } from "react-router";
 
-import { type OSSConnectionTestResult, changesRequireOSSRetest, getS3PresetHints, S3_PRESET_OPTIONS, type S3Preset } from "@/lib/oss-settings";
+import { type OSSConnectionTestResult, changesRequireOSSRetest, getS3PresetHints, S3_PRESET_OPTIONS, type S3Preset, VOLCENGINE_TOS_REGION_HINT } from "@/lib/oss-settings";
 import { getAdminOSSSetting, updateAdminOSSSetting, type AdminOSSSetting, testAdminOSSConnection, switchoverHistoricalResources } from "@/services/api/auth";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
 import { AdminStatusBadge, configuredSecretText, SettingsSectionCard } from "../components/admin-ui";
@@ -20,6 +20,7 @@ const STORAGE_MODES: Array<{ mode: StorageMode; label: string; short: string; de
     { mode: "aliyun", label: "阿里云 OSS", short: "对象存储", description: "新增资源写入阿里云 Bucket，可选 CDN 域名读取。" },
     { mode: "tencent", label: "腾讯云 COS", short: "对象存储", description: "新增资源写入腾讯云 Bucket，可由 Region 生成 Endpoint。" },
     { mode: "qiniu", label: "七牛云 Kodo", short: "对象存储", description: "新增资源上传到 Kodo；无绑定域名时由后端代理读取。" },
+    { mode: "volcengine", label: "火山引擎 TOS", short: "对象存储", description: "新增资源写入火山引擎 Bucket，可由 Region 生成 S3 兼容 Endpoint。" },
     { mode: "s3", label: "S3 兼容存储", short: "对象存储", description: "支持 AWS S3、Cloudflare R2、Backblaze B2、RustFS 与自定义 S3 Endpoint。" },
     { mode: "webdav", label: "WebDAV 存储", short: "网络存储", description: "标准 WebDAV 协议，兼容各类 WebDAV 服务端、自建 Nextcloud/Alist 或挂载网盘与独立存储。" },
 ];
@@ -499,17 +500,37 @@ export default function StorageSettingsPage() {
                                         ) : null}
                                         <div className="admin-storage-form-grid is-location">
                                             {draftMode !== "webdav" ? (
-                                                <Form.Item name="region" label="Region" extra={draftMode === "tencent" ? "Endpoint 留空时由 Region 自动生成。" : draftMode === "qiniu" ? "无绑定域名时用于兼容 S3 的私有读取。" : "按云厂商控制台显示值填写。"}>
+                                                <Form.Item
+                                                    name="region"
+                                                    label="Region"
+                                                    extra={
+                                                        draftMode === "tencent"
+                                                            ? "Endpoint 留空时由 Region 自动生成。"
+                                                            : draftMode === "qiniu"
+                                                              ? "无绑定域名时用于兼容 S3 的私有读取。"
+                                                              : draftMode === "volcengine"
+                                                                ? `Endpoint 留空时由 Region 自动生成。可选：${VOLCENGINE_TOS_REGION_HINT}。`
+                                                                : "按云厂商控制台显示值填写。"
+                                                    }
+                                                >
                                                     <Input
                                                         autoComplete="off"
                                                         placeholder={
-                                                            draftMode === "s3" ? getS3PresetHints(form.getFieldValue("s3Preset") || "custom").region : draftMode === "tencent" ? "ap-guangzhou" : draftMode === "qiniu" ? "z0 / cn-east-1" : "oss-cn-hangzhou"
+                                                            draftMode === "s3"
+                                                                ? getS3PresetHints(form.getFieldValue("s3Preset") || "custom").region
+                                                                : draftMode === "tencent"
+                                                                  ? "ap-guangzhou"
+                                                                  : draftMode === "qiniu"
+                                                                    ? "z0 / cn-east-1"
+                                                                    : draftMode === "volcengine"
+                                                                      ? "cn-beijing"
+                                                                      : "oss-cn-hangzhou"
                                                         }
                                                     />
                                                 </Form.Item>
                                             ) : null}
                                             <Form.Item name="bucket" label={draftMode === "webdav" ? "子目录 / 根路径（可选）" : "Bucket"}>
-                                                <Input autoComplete="off" placeholder={draftMode === "webdav" ? "留空为根目录，例如：/dav 或 media" : draftMode === "qiniu" ? "七牛云存储空间名称" : "对象存储 Bucket"} />
+                                                <Input autoComplete="off" placeholder={draftMode === "webdav" ? "留空为根目录，例如：/dav 或 media" : draftMode === "qiniu" ? "七牛云存储空间名称" : draftMode === "volcengine" ? "火山引擎存储桶名称" : "对象存储 Bucket"} />
                                             </Form.Item>
                                             <Form.Item label="路径前缀" extra={`可自行填写；也可采用外观管理中的英文品牌标识 ${brandSlug}。保存时自动去除首尾斜杠。`}>
                                                 <div className="admin-storage-address-control">
@@ -535,9 +556,11 @@ export default function StorageSettingsPage() {
                                                         ? getS3PresetHints(form.getFieldValue("s3Preset") || "custom").help
                                                         : draftMode === "tencent"
                                                           ? "可留空并由 Region 生成，也可填写完整 COS Endpoint。"
-                                                          : draftMode === "webdav"
-                                                            ? "填写 WebDAV 服务完整根地址，如 http://192.168.1.100:5005 或 https://dav.example.com"
-                                                            : "必须填写完整的 http/https 地址，服务端会继续执行出站安全校验。"
+                                                          : draftMode === "volcengine"
+                                                            ? "可留空并由 Region 生成；控制台的原生 Endpoint 或 Bucket 域名会换算为同地域 tos-s3 地址。"
+                                                            : draftMode === "webdav"
+                                                              ? "填写 WebDAV 服务完整根地址，如 http://192.168.1.100:5005 或 https://dav.example.com"
+                                                              : "必须填写完整的 http/https 地址，服务端会继续执行出站安全校验。"
                                                 }
                                             >
                                                 <Input
@@ -550,9 +573,11 @@ export default function StorageSettingsPage() {
                                                               ? "https://cos.ap-guangzhou.myqcloud.com"
                                                               : draftMode === "qiniu"
                                                                 ? "https://up-z0.qiniup.com"
-                                                                : draftMode === "webdav"
-                                                                  ? "http://127.0.0.1:5244/dav"
-                                                                  : "https://oss-cn-hangzhou.aliyuncs.com"
+                                                                : draftMode === "volcengine"
+                                                                  ? "https://tos-s3-cn-beijing.volces.com"
+                                                                  : draftMode === "webdav"
+                                                                    ? "http://127.0.0.1:5244/dav"
+                                                                    : "https://oss-cn-hangzhou.aliyuncs.com"
                                                     }
                                                 />
                                             </Form.Item>
@@ -563,7 +588,7 @@ export default function StorageSettingsPage() {
                                             >
                                                 <Input autoComplete="off" inputMode="url" placeholder="https://media.example.com" />
                                             </Form.Item>
-                                            <Form.Item name="cdnAuthMode" label="CDN 访问鉴权" extra="public 适用于 CDN 已公开或由 CDN 自行鉴权；qiniu 仅支持七牛私有下载签名。阿里云/腾讯云私有 CDN 暂不自动签名。">
+                                            <Form.Item name="cdnAuthMode" label="CDN 访问鉴权" extra="public 适用于 CDN 已公开或由 CDN 自行鉴权；qiniu 仅支持七牛私有下载签名。阿里云/腾讯云/火山引擎私有 CDN 暂不自动签名。">
                                                 <Select
                                                     options={[
                                                         { label: "未配置（回源或按兜底策略）", value: "" },

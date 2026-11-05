@@ -57,6 +57,8 @@ var (
 	deleteQiniuObject           = storage.DeleteQiniuObject
 	deleteWebDAVObject          = storage.DeleteWebDAVObject
 	validateStorageEndpoint     = storage.ValidateStorageEndpoint
+	validateTOSLocation         = storage.ValidateVolcengineTOSLocation
+	tosRegionFromEndpoint       = storage.VolcengineTOSRegionFromEndpoint
 	standardAWSS3Endpoint       = storage.StandardAWSS3Endpoint
 	publicHTTPSStorageEndpoint  = storage.PublicHTTPSStorageEndpoint
 	newS3Client                 = storage.NewS3Client

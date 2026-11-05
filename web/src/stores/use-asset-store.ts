@@ -324,7 +324,7 @@ function fallbackHexHash(input: string): string {
     return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
 }
 
-async function generationAssetId(effectKey: string) {
+export async function generationAssetId(effectKey: string) {
     if (typeof crypto !== "undefined" && crypto.subtle?.digest) {
         const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(effectKey));
         return `generation_${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;

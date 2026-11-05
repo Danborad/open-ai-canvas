@@ -17,6 +17,11 @@
                 margin: 0;
                 background: #0f0f11;
             }
+            /* 与 globals.css 的 .dark --background 一致；暗色主题下切页或首屏不透出白底。 */
+            html.dark,
+            html.dark body {
+                background: #0f0f11;
+            }
             #root:empty {
                 min-height: 100vh;
             }

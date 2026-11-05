@@ -12,6 +12,16 @@ export const DEFAULT_AGENT_LAUNCHER_POSITION: AgentLauncherPosition = {
     bottom: DEFAULT_LAUNCHER_BOTTOM,
 };
 
+/** 画布编辑器以外的页面和窄屏上，大形象会压住页面右下角的按钮，高度封顶到这个值。 */
+export const AGENT_LAUNCHER_COMPACT_AVATAR_HEIGHT = 120;
+export const AGENT_LAUNCHER_COMPACT_VIEWPORT_WIDTH = 768;
+
+/** 大形象（Live2D / 动画包）的入口高度：受外观设置、视口和宽高比约束，离开画布编辑器或窄屏时再封顶。 */
+export function resolveAgentLauncherAvatarHeight(preferred: number, aspectRatio: number, viewport: AgentLauncherViewport, inCanvasEditor: boolean) {
+    const compact = !inCanvasEditor || viewport.width < AGENT_LAUNCHER_COMPACT_VIEWPORT_WIDTH;
+    return Math.max(40, Math.min(preferred, viewport.height - 60, (viewport.width - 40) / aspectRatio, compact ? AGENT_LAUNCHER_COMPACT_AVATAR_HEIGHT : Infinity));
+}
+
 export function clampAgentLauncherPosition(position: AgentLauncherPosition, viewport: AgentLauncherViewport, size = { width: AGENT_LAUNCHER_SIZE, height: AGENT_LAUNCHER_SIZE }): AgentLauncherPosition {
     const clamp = (value: number, extent: number, dimension: number) => {
         const available = Math.max(0, extent - dimension);

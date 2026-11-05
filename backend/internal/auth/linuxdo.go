@@ -325,6 +325,9 @@ func (s *Service) CompleteLinuxDOLogin(stateValue string, code string, cookieVal
 		if err := s.repo.CreateOAuthUser(user, identity); err != nil {
 			return nil, err
 		}
+		if err := s.host.EnsureSignupBonus(user.ID); err != nil {
+			return nil, err
+		}
 		s.host.NotifyUserRegistered(user)
 	} else {
 		return nil, err
@@ -332,9 +335,6 @@ func (s *Service) CompleteLinuxDOLogin(stateValue string, code string, cookieVal
 	loginLogUser(event, user)
 	if user.Status != model.UserStatusActive {
 		return nil, kernel.Forbidden("该账号已被禁用")
-	}
-	if err := s.host.EnsureSignupBonus(user.ID); err != nil {
-		return nil, err
 	}
 	now := time.Now()
 	user.LastLoginAt = &now

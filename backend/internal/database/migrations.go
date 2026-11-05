@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const CurrentSchemaVersion int64 = 80
+const CurrentSchemaVersion int64 = 85
 
 const baselineSchemaChecksum = "sha256:open-ai-canvas-schema-v1-20260830"
 const schemaMigrationAppliedAtIndexChecksum = "sha256:schema-migrations-applied-at-index-v2-20260830"
@@ -278,23 +278,109 @@ var schemaMigrations = []migration{
 	{version: 75, name: "user_groups_pricing_currency", checksum: "sha256:user-groups-pricing-currency-v75-20261028", apply: migrateUserGroupsPricingCurrency},
 	{version: 76, name: "agent_memory_document_skill_discovery", checksum: "sha256:agent-memory-document-skill-discovery-v76-20261028", apply: migrateAgentMemoryDocumentSkillDiscovery},
 	{version: 77, name: "agent_memory_document_columns", checksum: "sha256:agent-memory-document-columns-v77-20261028", apply: migrateAgentMemoryDocumentColumns},
-	{version: 78, name: "wechat_qr_tickets", checksum: wechatQRTicketsChecksum, apply: func(tx *gorm.DB) error {
+	{version: 78, name: "drama_cast_voice_looks", checksum: "sha256:drama-cast-voice-looks-v78-20261101", apply: migrateDramaCastVoiceLooks},
+	{version: 79, name: "ecommerce_agent_and_knowledge", checksum: "sha256:ecommerce-agent-and-knowledge-v79-20261101", apply: migrateEcommerceFeature},
+	{version: 80, name: "payment_order_charge_method", checksum: "sha256:payment-order-charge-method-v80-20261104", apply: migratePaymentOrderChargeMethod},
+	{version: 81, name: "ark_portrait_assets", checksum: "sha256:ark-portrait-assets-v81-20261104", apply: func(tx *gorm.DB) error {
+		// 方舟真人认证会话、用户真人素材组与组内素材；只建新表，不改写可信素材绑定。
+		return tx.AutoMigrate(&model.ArkPortraitSession{}, &model.ArkPortraitGroup{}, &model.ArkPortraitAsset{})
+	}},
+	{version: 82, name: "token_cache_write_price", checksum: "sha256:token-cache-write-price-v82-20261105", apply: migrateTokenCacheWritePrice},
+	{version: 83, name: "wechat_qr_tickets", checksum: wechatQRTicketsChecksum, apply: func(tx *gorm.DB) error {
 		return tx.AutoMigrate(&model.WechatQRTicket{})
 	}},
-	{version: 79, name: "esa_site_metrics", checksum: esaSiteMetricsChecksum, apply: func(tx *gorm.DB) error {
+	{version: 84, name: "esa_site_metrics", checksum: esaSiteMetricsChecksum, apply: func(tx *gorm.DB) error {
 		return tx.AutoMigrate(&model.ESASiteMetric{})
 	}},
-	{version: 80, name: "canvas_share_allow_copy", checksum: canvasShareAllowCopyChecksum, apply: migrateCanvasShareAllowCopy},
+	{version: 85, name: "canvas_share_allow_copy", checksum: canvasShareAllowCopyChecksum, apply: migrateCanvasShareAllowCopy},
 }
 
 // migrateCanvasShareAllowCopy 增加分享画布是否允许复制项目到当前账号的标记，旧分享记录默认允许复制。
 func migrateCanvasShareAllowCopy(tx *gorm.DB) error {
+	if !tx.Migrator().HasTable(&model.CanvasShare{}) {
+		return nil
+	}
 	if !tx.Migrator().HasColumn(&model.CanvasShare{}, "AllowCopy") {
 		if err := tx.Migrator().AddColumn(&model.CanvasShare{}, "AllowCopy"); err != nil {
 			return err
 		}
 	}
 	return tx.Model(&model.CanvasShare{}).Where("allow_copy IS NULL").Update("allow_copy", true).Error
+}
+
+// migrateTokenCacheWritePrice 为文本 Token 定价增加缓存写入单价，为调用日志和账单增加缓存写入用量。
+// 新列都是 NOT NULL DEFAULT 0：旧价格档和旧账单的缓存写入不单独收费，结算结果不变。
+func migrateTokenCacheWritePrice(tx *gorm.DB) error {
+	for _, target := range []struct {
+		entity  any
+		columns []string
+	}{
+		{&model.ChannelModel{}, []string{"cache_write_token_price_microcredits"}},
+		{&model.ChannelModelPriceTier{}, []string{"cache_write_token_price_microcredits", "cost_cache_write_token_price_microcredits"}},
+		{&model.BillingOrder{}, []string{"cache_write_token_price_microcredits", "cost_cache_write_token_price_microcredits", "cache_write_tokens"}},
+		{&model.LogicalModel{}, []string{"cache_write_price_microcredits"}},
+		{&model.ApiCallLog{}, []string{"cache_write_tokens"}},
+	} {
+		// 精简部署或旧测试库可能没有某些表；表缺失时由基线 AutoMigrate 按当前结构建表。
+		if !tx.Migrator().HasTable(target.entity) {
+			continue
+		}
+		for _, column := range target.columns {
+			if tx.Migrator().HasColumn(target.entity, column) {
+				continue
+			}
+			if err := tx.Migrator().AddColumn(target.entity, column); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// migratePaymentOrderChargeMethod 为支付订单增加实收金额、实收货币、汇率快照和支付方式。
+// 旧订单都是按商品货币原价下单，实收金额回填为商品金额，回调与对账校验结果不变。
+func migratePaymentOrderChargeMethod(tx *gorm.DB) error {
+	for _, field := range []string{"ChargeAmountFen", "ChargeCurrency", "ExchangeRateMicros", "PaymentMethod"} {
+		if tx.Migrator().HasColumn(&model.PaymentOrder{}, field) {
+			continue
+		}
+		if err := tx.Migrator().AddColumn(&model.PaymentOrder{}, field); err != nil {
+			return err
+		}
+	}
+	return tx.Model(&model.PaymentOrder{}).
+		Where("charge_currency = '' OR charge_currency IS NULL").
+		Updates(map[string]any{"charge_amount_fen": gorm.Expr("amount_fen"), "charge_currency": gorm.Expr("currency")}).Error
+}
+
+// migrateDramaCastVoiceLooks 为短剧设定补角色声音（声音库条目与样本音频）和造型（所属角色、造型名、默认适用章节）。
+// 旧设定都是没有指定声音的角色本体，新增列写成零值。
+func migrateDramaCastVoiceLooks(tx *gorm.DB) error {
+	for _, field := range []string{"VoiceProfileID", "VoiceSampleResourceID", "ParentID", "LookName", "LookFromChapter", "LookToChapter"} {
+		if tx.Migrator().HasColumn(&model.DramaCast{}, field) {
+			continue
+		}
+		if err := tx.Migrator().AddColumn(&model.DramaCast{}, field); err != nil {
+			return err
+		}
+	}
+	for column, value := range map[string]any{"voice_profile_id": "", "voice_sample_resource_id": "", "parent_id": "", "look_name": "", "look_from_chapter": 0, "look_to_chapter": 0} {
+		if err := tx.Model(&model.DramaCast{}).Where(column+" IS NULL").Update(column, value).Error; err != nil {
+			return err
+		}
+	}
+	if !tx.Migrator().HasColumn(&model.DramaShot{}, "LookCastIDsJSON") {
+		if err := tx.Migrator().AddColumn(&model.DramaShot{}, "LookCastIDsJSON"); err != nil {
+			return err
+		}
+	}
+	if err := tx.Model(&model.DramaShot{}).Where("look_cast_ids_json IS NULL").Update("look_cast_ids_json", "").Error; err != nil {
+		return err
+	}
+	if tx.Migrator().HasIndex(&model.DramaCast{}, "ParentID") {
+		return nil
+	}
+	return tx.Migrator().CreateIndex(&model.DramaCast{}, "ParentID")
 }
 
 // migrateAgentMemoryDocumentColumns 补齐记忆文件的条目序号与修订的工具调用 ID。

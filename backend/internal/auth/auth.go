@@ -64,6 +64,8 @@ type PublicAuthSettings struct {
 	WechatTrialEnabled    bool   `json:"wechatTrialEnabled"`
 	AgreementTitle        string `json:"agreementTitle,omitempty"`
 	AgreementContent      string `json:"agreementContent,omitempty"`
+	// LoginMode 决定前台登录入口：modal 弹窗，page 跳转独立页面。
+	LoginMode string `json:"loginMode"`
 }
 
 type AuthSessionResult struct {
@@ -88,6 +90,10 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 	if count == 0 {
 		// 首个管理员同样要看到服务协议，不能因为跳过注册校验就丢失协议字段。
 		agreementTitle, agreementContent := s.RegistrationAgreement()
+		loginMode := LoginModeModal
+		if _, registration, err := s.readRegistrationSetting(); err == nil {
+			loginMode = normalizeLoginMode(registration.LoginMode)
+		}
 		_, _, _, _, envVersion, _, trialEnabled := s.wechatLoginConfig()
 		return &PublicAuthSettings{
 			FirstUser:            true,
@@ -99,9 +105,10 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 			WechatTrialEnabled:   trialEnabled,
 			AgreementTitle:       agreementTitle,
 			AgreementContent:     agreementContent,
+			LoginMode:            loginMode,
 		}, nil
 	}
-	registrationEnabled, err := s.RegistrationEnabled()
+	_, registration, err := s.readRegistrationSetting()
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +144,7 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 		SMSBindingAvailable:   smsBind,
 		EmailBindingAvailable: emailEnabled,
 		FirstUser:             false,
-		RegistrationEnabled:   registrationEnabled,
+		RegistrationEnabled:   registration.Enabled,
 		LinuxDOEnabled:        s.LinuxDOEnabled(),
 		EmailEnabled:          emailEnabled,
 		EmailCodeRequired:     p.EmailRegistration || p.SMSAndEmailRegistration,
@@ -147,6 +154,7 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 		WechatTrialEnabled:    trialEnabled,
 		AgreementTitle:        agreementTitle,
 		AgreementContent:      agreementContent,
+		LoginMode:             normalizeLoginMode(registration.LoginMode),
 	}, nil
 }
 
@@ -327,9 +335,6 @@ func (s *Service) Login(req LoginRequest) (result *AuthSessionResult, err error)
 	user.LastLoginAt = &now
 	user.UpdatedAt = now
 	if err := s.repo.UpdateUserLoginTime(user.ID, now); err != nil {
-		return nil, err
-	}
-	if err := s.host.EnsureSignupBonus(user.ID); err != nil {
 		return nil, err
 	}
 	return s.createAuthSession(user, event)

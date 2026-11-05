@@ -9,8 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 	"yingce/backend/internal/assets"
 	"yingce/backend/internal/kernel"
 	"yingce/backend/internal/model"
@@ -523,4 +525,50 @@ func replacePayloadResources(data any, resourceMap map[string]string, assetMap m
 			replacePayloadResources(item, resourceMap, assetMap)
 		}
 	}
+}
+
+func (s *Service) ensureAssetRecordForResourceWithID(userID string, assetID string, resource model.Resource) error {
+	cleanAssetID := strings.TrimSpace(assetID)
+	if cleanAssetID == "" {
+		cleanAssetID = kernel.NewID()
+	}
+	if utf8.RuneCountInString(cleanAssetID) > model.AssetIDMaxLength {
+		cleanAssetID = cleanAssetID[:model.AssetIDMaxLength]
+	}
+	existing, err := s.repo.AssetForUser(userID, cleanAssetID)
+	if err == nil && existing != nil {
+		return nil
+	}
+
+	now := time.Now().UTC()
+	title := strings.TrimSpace(filepath.Base(resource.ObjectKey))
+	if title == "" || title == "." || title == "/" {
+		title = "画布媒体素材"
+	}
+	kind := strings.TrimSpace(resource.Kind)
+	if kind == "" {
+		kind = "image"
+	}
+	assetPayload := map[string]any{
+		"id":         cleanAssetID,
+		"title":      title,
+		"kind":       kind,
+		"storageKey": "resource:" + resource.ID,
+		"createdAt":  now,
+		"updatedAt":  now,
+	}
+	payloadBytes, err := json.Marshal(assetPayload)
+	if err != nil {
+		return err
+	}
+	newAsset := model.Asset{
+		ID:          cleanAssetID,
+		UserID:      userID,
+		Kind:        kind,
+		Title:       title,
+		PayloadJSON: string(payloadBytes),
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	return s.repo.Create(&newAsset)
 }
