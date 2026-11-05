@@ -94,7 +94,7 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 		if _, registration, err := s.readRegistrationSetting(); err == nil {
 			loginMode = normalizeLoginMode(registration.LoginMode)
 		}
-		_, _, _, _, envVersion, _, trialEnabled := s.wechatLoginConfig()
+		_, _, _, _, envVersion, _, trialEnabled, _ := s.wechatLoginConfig()
 		return &PublicAuthSettings{
 			FirstUser:            true,
 			RegistrationEnabled:  true,
@@ -138,7 +138,7 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 	p.EmailRegistration = p.EmailRegistration && emailEnabled
 	p.SMSAndEmailRegistration = p.SMSAndEmailRegistration && smsRegister && emailEnabled
 	agreementTitle, agreementContent := s.RegistrationAgreement()
-	_, _, _, _, wechatEnv, _, trialEnabled := s.wechatLoginConfig()
+	_, _, _, _, wechatEnv, _, trialEnabled, _ := s.wechatLoginConfig()
 	return &PublicAuthSettings{
 		VerificationPolicy:    p,
 		SMSBindingAvailable:   smsBind,

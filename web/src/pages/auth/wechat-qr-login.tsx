@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { App, Button, Spin } from "antd";
+import { App, Button, QRCode, Spin } from "antd";
 import { Check, Copy, QrCode, RefreshCw } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -175,44 +175,52 @@ export function WechatQRLogin({ next = "/", invite }: { next?: string; invite?: 
                         重新获取
                     </Button>
                 </div>
-            ) : showQR ? (
-                /* 真码模式：直接展示微信官方小程序码 */
-                <div className="relative flex size-52 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white p-2 shadow-sm">
-                    <img src={ticketData?.qrImage} alt="微信扫码登录" className="size-full object-contain" />
-                    {status === "expired" && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/75 p-4 text-center text-white backdrop-blur-sm">
-                            <span className="text-xs font-medium">二维码已过期</span>
-                            <Button size="small" type="primary" icon={<RefreshCw className="size-3" />} onClick={() => void loadTicket()}>
-                                点击刷新
-                            </Button>
-                        </div>
-                    )}
-                    {status === "scanned" && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-emerald-950/80 p-4 text-center text-white backdrop-blur-sm">
-                            <Check className="size-8 text-emerald-400" />
-                            <span className="text-xs font-medium">已扫码，请在手机上确认</span>
-                        </div>
-                    )}
-                </div>
             ) : (
-                /* 6位验证码输入模式（备用/联调） */
+                /* 二维码与授权码模式：始终呈现完整的扫码交互 */
                 <div className="flex flex-col items-center gap-3">
-                    <span className="text-xs font-medium text-foreground">
-                        微信打开小程序，输入 6 位登录码：
-                    </span>
-                    <div className="flex items-center gap-2">
-                        <div className="rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/10 px-5 py-3 font-mono text-2xl font-bold tracking-widest text-emerald-600 dark:text-emerald-400">
+                    <div className="relative flex size-52 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white p-2 shadow-sm">
+                        {ticketData?.qrImage ? (
+                            <img src={ticketData.qrImage} alt="微信扫码登录" className="size-full object-contain" />
+                        ) : (
+                            <div className="flex flex-col items-center justify-center p-1">
+                                <QRCode
+                                    value={ticketData?.code ? `https://mexai.cc/wechat-login?t=${ticketData.ticket}&c=${ticketData.code}` : "https://mexai.cc"}
+                                    size={184}
+                                    bordered={false}
+                                />
+                            </div>
+                        )}
+                        {status === "expired" && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/75 p-4 text-center text-white backdrop-blur-sm">
+                                <span className="text-xs font-medium">二维码已过期</span>
+                                <Button size="small" type="primary" icon={<RefreshCw className="size-3" />} onClick={() => void loadTicket()}>
+                                    点击刷新
+                                </Button>
+                            </div>
+                        )}
+                        {status === "scanned" && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-emerald-950/80 p-4 text-center text-white backdrop-blur-sm">
+                                <Check className="size-8 text-emerald-400" />
+                                <span className="text-xs font-medium">已扫码，请在手机上确认</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                        <span className="text-xs text-muted-foreground">登录授权码：</span>
+                        <div className="rounded-lg border border-dashed border-emerald-500/40 bg-emerald-500/10 px-3.5 py-1 font-mono text-lg font-bold tracking-widest text-emerald-600 dark:text-emerald-400">
                             {ticketData?.code}
                         </div>
                         <Button
-                            icon={copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                            size="small"
+                            icon={copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
                             onClick={() => void handleCopyCode()}
                         >
                             {copied ? "已复制" : "复制"}
                         </Button>
                     </div>
-                    <span className="text-[11px] text-muted-foreground">
-                        在小程序中输入上方登录码并点击确认，网页将自动登录
+                    <span className="text-[11px] text-muted-foreground text-center max-w-[240px]">
+                        {ticketData?.qrImage ? "微信扫一扫自动登录；或在小程序内输入上方 6 位授权码" : "请打开小程序输入上方授权码确认登录"}
                     </span>
                 </div>
             )}
@@ -223,15 +231,6 @@ export function WechatQRLogin({ next = "/", invite }: { next?: string; invite?: 
                         <QrCode className="size-3.5" />
                         <span>微信扫一扫，在手机上点击确认即可登录</span>
                     </div>
-                    {ticketData?.qrImage && !ticketData?.manual && (
-                        <button
-                            type="button"
-                            className="text-[11px] text-muted-foreground/80 underline decoration-dotted transition-colors hover:text-foreground"
-                            onClick={() => setViewMode(viewMode === "qr" ? "manual" : "qr")}
-                        >
-                            {viewMode === "qr" ? "无法扫码？切换为 6 位登录码" : "返回小程序码扫码"}
-                        </button>
-                    )}
                 </div>
             )}
         </div>

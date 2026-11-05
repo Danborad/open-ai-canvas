@@ -90,6 +90,7 @@ export default function AccessSettingsPanel() {
                     envVersion: wechatData.setting.envVersion || "release",
                     manual: wechatData.setting.manual,
                     trialEnabled: Boolean(wechatData.setting.trialEnabled),
+                    fallbackQrImage: wechatData.setting.fallbackQrImage || "",
                 });
                 setDraftWechatEnabled(wechatData.setting.enabled);
                 setWechatDirty(false);
@@ -561,6 +562,14 @@ export default function AccessSettingsPanel() {
                                                 ]}
                                             />
                                         </Form.Item>
+                                        <Form.Item
+                                            name="fallbackQrImage"
+                                            label="兜底小程序码图片 (可选)"
+                                            extra="当个人主体未完成实名核验 (85412) 或官方动态接口异常时展示。支持图片 URL 或 Base64 Data URL。"
+                                            className="admin-access-form-span-full"
+                                        >
+                                            <Input placeholder="输入从微信公众平台下载的体验版二维码或小程序码图片链接" />
+                                        </Form.Item>
                                     </div>
                                 </div>
 
@@ -986,6 +995,7 @@ function toWechatFormValues(setting: WechatAdminSetting): WechatAdminSettingInpu
         envVersion: setting.envVersion || "release",
         manual: Boolean(setting.manual),
         trialEnabled: Boolean(setting.trialEnabled),
+        fallbackQrImage: setting.fallbackQrImage || "",
     };
 }
 
@@ -998,6 +1008,7 @@ function normalizeWechatFormValues(values: WechatAdminSettingInput): WechatAdmin
         envVersion: values.envVersion?.trim() || "release",
         manual: Boolean(values.manual),
         trialEnabled: Boolean(values.trialEnabled),
+        fallbackQrImage: values.fallbackQrImage?.trim() || "",
     };
 }
 
@@ -1012,6 +1023,7 @@ function hasWechatChanges(values: WechatAdminSettingInput, setting: WechatAdminS
         draft.page !== saved.page ||
         draft.envVersion !== saved.envVersion ||
         draft.manual !== saved.manual ||
-        draft.trialEnabled !== saved.trialEnabled
+        draft.trialEnabled !== saved.trialEnabled ||
+        draft.fallbackQrImage !== saved.fallbackQrImage
     );
 }

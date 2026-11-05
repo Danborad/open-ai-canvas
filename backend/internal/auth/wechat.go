@@ -28,34 +28,37 @@ import (
 const wechatSettingKey = "wechat_login"
 
 type WechatSettingValue struct {
-	Enabled      bool   `json:"enabled"`
-	AppID        string `json:"appId"`
-	Secret       string `json:"secret"`
-	Page         string `json:"page"`
-	EnvVersion   string `json:"envVersion"`
-	Manual       bool   `json:"manual"`
-	TrialEnabled bool   `json:"trialEnabled"`
+	Enabled         bool   `json:"enabled"`
+	AppID           string `json:"appId"`
+	Secret          string `json:"secret"`
+	Page            string `json:"page"`
+	EnvVersion      string `json:"envVersion"`
+	Manual          bool   `json:"manual"`
+	TrialEnabled    bool   `json:"trialEnabled"`
+	FallbackQRImage string `json:"fallbackQrImage,omitempty"`
 }
 
 type PublicWechatSetting struct {
-	Enabled      bool      `json:"enabled"`
-	AppID        string    `json:"appId"`
-	HasSecret    bool      `json:"hasSecret"`
-	Page         string    `json:"page"`
-	EnvVersion   string    `json:"envVersion"`
-	Manual       bool      `json:"manual"`
-	TrialEnabled bool      `json:"trialEnabled"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+	Enabled         bool      `json:"enabled"`
+	AppID           string    `json:"appId"`
+	HasSecret       bool      `json:"hasSecret"`
+	Page            string    `json:"page"`
+	EnvVersion      string    `json:"envVersion"`
+	Manual          bool      `json:"manual"`
+	TrialEnabled    bool      `json:"trialEnabled"`
+	FallbackQRImage string    `json:"fallbackQrImage,omitempty"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
 type WechatSettingRequest struct {
-	Enabled      bool   `json:"enabled"`
-	AppID        string `json:"appId"`
-	Secret       string `json:"secret,omitempty"`
-	Page         string `json:"page"`
-	EnvVersion   string `json:"envVersion"`
-	Manual       bool   `json:"manual"`
-	TrialEnabled bool   `json:"trialEnabled"`
+	Enabled         bool   `json:"enabled"`
+	AppID           string `json:"appId"`
+	Secret          string `json:"secret,omitempty"`
+	Page            string `json:"page"`
+	EnvVersion      string `json:"envVersion"`
+	Manual          bool   `json:"manual"`
+	TrialEnabled    bool   `json:"trialEnabled"`
+	FallbackQRImage string `json:"fallbackQrImage,omitempty"`
 }
 
 var (
@@ -65,7 +68,7 @@ var (
 	wechatConfirmMu     sync.Mutex
 )
 
-func wechatLoginEnvConfig() (enabled bool, appID string, secret string, page string, envVersion string, manual bool, trialEnabled bool) {
+func wechatLoginEnvConfig() (enabled bool, appID string, secret string, page string, envVersion string, manual bool, trialEnabled bool, fallbackQrImage string) {
 	enabled = os.Getenv("CANVAS_WECHAT_LOGIN_ENABLED") == "true" || os.Getenv("CANVAS_WECHAT_LOGIN_ENABLED") == "1"
 	appID = strings.TrimSpace(os.Getenv("CANVAS_WECHAT_APPID"))
 	secret = strings.TrimSpace(os.Getenv("CANVAS_WECHAT_SECRET"))
@@ -81,21 +84,23 @@ func wechatLoginEnvConfig() (enabled bool, appID string, secret string, page str
 	}
 	manual = os.Getenv("CANVAS_WECHAT_QR_MANUAL") == "true" || os.Getenv("CANVAS_WECHAT_QR_MANUAL") == "1"
 	trialEnabled = os.Getenv("CANVAS_WECHAT_TRIAL_ENABLED") == "true" || os.Getenv("CANVAS_WECHAT_TRIAL_ENABLED") == "1"
+	fallbackQrImage = strings.TrimSpace(os.Getenv("CANVAS_WECHAT_FALLBACK_QR"))
 	return
 }
 
 func (s *Service) readWechatSetting() (*model.SystemSetting, WechatSettingValue, error) {
 	setting, err := s.repo.SystemSetting(wechatSettingKey)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		enabled, appID, secret, page, envVersion, manual, trialEnabled := wechatLoginEnvConfig()
+		enabled, appID, secret, page, envVersion, manual, trialEnabled, fallbackQrImage := wechatLoginEnvConfig()
 		return nil, WechatSettingValue{
-			Enabled:      enabled,
-			AppID:        appID,
-			Secret:       secret,
-			Page:         page,
-			EnvVersion:   envVersion,
-			Manual:       manual,
-			TrialEnabled: trialEnabled,
+			Enabled:         enabled,
+			AppID:           appID,
+			Secret:          secret,
+			Page:            page,
+			EnvVersion:      envVersion,
+			Manual:          manual,
+			TrialEnabled:    trialEnabled,
+			FallbackQRImage: fallbackQrImage,
 		}, nil
 	}
 	if err != nil {
@@ -111,29 +116,33 @@ func (s *Service) readWechatSetting() (*model.SystemSetting, WechatSettingValue,
 			value.Secret = decrypted
 		}
 	}
+	if value.FallbackQRImage == "" {
+		_, _, _, _, _, _, _, fallback := wechatLoginEnvConfig()
+		value.FallbackQRImage = fallback
+	}
 	return setting, value, nil
 }
 
-func (s *Service) wechatLoginConfig() (enabled bool, appID string, secret string, page string, envVersion string, manual bool, trialEnabled bool) {
+func (s *Service) wechatLoginConfig() (enabled bool, appID string, secret string, page string, envVersion string, manual bool, trialEnabled bool, fallbackQrImage string) {
 	_, value, err := s.readWechatSetting()
 	if err != nil {
 		return wechatLoginEnvConfig()
 	}
-	return value.Enabled, value.AppID, value.Secret, value.Page, value.EnvVersion, value.Manual, value.TrialEnabled
+	return value.Enabled, value.AppID, value.Secret, value.Page, value.EnvVersion, value.Manual, value.TrialEnabled, value.FallbackQRImage
 }
 
 func (s *Service) WechatLoginEnabled() bool {
-	enabled, appID, _, _, _, _, _ := s.wechatLoginConfig()
+	enabled, appID, _, _, _, _, _, _ := s.wechatLoginConfig()
 	return enabled && appID != ""
 }
 
 func (s *Service) WechatManualMode() bool {
-	_, _, _, _, _, manual, _ := s.wechatLoginConfig()
+	_, _, _, _, _, manual, _, _ := s.wechatLoginConfig()
 	return manual
 }
 
 func (s *Service) WechatTrialEnabled() bool {
-	_, _, _, _, _, _, trialEnabled := s.wechatLoginConfig()
+	_, _, _, _, _, _, trialEnabled, _ := s.wechatLoginConfig()
 	return trialEnabled
 }
 
@@ -153,11 +162,12 @@ func (s *Service) AdminWechatSetting(actor *model.User) (*PublicWechatSetting, e
 		Enabled:      value.Enabled,
 		AppID:        value.AppID,
 		HasSecret:    value.Secret != "",
-		Page:         value.Page,
-		EnvVersion:   value.EnvVersion,
-		Manual:       value.Manual,
-		TrialEnabled: value.TrialEnabled,
-		UpdatedAt:    updatedAt,
+		Page:            value.Page,
+		EnvVersion:      value.EnvVersion,
+		Manual:          value.Manual,
+		TrialEnabled:    value.TrialEnabled,
+		FallbackQRImage: value.FallbackQRImage,
+		UpdatedAt:       updatedAt,
 	}, nil
 }
 
@@ -190,15 +200,20 @@ func (s *Service) UpdateWechatSetting(actor *model.User, req WechatSettingReques
 	if envVersion == "" {
 		envVersion = "trial"
 	}
+	fallbackQR := strings.TrimSpace(req.FallbackQRImage)
+	if fallbackQR == "" {
+		fallbackQR = current.FallbackQRImage
+	}
 
 	value := WechatSettingValue{
-		Enabled:      req.Enabled,
-		AppID:        appID,
-		Secret:       secret,
-		Page:         page,
-		EnvVersion:   envVersion,
-		Manual:       req.Manual,
-		TrialEnabled: req.TrialEnabled,
+		Enabled:         req.Enabled,
+		AppID:           appID,
+		Secret:          secret,
+		Page:            page,
+		EnvVersion:      envVersion,
+		Manual:          req.Manual,
+		TrialEnabled:    req.TrialEnabled,
+		FallbackQRImage: fallbackQR,
 	}
 
 	stored := value
@@ -368,17 +383,18 @@ func newManualCode() string {
 }
 
 type WechatQRTicketResponse struct {
-	Ticket     string `json:"ticket"`
-	Code       string `json:"code,omitempty"`
-	QRImage    string `json:"qrImage,omitempty"`
-	Manual     bool   `json:"manual"`
-	Action     string `json:"action"`
-	EnvVersion string `json:"envVersion,omitempty"`
-	ExpiresAt  string `json:"expiresAt"`
+	Ticket      string `json:"ticket"`
+	Code        string `json:"code,omitempty"`
+	QRImage     string `json:"qrImage,omitempty"`
+	Manual      bool   `json:"manual"`
+	Action      string `json:"action"`
+	EnvVersion  string `json:"envVersion,omitempty"`
+	ExpiresAt   string `json:"expiresAt"`
+	ErrorReason string `json:"errorReason,omitempty"`
 }
 
 func (s *Service) CreateWechatQRTicket(action string, userID string, inviteCode string, envs ...string) (*WechatQRTicketResponse, error) {
-	enabled, appID, secret, page, defaultEnv, manual, _ := s.wechatLoginConfig()
+	enabled, appID, secret, page, defaultEnv, manual, _, fallbackQrImage := s.wechatLoginConfig()
 	if !enabled || appID == "" {
 		return nil, kernel.BadAuthRequest("微信扫码登录尚未启用")
 	}
@@ -398,18 +414,29 @@ func (s *Service) CreateWechatQRTicket(action string, userID string, inviteCode 
 	expiresAt := time.Now().Add(10 * time.Minute)
 
 	qrImage := ""
+	errorReason := ""
 	if !manual && secret != "" {
 		token, tokenErr := getWechatAccessToken(appID, secret)
 		if tokenErr != nil {
 			log.Printf("[Wechat] 获取 access_token 失败: %v", tokenErr)
+			errorReason = "token_error"
 		} else {
 			img, imgErr := fetchWechatQRCode(token, ticketID, page, envVersion)
 			if imgErr != nil {
 				log.Printf("[Wechat] 获取小程序码图片失败 (page=%s, env=%s): %v", page, envVersion, imgErr)
+				if strings.Contains(imgErr.Error(), "85412") {
+					errorReason = "personal_not_verified"
+				} else {
+					errorReason = "qr_generate_failed"
+				}
 			} else {
 				qrImage = img
 			}
 		}
+	}
+
+	if qrImage == "" && fallbackQrImage != "" {
+		qrImage = fallbackQrImage
 	}
 
 	ticket := &model.WechatQRTicket{
@@ -431,13 +458,14 @@ func (s *Service) CreateWechatQRTicket(action string, userID string, inviteCode 
 
 	isManual := manual || qrImage == ""
 	return &WechatQRTicketResponse{
-		Ticket:     ticketID,
-		Code:       shortCode,
-		QRImage:    qrImage,
-		Manual:     isManual,
-		Action:     action,
-		EnvVersion: envVersion,
-		ExpiresAt:  expiresAt.Format(time.RFC3339),
+		Ticket:      ticketID,
+		Code:        shortCode,
+		QRImage:     qrImage,
+		Manual:      isManual,
+		Action:      action,
+		EnvVersion:  envVersion,
+		ExpiresAt:   expiresAt.Format(time.RFC3339),
+		ErrorReason: errorReason,
 	}, nil
 }
 
@@ -584,7 +612,7 @@ func (s *Service) ConfirmWechatTicketWithProfile(req WechatConfirmRequest) (*Wec
 		return nil, kernel.BadAuthRequest("二维码状态已变更，请刷新")
 	}
 
-	enabled, appID, secret, _, _, manual, _ := s.wechatLoginConfig()
+	enabled, appID, secret, _, _, manual, _, _ := s.wechatLoginConfig()
 	if !enabled || appID == "" {
 		return nil, kernel.BadAuthRequest("微信扫码登录尚未启用")
 	}

@@ -26,7 +26,7 @@ func TestWechatConfigAndManualCode(t *testing.T) {
 		os.Unsetenv("CANVAS_WECHAT_QR_MANUAL")
 	}()
 
-	enabled, appID, _, _, _, manual, _ := wechatLoginEnvConfig()
+	enabled, appID, _, _, _, manual, _, _ := wechatLoginEnvConfig()
 	if !enabled || appID != "wx7423e3ed710143ab" || !manual {
 		t.Fatalf("expected enabled and manual, got enabled=%v appID=%s manual=%v", enabled, appID, manual)
 	}

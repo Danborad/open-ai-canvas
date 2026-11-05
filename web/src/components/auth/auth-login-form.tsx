@@ -1,4 +1,4 @@
-import { type FormEvent, useId, useState } from "react";
+import { type FormEvent, useEffect, useId, useState } from "react";
 import { App, Button, Divider, Input, Segmented } from "antd";
 import { useTranslation } from "react-i18next";
 
@@ -33,10 +33,21 @@ export function AuthLoginForm({ settings, next, onAuthenticated, onViewChange }:
     const [loginMode, setLoginMode] = useState<"account" | "wechat">(() => {
         if (typeof window !== "undefined") {
             const params = new URLSearchParams(window.location.search);
+            if (params.get("mode") === "account") return "account";
             if (params.get("mode") === "wechat") return "wechat";
         }
-        return "account";
+        return settings?.wechatQrLoginEnabled ? "wechat" : "account";
     });
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get("mode") === "account") return;
+        }
+        if (settings?.wechatQrLoginEnabled) {
+            setLoginMode("wechat");
+        }
+    }, [settings?.wechatQrLoginEnabled]);
     // 验证码登录排在密码登录之前；配置读取失败时只保留密码登录。
     const methods: LoginMethod[] = [...(settings ? verificationMethods(settings, "login") : []), "password"];
     const method = chosenMethod && methods.includes(chosenMethod) ? chosenMethod : methods[0];

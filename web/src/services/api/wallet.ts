@@ -332,6 +332,7 @@ export type WechatAdminSetting = {
     envVersion: "trial" | "release" | "develop";
     manual: boolean;
     trialEnabled?: boolean;
+    fallbackQrImage?: string;
     updatedAt: string;
 };
 
@@ -343,6 +344,7 @@ export type WechatAdminSettingInput = {
     envVersion: string;
     manual: boolean;
     trialEnabled?: boolean;
+    fallbackQrImage?: string;
 };
 
 export function getAdminWechatSetting() {

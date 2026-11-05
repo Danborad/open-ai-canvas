@@ -12,6 +12,8 @@ import { UserGroupAvatarRing } from "./user-group-badge";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
+import { WechatIcon } from "@/pages/auth/auth-scene";
+import { useAuthSettingsStore } from "@/stores/use-auth-settings-store";
 
 /** 顶部与侧栏复用同一账户卡片；顶部额外保留版本和主题偏好。 */
 export function WorkspaceAccountMenu() {
@@ -25,8 +27,31 @@ export function WorkspaceAccountMenu() {
         return <span className="size-9 animate-pulse rounded-[var(--r-md)] bg-foreground/[.06]" aria-hidden />;
     }
 
-    return user ? (
-        <><Popover
+    const wechatEnabled = useAuthSettingsStore((state) => state.settings?.wechatQrLoginEnabled);
+    if (!user) {
+        return (
+            <div className="flex items-center gap-2">
+                {wechatEnabled ? (
+                    <AuthLoginLink
+                        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500/15 dark:border-emerald-500/25 dark:text-emerald-400 border border-emerald-500/30 shadow-xs"
+                        aria-label="微信扫码登录"
+                        title="微信扫码登录"
+                    >
+                        <WechatIcon className="size-3.5" />
+                        <span>微信扫码登录</span>
+                    </AuthLoginLink>
+                ) : (
+                    <AuthLoginLink className="inline-flex items-center gap-2 px-2 text-xs text-foreground/55" aria-label={t("shell.login")} title={t("shell.login")}>
+                        <CircleUserRound className="size-5" />
+                        <span className="hidden sm:inline">{t("shell.guestShort")}</span>
+                    </AuthLoginLink>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <Popover
             trigger="click"
             placement="bottomRight"
             arrow={false}
@@ -53,6 +78,6 @@ export function WorkspaceAccountMenu() {
             <button type="button" className="app-workspace-topbar-icon-button app-workspace-account-trigger" aria-label={t("shell.accountMenu")} title={user.displayName || user.username}>
                 <UserGroupAvatarRing><UserAvatar user={user} className="size-6" /></UserGroupAvatarRing>
             </button>
-        </Popover></>
-    ) : <AuthLoginLink className="inline-flex items-center gap-2 px-2 text-xs text-foreground/55" aria-label={t("shell.login")} title={t("shell.login")}><CircleUserRound className="size-5" /><span className="hidden sm:inline">{t("shell.guestShort")}</span></AuthLoginLink>;
+        </Popover>
+    );
 }
