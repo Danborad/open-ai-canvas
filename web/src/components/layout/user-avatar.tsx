@@ -24,11 +24,12 @@ export function UserAvatar({ user, className, iconClassName }: { user: LocalUser
 
     useEffect(() => setFailed(false), [avatarUrl]);
 
-    // 结构保持 button > span > svg：占位图标自动复用顶栏图标按钮的 18px/1.8 描边与配色合同；默认不套圆角容器，hover 由按钮背景反馈。
+    const hasImage = Boolean(avatarUrl && !failed);
+
     return (
-        <span className={cn("grid shrink-0 place-items-center overflow-hidden", className)}>
-            {avatarUrl && !failed ? (
-                <img src={avatarUrl} alt="" referrerPolicy="no-referrer" className="size-full object-cover" onError={() => setFailed(true)} />
+        <span className={cn("grid shrink-0 place-items-center overflow-hidden rounded-full", hasImage && "!p-0 !bg-transparent", className)}>
+            {hasImage ? (
+                <img src={avatarUrl} alt="" referrerPolicy="no-referrer" className="size-full object-cover rounded-full" onError={() => setFailed(true)} />
             ) : (
                 <DefaultAvatarIcon className={cn("size-full", iconClassName)} aria-hidden />
             )}

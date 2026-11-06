@@ -101,10 +101,19 @@ b.user-group-badge.is-svip::after {
     box-shadow: 0 0 12px color-mix(in srgb, var(--user-group-svip-from) 50%, transparent);
 }
 
-/* :where 把特异性压到最低：头像自带背景时保留原背景，透明头像才补表面色，避免渐变透出图标底。 */
-.user-group-avatar-ring:where(.is-vip, .is-svip) > :where(*) {
+/* VIP/SVIP 光环：确保内部头像永远为正圆形且居中填充，有图片时不透出底色 */
+.user-group-avatar-ring:where(.is-vip, .is-svip) > * {
     border-radius: 999px;
+    overflow: hidden;
+}
+
+.user-group-avatar-ring:where(.is-vip, .is-svip) > *:not(:has(img)) {
     background: var(--user-surface, var(--background, #fff));
+}
+
+.user-group-avatar-ring:where(.is-vip, .is-svip) img {
+    border-radius: 999px;
+    object-fit: cover;
 }
 
 @media (prefers-reduced-motion: reduce) {
