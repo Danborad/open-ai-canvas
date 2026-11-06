@@ -187,39 +187,37 @@ export function WechatBindDialog({
                             重新获取
                         </Button>
                     </div>
-                ) : (!ticketData?.manual && Boolean(ticketData?.qrImage) && viewMode === "qr") ? (
-                    <div className="relative flex size-52 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white p-2 shadow-sm">
-                        <img src={ticketData?.qrImage} alt="微信扫码绑定" className="size-full object-contain" />
-                        {status === "expired" && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/75 p-4 text-center text-white backdrop-blur-sm">
-                                <span className="text-xs font-medium">二维码已过期</span>
-                                <Button size="small" type="primary" icon={<RefreshCw className="size-3" />} onClick={() => void loadTicket()}>
-                                    点击刷新
-                                </Button>
-                            </div>
-                        )}
-                        {status === "scanned" && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-emerald-950/80 p-4 text-center text-white backdrop-blur-sm">
-                                <Check className="size-8 text-emerald-400" />
-                                <span className="text-xs font-medium">已扫码，请在手机上确认绑定</span>
-                            </div>
-                        )}
-                    </div>
                 ) : (
                     <div className="flex flex-col items-center gap-3">
-                        <span className="text-xs text-foreground">
-                            请在微信打开小程序，输入绑定验证码：
-                        </span>
-                        <div className="flex items-center gap-2">
-                            <div className="rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/10 px-5 py-2.5 font-mono text-2xl font-bold tracking-widest text-emerald-600 dark:text-emerald-400">
+                        <div className="relative flex size-52 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white p-2 shadow-sm">
+                            <img src={ticketData?.qrImage || "/wechat-miniprogram-qr.jpg"} alt="微信扫码绑定" className="size-full object-contain" />
+                            {status === "expired" && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/75 p-4 text-center text-white backdrop-blur-sm">
+                                    <span className="text-xs font-medium">二维码已过期</span>
+                                    <Button size="small" type="primary" icon={<RefreshCw className="size-3" />} onClick={() => void loadTicket()}>
+                                        点击刷新
+                                    </Button>
+                                </div>
+                            )}
+                            {status === "scanned" && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-emerald-950/80 p-4 text-center text-white backdrop-blur-sm">
+                                    <Check className="size-8 text-emerald-400" />
+                                    <span className="text-xs font-medium">已扫码，请在手机上确认绑定</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1">
+                            <span className="text-xs text-muted-foreground">绑定验证码：</span>
+                            <div className="rounded-lg border border-dashed border-emerald-500/40 bg-emerald-500/10 px-3.5 py-1 font-mono text-lg font-bold tracking-widest text-emerald-600 dark:text-emerald-400">
                                 {ticketData?.code}
                             </div>
-                            <Button icon={copied ? <Check className="size-4" /> : <Copy className="size-4" />} onClick={() => void handleCopyCode()}>
+                            <Button size="small" icon={copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />} onClick={() => void handleCopyCode()}>
                                 {copied ? "已复制" : "复制"}
                             </Button>
                         </div>
-                        <span className="text-[11px] text-muted-foreground">
-                            在小程序中确认绑定后，网页将自动完成关联
+                        <span className="text-[11px] text-muted-foreground text-center max-w-[240px]">
+                            微信扫一扫进入小程序，输入上方 6 位验证码即可完成绑定
                         </span>
                     </div>
                 )}

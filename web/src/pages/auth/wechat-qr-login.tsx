@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { App, Button, QRCode, Spin } from "antd";
+import { App, Button, Spin } from "antd";
 import { Check, Copy, QrCode, RefreshCw } from "lucide-react";
 
 import { getAuthSession, getAuthSettings, getWechatQRTicket, getWechatTicketStatus, type WechatQRTicketData } from "@/services/api/auth";
@@ -183,20 +183,14 @@ export function WechatQRLogin({ next = "/", invite }: { next?: string; invite?: 
                     </Button>
                 </div>
             ) : (
-                /* 二维码与授权码模式：始终呈现完整的扫码交互 */
+                /* 二维码与授权码模式：始终呈现真实清晰的微信小程序葵花码 */
                 <div className="flex flex-col items-center gap-3">
                     <div className="relative flex size-52 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white p-2 shadow-sm">
-                        {ticketData?.qrImage ? (
-                            <img src={ticketData.qrImage} alt="微信扫码登录" className="size-full object-contain" />
-                        ) : (
-                            <div className="flex flex-col items-center justify-center p-1">
-                                <QRCode
-                                    value={ticketData?.code ? `https://mexai.cc/wechat-login?t=${ticketData.ticket}&c=${ticketData.code}` : "https://mexai.cc"}
-                                    size={184}
-                                    bordered={false}
-                                />
-                            </div>
-                        )}
+                        <img
+                            src={ticketData?.qrImage || "/wechat-miniprogram-qr.jpg"}
+                            alt="微信扫码登录"
+                            className="size-full object-contain"
+                        />
                         {status === "expired" && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/75 p-4 text-center text-white backdrop-blur-sm">
                                 <span className="text-xs font-medium">二维码已过期</span>
@@ -226,18 +220,9 @@ export function WechatQRLogin({ next = "/", invite }: { next?: string; invite?: 
                             {copied ? "已复制" : "复制"}
                         </Button>
                     </div>
-                    <span className="text-[11px] text-muted-foreground text-center max-w-[240px]">
-                        {ticketData?.qrImage ? "微信扫一扫自动登录；或在小程序内输入上方 6 位授权码" : "请打开小程序输入上方授权码确认登录"}
+                    <span className="text-xs text-muted-foreground text-center max-w-[260px] leading-relaxed pt-1">
+                        请使用微信扫一扫上方小程序码，并在小程序内输入授权码完成登录
                     </span>
-                </div>
-            )}
-
-            {status === "pending" && (
-                <div className="flex flex-col items-center gap-1.5 text-center">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <QrCode className="size-3.5" />
-                        <span>微信扫一扫，在手机上点击确认即可登录</span>
-                    </div>
                 </div>
             )}
         </div>
