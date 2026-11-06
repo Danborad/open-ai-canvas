@@ -14,9 +14,10 @@ type AuthLoginLinkProps = Omit<LinkProps, "to"> & { view?: AuthView };
 export function AuthLoginLink({ view = "login", onClick, ...props }: AuthLoginLinkProps) {
     const location = useLocation();
     const mode = useAuthLoginMode();
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
     const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
         onClick?.(event);
-        if (event.defaultPrevented || mode !== "modal") return;
+        if (event.defaultPrevented || mode !== "modal" || isMobile) return;
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
         useAuthDialogStore.getState().openDialog(view, null);

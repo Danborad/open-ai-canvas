@@ -1,15 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { App, Button, QRCode, Spin } from "antd";
 import { Check, Copy, QrCode, RefreshCw } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router";
 
 import { getAuthSession, getAuthSettings, getWechatQRTicket, getWechatTicketStatus, type WechatQRTicketData } from "@/services/api/auth";
 import { cn } from "@/lib/utils";
 
+function getBrowserSearchParam(key: string): string {
+    if (typeof window === "undefined") return "";
+    try {
+        return new URLSearchParams(window.location.search).get(key) || "";
+    } catch {
+        return "";
+    }
+}
+
 export function WechatQRLogin({ next = "/", invite }: { next?: string; invite?: string }) {
     const { message } = App.useApp();
-    const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
     const [ticketData, setTicketData] = useState<WechatQRTicketData | null>(null);
     const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState<"pending" | "scanned" | "confirmed" | "failed" | "expired">("pending");
@@ -18,24 +24,25 @@ export function WechatQRLogin({ next = "/", invite }: { next?: string; invite?: 
     const [viewMode, setViewMode] = useState<"qr" | "manual">("qr");
     const [envVersion, setEnvVersion] = useState<"release" | "trial">("release");
     const [allowTrial, setAllowTrial] = useState(() => {
-        return searchParams.get("trial") === "1" || searchParams.get("env") === "trial";
+        return getBrowserSearchParam("trial") === "1" || getBrowserSearchParam("env") === "trial";
     });
     const timerRef = useRef<number | null>(null);
 
-    const navRef = useRef({ next, navigate });
-    useEffect(() => {
-        navRef.current = { next, navigate };
-    }, [next, navigate]);
+    const safeRedirect = (target: string) => {
+        if (typeof window !== "undefined") {
+            window.location.assign(target);
+        }
+    };
 
     useEffect(() => {
         void getAuthSettings()
             .then((settings) => {
-                if (settings.wechatTrialEnabled || searchParams.get("trial") === "1" || searchParams.get("env") === "trial") {
+                if (settings.wechatTrialEnabled || getBrowserSearchParam("trial") === "1" || getBrowserSearchParam("env") === "trial") {
                     setAllowTrial(true);
                 }
             })
             .catch(() => {});
-    }, [searchParams]);
+    }, []);
 
     const loadTicket = useCallback(async (targetEnv?: "release" | "trial") => {
         setLoading(true);
@@ -85,7 +92,7 @@ export function WechatQRLogin({ next = "/", invite }: { next?: string; invite?: 
                     const { applyUserSession } = await import("@/lib/user-session");
                     await applyUserSession(await getAuthSession());
                     message.success("微信登录成功！");
-                    navRef.current.navigate(navRef.current.next, { replace: true });
+                    safeRedirect(next || "/");
                 } else if (res.status === "expired") {
                     cancelled = true;
                     setStatus("expired");

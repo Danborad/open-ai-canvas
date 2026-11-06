@@ -23,9 +23,6 @@ import { useUserStore } from "@/stores/use-user-store";
  * 直达这些地址（推广链接、Linux.do 回跳、书签）会改为在页面上打开登录弹窗。
  */
 export function AuthScene() {
-    const mode = useAuthLoginMode();
-    if (mode === null) return <FullScreenLoader />;
-    if (mode === "modal") return <AuthDialogRedirect />;
     return <AuthPageScene />;
 }
 
