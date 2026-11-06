@@ -39,5 +39,8 @@ export function imagePriceSelector(quality: string, size: string, profile?: Imag
             if (tiers.size === 1) selector.resolution = [...tiers][0];
         }
     }
+    if (imageResolution && imageResolution !== "auto" && !selector.resolution) {
+        selector.resolution = imageResolution.trim().toLowerCase();
+    }
     return selector;
 }

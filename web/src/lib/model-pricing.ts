@@ -162,7 +162,8 @@ function priceSelectorForRequest(capability: ModelCapability | undefined, config
     if (capability === "image") {
         requested.operation = imagePriceOperation(requirements);
         const options: Record<string, unknown> = { ...modelRequestOptions(config, "image"), ...requirements?.options, ...(requirements?.imageSize ? { size: requirements.imageSize } : {}) };
-        const profile = modelCapabilityConfigFor(config, config.model || config.imageModel)?.image;
+        const modelName = config.model || config.imageModel;
+        const profile = modelCapabilityConfigFor(config, modelName)?.image;
         if (profile?.parameters) {
             for (const field of profile.parameters) {
                 if (field.enabled !== false && field.pricing && options[field.name] !== undefined) requested[field.name] = String(options[field.name]);
@@ -173,7 +174,12 @@ function priceSelectorForRequest(capability: ModelCapability | undefined, config
             .trim()
             .toLowerCase();
         const imageSize = String(options.size ?? "").trim();
-        Object.assign(requested, imagePriceSelector(imageQuality, imageSize, modelCapabilityConfigFor(config, config.model || config.imageModel)?.image));
+        const imageResolution = String(options.imageResolution ?? options.resolution ?? "").trim().toLowerCase();
+        Object.assign(requested, imagePriceSelector(imageQuality, imageSize, profile, imageResolution));
+        if (imageResolution && imageResolution !== "auto") {
+            requested.imageResolution = imageResolution;
+            if (!requested.resolution) requested.resolution = imageResolution;
+        }
     }
     return requested;
 }
