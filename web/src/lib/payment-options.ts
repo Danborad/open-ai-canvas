@@ -15,9 +15,22 @@ export function paymentOptionsFromProviders(providers: PaymentProvider[]): Payme
     return providers.flatMap((provider): PaymentOption[] => {
         const settlementCurrency = provider.settlementCurrency || "CNY";
         const methods = provider.methods || [];
-        if (!methods.length) return [{ key: provider.id, providerId: provider.id, name: provider.name, icon: provider.icon, settlementCurrency }];
+        const isZhifuFM = provider.id === "zhifufm-pay" || provider.id === "official-payment-zhifufm" || provider.name.includes("支付FM");
+        const providerName = isZhifuFM ? "支付宝支付" : provider.name;
+        const providerIcon = isZhifuFM ? "brand:alipay" : provider.icon;
+        if (!methods.length) return [{ key: provider.id, providerId: provider.id, name: providerName, icon: providerIcon, settlementCurrency }];
         // 只有一种方式时按钮仍显示方式名称（如“支付宝”），渠道名放在 title 里，避免用户看不出走的是哪种方式。
-        return methods.map((method) => ({ key: `${provider.id}:${method.id}`, providerId: provider.id, method: method.id, name: method.name, icon: method.icon, settlementCurrency }));
+        return methods.map((method) => {
+            const isMethodZhifuFM = method.name.includes("支付FM");
+            return {
+                key: `${provider.id}:${method.id}`,
+                providerId: provider.id,
+                method: method.id,
+                name: isMethodZhifuFM ? "支付宝支付" : method.name,
+                icon: isMethodZhifuFM ? "brand:alipay" : method.icon,
+                settlementCurrency,
+            };
+        });
     });
 }
 

@@ -264,6 +264,10 @@ export function WalletTopupPanel({
                             {paymentOptions.map((option) => {
                                 // 渠道结算货币与商品不同且未配置汇率时无法换算，入口禁用并说明原因。
                                 const unavailable = Boolean(selectedProduct && !chargeFor(option));
+                                const isZhifuFM = option.providerId === "zhifufm-pay" || option.providerId === "official-payment-zhifufm" || option.name.includes("支付FM");
+                                const displayName = isZhifuFM ? "支付宝支付" : option.name;
+                                const displayIcon = isZhifuFM ? "brand:alipay" : option.icon;
+                                const displayProviderId = isZhifuFM ? "alipay-page-pay" : option.providerId;
                                 return (
                                     <button
                                         key={option.key}
@@ -272,11 +276,11 @@ export function WalletTopupPanel({
                                         aria-checked={selectedOptionKey === option.key}
                                         className={selectedOptionKey === option.key ? "is-selected" : ""}
                                         disabled={unavailable}
-                                        title={unavailable ? t("account.wallet.topup.currencyUnsupported", { settlement: option.settlementCurrency, currency: selectedProduct?.currency }) : option.name}
+                                        title={unavailable ? t("account.wallet.topup.currencyUnsupported", { settlement: option.settlementCurrency, currency: selectedProduct?.currency }) : displayName}
                                         onClick={() => onSelectOption(option.key)}
                                     >
-                                        <PaymentBrandIcon providerId={option.providerId} icon={option.icon} compact />
-                                        {option.name}
+                                        <PaymentBrandIcon providerId={displayProviderId} icon={displayIcon} compact />
+                                        {displayName}
                                     </button>
                                 );
                             })}

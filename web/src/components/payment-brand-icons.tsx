@@ -30,14 +30,14 @@ export function PaymentBrandIcon({ providerId, icon, compact = false }: { provid
             </span>
         );
     }
-    if (icon === "brand:alipay" || providerId === "alipay-page-pay" || providerId === "official-payment-alipay-page") {
+    if (icon === "brand:alipay" || providerId === "alipay-page-pay" || providerId === "official-payment-alipay-page" || providerId === "zhifufm-pay" || providerId === "official-payment-zhifufm") {
         return (
             <span className={`grid ${size} shrink-0 place-items-center rounded-lg bg-[#1677ff]/10 text-[#1677ff]`}>
                 <AlipayCircleFilled className={compact ? "text-sm" : "text-xl"} aria-hidden />
             </span>
         );
     }
-    if (providerId === "zhifufm-pay" || providerId === "official-payment-zhifufm") {
+    if (icon === "brand:zhifufm") {
         return (
             <span className={`grid ${size} shrink-0 place-items-center rounded-lg overflow-hidden border border-border/40 bg-card shadow-xs`}>
                 <img src={ZHIFUFM_LOGO_SRC} alt="支付FM" className="size-full object-contain select-none pointer-events-none rounded-lg" />
