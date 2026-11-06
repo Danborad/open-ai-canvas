@@ -207,36 +207,29 @@ export function WechatBindDialog({
                             )}
                         </div>
 
-                        <div className="flex items-center gap-2 pt-1">
-                            <span className="text-xs text-muted-foreground">绑定验证码：</span>
-                            <div className="rounded-lg border border-dashed border-emerald-500/40 bg-emerald-500/10 px-3.5 py-1 font-mono text-lg font-bold tracking-widest text-emerald-600 dark:text-emerald-400">
-                                {ticketData?.code}
+                        {ticketData?.manual && (
+                            <div className="flex items-center gap-2 pt-1">
+                                <span className="text-xs text-muted-foreground">绑定验证码：</span>
+                                <div className="rounded-lg border border-dashed border-emerald-500/40 bg-emerald-500/10 px-3.5 py-1 font-mono text-lg font-bold tracking-widest text-emerald-600 dark:text-emerald-400">
+                                    {ticketData?.code}
+                                </div>
+                                <Button size="small" icon={copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />} onClick={() => void handleCopyCode()}>
+                                    {copied ? "已复制" : "复制"}
+                                </Button>
                             </div>
-                            <Button size="small" icon={copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />} onClick={() => void handleCopyCode()}>
-                                {copied ? "已复制" : "复制"}
-                            </Button>
-                        </div>
-                        <span className="text-[11px] text-muted-foreground text-center max-w-[240px]">
-                            微信扫一扫进入小程序，输入上方 6 位验证码即可完成绑定
+                        )}
+                        <span className="text-xs text-muted-foreground text-center max-w-[260px] leading-relaxed pt-1">
+                            请使用本人微信扫一扫上方小程序码完成账号绑定
                         </span>
                     </div>
                 )}
 
-                {status === "pending" && (
+                {status === "pending" && ticketData?.manual && (
                     <div className="flex flex-col items-center gap-1.5 text-center">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <QrCode className="size-3.5" />
                             <span>请使用本人微信扫码完成账号绑定</span>
                         </div>
-                        {ticketData?.qrImage && !ticketData?.manual && (
-                            <button
-                                type="button"
-                                className="text-[11px] text-muted-foreground/80 underline decoration-dotted transition-colors hover:text-foreground"
-                                onClick={() => setViewMode(viewMode === "qr" ? "manual" : "qr")}
-                            >
-                                {viewMode === "qr" ? "无法扫码？切换为 6 位绑定码" : "返回小程序码扫码"}
-                            </button>
-                        )}
                     </div>
                 )}
             </div>

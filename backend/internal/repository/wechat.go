@@ -30,6 +30,18 @@ func (r *Repository) UpdateWechatQRTicket(ticket *model.WechatQRTicket) error {
 	return r.db.Save(ticket).Error
 }
 
+func (r *Repository) SyncConfirmedAnchorTicket(anchorID, sessionToken, userID string, confirmedAt time.Time) error {
+	return r.db.Model(&model.WechatQRTicket{}).
+		Where("id <> ? AND action = ? AND status = ? AND created_at >= ?", anchorID, model.WechatTicketActionLogin, model.WechatTicketStatusPending, confirmedAt.Add(-5*time.Minute)).
+		Updates(map[string]any{
+			"status":        model.WechatTicketStatusConfirmed,
+			"session_token": sessionToken,
+			"user_id":       userID,
+			"confirmed_at":  confirmedAt,
+			"updated_at":    confirmedAt,
+		}).Error
+}
+
 func (r *Repository) UnbindUserIdentity(userID string, provider string) error {
 	return r.db.Where("user_id = ? AND provider = ?", userID, provider).Delete(&model.UserIdentity{}).Error
 }

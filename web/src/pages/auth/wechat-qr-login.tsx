@@ -89,6 +89,8 @@ export function WechatQRLogin({ next = "/", invite }: { next?: string; invite?: 
                 if (res.status === "confirmed") {
                     cancelled = true;
                     setStatus("confirmed");
+                    const { invalidateAuthSessionCache, getAuthSession } = await import("@/services/api/auth");
+                    invalidateAuthSessionCache();
                     const { applyUserSession } = await import("@/lib/user-session");
                     await applyUserSession(await getAuthSession());
                     message.success("微信登录成功！");
@@ -207,21 +209,23 @@ export function WechatQRLogin({ next = "/", invite }: { next?: string; invite?: 
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2 pt-1">
-                        <span className="text-xs text-muted-foreground">登录授权码：</span>
-                        <div className="rounded-lg border border-dashed border-emerald-500/40 bg-emerald-500/10 px-3.5 py-1 font-mono text-lg font-bold tracking-widest text-emerald-600 dark:text-emerald-400">
-                            {ticketData?.code}
+                    {ticketData?.manual && (
+                        <div className="flex items-center gap-2 pt-1">
+                            <span className="text-xs text-muted-foreground">登录授权码：</span>
+                            <div className="rounded-lg border border-dashed border-emerald-500/40 bg-emerald-500/10 px-3.5 py-1 font-mono text-lg font-bold tracking-widest text-emerald-600 dark:text-emerald-400">
+                                {ticketData?.code}
+                            </div>
+                            <Button
+                                size="small"
+                                icon={copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                                onClick={() => void handleCopyCode()}
+                            >
+                                {copied ? "已复制" : "复制"}
+                            </Button>
                         </div>
-                        <Button
-                            size="small"
-                            icon={copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-                            onClick={() => void handleCopyCode()}
-                        >
-                            {copied ? "已复制" : "复制"}
-                        </Button>
-                    </div>
+                    )}
                     <span className="text-xs text-muted-foreground text-center max-w-[260px] leading-relaxed pt-1">
-                        请使用微信扫一扫上方小程序码，并在小程序内输入授权码完成登录
+                        请使用微信扫一扫上方小程序码登录
                     </span>
                 </div>
             )}

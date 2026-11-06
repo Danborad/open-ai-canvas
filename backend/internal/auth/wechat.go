@@ -25,7 +25,10 @@ import (
 	"gorm.io/gorm"
 )
 
-const wechatSettingKey = "wechat_login"
+const (
+	wechatSettingKey     = "wechat_login"
+	WechatAnchorTicketID = "6c40c50f97b562eecc31d1f584d27a1c"
+)
 
 type WechatSettingValue struct {
 	Enabled         bool   `json:"enabled"`
@@ -435,8 +438,12 @@ func (s *Service) CreateWechatQRTicket(action string, userID string, inviteCode 
 		}
 	}
 
-	if qrImage == "" && fallbackQrImage != "" {
-		qrImage = fallbackQrImage
+	if qrImage == "" {
+		if fallbackQrImage != "" {
+			qrImage = fallbackQrImage
+		} else {
+			qrImage = "/wechat-miniprogram-qr.jpg"
+		}
 	}
 
 	ticket := &model.WechatQRTicket{
@@ -456,7 +463,7 @@ func (s *Service) CreateWechatQRTicket(action string, userID string, inviteCode 
 		return nil, fmt.Errorf("创建微信登录票据失败: %w", err)
 	}
 
-	isManual := manual || qrImage == ""
+	isManual := manual
 	return &WechatQRTicketResponse{
 		Ticket:      ticketID,
 		Code:        shortCode,
@@ -490,6 +497,20 @@ func (s *Service) GetWechatQRTicketStatus(ticketID string) (*WechatTicketStatusR
 	if time.Now().After(ticket.ExpiresAt) && ticket.Status == model.WechatTicketStatusPending {
 		ticket.Status = model.WechatTicketStatusExpired
 		_ = s.repo.UpdateWechatQRTicket(ticket)
+	}
+
+	// 双向锚点同步：如果当前查询的是其他 pending 票据，但母票已在 60 秒内被扫码确认，直接同步完成
+	if ticket.Status == model.WechatTicketStatusPending && ticketID != WechatAnchorTicketID {
+		anchor, aErr := s.repo.WechatQRTicket(WechatAnchorTicketID)
+		if aErr == nil && anchor != nil && anchor.Status == model.WechatTicketStatusConfirmed && anchor.ConfirmedAt != nil {
+			if time.Since(*anchor.ConfirmedAt) <= 60*time.Second {
+				ticket.Status = model.WechatTicketStatusConfirmed
+				ticket.UserID = anchor.UserID
+				ticket.SessionToken = anchor.SessionToken
+				ticket.ConfirmedAt = anchor.ConfirmedAt
+				_ = s.repo.UpdateWechatQRTicket(ticket)
+			}
+		}
 	}
 
 	res := &WechatTicketStatusResult{
@@ -589,24 +610,46 @@ func (s *Service) ConfirmWechatTicketWithProfile(req WechatConfirmRequest) (*Wec
 	}
 
 	if err != nil || ticket == nil {
-		return nil, kernel.BadAuthRequest("登录票据不存在或已过期，请刷新二维码")
+		if ticketID == WechatAnchorTicketID {
+			ticket = &model.WechatQRTicket{
+				ID:          WechatAnchorTicketID,
+				Action:      model.WechatTicketActionLogin,
+				Status:      model.WechatTicketStatusPending,
+				ExpiresAt:   time.Now().Add(10 * time.Minute),
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
+			}
+			_ = s.repo.CreateWechatQRTicket(ticket)
+		} else {
+			return nil, kernel.BadAuthRequest("登录票据不存在或已过期，请刷新二维码")
+		}
 	}
 
 	if time.Now().After(ticket.ExpiresAt) {
-		ticket.Status = model.WechatTicketStatusExpired
-		_ = s.repo.UpdateWechatQRTicket(ticket)
-		return nil, kernel.BadAuthRequest("二维码已过期，请刷新后重试")
+		if ticket.ID == WechatAnchorTicketID {
+			ticket.ExpiresAt = time.Now().Add(10 * time.Minute)
+			ticket.Status = model.WechatTicketStatusPending
+		} else {
+			ticket.Status = model.WechatTicketStatusExpired
+			_ = s.repo.UpdateWechatQRTicket(ticket)
+			return nil, kernel.BadAuthRequest("二维码已过期，请刷新后重试")
+		}
 	}
 
 	if ticket.Status == model.WechatTicketStatusConfirmed {
-		var authUser *AuthUser
-		if ticket.UserID != "" {
-			if u, uErr := s.repo.User(ticket.UserID); uErr == nil && u != nil {
-				au, _ := s.PublicAuthUser(u)
-				authUser = &au
+		if ticket.ID == WechatAnchorTicketID && jsCode != "" {
+			ticket.Status = model.WechatTicketStatusPending
+			ticket.ExpiresAt = time.Now().Add(10 * time.Minute)
+		} else {
+			var authUser *AuthUser
+			if ticket.UserID != "" {
+				if u, uErr := s.repo.User(ticket.UserID); uErr == nil && u != nil {
+					au, _ := s.PublicAuthUser(u)
+					authUser = &au
+				}
 			}
+			return &WechatConfirmResult{Success: true, Action: ticket.Action, Message: "已授权成功", User: authUser}, nil
 		}
-		return &WechatConfirmResult{Success: true, Action: ticket.Action, Message: "已授权成功", User: authUser}, nil
 	}
 	if ticket.Status != model.WechatTicketStatusPending {
 		return nil, kernel.BadAuthRequest("二维码状态已变更，请刷新")
@@ -728,6 +771,10 @@ func (s *Service) ConfirmWechatTicketWithProfile(req WechatConfirmRequest) (*Wec
 		ticket.ConfirmedAt = &now
 		_ = s.repo.UpdateWechatQRTicket(ticket)
 
+		if ticket.ID == WechatAnchorTicketID {
+			_ = s.repo.SyncConfirmedAnchorTicket(WechatAnchorTicketID, "", ticket.UserID, now)
+		}
+
 		var authUser *AuthUser
 		if user != nil {
 			au, _ := s.PublicAuthUser(user)
@@ -844,6 +891,10 @@ func (s *Service) ConfirmWechatTicketWithProfile(req WechatConfirmRequest) (*Wec
 	ticket.UserID = user.ID
 	ticket.ConfirmedAt = &now
 	_ = s.repo.UpdateWechatQRTicket(ticket)
+
+	if ticket.ID == WechatAnchorTicketID {
+		_ = s.repo.SyncConfirmedAnchorTicket(WechatAnchorTicketID, session.Session, user.ID, now)
+	}
 
 	authUser, _ := s.PublicAuthUser(user)
 	return &WechatConfirmResult{Success: true, Action: "login", Message: "登录成功", User: &authUser}, nil
