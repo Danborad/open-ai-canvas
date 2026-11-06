@@ -51,16 +51,53 @@
     height: 13px;
 }
 
-/* 分组不再套边框盒子：一行标题 + 网格，把高度留给商品列表。 */
+/* 分组不再套边框盒子：一行标题 + 网格，把高度留给商品列表。定制极细半透明优雅滚动条。 */
 .wallet-topup-groups {
     display: grid;
     flex: 1;
     min-height: 0;
     align-content: start;
     gap: 20px;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     overscroll-behavior: contain;
-    padding-right: 2px;
+    padding-right: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+.wallet-topup-groups::-webkit-scrollbar {
+    width: 5px;
+}
+
+.wallet-topup-groups::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.wallet-topup-groups::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    transition: background-color 0.2s ease;
+}
+
+.wallet-topup-groups:hover::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.28);
+}
+
+.wallet-topup-groups::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.45);
+}
+
+html:not(.dark) .wallet-topup-groups {
+    scrollbar-color: rgba(0, 0, 0, 0.16) transparent;
+}
+
+html:not(.dark) .wallet-topup-groups::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.14);
+}
+
+html:not(.dark) .wallet-topup-groups:hover::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.26);
 }
 
 .wallet-topup-group-head {
@@ -319,18 +356,22 @@
     display: flex;
     min-width: 0;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 6px;
     margin: 0;
     padding: 0;
     list-style: none;
 }
 
 .wallet-topup-grants li {
-    border-radius: 8px;
-    background: var(--wallet-topup-card-surface);
-    padding: 1px 8px;
-    color: var(--user-ink-muted);
+    display: inline-flex;
+    align-items: center;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--wallet-topup-storage-ink, var(--user-accent)) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--wallet-topup-storage-ink, var(--user-accent)) 24%, transparent);
+    padding: 2px 8px;
+    color: var(--user-ink);
     font-size: 11px;
+    font-weight: 500;
     font-variant-numeric: tabular-nums;
     line-height: 18px;
     white-space: nowrap;

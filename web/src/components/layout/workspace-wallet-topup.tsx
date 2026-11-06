@@ -140,8 +140,8 @@ function StorageSummary({ usage, grants, onCleanAssets }: { usage?: AccountFileS
             {activeGrants.length ? (
                 <ul className="wallet-topup-grants" aria-label={t("account.wallet.topup.activeGrants")}>
                     {activeGrants.slice(0, 4).map((grant) => (
-                        <li key={grant.id} title={grant.productName || (grant.source === "admin" ? t("account.wallet.topup.grantAdmin") : t("account.wallet.topup.grantDefault"))}>
-                            +{formatStorageCapacity(grant.bytes)} · {grant.expiresAt ? t("account.wallet.topup.expiresAt", { date: formatStorageDate(grant.expiresAt) }) : t("account.wallet.topup.permanent")}
+                        <li key={grant.id} title={grant.note || grant.productName || (grant.source === "admin" ? t("account.wallet.topup.grantAdmin") : t("account.wallet.topup.grantDefault"))}>
+                            已生效容量扩容：+{formatStorageCapacity(grant.bytes)} · {grant.expiresAt ? t("account.wallet.topup.expiresAt", { date: formatStorageDate(grant.expiresAt) }) : t("account.wallet.topup.permanent")}
                         </li>
                     ))}
                     {activeGrants.length > 4 ? <li>{t("account.wallet.topup.moreGrants", { count: activeGrants.length - 4 })}</li> : null}
@@ -265,7 +265,7 @@ export function WalletTopupPanel({
                                 // 渠道结算货币与商品不同且未配置汇率时无法换算，入口禁用并说明原因。
                                 const unavailable = Boolean(selectedProduct && !chargeFor(option));
                                 const isZhifuFM = option.providerId === "zhifufm-pay" || option.providerId === "official-payment-zhifufm" || option.name.includes("支付FM");
-                                const displayName = isZhifuFM ? "支付宝支付" : option.name;
+                                const displayName = isZhifuFM ? "支付宝" : option.name;
                                 const displayIcon = isZhifuFM ? "brand:alipay" : option.icon;
                                 const displayProviderId = isZhifuFM ? "alipay-page-pay" : option.providerId;
                                 return (
