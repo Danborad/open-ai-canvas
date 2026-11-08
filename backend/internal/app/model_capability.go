@@ -262,6 +262,11 @@ func NormalizeModelCapabilityConfigForModel(capability string, protocol string, 
 			normalizeLegacyImageResolutionConfig(protocol, input.Image)
 			input.Image.ResolutionUsesQuality = strings.TrimSpace(protocol) == string(model.ChannelInterfaceGeminiImage)
 		}
+		if input.Image.Thinking == nil && (strings.TrimSpace(protocol) == string(model.ChannelInterfaceGeminiImage) || strings.TrimSpace(protocol) == "flow2api-image") {
+			if !strings.EqualFold(strings.TrimSpace(modelName), "Imagen 4") && !strings.EqualFold(strings.TrimSpace(modelName), "imagen") {
+				input.Image.Thinking = &ImageThinkingConfig{Supported: true, Values: []string{"low", "medium", "high"}, Default: "high"}
+			}
+		}
 		// 旧配置缺换算表时按声明的档位与比例补齐后再校验，保存即把旧线路归一化成当前形态。
 		if input.Image.Parameters == nil {
 			fillMissingImageSizePresets(input.Image, protocol)

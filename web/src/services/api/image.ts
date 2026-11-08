@@ -56,6 +56,7 @@ async function requestGeminiImagesOnce(config: AiConfig, prompt: string, referen
 }
 
 function extractThinkingLevel(config: AiConfig): string {
+    if (config.imageThinkingLevel?.trim()) return config.imageThinkingLevel.trim();
     try {
         const parsed = JSON.parse(config.imageParameters || "{}");
         if (typeof parsed.thinkingLevel === "string") return parsed.thinkingLevel;

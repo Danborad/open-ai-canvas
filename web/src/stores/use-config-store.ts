@@ -166,6 +166,7 @@ export type AiConfig = {
     audioModels: string[];
     quality: string;
     imageResolution: string;
+    imageThinkingLevel?: string;
     imageParameters?: string;
     size: string;
     transparentBackground: string;
@@ -222,6 +223,7 @@ export const defaultConfig: AiConfig = {
     audioModels: [],
     quality: "auto",
     imageResolution: "auto",
+    imageThinkingLevel: "high",
     size: "1:1",
     transparentBackground: "false",
     count: "1",

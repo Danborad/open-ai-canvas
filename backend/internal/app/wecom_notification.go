@@ -106,11 +106,11 @@ var wecomSendMu sync.Mutex
 
 func defaultWecomSetting() wecomSettingValue {
 	return wecomSettingValue{
-		Enabled:       false,
-		WebhookURL:    "",
-		ScheduleTime:  "22:00",
-		TargetDomain:  "art.960916.xyz",
-		MentionAll:    false,
+		Enabled:              false,
+		WebhookURL:           "",
+		ScheduleTime:         "22:00",
+		TargetDomain:         "art.960916.xyz",
+		MentionAll:           false,
 		NotifyNewUser:        true,
 		NotifyPayment:        true,
 		NotifyCircuitBreaker: true,
@@ -216,12 +216,12 @@ func (s *Service) AdminWecomNotificationSetting(actor *model.User) (*PublicWecom
 		updatedAt = setting.UpdatedAt
 	}
 	return &PublicWecomSetting{
-		Enabled:        value.Enabled,
-		WebhookURL:     maskWecomWebhookURL(value.WebhookURL),
-		HasWebhookURL:  strings.TrimSpace(value.WebhookURL) != "",
-		ScheduleTime:   value.ScheduleTime,
-		TargetDomain:   value.TargetDomain,
-		MentionAll:     value.MentionAll,
+		Enabled:              value.Enabled,
+		WebhookURL:           maskWecomWebhookURL(value.WebhookURL),
+		HasWebhookURL:        strings.TrimSpace(value.WebhookURL) != "",
+		ScheduleTime:         value.ScheduleTime,
+		TargetDomain:         value.TargetDomain,
+		MentionAll:           value.MentionAll,
 		NotifyNewUser:        value.NotifyNewUser,
 		NotifyPayment:        value.NotifyPayment,
 		NotifyCircuitBreaker: value.NotifyCircuitBreaker,

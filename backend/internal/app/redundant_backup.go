@@ -78,10 +78,10 @@ type RedundantBackupStatus struct {
 	TotalFiles         int64  `json:"totalFiles,omitempty"`
 	LastError          string `json:"lastError,omitempty"`
 	// 定时周期设置
-	AutoBackupEnabled  bool   `json:"autoBackupEnabled"`
-	IntervalHours      int    `json:"intervalHours"`
-	WebDAVEnabled      bool   `json:"webdavEnabled"`
-	WebDAVTarget       string `json:"webdavTarget,omitempty"`
+	AutoBackupEnabled bool   `json:"autoBackupEnabled"`
+	IntervalHours     int    `json:"intervalHours"`
+	WebDAVEnabled     bool   `json:"webdavEnabled"`
+	WebDAVTarget      string `json:"webdavTarget,omitempty"`
 }
 
 func (s *Service) defaultRedundantBackupSetting() RedundantBackupSetting {

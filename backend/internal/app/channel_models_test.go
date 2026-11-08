@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"yingce/backend/internal/model"
@@ -241,5 +242,61 @@ func TestImageTestDefaultsUseModelCapability(t *testing.T) {
 				t.Fatalf("imageTestDefaults() = %q, %q; want %q, %q", size, quality, test.wantSize, test.wantQuality)
 			}
 		})
+	}
+}
+
+func TestSaveAdminChannelModelPersistsImageThinkingConfig(t *testing.T) {
+	svc, db := newChannelModelTestService(t)
+	admin := &model.User{ID: "admin", Role: model.UserRoleAdmin}
+	channel := model.ModelChannel{ID: "channel-image-thinking", UserID: admin.ID, Scope: model.ChannelScopeSystem, Enabled: true, Name: "Test Image Thinking", BaseURL: "https://example.com/v1", APIKey: "key", APIFormat: "openai", ModelsJSON: `[]`}
+	if err := db.Create(&channel).Error; err != nil {
+		t.Fatal(err)
+	}
+	enabled := true
+	profile := DefaultModelCapabilityConfigForModel(string(model.ChannelInterfaceGeminiImage), "gemini-2.5-flash-image")
+	if profile.Image == nil {
+		t.Fatal("expected image profile")
+	}
+	profile.Image.Thinking = &ImageThinkingConfig{
+		Supported: true,
+		Values:    []string{"low", "high"},
+		Default:   "high",
+	}
+
+	saved, err := svc.SaveAdminChannelModel(admin, channel.ID, "", ChannelModelRequest{
+		ModelKey:         "gemini-2.5-flash-image",
+		DisplayName:      "Gemini Image",
+		Capability:       "image",
+		Protocol:         string(model.ChannelInterfaceGeminiImage),
+		CapabilityConfig: profile,
+		PriceTiers:       []ChannelModelPriceTierRequest{{BillingMode: "fixed_request", PriceConfigured: true, Enabled: &enabled}},
+		Enabled:          &enabled,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var stored model.ChannelModel
+	if err := db.First(&stored, "id = ?", saved.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stored.CapabilityConfigJSON, `"thinking"`) {
+		t.Fatalf("stored capability config does not contain thinking: %s", stored.CapabilityConfigJSON)
+	}
+	if !strings.Contains(stored.CapabilityConfigJSON, `"default":"high"`) {
+		t.Fatalf("stored capability config does not contain thinking default high: %s", stored.CapabilityConfigJSON)
+	}
+
+	// 验证 AdminChannelModels 读取时，返回的配置包含完整的 thinking 结构
+	items, err := svc.AdminChannelModels(admin, channel.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) == 0 {
+		t.Fatal("expected channel models")
+	}
+	rawConfig, _ := json.Marshal(items[0].CapabilityConfig)
+	if !strings.Contains(string(rawConfig), `"thinking"`) {
+		t.Fatalf("AdminChannelModels result does not contain thinking: %s", string(rawConfig))
 	}
 }

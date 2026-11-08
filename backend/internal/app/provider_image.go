@@ -213,12 +213,16 @@ func geminiImageConfigFor(config providerConfig) *geminiImageConfig {
 
 func geminiThinkingConfigFor(config providerConfig) *geminiThinkingConfig {
 	level := "high"
-	if config.ImageParameters != nil {
+	if strings.TrimSpace(config.ImageThinkingLevel) != "" {
+		level = strings.TrimSpace(config.ImageThinkingLevel)
+	} else if config.ImageParameters != nil {
 		if raw, ok := config.ImageParameters["thinkingLevel"]; ok && strings.TrimSpace(fmt.Sprint(raw)) != "" {
 			level = fmt.Sprint(raw)
 		} else if raw, ok := config.ImageParameters["thinking_level"]; ok && strings.TrimSpace(fmt.Sprint(raw)) != "" {
 			level = fmt.Sprint(raw)
 		}
+	} else if config.CapabilityConfig != nil && config.CapabilityConfig.Image != nil && config.CapabilityConfig.Image.Thinking != nil && config.CapabilityConfig.Image.Thinking.Default != "" {
+		level = config.CapabilityConfig.Image.Thinking.Default
 	}
 	switch strings.ToLower(strings.TrimSpace(level)) {
 	case "low":

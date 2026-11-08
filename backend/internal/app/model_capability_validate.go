@@ -155,6 +155,19 @@ func validateImageCapabilityConfig(value *ImageCapabilityConfig) error {
 	if !value.TransparentBackground.Supported {
 		value.TransparentBackground.Default = false
 	}
+	if value.Thinking != nil {
+		if value.Thinking.Supported {
+			if len(value.Thinking.Values) == 0 {
+				value.Thinking.Values = []string{"low", "medium", "high"}
+			}
+			if strings.TrimSpace(value.Thinking.Default) == "" || !containsCapabilityString(value.Thinking.Values, value.Thinking.Default) {
+				value.Thinking.Default = value.Thinking.Values[0]
+			}
+		} else {
+			value.Thinking.Values = []string{}
+			value.Thinking.Default = ""
+		}
+	}
 	return nil
 }
 

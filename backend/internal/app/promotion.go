@@ -160,9 +160,9 @@ type PromotionInvitationPageResult struct {
 
 type AdminPromotionInvitationPageResult struct {
 	Items []repository.AdminPromotionInvitationRow `json:"items"`
-	Total int64                                   `json:"total"`
-	Page  int                                     `json:"page"`
-	Limit int                                     `json:"limit"`
+	Total int64                                    `json:"total"`
+	Page  int                                      `json:"page"`
+	Limit int                                      `json:"limit"`
 }
 
 func normalizePromotionPage(page int, limit int) (int, int) {

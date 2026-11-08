@@ -210,6 +210,13 @@ export function normalizeModelCapabilityConfig(config: ModelCapabilityConfig): M
                       ...config.image.responseFormat,
                       default: normalizeImageResponseFormat(config.image.responseFormat?.default),
                   },
+                  thinking: config.image.thinking
+                      ? {
+                            supported: Boolean(config.image.thinking.supported),
+                            values: normalizeCapabilityStrings(config.image.thinking.values || []),
+                            default: normalizeCapabilityString(config.image.thinking.default || "high"),
+                        }
+                      : undefined,
               }
             : undefined,
         video: config.video
@@ -231,6 +238,12 @@ export function normalizeModelCapabilityConfig(config: ModelCapabilityConfig): M
 export function normalizeLegacyImageResolutionConfig(protocol: ModelProtocol | undefined, image: ImageCapabilityConfig): ImageCapabilityConfig {
     if (image.parameters) return projectImageParameters(image, image.parameters);
     image = { ...image, resolutionUsesQuality: protocol === "gemini-image" };
+    if (!image.thinking && (protocol === "gemini-image" || protocol === "flow2api-image")) {
+        image = {
+            ...image,
+            thinking: { supported: true, values: ["low", "medium", "high"], default: "high" },
+        };
+    }
     const isSeedream = protocol === "km-kemei-seedream" || protocol === "km-kemei-seedream-image" || protocol === "km-seedream-image" || protocol === "seedream-image" || protocol === "doubao-seedream-image" || Boolean(protocol?.includes("seedream"));
     if (isSeedream) {
         const presets = image.size.presets?.length ? image.size.presets : kemeiSeedreamPresets();
@@ -944,10 +957,19 @@ export function normalizeImageValue(profile: ImageCapabilityConfig, value: { siz
     const legacyResolutionProtocols = protocol === "grok-image" || protocol === "agnes-image";
     const legacyResolution = legacyResolutionProtocols && !profile.quality.supported ? profile.resolution.values.find((item) => item.trim().toLowerCase() === requestedQuality) : undefined;
     const imageResolution = profile.resolution.supported ? configuredResolution || legacyResolution || profile.resolution.default || "auto" : "auto";
+    const requestedThinking = String((value as { imageThinkingLevel?: string }).imageThinkingLevel || "")
+        .trim()
+        .toLowerCase();
+    const imageThinkingLevel = profile.thinking?.supported
+        ? requestedThinking && profile.thinking.values.map((v) => v.toLowerCase()).includes(requestedThinking)
+            ? requestedThinking
+            : profile.thinking.default || profile.thinking.values[0] || "high"
+        : undefined;
     return {
         size,
         quality: profile.parameters && !profile.quality.supported ? "auto" : quality,
         ...(profile.resolution.supported ? { imageResolution } : {}),
+        ...(profile.thinking?.supported && imageThinkingLevel ? { imageThinkingLevel } : {}),
         count,
         transparentBackground,
         ...(profile.parameters ? { imageParameters: JSON.stringify(normalizeImageParameters(profile.parameters, value.imageParameters)) } : {}),

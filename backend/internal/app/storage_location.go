@@ -356,4 +356,3 @@ func (s *Service) SwitchoverHistoricalResources(actor *model.User) (*StorageSwit
 		TargetBucket:      targetBucket,
 	}, nil
 }
-
