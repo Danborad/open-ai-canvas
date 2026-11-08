@@ -26,9 +26,7 @@ export function defaultMode(type: CanvasNodeData["type"]): CanvasNodeGenerationM
 export function buildNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mode: CanvasNodeGenerationMode, requirements: ModelRequirements, referenceImage?: ImageDimensions): AiConfig {
     node = { ...node, metadata: canonicalGenerationMetadata(node, mode) };
     const hasMedia = Boolean(node.metadata?.content || node.metadata?.storageKey || (node.metadata?.naturalWidth && node.metadata?.naturalHeight));
-    const inferredMediaRatio = !node.metadata?.size && hasMedia && (mode === "image" || mode === "video")
-        ? inferImageRatio(undefined, node.metadata?.naturalWidth || node.width, node.metadata?.naturalHeight || node.height)
-        : undefined;
+    const inferredMediaRatio = !node.metadata?.size && hasMedia && (mode === "image" || mode === "video") ? inferImageRatio(undefined, node.metadata?.naturalWidth || node.width, node.metadata?.naturalHeight || node.height) : undefined;
     const defaultModel = mode === "image" ? globalConfig.imageModel : mode === "video" ? globalConfig.videoModel : mode === "audio" ? globalConfig.audioModel : globalConfig.textModel;
     const fallbackModel = mode === "image" ? defaultConfig.imageModel : mode === "video" ? defaultConfig.videoModel : mode === "audio" ? defaultConfig.audioModel : defaultConfig.textModel;
     const preferredModel = resolveCanvasGenerationModel(globalConfig, node.metadata?.model, mode) || resolveCanvasGenerationModel(globalConfig, defaultModel, mode) || fallbackModel;
@@ -46,6 +44,7 @@ export function buildNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mo
                   imageResolution: node.metadata?.imageResolution,
                   imageParameters: node.metadata?.imageParameters,
                   quality: node.metadata?.quality,
+                  imageThinkingLevel: node.metadata?.imageThinkingLevel,
                   transparentBackground: node.metadata?.transparentBackground,
                   videoWatermark: node.metadata?.watermark,
                   count: String(node.metadata?.count || globalConfig.canvasImageCount || globalConfig.count || defaultConfig.count),
@@ -62,6 +61,7 @@ export function buildNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mo
             imageResolution: globalConfig.imageResolution || defaultConfig.imageResolution,
             imageParameters: globalConfig.imageParameters ?? "{}",
             quality: globalConfig.quality || defaultConfig.quality,
+            imageThinkingLevel: globalConfig.imageThinkingLevel || defaultConfig.imageThinkingLevel,
             transparentBackground: globalConfig.transparentBackground || defaultConfig.transparentBackground,
             count: String(globalConfig.canvasImageCount || globalConfig.count || defaultConfig.count),
             videoSeconds: globalConfig.videoSeconds || defaultConfig.videoSeconds,
@@ -76,6 +76,7 @@ export function buildNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mo
         quality: defaults.quality ?? globalConfig.quality ?? defaultConfig.quality,
         imageResolution: defaults.imageResolution ?? globalConfig.imageResolution ?? defaultConfig.imageResolution,
         imageParameters: defaults.imageParameters ?? globalConfig.imageParameters ?? "{}",
+        imageThinkingLevel: defaults.imageThinkingLevel ?? node.metadata?.imageThinkingLevel ?? globalConfig.imageThinkingLevel ?? defaultConfig.imageThinkingLevel,
         size: defaults.size ?? globalConfig.size ?? defaultConfig.size,
         transparentBackground: defaults.transparentBackground ?? "false",
         videoSeconds: defaults.videoSeconds ?? normalizeVideoDuration(globalConfig.videoSeconds ?? defaultConfig.videoSeconds),

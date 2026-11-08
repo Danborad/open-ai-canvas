@@ -915,7 +915,11 @@ export function modelCapabilityConfigFor(config: { channels: Array<{ id: string;
 
 // 工作流字段是供应商参数的唯一事实来源；不能用普通视频模型的固定清晰度列表覆盖它。
 
-export function normalizeImageValue(profile: ImageCapabilityConfig, value: { size?: string; quality?: string; imageResolution?: string; imageParameters?: string; count?: string; transparentBackground?: string }, protocol?: ModelProtocol) {
+export function normalizeImageValue(
+    profile: ImageCapabilityConfig,
+    value: { size?: string; quality?: string; imageResolution?: string; imageThinkingLevel?: string; imageParameters?: string; count?: string; transparentBackground?: string },
+    protocol?: ModelProtocol,
+) {
     if (profile.parameters) {
         const values = imageParameterRequest(profile, value) || {};
         return {

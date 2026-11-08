@@ -476,6 +476,7 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
         quality: node?.metadata?.quality ?? workflowParameterValue("quality") ?? config.quality ?? defaultConfig.quality,
         imageResolution: node?.metadata?.imageResolution ?? workflowParameterValue("imageResolution") ?? config.imageResolution ?? defaultConfig.imageResolution,
         imageParameters: node?.metadata?.imageParameters ?? workflowParameterValue("imageParameters") ?? config.imageParameters ?? "{}",
+        imageThinkingLevel: node?.metadata?.imageThinkingLevel ?? config.imageThinkingLevel ?? defaultConfig.imageThinkingLevel,
         size: workflowProvider === "model" ? (node?.metadata?.size ?? config.size ?? defaultConfig.size) : workflowOutputSize || node?.metadata?.size || config.size || defaultConfig.size,
         transparentBackground: node?.metadata?.transparentBackground ?? config.transparentBackground ?? defaultConfig.transparentBackground,
         videoSeconds:
@@ -515,6 +516,7 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
                             imageResolution: node?.metadata?.imageResolution,
                             imageParameters: node?.metadata?.imageParameters,
                             quality: node?.metadata?.quality,
+                            imageThinkingLevel: node?.metadata?.imageThinkingLevel,
                             transparentBackground: node?.metadata?.transparentBackground,
                             count: requestedConfig.count,
                         }
@@ -530,6 +532,7 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
                       imageResolution: requestedConfig.imageResolution,
                       imageParameters: requestedConfig.imageParameters,
                       quality: requestedConfig.quality,
+                      imageThinkingLevel: requestedConfig.imageThinkingLevel,
                       transparentBackground: requestedConfig.transparentBackground,
                       count: requestedConfig.count,
                       videoSeconds: requestedConfig.videoSeconds,
@@ -575,6 +578,7 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
         quality: generationDefaults.quality ?? requestedConfig.quality,
         imageResolution: generationDefaults.imageResolution ?? requestedConfig.imageResolution,
         imageParameters: generationDefaults.imageParameters ?? requestedConfig.imageParameters,
+        imageThinkingLevel: generationDefaults.imageThinkingLevel ?? requestedConfig.imageThinkingLevel,
         size: generationDefaults.size ?? requestedConfig.size,
         transparentBackground: generationDefaults.transparentBackground ?? (requestedConfig.transparentBackground === "true" ? "true" : "false"),
         videoSeconds: resolvedVideoSeconds,

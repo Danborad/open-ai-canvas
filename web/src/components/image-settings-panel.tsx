@@ -76,7 +76,13 @@ export function ImageSettingsPanel({
     const activeSize = normalized.size;
     const activeQualityOptions = profile.quality.values.map((value) => ({ value, label: imageQualityLabel(value) }));
     const priceTiers = imageModelPriceTiers(config);
-    const thinkingLevel = normalized.imageThinkingLevel || config.imageThinkingLevel || profile.thinking?.default || "high";
+    const effectiveThinking = String(normalized.imageThinkingLevel || config.imageThinkingLevel || profile.thinking?.default || "high")
+        .trim()
+        .toLowerCase();
+    const [localThinking, setLocalThinking] = useState(effectiveThinking);
+    useEffect(() => {
+        setLocalThinking(effectiveThinking);
+    }, [effectiveThinking]);
     const thinkingOptions = (profile.thinking?.values?.length ? profile.thinking.values : ["low", "medium", "high"]).map((val) => ({
         value: val,
         label: val === "high" ? "高 (推荐)" : val === "medium" ? "中" : val === "low" ? "低" : val,
@@ -135,7 +141,15 @@ export function ImageSettingsPanel({
                         <SettingTitle color={theme.node.muted}>图片等级 (思考深度)</SettingTitle>
                         <div className={`grid gap-2 ${thinkingOptions.length <= 2 ? "grid-cols-2" : "grid-cols-3"}`}>
                             {thinkingOptions.map((item) => (
-                                <OptionPill key={item.value} selected={thinkingLevel === item.value} theme={theme} onClick={() => onConfigChange("imageThinkingLevel", item.value)}>
+                                <OptionPill
+                                    key={item.value}
+                                    selected={localThinking === item.value.toLowerCase()}
+                                    theme={theme}
+                                    onClick={() => {
+                                        setLocalThinking(item.value.toLowerCase());
+                                        onConfigChange("imageThinkingLevel", item.value);
+                                    }}
+                                >
                                     {item.label}
                                 </OptionPill>
                             ))}

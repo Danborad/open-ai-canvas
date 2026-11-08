@@ -362,6 +362,7 @@ export type CanvasNodeMetadata = {
     quality?: string;
     imageResolution?: string;
     imageParameters?: string;
+    imageThinkingLevel?: string;
     transparentBackground?: string;
     count?: number;
     textCount?: number;
