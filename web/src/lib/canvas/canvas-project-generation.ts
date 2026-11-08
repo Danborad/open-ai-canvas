@@ -7,7 +7,17 @@ import { resourceIdFromStorageKey } from "@/services/api/resources";
 import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
 import { normalizeVideoDuration, normalizeVideoResolution } from "@/lib/video-generation-options";
 import { isSeedanceVideoConfig } from "@/lib/seedance-video";
-import { matchOmniVideoDuration, modelCapabilityConfigFor, workflowFieldCurrentValue, workflowFieldHasStoredValue, workflowFieldKey, workflowFieldRandomKey, workflowFieldSubmissionValue, workflowOutputSizeValue, workflowVideoFieldsFromJson } from "@/lib/model-capabilities";
+import {
+    matchOmniVideoDuration,
+    modelCapabilityConfigFor,
+    workflowFieldCurrentValue,
+    workflowFieldHasStoredValue,
+    workflowFieldKey,
+    workflowFieldRandomKey,
+    workflowFieldSubmissionValue,
+    workflowOutputSizeValue,
+    workflowVideoFieldsFromJson,
+} from "@/lib/model-capabilities";
 import { modelRequestOptions, resolveCompatibleModel, resolveModelGenerationDefaults, resolveVideoOperation, type ModelGenerationDefaults, type ModelRequirements } from "@/lib/model-selection";
 import { imageMetadata } from "@/lib/canvas/canvas-generation-task-sync";
 import { producedModelCandidateForGeneration } from "@/lib/canvas/produced-model";
@@ -140,7 +150,8 @@ export type GenerationRetryContext = {
 };
 
 function fallbackHexHash(input: string): string {
-    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    let h1 = 0xdeadbeef,
+        h2 = 0x41c6ce57;
     for (let i = 0; i < input.length; i++) {
         const ch = input.charCodeAt(i);
         h1 = Math.imul(h1 ^ ch, 2654435761);

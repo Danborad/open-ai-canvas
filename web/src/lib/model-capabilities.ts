@@ -193,10 +193,7 @@ export function normalizeModelCapabilityConfig(config: ModelCapabilityConfig): M
                   watermark: config.image.watermark,
                   size: {
                       ...config.image.size,
-                      values: normalizeCapabilityStrings([
-                          ...(config.image.size.values || []),
-                          ...(config.image.size.presets || []).map((p) => config.image!.size.parameter === "aspect_ratio" ? p.ratio : p.size),
-                      ]),
+                      values: normalizeCapabilityStrings([...(config.image.size.values || []), ...(config.image.size.presets || []).map((p) => (config.image!.size.parameter === "aspect_ratio" ? p.ratio : p.size))]),
                       default: normalizeCapabilityString(config.image.size.default),
                   },
                   quality: {
@@ -458,9 +455,7 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
             default: "16:9",
             allowCustom: false,
         };
-        image.quality = isImagen4
-            ? { supported: false, values: [], default: "" }
-            : { supported: true, values: ["1k", "2k", "4k"], default: "1k" };
+        image.quality = isImagen4 ? { supported: false, values: [], default: "" } : { supported: true, values: ["1k", "2k", "4k"], default: "1k" };
         image.transparentBackground = { supported: false, default: false };
         image.responseFormat = { supported: false };
         image.outputFormat = { supported: false };
@@ -487,11 +482,7 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
             image.references.maskSupported = false;
             image.size = {
                 parameter: "size",
-                values: [
-                    "2752x1536", "1536x2752", "2048x2048",
-                    "2368x1760", "1760x2368", "2496x1664", "1664x2496",
-                    "2272x1824", "1824x2272", "3072x1376", "1344x3136",
-                ],
+                values: ["2752x1536", "1536x2752", "2048x2048", "2368x1760", "1760x2368", "2496x1664", "1664x2496", "2272x1824", "1824x2272", "3072x1376", "1344x3136"],
                 default: "2752x1536",
                 allowCustom: false,
             };
@@ -505,10 +496,7 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
             image.references.maskSupported = false;
             image.size = {
                 parameter: "size",
-                values: [
-                    "2048x2048", "2720x1536", "1536x2720", "2496x1664", "1664x2496",
-                    "4096x4096", "3840x2176", "2176x3840", "3456x2304", "2304x3456",
-                ],
+                values: ["2048x2048", "2720x1536", "1536x2720", "2496x1664", "1664x2496", "4096x4096", "3840x2176", "2176x3840", "3456x2304", "2304x3456"],
                 default: "2048x2048",
                 allowCustom: true,
             };
@@ -974,11 +962,12 @@ export function imageSizeRequest(profile: ImageCapabilityConfig, value?: string)
 }
 
 export function normalizeVideoValue(profile: VideoCapabilityConfig, value: { seconds?: string; ratio?: string; resolution?: string }) {
-    const duration = profile.durationSupported === false
-        ? ""
-        : profile.duration.selection === "enum"
-            ? String((profile.duration.values || []).includes(Number(value.seconds)) ? Number(value.seconds) : profile.duration.default)
-            : String(normalizeRangeDuration(profile, Number(value.seconds)));
+    const duration =
+        profile.durationSupported === false
+            ? ""
+            : profile.duration.selection === "enum"
+              ? String((profile.duration.values || []).includes(Number(value.seconds)) ? Number(value.seconds) : profile.duration.default)
+              : String(normalizeRangeDuration(profile, Number(value.seconds)));
     const ratio = resolveVideoRatioValue(profile, value.ratio);
     // 前端状态历史上保存过 `720`，而能力配置和供应商通常使用 `720p`；统一按能力中的原始值返回，避免被误判为不支持。
     const resolution = resolveVideoResolutionValue(profile, value.resolution) || (profile.defaultResolution === "" ? "" : profile.resolutions[0] || "");
@@ -1058,4 +1047,3 @@ export function matchOmniVideoDuration(durationSeconds: number, isOmni12 = false
     }
     return best;
 }
-

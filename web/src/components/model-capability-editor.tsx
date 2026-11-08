@@ -91,12 +91,7 @@ export function ModelCapabilityEditor({ value, onChange, protocol, capability = 
             </Field>
             {processing.fpsPolicy === "user_select" ? (
                 <Field label="可选帧率（15–120，逗号分隔）">
-                    <IntegerListInput
-                        disabled={disabled}
-                        value={processing.fpsOptions}
-                        placeholder="例如：30,60"
-                        onChange={(fpsOptions) => update({ processing: { ...processing, fpsOptions } })}
-                    />
+                    <IntegerListInput disabled={disabled} value={processing.fpsOptions} placeholder="例如：30,60" onChange={(fpsOptions) => update({ processing: { ...processing, fpsOptions } })} />
                 </Field>
             ) : null}
             <NumberField
@@ -969,17 +964,7 @@ function parseIntegerList(value: string) {
     ).sort((left, right) => left - right);
 }
 
-function IntegerListInput({
-    value,
-    onChange,
-    disabled,
-    placeholder,
-}: {
-    value?: number[];
-    onChange: (values: number[]) => void;
-    disabled?: boolean;
-    placeholder?: string;
-}) {
+function IntegerListInput({ value, onChange, disabled, placeholder }: { value?: number[]; onChange: (values: number[]) => void; disabled?: boolean; placeholder?: string }) {
     const formatted = (value || []).join(",");
     const [text, setText] = useState(formatted);
     const lastValueRef = useRef(formatted);
