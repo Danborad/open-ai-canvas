@@ -18,7 +18,7 @@ import { PriceTierFields } from "./channel-model-price-tier-fields";
 import { TokenPriceRulesSection } from "./channel-model-token-rules";
 import { ChannelModelTagsEditor } from "./channel-model-tags-editor";
 import { PresetModelSelector } from "@/components/preset-model-selector";
-import { formatTokenLimit, type PresetModel } from "@/lib/preset-models";
+import { formatTokenLimit, resolvePresetMediaLimits, type PresetModel } from "@/lib/preset-models";
 import { thinkingPresetConfig, type TextThinkingConfig } from "@/lib/text-thinking";
 import type { ModelTag } from "@/lib/model-tags";
 import {
@@ -109,8 +109,9 @@ export function ChannelModelEditor({
             references: { promptMaxChars: 32000, maxImages: 0, maxImageBytes: 0, maxVideos: 0, maxVideoBytes: 0 },
         };
 
-        const hasVision = Boolean(preset.modalities?.input?.includes("image"));
-        const hasVideo = Boolean(preset.modalities?.input?.includes("video"));
+        const mediaLimits = resolvePresetMediaLimits(preset, providerModelKey || modelKey);
+        const hasVision = mediaLimits.hasVision;
+        const hasVideo = mediaLimits.hasVideo;
 
         let thinkingConfig: TextThinkingConfig | undefined = undefined;
         if (preset.reasoning) {
@@ -145,10 +146,10 @@ export function ChannelModelEditor({
             references: {
                 ...currentText.references,
                 promptMaxChars: preset.contextLimit ? Math.min(preset.contextLimit * 4, 500_000) : (currentText.references?.promptMaxChars || 32000),
-                maxImages: hasVision ? Math.max(currentText.references?.maxImages || 0, 10) : (currentText.references?.maxImages || 0),
-                maxImageBytes: hasVision ? (currentText.references?.maxImageBytes && currentText.references.maxImageBytes > 0 ? currentText.references.maxImageBytes : 20 * 1024 * 1024) : (currentText.references?.maxImageBytes || 0),
-                maxVideos: hasVideo ? Math.max(currentText.references?.maxVideos || 0, 3) : (currentText.references?.maxVideos || 0),
-                maxVideoBytes: hasVideo ? (currentText.references?.maxVideoBytes && currentText.references.maxVideoBytes > 0 ? currentText.references.maxVideoBytes : 100 * 1024 * 1024) : (currentText.references?.maxVideoBytes || 0),
+                maxImages: mediaLimits.maxImages,
+                maxImageBytes: mediaLimits.maxImageBytes,
+                maxVideos: mediaLimits.maxVideos,
+                maxVideoBytes: mediaLimits.maxVideoBytes,
             },
         };
 

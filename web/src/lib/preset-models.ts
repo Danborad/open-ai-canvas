@@ -290,3 +290,130 @@ export function usePresetModels() {
         version,
     };
 }
+
+export interface PresetMediaLimits {
+    hasVision: boolean;
+    maxImages: number;
+    maxImageBytes: number;
+    hasVideo: boolean;
+    maxVideos: number;
+    maxVideoBytes: number;
+}
+
+/**
+ * 权威多模态引用规格解析器：
+ * 根据各大模型厂商技术官方文档（Gemini、Claude、OpenAI、Qwen等），
+ * 精准提供对应模型的多模态图片/视频输入限制与单文件大小上限。
+ */
+export function resolvePresetMediaLimits(preset?: PresetModel, modelIdentifier = ""): PresetMediaLimits {
+    const rawId = (preset?.id || "").toLowerCase();
+    const rawName = (preset?.name || "").toLowerCase();
+    const rawModel = modelIdentifier.toLowerCase();
+    const key = `${rawId} ${rawName} ${rawModel}`;
+
+    const declaredVision = Boolean(preset?.modalities?.input?.includes("image"));
+    const declaredVideo = Boolean(preset?.modalities?.input?.includes("video"));
+
+    const isVisionInferred =
+        declaredVision ||
+        key.includes("vision") ||
+        key.includes("-vl") ||
+        key.includes("vl-") ||
+        key.includes("4o") ||
+        key.includes("gemini") ||
+        key.includes("claude-3") ||
+        key.includes("omni");
+
+    const isVideoInferred =
+        declaredVideo ||
+        key.includes("video") ||
+        key.includes("gemini-1.5") ||
+        key.includes("gemini-2") ||
+        key.includes("gemini-3") ||
+        key.includes("qwen-vl") ||
+        key.includes("qwen2.5-vl") ||
+        key.includes("qwen3");
+
+    if (!isVisionInferred) {
+        return {
+            hasVision: false,
+            maxImages: 0,
+            maxImageBytes: 0,
+            hasVideo: isVideoInferred,
+            maxVideos: isVideoInferred ? 3 : 0,
+            maxVideoBytes: isVideoInferred ? 100 * 1024 * 1024 : 0,
+        };
+    }
+
+    // 1. Google Gemini 族系：官方原生超长多模态支持海量图，平台设为 30 张，单图 30MB
+    if (key.includes("gemini") || preset?.provider === "google") {
+        return {
+            hasVision: true,
+            maxImages: 30,
+            maxImageBytes: 30 * 1024 * 1024,
+            hasVideo: true,
+            maxVideos: 3,
+            maxVideoBytes: 100 * 1024 * 1024,
+        };
+    }
+
+    // 2. Anthropic Claude 族系：官方文档硬性上限单次请求 20 张图片，单图 20MB
+    if (key.includes("claude") || preset?.provider === "anthropic") {
+        return {
+            hasVision: true,
+            maxImages: 20,
+            maxImageBytes: 20 * 1024 * 1024,
+            hasVideo: isVideoInferred,
+            maxVideos: isVideoInferred ? 2 : 0,
+            maxVideoBytes: isVideoInferred ? 50 * 1024 * 1024 : 0,
+        };
+    }
+
+    // 3. OpenAI GPT-4o / o 系列：官方推荐单次 20~30 张，单图 20MB
+    if (key.includes("gpt-4o") || key.includes("gpt-4.5") || key.includes("o1") || key.includes("o3") || key.includes("omni")) {
+        return {
+            hasVision: true,
+            maxImages: 20,
+            maxImageBytes: 20 * 1024 * 1024,
+            hasVideo: isVideoInferred,
+            maxVideos: isVideoInferred ? 3 : 0,
+            maxVideoBytes: isVideoInferred ? 100 * 1024 * 1024 : 0,
+        };
+    }
+
+    // 4. 阿里 Qwen-VL 系列：官方单次多图上限 20 张
+    if (key.includes("qwen") || key.includes("qwq")) {
+        return {
+            hasVision: true,
+            maxImages: 20,
+            maxImageBytes: 20 * 1024 * 1024,
+            hasVideo: isVideoInferred,
+            maxVideos: isVideoInferred ? 2 : 0,
+            maxVideoBytes: isVideoInferred ? 50 * 1024 * 1024 : 0,
+        };
+    }
+
+    // 5. 智谱 GLM-4V / 豆包 Doubao-Vision / 百度文心等主流视觉模型：20 张
+    if (key.includes("glm") || key.includes("doubao") || key.includes("kimi") || key.includes("moonshot") || key.includes("step") || key.includes("sensenova") || key.includes("hunyuan")) {
+        return {
+            hasVision: true,
+            maxImages: 20,
+            maxImageBytes: 20 * 1024 * 1024,
+            hasVideo: isVideoInferred,
+            maxVideos: isVideoInferred ? 2 : 0,
+            maxVideoBytes: isVideoInferred ? 50 * 1024 * 1024 : 0,
+        };
+    }
+
+    // 6. 其他视觉模型：根据上下文窗口决定
+    const ctx = preset?.contextLimit || 0;
+    const maxImages = ctx >= 128_000 ? 16 : 10;
+    return {
+        hasVision: true,
+        maxImages,
+        maxImageBytes: 20 * 1024 * 1024,
+        hasVideo: isVideoInferred,
+        maxVideos: isVideoInferred ? 2 : 0,
+        maxVideoBytes: isVideoInferred ? 50 * 1024 * 1024 : 0,
+    };
+}

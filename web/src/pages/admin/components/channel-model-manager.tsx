@@ -21,7 +21,7 @@ import { ChannelModelProtocolDialog } from "./channel-model-protocol-dialog";
 import { deselectVisibleModels, filterImportModels, normalizeFetchModelKey, selectExistingImportModels, selectVisibleModels } from "./channel-model-import-selection";
 import { duplicateChannelModelValues, initialChannelModelValues, type ChannelModelFormValues } from "./channel-model-editor-form";
 import { PresetModelSelector } from "@/components/preset-model-selector";
-import { formatTokenLimit, type PresetModel } from "@/lib/preset-models";
+import { formatTokenLimit, resolvePresetMediaLimits, type PresetModel } from "@/lib/preset-models";
 import { thinkingPresetConfig, type TextThinkingConfig } from "@/lib/text-thinking";
 import type { ModelTag } from "@/lib/model-tags";
 import type { TextCapabilityConfig } from "@/lib/model-capabilities";
@@ -161,8 +161,9 @@ export function ChannelModelManager({ channel, onChanged, health, healthLoading 
     };
     const startCreateWithPreset = (preset: PresetModel) => {
         const initial = initialChannelModelValues(null, availableProtocols);
-        const hasVision = Boolean(preset.modalities?.input?.includes("image"));
-        const hasVideo = Boolean(preset.modalities?.input?.includes("video"));
+        const mediaLimits = resolvePresetMediaLimits(preset, preset.id);
+        const hasVision = mediaLimits.hasVision;
+        const hasVideo = mediaLimits.hasVideo;
 
         let thinkingConfig: TextThinkingConfig | undefined = undefined;
         if (preset.reasoning) {
@@ -195,10 +196,10 @@ export function ChannelModelManager({ channel, onChanged, health, healthLoading 
             maxOutputTokens: preset.outputLimit || 16_384,
             references: {
                 promptMaxChars: preset.contextLimit ? Math.min(preset.contextLimit * 4, 500_000) : 32000,
-                maxImages: hasVision ? 10 : 0,
-                maxImageBytes: hasVision ? 20 * 1024 * 1024 : 0,
-                maxVideos: hasVideo ? 3 : 0,
-                maxVideoBytes: hasVideo ? 100 * 1024 * 1024 : 0,
+                maxImages: mediaLimits.maxImages,
+                maxImageBytes: mediaLimits.maxImageBytes,
+                maxVideos: mediaLimits.maxVideos,
+                maxVideoBytes: mediaLimits.maxVideoBytes,
             },
         };
 
