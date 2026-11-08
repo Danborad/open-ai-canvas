@@ -168,6 +168,7 @@ type ImageCapabilityConfig struct {
 	References            ImageReferenceConfig `json:"references"`
 	Size                  ImageSizeConfig      `json:"size"`
 	Quality               ImageQualityConfig   `json:"quality"`
+	Thinking              *ImageThinkingConfig `json:"thinking,omitempty"`
 	TransparentBackground VideoBooleanConfig   `json:"transparentBackground"`
 	ResponseFormat        ParameterSupport     `json:"responseFormat"`
 	OutputFormat          ParameterSupport     `json:"outputFormat"`
@@ -198,6 +199,12 @@ type ImageSizePreset struct {
 }
 
 type ImageQualityConfig struct {
+	Supported bool     `json:"supported"`
+	Values    []string `json:"values"`
+	Default   string   `json:"default"`
+}
+
+type ImageThinkingConfig struct {
 	Supported bool     `json:"supported"`
 	Values    []string `json:"values"`
 	Default   string   `json:"default"`

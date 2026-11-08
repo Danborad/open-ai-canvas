@@ -561,6 +561,7 @@ function ImageCapabilityEditor({ value, onChange, protocol, model, imageParamete
     const updateReferences = (patch: Partial<ImageCapabilityConfig["references"]>) => update({ references: { ...profile.references, ...patch } });
     const updateSize = (patch: Partial<ImageCapabilityConfig["size"]>) => update({ size: { ...profile.size, ...patch } });
     const updateQuality = (patch: Partial<ImageCapabilityConfig["quality"]>) => update({ quality: { ...profile.quality, ...patch } });
+    const updateThinking = (patch: Partial<NonNullable<ImageCapabilityConfig["thinking"]>>) => update({ thinking: { supported: true, values: ["low", "medium", "high"], default: "high", ...(profile.thinking || {}), ...patch } });
 
     if (section !== "references" && profile.parameters) {
         const definitions = imageParameters || profile.parameters;
@@ -681,6 +682,54 @@ function ImageCapabilityEditor({ value, onChange, protocol, model, imageParamete
                                 </Field>
                             </div>
                         ) : null}
+                        <ParameterField
+                            label="图片等级"
+                            description="发送 thinkingConfig / thinkingLevel 思考深度参数"
+                            supported={Boolean(profile.thinking?.supported)}
+                            disabled={disabled}
+                            onChange={(supported) =>
+                                updateThinking({
+                                    supported,
+                                    values: profile.thinking?.values?.length ? profile.thinking.values : ["low", "medium", "high"],
+                                    default: profile.thinking?.default || "high",
+                                })
+                            }
+                        />
+                        {profile.thinking?.supported ? (
+                            <div className="admin-capability-spec-grid">
+                                <Field label="等级支持值">
+                                    <Select
+                                        mode="multiple"
+                                        className="w-full"
+                                        disabled={disabled}
+                                        value={profile.thinking.values}
+                                        options={[
+                                            { label: "低 (low)", value: "low" },
+                                            { label: "中 (medium)", value: "medium" },
+                                            { label: "高 (high，默认推荐)", value: "high" },
+                                        ]}
+                                        onChange={(values) =>
+                                            updateThinking({
+                                                values,
+                                                default: values.includes(profile.thinking?.default || "") ? profile.thinking?.default || "high" : values[0] || "high",
+                                            })
+                                        }
+                                    />
+                                </Field>
+                                <Field label="默认等级">
+                                    <Select
+                                        className="w-full"
+                                        disabled={disabled}
+                                        value={profile.thinking.default || "high"}
+                                        options={(profile.thinking.values || []).map((val) => ({
+                                            label: val === "high" ? "高 (high，默认推荐)" : val === "medium" ? "中 (medium)" : val === "low" ? "低 (low)" : val,
+                                            value: val,
+                                        }))}
+                                        onChange={(defaultVal) => updateThinking({ default: defaultVal })}
+                                    />
+                                </Field>
+                            </div>
+                        ) : null}
                         <BooleanField label="透明背景" value={profile.transparentBackground} disabled={disabled} onChange={(transparentBackground) => update({ transparentBackground })} />
                         <BooleanField label="图片水印" value={profile.watermark || { supported: false, default: false }} disabled={disabled} onChange={(watermark) => update({ watermark })} />
                         <ImageResponseFormatEditor value={profile.responseFormat} disabled={disabled} onChange={(responseFormat) => update({ responseFormat })} />
@@ -762,6 +811,54 @@ function ImageCapabilityEditor({ value, onChange, protocol, model, imageParamete
                                 value={profile.quality.default}
                                 options={profile.quality.values.map((item) => ({ label: item, value: item }))}
                                 onChange={(defaultValue) => updateQuality({ default: defaultValue })}
+                            />
+                        </Field>
+                    </div>
+                ) : null}
+                <ParameterField
+                    label="图片等级"
+                    description="发送 thinkingConfig / thinkingLevel 思考深度参数"
+                    supported={Boolean(profile.thinking?.supported)}
+                    disabled={disabled}
+                    onChange={(supported) =>
+                        updateThinking({
+                            supported,
+                            values: profile.thinking?.values?.length ? profile.thinking.values : ["low", "medium", "high"],
+                            default: profile.thinking?.default || "high",
+                        })
+                    }
+                />
+                {profile.thinking?.supported ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="等级支持值">
+                            <Select
+                                mode="multiple"
+                                className="w-full"
+                                disabled={disabled}
+                                value={profile.thinking.values}
+                                options={[
+                                    { label: "低 (low)", value: "low" },
+                                    { label: "中 (medium)", value: "medium" },
+                                    { label: "高 (high，默认推荐)", value: "high" },
+                                ]}
+                                onChange={(values) =>
+                                    updateThinking({
+                                        values,
+                                        default: values.includes(profile.thinking?.default || "") ? profile.thinking?.default || "high" : values[0] || "high",
+                                    })
+                                }
+                            />
+                        </Field>
+                        <Field label="默认等级">
+                            <Select
+                                className="w-full"
+                                disabled={disabled}
+                                value={profile.thinking.default || "high"}
+                                options={(profile.thinking.values || []).map((val) => ({
+                                    label: val === "high" ? "高 (high，默认推荐)" : val === "medium" ? "中 (medium)" : val === "low" ? "低 (low)" : val,
+                                    value: val,
+                                }))}
+                                onChange={(defaultVal) => updateThinking({ default: defaultVal })}
                             />
                         </Field>
                     </div>

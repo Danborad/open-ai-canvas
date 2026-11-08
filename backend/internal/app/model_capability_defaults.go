@@ -60,6 +60,7 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 			image.Quality = ImageQualityConfig{Supported: false, Values: []string{}, Default: ""}
 		} else {
 			image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1k", "2k", "4k"}, Default: "1k"}
+			image.Thinking = &ImageThinkingConfig{Supported: true, Values: []string{"low", "medium", "high"}, Default: "high"}
 		}
 		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: flowRatios, Default: "16:9", AllowCustom: false}
 		image.TransparentBackground = VideoBooleanConfig{Supported: false, Default: false}
@@ -145,6 +146,7 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 		// Gemini Images uses imageConfig.aspectRatio, not the OpenAI-style pixel size field.
 		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"auto", "1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2", "21:9"}, Default: "1:1", AllowCustom: false}
 		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1k", "2k", "4k"}, Default: "2k"}
+		image.Thinking = &ImageThinkingConfig{Supported: true, Values: []string{"low", "medium", "high"}, Default: "high"}
 		image.TransparentBackground.Supported = false
 		image.ResponseFormat.Supported = false
 		image.OutputFormat.Supported = false

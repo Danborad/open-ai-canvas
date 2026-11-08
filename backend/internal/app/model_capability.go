@@ -44,6 +44,7 @@ type ImageCapabilityConfig struct {
 	Size       ImageSizeConfig                   `json:"size"`
 	Resolution ImageResolutionConfig             `json:"resolution"`
 	Quality    ImageQualityConfig                `json:"quality"`
+	Thinking   *ImageThinkingConfig              `json:"thinking,omitempty"`
 	// ResolutionUsesQuality is reserved for protocols whose documented quality
 	// values are actually resolution tiers (for example Gemini imageSize).
 	ResolutionUsesQuality bool               `json:"resolutionUsesQuality,omitempty"`
@@ -78,6 +79,12 @@ type ImageSizePreset struct {
 }
 
 type ImageQualityConfig struct {
+	Supported bool     `json:"supported"`
+	Values    []string `json:"values"`
+	Default   string   `json:"default"`
+}
+
+type ImageThinkingConfig struct {
 	Supported bool     `json:"supported"`
 	Values    []string `json:"values"`
 	Default   string   `json:"default"`

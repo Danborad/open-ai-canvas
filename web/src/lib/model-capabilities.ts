@@ -93,6 +93,11 @@ export type ImageCapabilityConfig = {
     };
     /** Protocol-declared mapping where quality values select image resolution. */
     resolutionUsesQuality?: boolean;
+    thinking?: {
+        supported: boolean;
+        values: string[];
+        default: string;
+    };
     transparentBackground: { supported: boolean; default: boolean };
     watermark?: { supported: boolean; default: boolean };
     responseFormat: { supported: boolean; default?: ImageResponseFormat };
@@ -390,6 +395,7 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         size: { parameter: "size", values: [...defaultImageSizes], default: "1:1", allowCustom: true },
         resolution: { supported: false, values: [], default: "auto" },
         quality: { supported: true, values: ["auto", "low", "medium", "high"], default: "auto" },
+        thinking: { supported: false, values: ["low", "medium", "high"], default: "high" },
         transparentBackground: { supported: true, default: false },
         watermark: { supported: false, default: false },
         responseFormat: { supported: true, default: "auto" },
@@ -456,6 +462,7 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
             allowCustom: false,
         };
         image.quality = isImagen4 ? { supported: false, values: [], default: "" } : { supported: true, values: ["1k", "2k", "4k"], default: "1k" };
+        image.thinking = isImagen4 ? { supported: false, values: [], default: "" } : { supported: true, values: ["low", "medium", "high"], default: "high" };
         image.transparentBackground = { supported: false, default: false };
         image.responseFormat = { supported: false };
         image.outputFormat = { supported: false };
@@ -556,6 +563,11 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
             supported: true,
             values: ["1k", "2k", "4k"],
             default: "2k",
+        };
+        image.thinking = {
+            supported: true,
+            values: ["low", "medium", "high"],
+            default: "high",
         };
         image.transparentBackground = { supported: false, default: false };
         image.responseFormat = { supported: false };
