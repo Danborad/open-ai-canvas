@@ -1,8 +1,8 @@
 const IMAGE_QUALITY_LABELS: Record<string, string> = {
     auto: "自动",
-    low: "低 (low)",
-    medium: "中 (medium)",
-    high: "高 (high，默认推荐)",
+    low: "低",
+    medium: "中",
+    high: "高",
     xhigh: "超高",
     max: "最高",
     "1k": "1K",

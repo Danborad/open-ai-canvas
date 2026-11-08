@@ -548,14 +548,14 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
         // Gemini Images uses imageConfig.aspectRatio, not the OpenAI-style pixel size field.
         image.size = {
             parameter: "aspect_ratio",
-            values: ["auto", "1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"],
+            values: ["auto", "1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2", "21:9"],
             default: "1:1",
             allowCustom: false,
         };
         image.quality = {
             supported: true,
-            values: ["low", "medium", "high"],
-            default: "high",
+            values: ["1k", "2k", "4k"],
+            default: "2k",
         };
         image.transparentBackground = { supported: false, default: false };
         image.responseFormat = { supported: false };
@@ -914,10 +914,10 @@ export function normalizeImageValue(profile: ImageCapabilityConfig, value: { siz
         ? requestedQuality === "auto" || requestedQuality === "any"
             ? profile.quality.values.includes("auto")
                 ? "auto"
-                : profile.quality.default || "high"
+                : profile.quality.default || profile.quality.values[0] || "auto"
             : value.quality && profile.quality.values.includes(value.quality)
               ? value.quality
-              : profile.quality.default || "high"
+              : profile.quality.default || profile.quality.values[0] || "auto"
         : profile.resolution.supported
           ? profile.quality.default || "auto"
           : requestedQuality === "1k" || requestedQuality === "1.5k" || requestedQuality === "2k" || requestedQuality === "4k"

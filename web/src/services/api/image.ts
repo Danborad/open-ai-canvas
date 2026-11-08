@@ -55,12 +55,13 @@ async function requestGeminiImagesOnce(config: AiConfig, prompt: string, referen
     return parseGeminiImagePayload(response);
 }
 
-function extractThinkingLevel(config: AiConfig): string | undefined {
+function extractThinkingLevel(config: AiConfig): string {
     try {
         const parsed = JSON.parse(config.imageParameters || "{}");
         if (typeof parsed.thinkingLevel === "string") return parsed.thinkingLevel;
+        if (typeof parsed.thinking_level === "string") return parsed.thinking_level;
     } catch {}
-    return (config as { thinkingLevel?: string }).thinkingLevel;
+    return (config as { thinkingLevel?: string }).thinkingLevel || "high";
 }
 
 export async function requestGeneration(config: AiConfig, prompt: string, options?: RequestOptions) {

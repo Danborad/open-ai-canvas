@@ -194,40 +194,42 @@ func geminiImageConfigFor(config providerConfig) *geminiImageConfig {
 	if size != "" && size != "auto" && strings.Count(size, ":") == 1 {
 		imageConfig.AspectRatio = size
 	}
-	switch strings.ToLower(strings.TrimSpace(config.Quality)) {
-	case "low", "1k":
+	res := strings.ToLower(strings.TrimSpace(config.ImageResolution))
+	if res == "" || res == "auto" {
+		res = strings.ToLower(strings.TrimSpace(config.Quality))
+	}
+	switch res {
+	case "1k", "low":
 		imageConfig.ImageSize = "1K"
-	case "medium", "2k":
+	case "2k", "medium":
 		imageConfig.ImageSize = "2K"
-	case "high", "4k":
+	case "4k", "high":
 		imageConfig.ImageSize = "4K"
 	default:
-		imageConfig.ImageSize = "4K"
-	}
-	if imageConfig.AspectRatio == "" && imageConfig.ImageSize == "" {
-		return nil
+		imageConfig.ImageSize = "2K"
 	}
 	return imageConfig
 }
 
 func geminiThinkingConfigFor(config providerConfig) *geminiThinkingConfig {
-	var level string
+	level := "high"
 	if config.ImageParameters != nil {
-		if raw, ok := config.ImageParameters["thinkingLevel"]; ok {
+		if raw, ok := config.ImageParameters["thinkingLevel"]; ok && strings.TrimSpace(fmt.Sprint(raw)) != "" {
+			level = fmt.Sprint(raw)
+		} else if raw, ok := config.ImageParameters["thinking_level"]; ok && strings.TrimSpace(fmt.Sprint(raw)) != "" {
 			level = fmt.Sprint(raw)
 		}
 	}
 	switch strings.ToLower(strings.TrimSpace(level)) {
-	case "minimal", "min":
-		return &geminiThinkingConfig{ThinkingLevel: "MINIMAL"}
 	case "low":
 		return &geminiThinkingConfig{ThinkingLevel: "LOW"}
 	case "medium", "med":
 		return &geminiThinkingConfig{ThinkingLevel: "MEDIUM"}
-	case "high":
+	case "minimal", "min":
+		return &geminiThinkingConfig{ThinkingLevel: "MINIMAL"}
+	default:
 		return &geminiThinkingConfig{ThinkingLevel: "HIGH"}
 	}
-	return nil
 }
 
 func geminiImageBytes(media providerMedia) ([]byte, string, error) {
