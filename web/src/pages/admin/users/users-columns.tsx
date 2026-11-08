@@ -49,20 +49,24 @@ export function createUserColumns({
             dataIndex: "username",
             fixed: "left",
             width: 240,
-            render: (_, user) => (
-                <div className="flex items-center gap-2.5 min-w-0">
-                    <UserAvatar user={user} className="size-8 shrink-0 rounded-full" />
-                    <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                            <button type="button" className="admin-table-primary-link truncate font-medium text-left" onClick={() => onView(user)}>
-                                {user.displayName || user.username}
-                            </button>
-                            <IdentityProviderBadge user={user} />
+            render: (_, user) => {
+                const avatarUrl = user.avatarUrl || (user.avatarMode === "custom" ? `/api/auth/profile/avatar/${user.id}` : "");
+                const avatarUser = { ...user, avatarUrl };
+                return (
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <UserAvatar user={avatarUser} className="size-8 shrink-0 rounded-full" />
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                                <button type="button" className="admin-table-primary-link truncate font-medium text-left" onClick={() => onView(user)}>
+                                    {user.displayName || user.username}
+                                </button>
+                                <IdentityProviderBadge user={user} />
+                            </div>
+                            <div className="truncate text-xs text-foreground/45">@{user.username}</div>
                         </div>
-                        <div className="truncate text-xs text-foreground/45">@{user.username}</div>
                     </div>
-                </div>
-            ),
+                );
+            },
         },
         { key: "email", title: "邮箱", dataIndex: "email", width: 200, ellipsis: true, render: (email) => email || <span className="text-foreground/40">未填写</span> },
         {

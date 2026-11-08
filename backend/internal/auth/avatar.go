@@ -127,13 +127,20 @@ func (s *Service) ProfileAvatarContent(actor *model.User, targetUserID string) (
 	if err != nil {
 		return nil, err
 	}
+	targetUser := user
 	if targetUserID != user.ID {
-		return nil, kernel.Forbidden("无权读取其他用户头像")
+		if user.Role != model.UserRoleAdmin {
+			return nil, kernel.Forbidden("无权读取其他用户头像")
+		}
+		targetUser, err = s.repo.User(targetUserID)
+		if err != nil || targetUser == nil {
+			return nil, kernel.NotFound("用户不存在")
+		}
 	}
-	if user.AvatarMode != "custom" {
+	if targetUser.AvatarMode != "custom" {
 		return nil, kernel.NotFound("未设置自定义头像")
 	}
-	avatar, err := s.repo.UserAvatar(user.ID)
+	avatar, err := s.repo.UserAvatar(targetUser.ID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, kernel.NotFound("头像图片不存在")
 	}

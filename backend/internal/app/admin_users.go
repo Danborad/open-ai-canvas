@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -53,7 +54,11 @@ func (s *Service) AdminUsers(actor *model.User, query AdminListQuery) (*AdminUse
 	for _, user := range users {
 		account := accountByUserID[user.ID]
 		total := totals[user.ID]
-		result = append(result, AdminUser{User: user, AvailableMicrocredits: account.AvailableMicrocredits, ReservedMicrocredits: account.ReservedMicrocredits, RechargedMicrocredits: total.RechargedMicrocredits, ConsumedMicrocredits: total.ConsumedMicrocredits})
+		avatarURL := ""
+		if user.AvatarMode == "custom" {
+			avatarURL = "/api/auth/profile/avatar/" + url.PathEscape(user.ID) + "?v=" + url.QueryEscape(user.AvatarVersion)
+		}
+		result = append(result, AdminUser{User: user, AvatarURL: avatarURL, AvailableMicrocredits: account.AvailableMicrocredits, ReservedMicrocredits: account.ReservedMicrocredits, RechargedMicrocredits: total.RechargedMicrocredits, ConsumedMicrocredits: total.ConsumedMicrocredits})
 	}
 	return &AdminUserPage{Users: result, Total: total, Page: page, Limit: limit}, nil
 }
