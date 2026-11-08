@@ -312,6 +312,7 @@ func TestFlow2APIPresetCapabilitiesFollowModelAliases(t *testing.T) {
 		{name: "Imagen 4", image: true},
 		{name: "Omni 1.1 Flash", videoDurations: []int{4, 6, 8, 10}},
 		{name: "Omni Flash", videoDurations: []int{4, 6, 8, 10}},
+		{name: "Omni 1.2 Flash", videoDurations: []int{3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, resolutions: []string{"720p", "360p"}},
 		{name: "Veo 3.1 - Lite"},
 		{name: "Veo 3.1 - Fast"},
 		{name: "Veo 3.1 - Quality", resolutions: []string{"1080p", "4k"}},
@@ -340,8 +341,8 @@ func TestFlow2APIPresetCapabilitiesFollowModelAliases(t *testing.T) {
 			if len(profile.Video.Ratios) != 2 || profile.Video.Ratios[0] != "16:9" || profile.Video.Ratios[1] != "9:16" {
 				t.Fatalf("video ratios = %v", profile.Video.Ratios)
 			}
-			if len(test.videoDurations) > 0 && len(profile.Video.Duration.Values) != 4 {
-				t.Fatalf("video durations = %v", profile.Video.Duration.Values)
+			if len(test.videoDurations) > 0 && len(profile.Video.Duration.Values) != len(test.videoDurations) {
+				t.Fatalf("video durations = %v, want %v", profile.Video.Duration.Values, test.videoDurations)
 			}
 			if len(test.videoDurations) > 0 {
 				if profile.Video.References.MaxVideos != 1 || profile.Video.References.MaxVideoDuration != 10 {

@@ -906,7 +906,8 @@ export default function CreatePage() {
                 : {}),
         };
         if (mode === "video" && selectedModel.toLowerCase().includes("omni") && referenceVideos.length > 0 && referenceVideos[0].durationMs) {
-            requestConfig.videoSeconds = String(matchOmniVideoDuration(referenceVideos[0].durationMs / 1000));
+            const isOmni12 = selectedModel.includes("1.2") || selectedModel.includes("1_2") || !selectedModel.includes("1.1");
+            requestConfig.videoSeconds = String(matchOmniVideoDuration(referenceVideos[0].durationMs / 1000, isOmni12));
         }
         let handedOverToRecovery = false;
         try {

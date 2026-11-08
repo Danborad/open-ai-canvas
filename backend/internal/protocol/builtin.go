@@ -282,6 +282,19 @@ func geminiImagesAdapter() Adapter {
 			if r.AspectRatio != "" || r.Quality != "" {
 				body["generationConfig"] = map[string]any{"imageConfig": compactMap(map[string]any{"aspectRatio": r.AspectRatio, "imageSize": r.Quality})}
 			}
+			if r.ImageParameters != nil {
+				if tl, ok := r.ImageParameters["thinkingLevel"]; ok {
+					switch strings.ToUpper(strings.TrimSpace(fmt.Sprint(tl))) {
+					case "MINIMAL", "LOW", "MEDIUM", "HIGH":
+						genConfig, ok := body["generationConfig"].(map[string]any)
+						if !ok {
+							genConfig = map[string]any{}
+							body["generationConfig"] = genConfig
+						}
+						genConfig["thinkingConfig"] = map[string]any{"thinkingLevel": strings.ToUpper(strings.TrimSpace(fmt.Sprint(tl)))}
+					}
+				}
+			}
 			mergeExtra(body, r.Extra, "generationConfig", "safetySettings", "systemInstruction")
 			return jsonSpec(http.MethodPost, "/v1beta/models/"+url.PathEscape(r.Model)+":generateContent", body), nil
 		},

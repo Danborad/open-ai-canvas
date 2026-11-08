@@ -4,7 +4,7 @@ import { Input, InputNumber } from "antd";
 import { Switch } from "@/components/ui/base/switch";
 import { Checkbox } from "@/components/ui/base/checkbox";
 import { SegmentedControl } from "@/components/ui/base/segmented-control";
-import type { ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 
 import {
     DEFAULT_VIDEO_PROCESSING_MAX_SOURCE_SECONDS,
@@ -91,7 +91,12 @@ export function ModelCapabilityEditor({ value, onChange, protocol, capability = 
             </Field>
             {processing.fpsPolicy === "user_select" ? (
                 <Field label="可选帧率（15–120，逗号分隔）">
-                    <Input disabled={disabled} value={(processing.fpsOptions || []).join(",")} placeholder="例如：30,60" onChange={(event) => update({ processing: { ...processing, fpsOptions: parseIntegerList(event.target.value) } })} />
+                    <IntegerListInput
+                        disabled={disabled}
+                        value={processing.fpsOptions}
+                        placeholder="例如：30,60"
+                        onChange={(fpsOptions) => update({ processing: { ...processing, fpsOptions } })}
+                    />
                 </Field>
             ) : null}
             <NumberField
@@ -186,14 +191,30 @@ export function ModelCapabilityEditor({ value, onChange, protocol, capability = 
                             }
                         />
                         {profile.duration.selection === "enum" ? (
-                            <Field label="固定时长（秒）">
-                                <Input
-                                    disabled={disabled}
-                                    value={durationValues}
-                                    placeholder="例如：5,10"
-                                    onChange={(event) => updateDuration({ values: parseIntegerList(event.target.value), default: parseIntegerList(event.target.value)[0] || profile.duration.default })}
-                                />
-                            </Field>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <Field label="固定时长（秒）">
+                                    <IntegerListInput
+                                        disabled={disabled}
+                                        value={profile.duration.values}
+                                        placeholder="例如：4,6,8,10"
+                                        onChange={(values) =>
+                                            updateDuration({
+                                                values,
+                                                default: values.includes(profile.duration.default) ? profile.duration.default : values[0] || profile.duration.default,
+                                            })
+                                        }
+                                    />
+                                </Field>
+                                <Field label="默认时长">
+                                    <Select
+                                        className="w-full"
+                                        disabled={disabled}
+                                        value={profile.duration.default}
+                                        options={(profile.duration.values || []).map((val) => ({ label: `${val} 秒`, value: val }))}
+                                        onChange={(defaultVal) => updateDuration({ default: defaultVal })}
+                                    />
+                                </Field>
+                            </div>
                         ) : (
                             <div className="admin-capability-duration-grid">
                                 <NumberField label="最短" value={profile.duration.min} min={1} disabled={disabled} onChange={(value) => updateDuration({ min: value || 1 })} />
@@ -307,14 +328,30 @@ export function ModelCapabilityEditor({ value, onChange, protocol, capability = 
                         }
                     />
                     {profile.duration.selection === "enum" ? (
-                        <Field label="固定时长（秒）">
-                            <Input
-                                disabled={disabled}
-                                value={durationValues}
-                                placeholder="例如：5,10"
-                                onChange={(event) => updateDuration({ values: parseIntegerList(event.target.value), default: parseIntegerList(event.target.value)[0] || profile.duration.default })}
-                            />
-                        </Field>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="固定时长（秒）">
+                                <IntegerListInput
+                                    disabled={disabled}
+                                    value={profile.duration.values}
+                                    placeholder="例如：4,6,8,10"
+                                    onChange={(values) =>
+                                        updateDuration({
+                                            values,
+                                            default: values.includes(profile.duration.default) ? profile.duration.default : values[0] || profile.duration.default,
+                                        })
+                                    }
+                                />
+                            </Field>
+                            <Field label="默认时长">
+                                <Select
+                                    className="w-full"
+                                    disabled={disabled}
+                                    value={profile.duration.default}
+                                    options={(profile.duration.values || []).map((val) => ({ label: `${val} 秒`, value: val }))}
+                                    onChange={(defaultVal) => updateDuration({ default: defaultVal })}
+                                />
+                            </Field>
+                        </div>
                     ) : (
                         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                             <NumberField label="最短" value={profile.duration.min} min={1} disabled={disabled} onChange={(value) => updateDuration({ min: value || 1 })} />
@@ -930,4 +967,60 @@ function parseIntegerList(value: string) {
                 .filter((item) => Number.isInteger(item) && item > 0),
         ),
     ).sort((left, right) => left - right);
+}
+
+function IntegerListInput({
+    value,
+    onChange,
+    disabled,
+    placeholder,
+}: {
+    value?: number[];
+    onChange: (values: number[]) => void;
+    disabled?: boolean;
+    placeholder?: string;
+}) {
+    const formatted = (value || []).join(",");
+    const [text, setText] = useState(formatted);
+    const lastValueRef = useRef(formatted);
+
+    useEffect(() => {
+        const nextFormatted = (value || []).join(",");
+        if (nextFormatted !== lastValueRef.current) {
+            lastValueRef.current = nextFormatted;
+            setText(nextFormatted);
+        }
+    }, [value]);
+
+    return (
+        <Input
+            disabled={disabled}
+            value={text}
+            placeholder={placeholder}
+            onChange={(event) => {
+                const raw = event.target.value;
+                setText(raw);
+                const normalized = raw.replace(/，/g, ",");
+                const parsed = parseIntegerList(normalized);
+                if (parsed.length > 0) {
+                    lastValueRef.current = parsed.join(",");
+                    onChange(parsed);
+                }
+            }}
+            onBlur={() => {
+                const normalized = text.replace(/，/g, ",");
+                const parsed = parseIntegerList(normalized);
+                if (parsed.length > 0) {
+                    const nextFormatted = parsed.join(",");
+                    lastValueRef.current = nextFormatted;
+                    setText(nextFormatted);
+                    onChange(parsed);
+                } else if (!text.trim()) {
+                    lastValueRef.current = "";
+                    setText("");
+                    onChange([]);
+                }
+            }}
+        />
+    );
 }

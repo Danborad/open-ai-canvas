@@ -170,6 +170,7 @@ func runGeminiImageTask(ctx context.Context, input canvasGenerationInput) (map[s
 		GenerationConfig: geminiImageGenerationConfig{
 			ResponseModalities: []string{"TEXT", "IMAGE"},
 			ImageConfig:        geminiImageConfigFor(input.Config),
+			ThinkingConfig:     geminiThinkingConfigFor(input.Config),
 		},
 	}
 	if systemPrompt := strings.TrimSpace(input.Config.SystemPrompt); systemPrompt != "" {
@@ -205,6 +206,26 @@ func geminiImageConfigFor(config providerConfig) *geminiImageConfig {
 		return nil
 	}
 	return imageConfig
+}
+
+func geminiThinkingConfigFor(config providerConfig) *geminiThinkingConfig {
+	var level string
+	if config.ImageParameters != nil {
+		if raw, ok := config.ImageParameters["thinkingLevel"]; ok {
+			level = fmt.Sprint(raw)
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(level)) {
+	case "minimal", "min":
+		return &geminiThinkingConfig{ThinkingLevel: "MINIMAL"}
+	case "low":
+		return &geminiThinkingConfig{ThinkingLevel: "LOW"}
+	case "medium", "med":
+		return &geminiThinkingConfig{ThinkingLevel: "MEDIUM"}
+	case "high":
+		return &geminiThinkingConfig{ThinkingLevel: "HIGH"}
+	}
+	return nil
 }
 
 func geminiImageBytes(media providerMedia) ([]byte, string, error) {

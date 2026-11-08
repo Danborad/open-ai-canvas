@@ -546,13 +546,14 @@ export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | u
                 : config.runningHub.workflows,
     };
     const isOmni = model.toLowerCase().includes("omni");
+    const isOmni12 = isOmni && (model.includes("1.2") || model.includes("1_2") || !model.includes("1.1"));
     let resolvedVideoSeconds = generationDefaults.videoSeconds ?? requestedConfig.videoSeconds;
     if (mode === "video" && isOmni) {
         const refDuration = requirements?.referenceVideoDurationSeconds;
         if (refDuration && refDuration > 0) {
-            resolvedVideoSeconds = String(matchOmniVideoDuration(refDuration));
+            resolvedVideoSeconds = String(matchOmniVideoDuration(refDuration, isOmni12));
         } else if (resolvedVideoSeconds) {
-            resolvedVideoSeconds = String(matchOmniVideoDuration(Number(resolvedVideoSeconds)));
+            resolvedVideoSeconds = String(matchOmniVideoDuration(Number(resolvedVideoSeconds), isOmni12));
         }
     }
     return {

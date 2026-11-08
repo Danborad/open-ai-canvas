@@ -311,10 +311,20 @@ func DefaultModelCapabilityConfigForModel(protocol string, modelName string) *Mo
 		video.GenerateAudio = VideoBooleanConfig{Supported: false, Default: false}
 		video.Watermark = VideoBooleanConfig{Supported: false, Default: false}
 		if strings.Contains(cleanModel, "omni") {
-			video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{4, 6, 8, 10}, Default: 6}
+			if strings.Contains(cleanModel, "1.2") || strings.Contains(cleanModel, "1_2") {
+				video.Duration = VideoDurationConfig{
+					Selection: "enum",
+					Values:    []int{3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+					Default:   8,
+				}
+				video.Resolutions = []string{"720p", "360p"}
+				video.DefaultResolution = "720p"
+			} else {
+				video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{4, 6, 8, 10}, Default: 6}
+				video.Resolutions = []string{}
+				video.DefaultResolution = ""
+			}
 			video.DurationSupported = boolPointer(true)
-			video.Resolutions = []string{}
-			video.DefaultResolution = ""
 			video.References.MaxVideos = 1
 			video.References.MaxVideoDuration = 10
 			video.Operations = []string{"text_to_video", "image_to_video", "video_to_video", "reference_to_video"}
@@ -340,8 +350,22 @@ func DefaultModelCapabilityConfigForModel(protocol string, modelName string) *Mo
 		video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{5, 10}, Default: 5}
 		video.Resolutions = []string{"720p"}
 	case model.ChannelInterfaceGeminiVeo:
-		video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{4, 6, 8}, Default: 6}
-		video.Resolutions = []string{"720p", "1080p"}
+		cleanModel := strings.ToLower(strings.TrimSpace(modelName))
+		if strings.Contains(cleanModel, "omni") {
+			if strings.Contains(cleanModel, "1.2") || strings.Contains(cleanModel, "1_2") {
+				video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Default: 8}
+				video.Resolutions = []string{"720p", "360p"}
+				video.DefaultResolution = "720p"
+			} else {
+				video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{4, 6, 8, 10}, Default: 6}
+				video.Resolutions = []string{"720p"}
+				video.DefaultResolution = "720p"
+			}
+			video.DurationSupported = boolPointer(true)
+		} else {
+			video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{4, 6, 8}, Default: 6}
+			video.Resolutions = []string{"720p", "1080p"}
+		}
 	case model.ChannelInterfaceVolcengineArkVideo, model.ChannelInterfaceVolcengineArkAgentPlanVideo:
 		video.Operations = append(video.Operations, "reference_to_video", "audio_to_video")
 		video.References.MaxVideos, video.References.MaxAudios = 3, 3

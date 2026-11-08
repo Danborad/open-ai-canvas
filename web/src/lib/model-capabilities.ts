@@ -669,10 +669,23 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.resolutions = ["720p"];
     }
     if (protocol === "gemini-veo" || cleanModel.startsWith("veo")) {
-        video.duration = { selection: "enum", values: [4, 6, 8], default: 6 };
+        if (cleanModel.includes("omni")) {
+            const isOmni12 = cleanModel.includes("1.2") || cleanModel.includes("1_2") || !cleanModel.includes("1.1");
+            if (isOmni12) {
+                video.duration = { selection: "enum", values: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], default: 8 };
+                video.resolutions = ["720p", "360p"];
+                video.defaultResolution = "720p";
+            } else {
+                video.duration = { selection: "enum", values: [4, 6, 8, 10], default: 6 };
+                video.resolutions = ["720p"];
+                video.defaultResolution = "720p";
+            }
+        } else {
+            video.duration = { selection: "enum", values: [4, 6, 8], default: 6 };
+            video.resolutions = ["720p", "1080p"];
+            video.defaultResolution = "720p";
+        }
         video.durationSupported = true;
-        video.resolutions = ["720p", "1080p"];
-        video.defaultResolution = "720p";
         video.ratios = ["16:9", "9:16"];
         video.defaultRatio = "16:9";
     }
@@ -724,10 +737,21 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.generateAudio = { supported: false, default: false };
         video.watermark = { supported: false, default: false };
         if (cleanModel.includes("omni")) {
-            video.duration = { selection: "enum", values: [4, 6, 8, 10], default: 6 };
+            const isOmni12 = cleanModel.includes("1.2") || cleanModel.includes("1_2") || !cleanModel.includes("1.1");
+            if (isOmni12) {
+                video.duration = {
+                    selection: "enum",
+                    values: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+                    default: 8,
+                };
+                video.resolutions = ["720p", "360p"];
+                video.defaultResolution = "720p";
+            } else {
+                video.duration = { selection: "enum", values: [4, 6, 8, 10], default: 6 };
+                video.resolutions = [];
+                video.defaultResolution = "";
+            }
             video.durationSupported = true;
-            video.resolutions = [];
-            video.defaultResolution = "";
             video.references.maxVideos = 1;
             video.references.maxVideoDurationSeconds = 10;
             video.operations = ["text_to_video", "image_to_video", "video_to_video", "reference_to_video"];
@@ -1017,10 +1041,12 @@ export function videoDurationAllowed(profile: VideoCapabilityConfig, value: numb
     return value >= min && value <= max && (value - min) % step === 0;
 }
 
-export function matchOmniVideoDuration(durationSeconds: number): number {
-    const candidates = [4, 6, 8, 10];
-    if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return 6;
-    const clamped = Math.max(4, Math.min(10, durationSeconds));
+export function matchOmniVideoDuration(durationSeconds: number, isOmni12 = false): number {
+    const candidates = isOmni12 ? [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] : [4, 6, 8, 10];
+    if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return isOmni12 ? 8 : 6;
+    const min = candidates[0]!;
+    const max = candidates[candidates.length - 1]!;
+    const clamped = Math.max(min, Math.min(max, durationSeconds));
     let best = candidates[0]!;
     let minDiff = Math.abs(clamped - best);
     for (const c of candidates) {
