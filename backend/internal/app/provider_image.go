@@ -201,6 +201,8 @@ func geminiImageConfigFor(config providerConfig) *geminiImageConfig {
 		imageConfig.ImageSize = "2K"
 	case "high", "4k":
 		imageConfig.ImageSize = "4K"
+	default:
+		imageConfig.ImageSize = "4K"
 	}
 	if imageConfig.AspectRatio == "" && imageConfig.ImageSize == "" {
 		return nil

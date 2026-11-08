@@ -1,8 +1,8 @@
 const IMAGE_QUALITY_LABELS: Record<string, string> = {
     auto: "自动",
-    low: "低",
-    medium: "中",
-    high: "高",
+    low: "低 (low)",
+    medium: "中 (medium)",
+    high: "高 (high，默认推荐)",
     xhigh: "超高",
     max: "最高",
     "1k": "1K",
@@ -12,12 +12,18 @@ const IMAGE_QUALITY_LABELS: Record<string, string> = {
 };
 
 export function imageQualityLabel(value: string) {
-    const normalized = String(value || "").trim().toLowerCase();
+    const normalized = String(value || "")
+        .trim()
+        .toLowerCase();
     return IMAGE_QUALITY_LABELS[normalized] || value;
 }
 
 export function imageQualityDescription(value: string) {
-    switch (String(value || "").trim().toLowerCase()) {
+    switch (
+        String(value || "")
+            .trim()
+            .toLowerCase()
+    ) {
         case "auto":
             return "由模型决定";
         case "low":
@@ -44,5 +50,9 @@ export function imageQualityDescription(value: string) {
 }
 
 export function isImageResolutionTier(value: string) {
-    return ["1k", "1.5k", "2k", "4k"].includes(String(value || "").trim().toLowerCase());
+    return ["1k", "1.5k", "2k", "4k"].includes(
+        String(value || "")
+            .trim()
+            .toLowerCase(),
+    );
 }

@@ -44,7 +44,7 @@ export function buildGeminiImageGenerationConfig(size?: string, quality?: string
     const normalizedSize = size?.trim();
     const normalizedQuality = quality?.trim().toLowerCase();
     if (normalizedSize && normalizedSize !== "auto" && /^\d+:\d+$/.test(normalizedSize)) imageConfig.aspectRatio = normalizedSize;
-    const imageSize = GEMINI_IMAGE_SIZES[normalizedQuality || ""];
+    const imageSize = GEMINI_IMAGE_SIZES[normalizedQuality || ""] || "4K";
     if (imageSize) imageConfig.imageSize = imageSize;
 
     const thinking = thinkingLevel ? GEMINI_THINKING_LEVELS[thinkingLevel.trim().toLowerCase()] : undefined;

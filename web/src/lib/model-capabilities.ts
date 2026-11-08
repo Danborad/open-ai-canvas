@@ -552,6 +552,11 @@ export function defaultImageCapabilityConfig(protocol?: ModelProtocol, model = "
             default: "1:1",
             allowCustom: false,
         };
+        image.quality = {
+            supported: true,
+            values: ["low", "medium", "high"],
+            default: "high",
+        };
         image.transparentBackground = { supported: false, default: false };
         image.responseFormat = { supported: false };
         image.outputFormat = { supported: false };
@@ -907,10 +912,12 @@ export function normalizeImageValue(profile: ImageCapabilityConfig, value: { siz
     const presetTier = !profile.quality.supported && !profile.resolution.supported ? imagePresetTierForSelection(profile, size) : undefined;
     const quality = profile.quality.supported
         ? requestedQuality === "auto" || requestedQuality === "any"
-            ? "auto"
+            ? profile.quality.values.includes("auto")
+                ? "auto"
+                : profile.quality.default || "high"
             : value.quality && profile.quality.values.includes(value.quality)
               ? value.quality
-              : profile.quality.default || "auto"
+              : profile.quality.default || "high"
         : profile.resolution.supported
           ? profile.quality.default || "auto"
           : requestedQuality === "1k" || requestedQuality === "1.5k" || requestedQuality === "2k" || requestedQuality === "4k"
