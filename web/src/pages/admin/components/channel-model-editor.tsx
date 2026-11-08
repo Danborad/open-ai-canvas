@@ -19,6 +19,7 @@ import { TokenPriceRulesSection } from "./channel-model-token-rules";
 import { ChannelModelTagsEditor } from "./channel-model-tags-editor";
 import { PresetModelSelector } from "@/components/preset-model-selector";
 import { formatTokenLimit, type PresetModel } from "@/lib/preset-models";
+import { thinkingPresetConfig, type TextThinkingConfig } from "@/lib/text-thinking";
 import type { ModelTag } from "@/lib/model-tags";
 import {
     changeChannelModelCapability,
@@ -111,32 +112,51 @@ export function ChannelModelEditor({
         const hasVision = Boolean(preset.modalities?.input?.includes("image"));
         const hasVideo = Boolean(preset.modalities?.input?.includes("video"));
 
+        let thinkingConfig: TextThinkingConfig | undefined = undefined;
+        if (preset.reasoning) {
+            const pId = preset.id.toLowerCase();
+            if (pId.includes("gemini-3") && pId.includes("flash")) {
+                thinkingConfig = thinkingPresetConfig("gemini-3-flash");
+            } else if (pId.includes("gemini-3") && pId.includes("pro")) {
+                thinkingConfig = thinkingPresetConfig("gemini-3-pro");
+            } else if (pId.includes("gemini-2.5")) {
+                thinkingConfig = thinkingPresetConfig("gemini-2.5");
+            } else if (pId.includes("deepseek")) {
+                thinkingConfig = thinkingPresetConfig("deepseek");
+            } else if (pId.includes("o1") || pId.includes("o3")) {
+                thinkingConfig = thinkingPresetConfig("openai-o");
+            } else if (pId.includes("gpt-5")) {
+                thinkingConfig = thinkingPresetConfig("openai-gpt5");
+            } else if (pId.includes("claude")) {
+                thinkingConfig = thinkingPresetConfig("claude-adaptive");
+            } else if (pId.includes("qwen")) {
+                thinkingConfig = thinkingPresetConfig("qwen-hybrid");
+            } else {
+                thinkingConfig = thinkingPresetConfig("model-suffix");
+            }
+        }
+
         const nextText: TextCapabilityConfig = {
             ...currentText,
             streaming: true,
-            thinking: Boolean(preset.reasoning),
+            thinking: thinkingConfig ?? (currentText.thinking && typeof currentText.thinking === "object" ? currentText.thinking : undefined),
             contextWindowTokens: preset.contextLimit || currentText.contextWindowTokens || 128_000,
             maxOutputTokens: preset.outputLimit || currentText.maxOutputTokens || 16_384,
             references: {
                 ...currentText.references,
                 promptMaxChars: preset.contextLimit ? Math.min(preset.contextLimit * 4, 500_000) : (currentText.references?.promptMaxChars || 32000),
-                maxImages: hasVision ? Math.max(currentText.references?.maxImages || 0, 10) : 0,
-                maxImageBytes: hasVision ? (currentText.references?.maxImageBytes || 20 * 1024 * 1024) : 0,
-                maxVideos: hasVideo ? Math.max(currentText.references?.maxVideos || 0, 3) : 0,
-                maxVideoBytes: hasVideo ? (currentText.references?.maxVideoBytes || 100 * 1024 * 1024) : 0,
+                maxImages: hasVision ? Math.max(currentText.references?.maxImages || 0, 10) : (currentText.references?.maxImages || 0),
+                maxImageBytes: hasVision ? (currentText.references?.maxImageBytes && currentText.references.maxImageBytes > 0 ? currentText.references.maxImageBytes : 20 * 1024 * 1024) : (currentText.references?.maxImageBytes || 0),
+                maxVideos: hasVideo ? Math.max(currentText.references?.maxVideos || 0, 3) : (currentText.references?.maxVideos || 0),
+                maxVideoBytes: hasVideo ? (currentText.references?.maxVideoBytes && currentText.references.maxVideoBytes > 0 ? currentText.references.maxVideoBytes : 100 * 1024 * 1024) : (currentText.references?.maxVideoBytes || 0),
             },
         };
 
-        form.setFieldValue("capabilityConfig", {
+        const updatedConfig = {
             ...currentConfig,
             version: 1,
             text: nextText,
-        });
-
-        // 保证 protocol 绝对不被修改
-        if (currentProtocol) {
-            form.setFieldValue("protocol", currentProtocol);
-        }
+        };
 
         // 6. 自动扩充特性标签（去重合并）
         const existingTags: ModelTag[] = form.getFieldValue("tags") || [];
@@ -167,22 +187,28 @@ export function ChannelModelEditor({
             }
         }
 
-        if (tagsToAdd.length > 0) {
-            form.setFieldValue("tags", [...existingTags, ...tagsToAdd]);
-        }
+        const mergedTags = tagsToAdd.length > 0 ? [...existingTags, ...tagsToAdd] : existingTags;
 
         // 7. 描述：若当前为空则生成专业规格描述
         const currentDesc = form.getFieldValue("description") || "";
-        if (!currentDesc.trim()) {
-            const specs: string[] = [];
-            if (preset.contextLimit) specs.push(`上下文 ${formatTokenLimit(preset.contextLimit)}`);
-            if (preset.outputLimit) specs.push(`最大输出 ${formatTokenLimit(preset.outputLimit)}`);
-            if (preset.reasoning) specs.push("支持深度思考");
-            if (preset.tool_call) specs.push("支持工具调用");
-            if (hasVision) specs.push("支持视觉理解");
-            if (hasVideo) specs.push("支持视频理解");
-            form.setFieldValue("description", `${preset.name}，${specs.join("，")}。`);
-        }
+        const specs: string[] = [];
+        if (preset.contextLimit) specs.push(`上下文 ${formatTokenLimit(preset.contextLimit)}`);
+        if (preset.outputLimit) specs.push(`最大输出 ${formatTokenLimit(preset.outputLimit)}`);
+        if (preset.reasoning) specs.push("支持深度思考");
+        if (preset.tool_call) specs.push("支持工具调用");
+        if (hasVision) specs.push("支持视觉理解");
+        if (hasVideo) specs.push("支持视频理解");
+        const nextDesc = currentDesc.trim() || `${preset.name}，${specs.join("，")}。`;
+
+        // 一次性批量更新表单字段，确保所有 Form.useWatch 监听到最新值
+        form.setFieldsValue({
+            displayName: preset.name,
+            ...(!currentModelKey?.trim() ? { modelKey: preset.id } : {}),
+            capabilityConfig: updatedConfig,
+            tags: mergedTags,
+            description: nextDesc,
+            ...(currentProtocol ? { protocol: currentProtocol } : {}),
+        });
 
         setConfigurationChanged(true);
         message.success(`已应用预设【${preset.name}】参数！展示名、上下文限制及能力已填充，上游模型 ID 与调用协议保持不变。`);

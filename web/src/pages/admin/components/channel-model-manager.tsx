@@ -22,6 +22,7 @@ import { deselectVisibleModels, filterImportModels, normalizeFetchModelKey, sele
 import { duplicateChannelModelValues, initialChannelModelValues, type ChannelModelFormValues } from "./channel-model-editor-form";
 import { PresetModelSelector } from "@/components/preset-model-selector";
 import { formatTokenLimit, type PresetModel } from "@/lib/preset-models";
+import { thinkingPresetConfig, type TextThinkingConfig } from "@/lib/text-thinking";
 import type { ModelTag } from "@/lib/model-tags";
 import type { TextCapabilityConfig } from "@/lib/model-capabilities";
 import { Select } from "@/components/ui/base/select";
@@ -163,8 +164,33 @@ export function ChannelModelManager({ channel, onChanged, health, healthLoading 
         const hasVision = Boolean(preset.modalities?.input?.includes("image"));
         const hasVideo = Boolean(preset.modalities?.input?.includes("video"));
 
+        let thinkingConfig: TextThinkingConfig | undefined = undefined;
+        if (preset.reasoning) {
+            const pId = preset.id.toLowerCase();
+            if (pId.includes("gemini-3") && pId.includes("flash")) {
+                thinkingConfig = thinkingPresetConfig("gemini-3-flash");
+            } else if (pId.includes("gemini-3") && pId.includes("pro")) {
+                thinkingConfig = thinkingPresetConfig("gemini-3-pro");
+            } else if (pId.includes("gemini-2.5")) {
+                thinkingConfig = thinkingPresetConfig("gemini-2.5");
+            } else if (pId.includes("deepseek")) {
+                thinkingConfig = thinkingPresetConfig("deepseek");
+            } else if (pId.includes("o1") || pId.includes("o3")) {
+                thinkingConfig = thinkingPresetConfig("openai-o");
+            } else if (pId.includes("gpt-5")) {
+                thinkingConfig = thinkingPresetConfig("openai-gpt5");
+            } else if (pId.includes("claude")) {
+                thinkingConfig = thinkingPresetConfig("claude-adaptive");
+            } else if (pId.includes("qwen")) {
+                thinkingConfig = thinkingPresetConfig("qwen-hybrid");
+            } else {
+                thinkingConfig = thinkingPresetConfig("model-suffix");
+            }
+        }
+
         const textConfig: TextCapabilityConfig = {
             streaming: true,
+            thinking: thinkingConfig,
             contextWindowTokens: preset.contextLimit || 128_000,
             maxOutputTokens: preset.outputLimit || 16_384,
             references: {

@@ -920,7 +920,8 @@ const thinkingIntensityFields = {
 
 // 预设只是起点；管理员可按真实型号修改档位、开关、上游取值和预算。
 // 保存时后端按接口格式校验，预设展开后的完整配置随模型保存。
-function TextThinkingEditor({ value, disabled, onChange }: { value?: TextThinkingConfig; disabled: boolean; onChange: (value: TextThinkingConfig | undefined) => void }) {
+function TextThinkingEditor({ value: rawValue, disabled, onChange }: { value?: TextThinkingConfig; disabled: boolean; onChange: (value: TextThinkingConfig | undefined) => void }) {
+    const value = rawValue && typeof rawValue === "object" && typeof rawValue.mode === "string" && rawValue.switch && rawValue.intensity ? rawValue : undefined;
     const preset = THINKING_PRESETS.find((item) => item.id === value?.preset);
     const levels = value ? thinkingLevelsFor(value) : [];
     const enabledLevels = value?.mode === "always" ? THINKING_LEVELS.filter((level) => level !== "off") : THINKING_LEVELS;
@@ -954,7 +955,7 @@ function TextThinkingEditor({ value, disabled, onChange }: { value?: TextThinkin
                             options={thinkingModeOptions}
                             onChange={(mode) => {
                                 const next = withThinkingLevels(value, mode === "always" ? levels.filter((level) => level !== "off") : levels);
-                                onChange({ ...next, mode: mode as ThinkingMode, switch: mode === "always" && next.switch.kind === "omit" ? { kind: "none" } : next.switch });
+                                onChange({ ...next, mode: mode as ThinkingMode, switch: mode === "always" && next.switch?.kind === "omit" ? { kind: "none" } : next.switch || { kind: "omit" } });
                             }}
                         />
                     </Field>
@@ -983,9 +984,9 @@ function TextThinkingEditor({ value, disabled, onChange }: { value?: TextThinkin
                                 <summary className="cursor-pointer text-xs text-foreground/60">高级协议映射</summary>
                                 <p className="text-[var(--fs-tiny)] leading-5 text-foreground/45">按上游实际能力配置，保存时校验协议字段。仅配置该型号支持的档位；第三方渠道不保证支持整个系列的参数。</p>
                                 <Field label="开关写法">
-                                    <Select className="w-full" disabled={disabled} value={value.switch.kind} options={thinkingSwitchOptions} onChange={(kind: ThinkingSwitchKind) => onChange({ ...value, switch: { kind } })} />
+                                    <Select className="w-full" disabled={disabled} value={value.switch?.kind || "omit"} options={thinkingSwitchOptions} onChange={(kind: ThinkingSwitchKind) => onChange({ ...value, switch: { kind } })} />
                                 </Field>
-                                {value.switch.kind === "thinking-type" ? (
+                                {value.switch?.kind === "thinking-type" ? (
                                     <Field label="开启时 thinking.type">
                                         <Select
                                             className="w-full"
@@ -997,15 +998,15 @@ function TextThinkingEditor({ value, disabled, onChange }: { value?: TextThinkin
                                     </Field>
                                 ) : null}
                                 <Field label="强度写法">
-                                    <Select className="w-full" disabled={disabled} value={value.intensity.kind} options={thinkingIntensityOptions} onChange={(kind: ThinkingIntensityKind) => onChange({ ...value, intensity: { kind } })} />
+                                    <Select className="w-full" disabled={disabled} value={value.intensity?.kind || "effort"} options={thinkingIntensityOptions} onChange={(kind: ThinkingIntensityKind) => onChange({ ...value, intensity: { kind } })} />
                                 </Field>
-                                {value.intensity.kind === "effort" || value.intensity.kind === "budget" ? (
+                                {value.intensity?.kind === "effort" || value.intensity?.kind === "budget" ? (
                                     <Field label="写入字段">
                                         <Select
                                             className="w-full"
                                             disabled={disabled}
                                             value={value.intensity.field || ""}
-                                            options={[{ label: "按接口格式自动选择", value: "" }, ...thinkingIntensityFields[value.intensity.kind].map((field) => ({ label: field, value: field }))]}
+                                            options={[{ label: "按接口格式自动选择", value: "" }, ...(thinkingIntensityFields[value.intensity.kind] || []).map((field) => ({ label: field, value: field }))]}
                                             onChange={(field: string) => onChange({ ...value, intensity: { ...value.intensity, field } })}
                                         />
                                     </Field>
