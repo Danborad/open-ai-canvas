@@ -3,6 +3,7 @@ import { Coins, Eye, Pencil, Power } from "lucide-react";
 
 import { formatCredits } from "@/constant/credits";
 import { IdentityProviderBadge } from "@/components/layout/identity-provider-badge";
+import { UserAvatar } from "@/components/layout/user-avatar";
 import { AdminRowActions, AdminStatusBadge } from "../components/admin-ui";
 import type { AdminUser } from "@/services/api/auth";
 import { UserGroupBadge } from "@/components/layout/user-group-badge";
@@ -47,16 +48,19 @@ export function createUserColumns({
             title: "用户",
             dataIndex: "username",
             fixed: "left",
-            width: 200,
+            width: 240,
             render: (_, user) => (
-                <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                        <button type="button" className="admin-table-primary-link truncate font-medium" onClick={() => onView(user)}>
-                            {user.displayName || user.username}
-                        </button>
-                        <IdentityProviderBadge user={user} />
+                <div className="flex items-center gap-2.5 min-w-0">
+                    <UserAvatar user={user} className="size-8 shrink-0 rounded-full" />
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                            <button type="button" className="admin-table-primary-link truncate font-medium text-left" onClick={() => onView(user)}>
+                                {user.displayName || user.username}
+                            </button>
+                            <IdentityProviderBadge user={user} />
+                        </div>
+                        <div className="truncate text-xs text-foreground/45">@{user.username}</div>
                     </div>
-                    <div className="truncate text-xs text-foreground/45">@{user.username}</div>
                 </div>
             ),
         },

@@ -159,6 +159,7 @@ export default function RuntimePolicySettingsPage() {
     const [presetLoading, setPresetLoading] = useState(false);
     const [loadError, setLoadError] = useState("");
     const [saveError, setSaveError] = useState("");
+    const [errorField, setErrorField] = useState<PolicyField | null>(null);
     const [form] = Form.useForm<RuntimePolicyDraft>();
     const requestVersionRef = useRef(0);
     const formReadyRef = useRef(false);
@@ -352,18 +353,35 @@ export default function RuntimePolicySettingsPage() {
         });
     };
 
+    const scrollToErrorField = (field?: PolicyField) => {
+        if (!field) return;
+        const inputId = `admin-runtime-policy-${field.group}-${field.name}`;
+        const element = document.getElementById(inputId);
+        if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+            element.focus();
+            element.classList.remove("admin-field-highlight-pulse");
+            void element.offsetWidth;
+            element.classList.add("admin-field-highlight-pulse");
+        } else {
+            form.scrollToField([field.group, field.name], { behavior: "smooth", block: "center" });
+        }
+    };
+
     const save = async () => {
         if (!draft || !dirty || saving) return;
         const values = await form.validateFields();
         const expected = toPolicyDraft(values);
-        const relationshipError = validatePolicyRelationships(expected);
-        if (relationshipError) {
-            setSaveError(relationshipError);
-            form.scrollToField(["resource", "storedFileGB"], { behavior: "smooth", block: "center" });
-            throw new Error(relationshipError);
+        const validation = validatePolicyRelationships(expected);
+        if (validation) {
+            setSaveError(validation.message);
+            setErrorField(validation.field || null);
+            scrollToErrorField(validation.field);
+            throw new Error(validation.message);
         }
         setSaving(true);
         setSaveError("");
+        setErrorField(null);
         try {
             const result = await updateAdminRuntimePolicySetting(expected);
             const value = parseRuntimePolicySetting(result.setting);
@@ -493,9 +511,16 @@ export default function RuntimePolicySettingsPage() {
                     </div>
 
                     {loadError || saveError ? (
-                        <div className="admin-runtime-policy-inline-alert" role="alert">
+                        <div
+                            className={cn("admin-runtime-policy-inline-alert", errorField && "cursor-pointer transition-all hover:brightness-110")}
+                            role="alert"
+                            onClick={() => {
+                                if (errorField) scrollToErrorField(errorField);
+                            }}
+                        >
                             <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
                             <span>{saveError || `${loadError}。页面仍显示上一次成功读取的配置。`}</span>
+                            {errorField ? <span className="ml-auto text-xs underline font-medium opacity-90">点击跳转定位该项 →</span> : null}
                         </div>
                     ) : null}
 
@@ -576,10 +601,22 @@ function parseRuntimePolicySetting(value: RuntimePolicySetting): RuntimePolicySe
     return value;
 }
 
-function validatePolicyRelationships(value: RuntimePolicyDraft) {
+type PolicyValidationError = {
+    message: string;
+    field?: PolicyField;
+};
+
+function validatePolicyRelationships(value: RuntimePolicyDraft): PolicyValidationError | null {
     const accountCapacityMB = readDraftNumber(value, "resource", "storedFileGB") * 1024;
-    const oversized = resourceFields.slice(0, 3).find((field) => readPolicyValue(value, field) > accountCapacityMB);
-    return oversized ? `${oversized.label}不能大于账号文件总量` : "";
+    // 仅校验单文件上限（普通资源单文件、单个生成资源），每日上传总量不设此限制，允许付费扩容与自然日循环
+    const oversized = resourceFields.slice(0, 2).find((field) => readPolicyValue(value, field) > accountCapacityMB);
+    if (oversized) {
+        return {
+            message: `${oversized.label}（${readPolicyValue(value, oversized)}MB）不能大于账号文件总量（${accountCapacityMB}MB）`,
+            field: oversized,
+        };
+    }
+    return null;
 }
 
 function formatPolicyValue(value: number, unit: string) {

@@ -3,12 +3,13 @@ import { resolveModelVideoBooleanOptions } from "@/lib/model-selection";
 import type { AiConfig } from "@/stores/use-config-store";
 import type { CreationSettings } from "./creation-types";
 
-export function creationImageConfig(config: AiConfig, model: string, settings: { ratio?: string; imageResolution?: string; quality?: string; count?: string | number; imageParameters?: string }): AiConfig {
+export function creationImageConfig(config: AiConfig, model: string, settings: { ratio?: string; imageResolution?: string; quality?: string; imageThinkingLevel?: string; count?: string | number; imageParameters?: string }): AiConfig {
     const profile = modelCapabilityConfigFor(config, model).image!;
     const normalized = normalizeImageValue(profile, {
         size: settings.ratio || profile.size.default,
         quality: settings.quality || profile.quality.default,
         imageResolution: settings.imageResolution || profile.resolution.default,
+        imageThinkingLevel: settings.imageThinkingLevel || config.imageThinkingLevel,
         imageParameters: settings.imageParameters,
         count: String(settings.count || config.count || "1"),
     });
@@ -19,6 +20,7 @@ export function creationImageConfig(config: AiConfig, model: string, settings: {
         size: normalized.size || config.size || "1:1",
         quality: normalized.quality || config.quality || "auto",
         imageResolution: normalized.imageResolution || config.imageResolution || "auto",
+        imageThinkingLevel: settings.imageThinkingLevel || config.imageThinkingLevel || "high",
         imageParameters: settings.imageParameters || "{}",
         count: String(settings.count || config.count || "1"),
     };

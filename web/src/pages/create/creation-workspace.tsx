@@ -1,5 +1,5 @@
 import { ImageSizePicker } from "@/components/image-size-picker";
-import { ImageParameterFields } from "@/components/image-parameter-fields";
+import { ImageCountStepper, ImageParameterFields } from "@/components/image-parameter-fields";
 import { imageResolutionUsesQuality, imageSizePresets } from "@/lib/image-size-presets";
 import { createPortal } from "react-dom";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
@@ -23,6 +23,7 @@ import { ModelPicker } from "@/components/model-picker";
 import { aceternityMotion } from "@/lib/aceternity-motion";
 import { CreditSymbol, requestCreditCost } from "@/constant/credits";
 import { ASSET_CATEGORY_LABELS } from "@/lib/asset-category";
+import { cn } from "@/lib/utils";
 import { formatShotOrdinal } from "@/lib/shot-label";
 import { buildImageResolutionOptions, formatImageResolutionSize, supportsImageResolutionPresets } from "@/lib/image-resolution-tiers";
 import { normalizeVideoValue, videoDurationOptions, type ImageCapabilityConfig, type VideoCapabilityConfig } from "@/lib/model-capabilities";
@@ -181,6 +182,8 @@ type ComposerProps = {
     setQuality: (value: string) => void;
     imageResolution: string;
     setImageResolution: (value: string) => void;
+    imageThinkingLevel?: string;
+    setImageThinkingLevel: (value: string) => void;
     imageParameters?: string;
     setImageParameters: (value: string) => void;
     setTransparentBackground: (value: string) => void;
@@ -751,9 +754,16 @@ function GenerationSettingsMenu(props: ComposerProps) {
     };
     const videoResolutionSupported = props.mode === "video" && resolutions.length > 1;
     const defaultResolutionLabel = videoResolutionLabel(props.videoQuality || props.videoProfile.defaultResolution || (resolutions[0]?.value ? resolutions[0].value : "720p"));
+    const thinkingOptions = (props.imageProfile.thinking?.values?.length ? props.imageProfile.thinking.values : ["low", "medium", "high"]).map((val) => ({
+        value: val,
+        label: val === "high" ? "高 (推荐)" : val === "medium" ? "中" : val === "low" ? "低" : val,
+    }));
+    const currentThinking = props.imageThinkingLevel || props.imageProfile.thinking?.default || "high";
+    const thinkingLabel = thinkingOptions.find((item) => item.value === currentThinking)?.label || currentThinking;
     const imageSummary = [
         ...(mergedProfile.size.parameter !== "none" ? [referenceImageSizeSelected ? referenceImageSizeLabel : usesImageResolutionPicker ? formatImageResolutionSize(props.ratio, imageResolutionOptions) : props.ratio] : []),
         ...(props.imageProfile.quality.supported ? [qualityLabel] : []),
+        ...(props.imageProfile.thinking?.supported ? [thinkingLabel] : []),
         ...(props.imageProfile.maxOutputs > 1 ? [props.count] : []),
     ].join(" · ");
     const videoRatioSupported = props.mode === "video" && ratios.length > 0;
@@ -836,29 +846,43 @@ function GenerationSettingsMenu(props: ComposerProps) {
                                 </div>
                             </SettingSection>
                         ) : null}
+                        {props.imageProfile.thinking?.supported ? (
+                            <SettingSection title="图片等级 (思考深度)" value={thinkingLabel}>
+                                <div className={`grid gap-2 ${thinkingOptions.length <= 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+                                    {thinkingOptions.map((item) => (
+                                        <button
+                                            key={item.value}
+                                            type="button"
+                                            aria-pressed={currentThinking === item.value}
+                                            className={cn(
+                                                "flex h-8 items-center justify-center rounded-full text-xs font-medium transition-colors duration-150 select-none",
+                                                currentThinking === item.value ? "bg-primary/20 text-primary border border-primary/40 font-semibold" : "bg-muted/40 hover:bg-muted/70 text-muted-foreground hover:text-foreground border border-border/40",
+                                            )}
+                                            onClick={() => props.setImageThinkingLevel(item.value)}
+                                        >
+                                            {item.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </SettingSection>
+                        ) : null}
                         {props.imageProfile.maxOutputs > 1 ? (
                             <SettingSection title="生成张数" value={`${props.count} 张`}>
-                                <div className="creation-parameter-content">
-                                    <div className="creation-choice-grid is-count">
-                                        {countOptions
-                                            .filter((option) => Number(option) <= props.imageProfile.maxOutputs)
-                                            .map((option) => (
-                                                <button key={option} type="button" aria-pressed={option === props.count} className={option === props.count ? "is-selected" : ""} onClick={() => props.setCount(option)}>
-                                                    {option}
-                                                </button>
-                                            ))}
-                                    </div>
-                                    <label className="creation-custom-value">
-                                        <span>自定义</span>
-                                        <input
-                                            inputMode="numeric"
-                                            pattern="[0-9]*"
-                                            value={props.count}
-                                            onChange={(event) => props.setCount(String(Math.max(1, Math.min(props.imageProfile.maxOutputs, Number(event.target.value) || 1))))}
-                                            aria-label={`生成张数，范围 1 到 ${props.imageProfile.maxOutputs}`}
-                                        />
-                                        <em>张</em>
-                                    </label>
+                                <div className="grid grid-cols-4 gap-2 pt-1">
+                                    {Array.from({ length: Math.min(3, props.imageProfile.maxOutputs) }, (_, i) => i + 1).map((val) => (
+                                        <button
+                                            key={val}
+                                            type="button"
+                                            onClick={() => props.setCount(String(val))}
+                                            className={cn(
+                                                "flex h-8 items-center justify-center rounded-full text-xs font-medium transition-colors duration-150 select-none",
+                                                Number(props.count) === val ? "bg-primary/20 text-primary border border-primary/40 font-semibold" : "bg-muted/40 hover:bg-muted/70 text-muted-foreground hover:text-foreground border border-border/40",
+                                            )}
+                                        >
+                                            {val}
+                                        </button>
+                                    ))}
+                                    {props.imageProfile.maxOutputs >= 4 ? <ImageCountStepper value={Number(props.count) || 1} max={props.imageProfile.maxOutputs} onChange={(next) => props.setCount(String(next))} /> : null}
                                 </div>
                             </SettingSection>
                         ) : null}

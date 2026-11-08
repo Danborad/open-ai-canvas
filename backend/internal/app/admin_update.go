@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"yingce/backend/internal/buildinfo"
 	"yingce/backend/internal/hostupdate"
 	"yingce/backend/internal/model"
 )
@@ -20,17 +21,32 @@ func (s *Service) ConfigureUpdateManager(manager UpdateManager) {
 	s.updateManager = manager
 }
 
+func reconcileRuntimeVersion(status *hostupdate.Status) {
+	realVersion := strings.TrimSpace(buildinfo.Current().Version)
+	if realVersion != "" && realVersion != "dev" && realVersion != "unknown" {
+		status.CurrentVersion = realVersion
+		if status.LatestRelease != nil {
+			status.UpdateAvailable = hostupdate.CompareVersions(status.CurrentVersion, status.LatestRelease.Version) < 0
+		}
+	}
+}
+
 func (s *Service) AdminUpdateStatus(ctx context.Context, actor *model.User) (hostupdate.Status, error) {
 	if err := s.RequireAdmin(actor); err != nil {
 		return hostupdate.Status{}, err
 	}
 	if s.updateManager == nil {
-		return unsupportedUpdateStatus("当前部署未安装 Host Updater"), nil
+		status := unsupportedUpdateStatus("当前部署未安装 Host Updater")
+		reconcileRuntimeVersion(&status)
+		return status, nil
 	}
 	status, err := s.updateManager.Status(ctx)
 	if err != nil {
-		return unsupportedUpdateStatus("Host Updater 当前不可连接"), nil
+		status := unsupportedUpdateStatus("Host Updater 当前不可连接")
+		reconcileRuntimeVersion(&status)
+		return status, nil
 	}
+	reconcileRuntimeVersion(&status)
 	return status, nil
 }
 
@@ -43,8 +59,10 @@ func (s *Service) AdminCheckUpdate(ctx context.Context, actor *model.User) (host
 	}
 	status, err := s.updateManager.Check(ctx)
 	if err != nil {
+		reconcileRuntimeVersion(&status)
 		return status, WrapAppError(http.StatusBadGateway, "检查更新失败，请查看更新器状态和日志", err)
 	}
+	reconcileRuntimeVersion(&status)
 	return status, nil
 }
 

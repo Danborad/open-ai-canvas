@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -545,44 +546,32 @@ func formatByteSize(bytes int64) string {
 	return fmt.Sprintf("%.2f %s", float64(bytes)/float64(div), units[exp])
 }
 
+func markdownToWecomPlainText(md string) string {
+	text := md
+	// 清理 font 标签，保留中间内容
+	reFont := regexp.MustCompile(`(?i)<font[^>]*>([^<]*)</font>`)
+	text = reFont.ReplaceAllString(text, "$1")
+	// 清理其它简单 html 标签
+	reHTML := regexp.MustCompile(`<[^>]+>`)
+	text = reHTML.ReplaceAllString(text, "")
+	// 清理标题标记 ###, ##, #
+	reHeader := regexp.MustCompile(`(?m)^#{1,6}\s*`)
+	text = reHeader.ReplaceAllString(text, "")
+	// 清理引用标记 >
+	reQuote := regexp.MustCompile(`(?m)^>\s*`)
+	text = reQuote.ReplaceAllString(text, "")
+	// 清理加粗 **
+	text = strings.ReplaceAll(text, "**", "")
+	// 清理代码标记 `
+	text = strings.ReplaceAll(text, "`", "")
+	return strings.TrimSpace(text)
+}
+
 func (s *Service) sendWecomMarkdownMessage(ctx context.Context, webhookURL string, content string) error {
-	cleanURL := strings.TrimSpace(webhookURL)
-	if cleanURL == "" {
-		return errors.New("企业微信 Webhook 地址未配置")
-	}
-	payload := map[string]any{
-		"msgtype": "markdown",
-		"markdown": map[string]any{
-			"content": content,
-		},
-	}
-	jsonBytes, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cleanURL, bytes.NewReader(jsonBytes))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("请求企业微信 Webhook 失败: %w", err)
-	}
-	defer resp.Body.Close()
-	respBytes, _ := io.ReadAll(resp.Body)
-	var wecomResp struct {
-		ErrCode int    `json:"errcode"`
-		ErrMsg  string `json:"errmsg"`
-	}
-	if err := json.Unmarshal(respBytes, &wecomResp); err != nil {
-		return fmt.Errorf("企业微信响应格式错误 (HTTP %d): %s", resp.StatusCode, string(respBytes))
-	}
-	if wecomResp.ErrCode != 0 {
-		return fmt.Errorf("企业微信返回错误 [%d]: %s", wecomResp.ErrCode, wecomResp.ErrMsg)
-	}
-	return nil
+	// 普通微信无法直接完整渲染企业微信群机器人的 markdown 格式（会提示在企业微信中查看）。
+	// 转换为纯文本后统一使用 text 消息类型，确保普通微信与企业微信均可即时直观查看。
+	plainText := markdownToWecomPlainText(content)
+	return s.sendWecomTextMessage(ctx, webhookURL, plainText, false)
 }
 
 func (s *Service) sendWecomTextMessage(ctx context.Context, webhookURL string, content string, mentionAll bool) error {

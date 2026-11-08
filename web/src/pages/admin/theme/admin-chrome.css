@@ -96,24 +96,24 @@
 
 /* 展开态侧栏：分组为可折叠的一级，入口为二级；分组之间靠标题行分隔，不再额外留白。 */
 [data-admin-root] .admin-sidebar-nav.is-tree .admin-nav-group + .admin-nav-group {
-    margin-top: 4px;
+    margin-top: 10px;
 }
 
 [data-admin-root] .admin-nav-group-toggle {
     display: flex;
     width: 100%;
-    min-height: 28px;
+    min-height: 32px;
     align-items: center;
     justify-content: space-between;
-    gap: 6px;
-    padding: 0 8px;
+    gap: 8px;
+    padding: 4px 8px;
     border: 0;
     border-radius: 6px;
     background: transparent;
-    color: var(--admin-text-muted);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
+    color: var(--admin-text);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
     cursor: pointer;
     transition:
         color var(--admin-motion),
@@ -122,11 +122,11 @@
 
 [data-admin-root] .admin-nav-group-toggle:hover {
     background: var(--admin-nav-hover);
-    color: var(--admin-text-secondary);
+    color: var(--admin-text);
 }
 
 [data-admin-root] .admin-nav-group.is-current .admin-nav-group-toggle {
-    color: var(--admin-text-secondary);
+    color: var(--admin-text);
 }
 
 [data-admin-root] .admin-nav-group-toggle:focus-visible {
@@ -164,11 +164,11 @@
     display: block;
     margin: 0 0 8px;
     padding: 0 8px;
-    color: var(--admin-text-muted) !important;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    line-height: 16px;
+    color: var(--admin-text) !important;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 18px;
     text-transform: none;
 }
 
@@ -636,7 +636,9 @@
     border-radius: var(--admin-radius-sm, 4px) !important;
     border: 1.5px solid color-mix(in srgb, var(--admin-text) 35%, transparent) !important;
     background: color-mix(in srgb, var(--admin-text) 4%, transparent) !important;
-    transition: border-color 0.15s ease-out, background-color 0.15s ease-out !important;
+    transition:
+        border-color 0.15s ease-out,
+        background-color 0.15s ease-out !important;
 }
 
 :is([data-admin-root], .admin-drawer, .admin-secondary-drawer, .admin-modal-root, .admin-channel-modal-root) .ant-checkbox-wrapper:hover .ant-checkbox:not(.ant-checkbox-checked):not(.ant-checkbox-disabled),
@@ -894,24 +896,27 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 12px 16px;
-    border-bottom: 0;
+    gap: 14px;
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--admin-row-border);
+    margin-bottom: 6px;
 }
 
 [data-admin-root] .admin-settings-section-summary h2 {
     margin: 0;
     color: var(--admin-text);
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-size: 15.5px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 22px;
 }
 
 [data-admin-root] .admin-settings-section-summary p {
-    margin: 4px 0 0;
-    color: var(--admin-text-muted);
-    font-size: 12px;
+    margin: 3px 0 0;
+    color: var(--admin-text-secondary);
+    font-size: 12.5px;
     line-height: 18px;
+    opacity: 0.85;
 }
 
 [data-admin-root] .admin-settings-section-content {
@@ -1008,7 +1013,22 @@
     font-size: 12px;
 }
 
-[data-admin-root] .admin-feature-domain-icon,
+[data-admin-root] .admin-feature-domain-icon {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border: 1px solid var(--admin-row-border);
+    border-radius: calc(var(--admin-radius) + 2px);
+    background: var(--admin-surface-2);
+    color: var(--admin-text);
+}
+
+[data-admin-root] .admin-feature-domain-icon svg {
+    width: 17px;
+    height: 17px;
+}
+
 [data-admin-root] .admin-feature-board-row-icon {
     display: grid;
     width: 28px;
@@ -1268,4 +1288,22 @@
     :is([data-admin-root], body.admin-overlays) :is(.ant-popover, .ant-dropdown, .ant-select-dropdown, .ant-tooltip, .ant-picker-dropdown, .ant-cascader-dropdown, .ant-mentions-dropdown, .ant-tree-select-dropdown) {
         transition-duration: 0s !important;
     }
+}
+
+@keyframes adminFieldHighlightPulse {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 transparent;
+    }
+    30%,
+    70% {
+        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.45);
+    }
+}
+
+.admin-field-highlight-pulse,
+.admin-field-highlight-pulse .ant-input-number,
+.admin-field-highlight-pulse input {
+    animation: adminFieldHighlightPulse 1.2s ease-in-out 2;
+    border-color: #ef4444 !important;
 }

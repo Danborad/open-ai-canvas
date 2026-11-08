@@ -176,6 +176,7 @@ export default function CreatePage() {
     const [seconds, setSeconds] = useState("6");
     const [quality, setQuality] = useState("auto");
     const [imageResolution, setImageResolution] = useState("auto");
+    const [imageThinkingLevel, setImageThinkingLevel] = useState("high");
     const [imageParameters, setImageParameters] = useState("{}");
     const [videoQuality, setVideoQuality] = useState(config.vquality || "720");
     const [count, setCount] = useState(String(Math.max(1, Math.min(4, Number(config.count) || 1))));
@@ -249,10 +250,10 @@ export default function CreatePage() {
             return creationVideoConfig(config, selectedModel, { ratio, seconds, videoQuality });
         }
         if (mode === "image") {
-            return creationImageConfig(config, selectedModel, { ratio, imageResolution, quality, count, imageParameters });
+            return creationImageConfig(config, selectedModel, { ratio, imageResolution, quality, imageThinkingLevel, count, imageParameters });
         }
         return { ...config, model: selectedModel, textModel: selectedModel };
-    }, [config, count, imageParameters, imageResolution, mode, quality, ratio, seconds, selectedModel, videoQuality]);
+    }, [config, count, imageParameters, imageResolution, imageThinkingLevel, mode, quality, ratio, seconds, selectedModel, videoQuality]);
     const imageProfile = useMemo(() => modelCapabilityConfigFor(config, selectedModel).image!, [config, selectedModel]);
     const videoProfile = useMemo(() => modelCapabilityConfigFor(config, selectedModel).video!, [config, selectedModel]);
     const textThinkingConfig = useMemo(() => (mode === "text" ? modelCapabilityConfigFor(config, selectedModel).text?.thinking || LEGACY_TEXT_THINKING_CONFIG : undefined), [config, mode, selectedModel]);
@@ -1041,7 +1042,7 @@ export default function CreatePage() {
                     runtime.runBackendGenerationTaskBatch({
                         mode: "image",
                         prompt: expandedPrompt,
-                        config: { ...requestConfig, count: "1" },
+                        config: { ...requestConfig, count: "1", imageThinkingLevel },
                         referenceImages,
                         signal: requestLifecycle.signal,
                         metadata: { source: "create-page", conversationId: activeConversation.id, messageId: assistantMessage.id, ...referenceMetadata },
@@ -1470,6 +1471,11 @@ export default function CreatePage() {
         setQuality: setComposerQuality,
         imageResolution,
         setImageResolution: setComposerImageResolution,
+        imageThinkingLevel,
+        setImageThinkingLevel: (value: string) => {
+            setImageThinkingLevel(value);
+            if (mode === "image") rememberImageSettings({ imageThinkingLevel: value } as any);
+        },
         imageParameters,
         setImageParameters: (value: string) => {
             setImageParameters(value);

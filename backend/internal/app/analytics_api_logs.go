@@ -175,7 +175,7 @@ func (s *Service) adminAPICallLogMediaResource(actor *model.User, logID string) 
 	if err != nil {
 		return "", nil, err
 	}
-	if log.TaskID == "" || (log.Capability != "image" && log.Capability != "video") {
+	if log.TaskID == "" || (log.Capability != "image" && log.Capability != "video" && log.Capability != "audio") {
 		return "", nil, BadAuthRequest("该请求没有可预览媒体")
 	}
 	task, err := s.repo.Task(log.TaskID)

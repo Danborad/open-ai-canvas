@@ -1,8 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Alert, App, Button, Input, Skeleton, Tabs, Typography } from "antd";
+import { Alert, App, Button, Image as AntImage, Input, Skeleton, Tabs, Typography } from "antd";
 import { AdminEmpty, AdminStatusBadge } from "@/pages/admin/components/admin-ui";
 import { AdminDrawer } from "@/pages/admin/ui/overlays";
-import { Activity, Clipboard, HardDriveUpload, Link2, RefreshCw, Save, Video } from "lucide-react";
+import { Activity, Clipboard, Download, ExternalLink, HardDriveUpload, Image as ImageIcon, Link2, Music, Play, RefreshCw, Save, Video } from "lucide-react";
 import { formatCredits } from "@/constant/credits";
 import { getAdminApiLog, queryAdminApiLogTask, recoverAdminApiLogTaskMedia, recoverAdminApiLogVideoByURL, type ApiCallLog } from "@/services/api/auth";
 import { videoRecoveryAvailable } from "../logs/log-view";
@@ -107,9 +107,7 @@ export function ApiLogDetailDrawer({ logId, onClose, onLogUpdated }: { logId: st
         const charge = refundedBilling === "charge";
         modal.confirm({
             title: charge ? "恢复作品并补扣积分？" : "恢复作品并免除扣费？",
-            content: charge
-                ? `原订单已退回 ${formatCredits(log.billingReservedMicrocredits)} 积分预授权。作品保存成功后会从用户可用余额补扣，余额不足时会变为负数。`
-                : "原订单保持已退回状态，作品保存成功后不再扣费。",
+            content: charge ? `原订单已退回 ${formatCredits(log.billingReservedMicrocredits)} 积分预授权。作品保存成功后会从用户可用余额补扣，余额不足时会变为负数。` : "原订单保持已退回状态，作品保存成功后不再扣费。",
             okText: charge ? "恢复并补扣" : "恢复，不扣费",
             cancelText: "取消",
             onOk: () => runMediaRecovery(refundedBilling),
@@ -128,11 +126,30 @@ export function ApiLogDetailDrawer({ logId, onClose, onLogUpdated }: { logId: st
                 </div>
             </div>
         </div>
-    ) : "请求日志详情";
+    ) : (
+        "请求日志详情"
+    );
 
     return (
         <AdminDrawer title={title} open={Boolean(logId)} onClose={onClose} size="min(1120px, 66vw)" className="api-log-detail-drawer-panel" rootClassName="api-log-detail-drawer">
-            {loading ? <Skeleton active paragraph={{ rows: 10 }} /> : log ? <LogDetail log={log} providerRequestId={providerRequestId} videoURL={videoURL} resultText={resultText} querying={querying} onProviderRequestIdChange={setProviderRequestId} onVideoURLChange={setVideoURL} onQuery={runQuery} onRecoverURL={runURLRecovery} onRecoverMedia={confirmMediaRecovery} /> : <AdminEmpty size="compact" title="没有请求详情" />}
+            {loading ? (
+                <Skeleton active paragraph={{ rows: 10 }} />
+            ) : log ? (
+                <LogDetail
+                    log={log}
+                    providerRequestId={providerRequestId}
+                    videoURL={videoURL}
+                    resultText={resultText}
+                    querying={querying}
+                    onProviderRequestIdChange={setProviderRequestId}
+                    onVideoURLChange={setVideoURL}
+                    onQuery={runQuery}
+                    onRecoverURL={runURLRecovery}
+                    onRecoverMedia={confirmMediaRecovery}
+                />
+            ) : (
+                <AdminEmpty size="compact" title="没有请求详情" />
+            )}
         </AdminDrawer>
     );
 }
@@ -180,7 +197,14 @@ function LogDetail({ log, providerRequestId, videoURL, resultText, querying, onP
                     <InfoItem label="供应商任务 ID" value={log.providerRequestId ? <CopyValue value={log.providerRequestId} /> : "未记录"} />
                     <InfoItem label="耗时" value={<span className="tabular-nums">{formatDuration(log.durationMs)}</span>} />
                     <InfoItem label="HTTP 状态" value={log.statusCode || "未记录"} />
-                    <InfoItem label="请求地址" value={<span className="break-all font-mono text-xs">{log.method} {log.path || "未记录"}</span>} />
+                    <InfoItem
+                        label="请求地址"
+                        value={
+                            <span className="break-all font-mono text-xs">
+                                {log.method} {log.path || "未记录"}
+                            </span>
+                        }
+                    />
                     <InfoItem label="上游渠道 URL" value={<span className="break-all font-mono text-xs">{log.upstreamUrl || "未记录"}</span>} />
                 </div>
                 {log.error || log.errorCode ? (
@@ -190,6 +214,8 @@ function LogDetail({ log, providerRequestId, videoURL, resultText, querying, onP
                     </div>
                 ) : null}
             </section>
+
+            <ResultMediaSection log={log} />
 
             {mediaRecoverable ? (
                 <section className="api-log-detail-section api-log-recovery-section">
@@ -213,11 +239,17 @@ function LogDetail({ log, providerRequestId, videoURL, resultText, querying, onP
                             </div>
                             {refunded ? (
                                 <>
-                                    <Button icon={<Save className="size-3.5" />} loading={querying} onClick={() => onRecoverMedia("waive")}>恢复，不扣费</Button>
-                                    <Button type="primary" icon={<Save className="size-3.5" />} loading={querying} onClick={() => onRecoverMedia("charge")}>恢复并补扣</Button>
+                                    <Button icon={<Save className="size-3.5" />} loading={querying} onClick={() => onRecoverMedia("waive")}>
+                                        恢复，不扣费
+                                    </Button>
+                                    <Button type="primary" icon={<Save className="size-3.5" />} loading={querying} onClick={() => onRecoverMedia("charge")}>
+                                        恢复并补扣
+                                    </Button>
                                 </>
                             ) : (
-                                <Button type="primary" icon={<Save className="size-3.5" />} loading={querying} onClick={() => onRecoverMedia()}>重新保存</Button>
+                                <Button type="primary" icon={<Save className="size-3.5" />} loading={querying} onClick={() => onRecoverMedia()}>
+                                    重新保存
+                                </Button>
                             )}
                         </div>
                         {resultText ? <Alert className="api-log-recovery-result" type={resultText.includes("失败") || resultText.includes("错误") || resultText.includes("请") ? "error" : "success"} showIcon message={resultText} /> : null}
@@ -246,7 +278,9 @@ function LogDetail({ log, providerRequestId, videoURL, resultText, querying, onP
                                 <small>默认使用当前记录，可手动覆盖</small>
                             </div>
                             <Input className="api-log-recovery-input" value={providerRequestId} onChange={(event) => onProviderRequestIdChange(event.target.value)} placeholder="输入供应商任务 ID" />
-                            <Button type="primary" icon={<RefreshCw className="size-3.5" />} loading={querying} onClick={onQuery}>查询上游任务</Button>
+                            <Button type="primary" icon={<RefreshCw className="size-3.5" />} loading={querying} onClick={onQuery}>
+                                查询上游任务
+                            </Button>
                         </div>
                         <div className="api-log-recovery-row">
                             <div className="api-log-recovery-label">
@@ -254,7 +288,9 @@ function LogDetail({ log, providerRequestId, videoURL, resultText, querying, onP
                                 <small>仅支持公网 HTTP / HTTPS 视频地址</small>
                             </div>
                             <Input className="api-log-recovery-input" prefix={<Link2 className="size-4 text-foreground/35" />} value={videoURL} onChange={(event) => onVideoURLChange(event.target.value)} placeholder="https://example.com/video.mp4" />
-                            <Button icon={<Save className="size-3.5" />} loading={querying} disabled={!videoURL.trim()} onClick={onRecoverURL}>转存并回写</Button>
+                            <Button icon={<Save className="size-3.5" />} loading={querying} disabled={!videoURL.trim()} onClick={onRecoverURL}>
+                                转存并回写
+                            </Button>
                         </div>
                         {resultText ? <Alert className="api-log-recovery-result" type={resultText.includes("失败") || resultText.includes("错误") ? "error" : resultText.includes("生成中") ? "warning" : "success"} showIcon message={resultText} /> : null}
                     </div>
@@ -269,7 +305,12 @@ function LogDetail({ log, providerRequestId, videoURL, resultText, querying, onP
                     </div>
                     <span className="text-xs text-foreground/45">{log.requestBody || log.responseBody ? "可复制原始内容" : "暂无报文"}</span>
                 </div>
-                <Tabs items={[{ key: "request", label: "请求", children: <PayloadPanel value={log.requestBody} empty="该请求未记录请求报文" /> }, { key: "response", label: "响应", children: <PayloadPanel value={log.responseBody} empty="该请求未记录响应报文" /> }]} />
+                <Tabs
+                    items={[
+                        { key: "request", label: "请求", children: <PayloadPanel value={log.requestBody} empty="该请求未记录请求报文" /> },
+                        { key: "response", label: "响应", children: <PayloadPanel value={log.responseBody} empty="该请求未记录响应报文" /> },
+                    ]}
+                />
             </section>
         </div>
     );
@@ -299,7 +340,8 @@ function PayloadPanel({ value, empty }: { value?: string; empty: string }) {
         <div className="api-log-payload-wrap">
             <div className="api-log-payload-actions">
                 <Typography.Text copyable={{ text: value, tooltips: ["复制报文", "已复制"] }}>
-                    <Clipboard className="mr-1 inline size-3.5" />复制报文
+                    <Clipboard className="mr-1 inline size-3.5" />
+                    复制报文
                 </Typography.Text>
             </div>
             <pre className="api-log-payload">{value}</pre>
@@ -322,7 +364,17 @@ function mediaDeliveryText(log: ApiCallLog) {
 }
 
 function requestKindText(value: ApiCallLog["requestKind"]) {
-    const labels: Partial<Record<ApiCallLog["requestKind"], string>> = { create: "模型生成", poll: "状态查询", download: "结果下载", upload: "上传 OSS", local_save: "保存文件", local_fallback: "本地兜底保存", offload: "同步 OSS", register: "登记素材", repair: "结果修复" };
+    const labels: Partial<Record<ApiCallLog["requestKind"], string>> = {
+        create: "模型生成",
+        poll: "状态查询",
+        download: "结果下载",
+        upload: "上传 OSS",
+        local_save: "保存文件",
+        local_fallback: "本地兜底保存",
+        offload: "同步 OSS",
+        register: "登记素材",
+        repair: "结果修复",
+    };
     return labels[value] || "上游请求";
 }
 
@@ -338,4 +390,136 @@ function formatDuration(value: number) {
     if (value < 1_000) return `${value} ms`;
     if (value < 60_000) return `${(value / 1_000).toFixed(value < 10_000 ? 1 : 0)} 秒`;
     return `${Math.floor(value / 60_000)} 分 ${Math.round((value % 60_000) / 1_000)} 秒`;
+}
+
+function ResultMediaSection({ log }: { log: ApiCallLog }) {
+    const isMedia = log.capability === "image" || log.capability === "video" || log.capability === "audio";
+    const mediaItems = extractMediaFromLog(log);
+    if (!isMedia && !mediaItems.length) return null;
+
+    const authMediaUrl = `/api/admin/api-logs/${log.id}/media`;
+    const hasDelivery = Boolean(log.mediaStage === "completed" || log.mediaPreviewUrl || log.taskId);
+
+    return (
+        <section className="api-log-detail-section">
+            <div className="api-log-detail-section-heading">
+                <div className="flex items-center gap-2">
+                    <div className="grid size-8 place-items-center rounded-md bg-emerald-500/12 text-emerald-500">
+                        {log.capability === "video" ? <Video className="size-4" /> : log.capability === "audio" ? <Music className="size-4" /> : <ImageIcon className="size-4" />}
+                    </div>
+                    <div>
+                        <div className="api-log-detail-eyebrow">RESULT PREVIEW</div>
+                        <h2>生成结果预览</h2>
+                    </div>
+                </div>
+                <span className="text-xs text-foreground/45">{log.capability === "video" ? "视频结果" : log.capability === "audio" ? "音频结果" : "图片结果"}</span>
+            </div>
+            <div className="rounded-xl border border-white/8 bg-black/20 p-4">
+                {log.capability === "video" ? (
+                    <div className="space-y-3">
+                        <video controls className="max-h-[360px] w-full rounded-lg bg-black object-contain shadow-md" src={mediaItems[0] || authMediaUrl} poster={log.mediaPreviewKind === "image" ? log.mediaPreviewUrl : undefined} />
+                        <div className="flex items-center justify-between text-xs text-foreground/50 pt-1">
+                            <span>视频预览（支持直接播放）</span>
+                            <div className="flex items-center gap-3">
+                                <a href={mediaItems[0] || authMediaUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-foreground">
+                                    <ExternalLink className="size-3.5" />
+                                    <span>新标签页打开</span>
+                                </a>
+                                <a href={`${mediaItems[0] || authMediaUrl}?download=1`} download={`video_${log.id}.mp4`} className="inline-flex items-center gap-1 hover:text-foreground">
+                                    <Download className="size-3.5" />
+                                    <span>下载原文件</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                ) : log.capability === "audio" ? (
+                    <div className="space-y-3 py-2">
+                        <audio controls className="w-full" src={mediaItems[0] || authMediaUrl} />
+                        <div className="flex items-center justify-between text-xs text-foreground/50 pt-1">
+                            <span>音频试听</span>
+                            <a href={`${mediaItems[0] || authMediaUrl}?download=1`} download={`audio_${log.id}.mp3`} className="inline-flex items-center gap-1 hover:text-foreground">
+                                <Download className="size-3.5" />
+                                <span>下载音频</span>
+                            </a>
+                        </div>
+                    </div>
+                ) : (
+                    <div>
+                        {mediaItems.length > 0 ? (
+                            <AntImage.PreviewGroup>
+                                <div className={`grid gap-3 ${mediaItems.length === 1 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2 sm:grid-cols-4"}`}>
+                                    {mediaItems.map((url, index) => (
+                                        <div key={index} className="group relative overflow-hidden rounded-lg border border-white/10 bg-black/30 aspect-square flex items-center justify-center">
+                                            <AntImage src={url} alt={`输出图片 ${index + 1}`} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </AntImage.PreviewGroup>
+                        ) : hasDelivery ? (
+                            <div className="flex flex-col items-center justify-center py-4 space-y-3">
+                                <AntImage
+                                    src={authMediaUrl}
+                                    alt="生成结果"
+                                    className="max-h-[300px] rounded-lg object-contain shadow"
+                                    fallback="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><text x='50%' y='50%' fill='%23666' text-anchor='middle' dy='.3em'>点击预览</text></svg>"
+                                />
+                                <div className="flex items-center gap-3 text-xs text-foreground/50">
+                                    <a href={authMediaUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-foreground">
+                                        <ExternalLink className="size-3.5" />
+                                        <span>在新标签查看高清原图</span>
+                                    </a>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="py-4 text-center text-xs text-foreground/45">暂未从响应报文中提取到已物化的媒体直链</div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </section>
+    );
+}
+
+function extractMediaFromLog(log: ApiCallLog): string[] {
+    const urls: string[] = [];
+    if (log.mediaPreviewUrl?.trim()) {
+        urls.push(log.mediaPreviewUrl.trim());
+    }
+    if (!log.responseBody?.trim()) return urls;
+
+    try {
+        const data = JSON.parse(log.responseBody);
+        // 1. OpenAI 格式: { data: [{ url?: "...", b64_json?: "..." }] }
+        if (Array.isArray(data.data)) {
+            for (const item of data.data) {
+                if (item?.url) urls.push(String(item.url));
+                else if (item?.b64_json) urls.push(`data:image/png;base64,${item.b64_json}`);
+            }
+        }
+        // 2. Gemini 格式: candidates[0].content.parts[].inlineData.data
+        if (Array.isArray(data.candidates?.[0]?.content?.parts)) {
+            for (const part of data.candidates[0].content.parts) {
+                const inline = part.inlineData || part.inline_data;
+                if (inline?.data) {
+                    const mime = inline.mimeType || inline.mime_type || "image/png";
+                    urls.push(`data:${mime};base64,${inline.data}`);
+                }
+            }
+        }
+        // 3. 常见直接返回: { url: "..." } 或 { video_url: "..." }
+        if (typeof data.url === "string" && data.url.startsWith("http")) urls.push(data.url);
+        if (typeof data.video_url === "string" && data.video_url.startsWith("http")) urls.push(data.video_url);
+        if (typeof data.image_url === "string" && data.image_url.startsWith("http")) urls.push(data.image_url);
+        // 4. images 数组
+        if (Array.isArray(data.images)) {
+            for (const img of data.images) {
+                if (typeof img === "string" && (img.startsWith("http") || img.startsWith("data:"))) urls.push(img);
+                else if (img?.url) urls.push(String(img.url));
+                else if (img?.dataUrl) urls.push(String(img.dataUrl));
+            }
+        }
+    } catch {
+        // 非标准 JSON
+    }
+    return Array.from(new Set(urls.filter(Boolean)));
 }
