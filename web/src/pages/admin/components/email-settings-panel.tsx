@@ -16,12 +16,13 @@ import {
     RefreshCw,
     RotateCcw,
     Save,
+    ScrollText,
     Send,
     Server,
     Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { useBlocker } from "react-router";
+import { Link, useBlocker } from "react-router";
 
 import { cn } from "@/lib/utils";
 import {
@@ -32,8 +33,10 @@ import {
     type EmailSetting,
     type TestEmailInput,
 } from "@/services/api/wallet";
+import { useUserStore } from "@/stores/use-user-store";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
 import { AdminStatusBadge, configuredSecretText, SettingsSectionCard } from "./admin-ui";
+import "./email-test-popover.css";
 
 type SenderDraft = EmailSender & {
     newPassword?: string;
@@ -451,6 +454,9 @@ export default function EmailSettingsPanel() {
                             撤销调整
                         </Button>
                     ) : null}
+                    <Link to="/admin/email-logs">
+                        <Button icon={<ScrollText className="size-4" />}>发送记录</Button>
+                    </Link>
                     <Button icon={<RefreshCw className="size-4" />} loading={refreshing} disabled={saving} onClick={requestRefresh}>
                         刷新状态
                     </Button>

@@ -127,11 +127,77 @@
           "agent"
         ],
         "baseUrl": "https://api.openai.com",
-        "requiresPublicMediaUrls": true,
+        "requiresPublicMediaUrls": false,
         "auth": {
           "type": "bearer",
           "field": "apiKey"
         },
+        "imageParameters": [
+          {
+            "name": "size",
+            "label": "画幅 / 尺寸",
+            "type": "string",
+            "binding": "aspectRatio",
+            "encoding": "pixels",
+            "pricing": true
+          },
+          {
+            "name": "imageResolution",
+            "label": "分辨率",
+            "type": "string",
+            "binding": "resolution",
+            "enabled": false,
+            "pricing": true
+          },
+          {
+            "name": "quality",
+            "label": "图片质量",
+            "type": "string",
+            "binding": "quality",
+            "pricing": true
+          },
+          {
+            "name": "count",
+            "label": "生成数量",
+            "type": "integer",
+            "binding": "imageCount",
+            "min": 1,
+            "max": 100,
+            "step": 1,
+            "default": 1
+          },
+          {
+            "name": "transparentBackground",
+            "label": "透明背景",
+            "type": "boolean",
+            "binding": "transparentBackground",
+            "default": false,
+            "enabled": false
+          },
+          {
+            "name": "outputFormat",
+            "label": "输出格式",
+            "type": "string",
+            "binding": "providerOptions.openai-image.output_format",
+            "values": [
+              "png",
+              "jpeg",
+              "webp"
+            ],
+            "default": "png",
+            "enabled": false
+          },
+          {
+            "name": "outputCompression",
+            "label": "压缩质量",
+            "type": "integer",
+            "binding": "providerOptions.openai-image.output_compression",
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "enabled": false
+          }
+        ],
         "parameters": [
           {
             "name": "model",
@@ -401,81 +467,31 @@
                 }
               }
             },
+            "resolution": {
+              "$omitEmpty": {
+                "$ref": "request.resolution"
+              }
+            },
             "quality": {
               "$omitEmpty": {
-                "$switch": {
-                  "cases": [
-                    {
-                      "when": {
-                        "$in": [
-                          {
-                            "$lower": {
-                              "$trim": {
-                                "$ref": "request.quality"
-                              }
-                            }
-                          },
-                          [
-                            "1k"
-                          ]
-                        ]
+                "$if": {
+                  "condition": {
+                    "$in": [
+                      {
+                        "$lower": {
+                          "$trim": {
+                            "$ref": "request.quality"
+                          }
+                        }
                       },
-                      "then": "low"
-                    },
-                    {
-                      "when": {
-                        "$in": [
-                          {
-                            "$lower": {
-                              "$trim": {
-                                "$ref": "request.quality"
-                              }
-                            }
-                          },
-                          [
-                            "2k"
-                          ]
-                        ]
-                      },
-                      "then": "medium"
-                    },
-                    {
-                      "when": {
-                        "$in": [
-                          {
-                            "$lower": {
-                              "$trim": {
-                                "$ref": "request.quality"
-                              }
-                            }
-                          },
-                          [
-                            "4k"
-                          ]
-                        ]
-                      },
-                      "then": "high"
-                    },
-                    {
-                      "when": {
-                        "$in": [
-                          {
-                            "$lower": {
-                              "$trim": {
-                                "$ref": "request.quality"
-                              }
-                            }
-                          },
-                          [
-                            "",
-                            "auto"
-                          ]
-                        ]
-                      },
-                      "then": null
-                    }
-                  ],
-                  "default": {
+                      [
+                        "",
+                        "auto"
+                      ]
+                    ]
+                  },
+                  "then": null,
+                  "else": {
                     "$ref": "request.quality"
                   }
                 }

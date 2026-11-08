@@ -46,7 +46,7 @@ export function BillingAutoRefundToggle({ onReconciled }: BillingAutoRefundToggl
             const { setting } = await updateAdminBillingAutoRefund(next);
             setEnabled(setting.enabled);
             setConfirmOpen(false);
-            message.success(setting.enabled ? "已开启自动对账：系统每小时将自动穿透核验文件，未出片全额退回预扣积分" : "已关闭自动对账");
+            message.success(setting.enabled ? "已开启自动对账退还" : "已关闭自动对账退还");
         } catch (error) {
             message.error(error instanceof Error ? error.message : "保存自动对账设置失败");
         } finally {
@@ -118,6 +118,7 @@ export function BillingAutoRefundToggle({ onReconciled }: BillingAutoRefundToggl
                 <p className="admin-operation-confirmation-copy">
                     系统将以用户是否实际拿到有效媒体文件为准：未出片订单（524网关超时、协议未返回地址、任务失败）自动全额退还预扣积分；已恢复出片订单自动结算。
                 </p>
+                <p className="admin-operation-confirmation-copy">这些订单中可能有已在上游产生费用的请求，自动退回后平台将承担这部分成本。退回会写入积分流水，可随时关闭。</p>
             </AdminModal>
         </div>
     );

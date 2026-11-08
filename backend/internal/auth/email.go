@@ -23,6 +23,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"yingce/backend/internal/emailtpl"
 	"yingce/backend/internal/kernel"
 
 	"yingce/backend/internal/model"
@@ -396,7 +397,11 @@ func (s *Service) SendRegistrationEmailCode(rawEmail string) error {
 		return err
 	}
 	setting = resolveEmailSender(setting, s.host.BrandName())
-	if err := s.deliverEmail(setting, email, setting.FromName+"注册验证码", registrationEmailBody(setting.FromName, code)); err != nil {
+	rendered, err := registrationEmail(setting.FromName, email, code)
+	if err != nil {
+		return err
+	}
+	if err := s.deliverEmail(setting, EmailDelivery{Purpose: EmailPurposeRegistration, Recipient: email, Mail: rendered}); err != nil {
 		cleanupErr := s.repo.DeleteEmailVerificationCode(record.ID)
 		if cleanupErr != nil {
 			return errors.Join(
@@ -748,41 +753,72 @@ func resolveEmailSender(value EmailSettingValue, brandName string) EmailSettingV
 	return value
 }
 
-func sendSMTPMail(setting EmailSettingValue, recipient string, subject string, body string) (err error) {
+// smtpSessionTimeout 限制一次投递的总时长；没有读写期限时，465 端口误配 STARTTLS 会一直等欢迎语，
+// 期间持有 emailCodeMu，后续所有验证码发送都会被卡住。
+const smtpSessionTimeout = 45 * time.Second
+
+// OutgoingMail 是一封待发送的系统邮件；Text 必须完整可读，HTML 可为空。
+type OutgoingMail struct {
+	Subject string
+	Text    string
+	HTML    string
+}
+
+type smtpStageError struct {
+	stage string
+	err   error
+}
+
+func (e *smtpStageError) Error() string { return "smtp " + e.stage + ": " + e.err.Error() }
+func (e *smtpStageError) Unwrap() error { return e.err }
+
+func smtpEncryption(setting EmailSettingValue) string {
+	// 465 是隐式 TLS 端口，按 STARTTLS 连接只会超时；这里按端口纠正，其余端口尊重配置。
+	if setting.Port == 465 && setting.Encryption != "none" {
+		return "tls"
+	}
+	return setting.Encryption
+}
+
+func sendSMTPMail(setting EmailSettingValue, recipient string, mailItem OutgoingMail) (err error) {
 	stage := "connect"
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("smtp %s: %w", stage, err)
+			err = &smtpStageError{stage: stage, err: err}
 		}
 	}()
 	address := net.JoinHostPort(setting.Host, strconv.Itoa(setting.Port))
 	tlsConfig := &tls.Config{ServerName: setting.Host, MinVersion: tls.VersionTLS12}
 	dialer := &net.Dialer{Timeout: 12 * time.Second}
-	var client *smtp.Client
-	if setting.Encryption == "tls" {
+	deadline := time.Now().Add(smtpSessionTimeout)
+	encryption := smtpEncryption(setting)
+	var connection net.Conn
+	if encryption == "tls" {
 		stage = "connect_tls"
-		connection, dialErr := tls.DialWithDialer(dialer, "tcp", address, tlsConfig)
-		if dialErr != nil {
-			return dialErr
-		}
-		stage = "greeting"
-		client, err = smtp.NewClient(connection, setting.Host)
+		connection, err = tls.DialWithDialer(dialer, "tcp", address, tlsConfig)
 	} else {
-		connection, dialErr := dialer.Dial("tcp", address)
-		if dialErr != nil {
-			return dialErr
-		}
-		stage = "greeting"
-		client, err = smtp.NewClient(connection, setting.Host)
-		if err == nil && setting.Encryption == "starttls" {
-			stage = "starttls"
-			err = client.StartTLS(tlsConfig)
-		}
+		connection, err = dialer.Dial("tcp", address)
 	}
 	if err != nil {
 		return err
 	}
+	if err := connection.SetDeadline(deadline); err != nil {
+		_ = connection.Close()
+		return err
+	}
+	stage = "greeting"
+	client, err := smtp.NewClient(connection, setting.Host)
+	if err != nil {
+		_ = connection.Close()
+		return err
+	}
 	defer client.Close()
+	if encryption == "starttls" {
+		stage = "starttls"
+		if err := client.StartTLS(tlsConfig); err != nil {
+			return err
+		}
+	}
 	if setting.Username != "" {
 		stage = "auth"
 		if err := client.Auth(smtp.PlainAuth("", setting.Username, setting.Password, setting.Host)); err != nil {
@@ -802,10 +838,8 @@ func sendSMTPMail(setting EmailSettingValue, recipient string, subject string, b
 	if err != nil {
 		return err
 	}
-	from := mail.Address{Name: setting.FromName, Address: setting.FromEmail}
-	message := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s", from.String(), recipient, mime.QEncoding.Encode("UTF-8", subject), body)
 	stage = "write_body"
-	if _, err := wc.Write([]byte(message)); err != nil {
+	if _, err := wc.Write(buildMIMEMessage(setting, recipient, mailItem, time.Now())); err != nil {
 		_ = wc.Close()
 		return err
 	}
@@ -817,7 +851,78 @@ func sendSMTPMail(setting EmailSettingValue, recipient string, subject string, b
 	return client.Quit()
 }
 
-func (s *Service) deliverEmail(setting EmailSettingValue, recipient string, subject string, body string) error {
+// buildMIMEMessage 生成 multipart/alternative 邮件。Date 与 Message-ID 是 RFC 5322 必填头，
+// 缺失时 QQ 邮箱、Gmail 等会提高垃圾邮件评分。
+func buildMIMEMessage(setting EmailSettingValue, recipient string, mailItem OutgoingMail, now time.Time) []byte {
+	from := mail.Address{Name: setting.FromName, Address: setting.FromEmail}
+	domain := setting.Host
+	if _, after, ok := strings.Cut(setting.FromEmail, "@"); ok && after != "" {
+		domain = after
+	}
+	var b strings.Builder
+	header := func(key, value string) { b.WriteString(key + ": " + value + "\r\n") }
+	header("From", from.String())
+	header("To", recipient)
+	header("Subject", mime.QEncoding.Encode("UTF-8", mailItem.Subject))
+	header("Date", now.Format(time.RFC1123Z))
+	header("Message-ID", "<"+kernel.NewID()+"@"+domain+">")
+	header("MIME-Version", "1.0")
+	header("Auto-Submitted", "auto-generated")
+	header("X-Auto-Response-Suppress", "All")
+	if strings.TrimSpace(mailItem.HTML) == "" {
+		header("Content-Type", "text/plain; charset=UTF-8")
+		header("Content-Transfer-Encoding", "base64")
+		b.WriteString("\r\n")
+		b.WriteString(wrapBase64(mailItem.Text))
+		return []byte(b.String())
+	}
+	boundary := "=_yc_" + kernel.NewID()
+	header("Content-Type", `multipart/alternative; boundary="`+boundary+`"`)
+	b.WriteString("\r\n")
+	for _, part := range []struct{ kind, body string }{{"text/plain", mailItem.Text}, {"text/html", mailItem.HTML}} {
+		b.WriteString("--" + boundary + "\r\n")
+		b.WriteString("Content-Type: " + part.kind + "; charset=UTF-8\r\n")
+		b.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
+		b.WriteString(wrapBase64(part.body))
+	}
+	b.WriteString("--" + boundary + "--\r\n")
+	return []byte(b.String())
+}
+
+func wrapBase64(value string) string {
+	encoded := base64.StdEncoding.EncodeToString([]byte(value))
+	var b strings.Builder
+	for len(encoded) > 76 {
+		b.WriteString(encoded[:76] + "\r\n")
+		encoded = encoded[76:]
+	}
+	b.WriteString(encoded + "\r\n")
+	return b.String()
+}
+
+// 邮件用途，写入 email_logs.purpose。
+const (
+	EmailPurposeRegistration      = "registration"
+	EmailPurposePasswordReset     = "password_reset"
+	EmailPurposeVerification      = "verification"
+	EmailPurposeProfileEmail      = "profile_email"
+	EmailPurposeEmailChanged      = "email_changed"
+	EmailPurposeTest              = "test"
+	EmailPurposeConsumptionReport = "consumption_report"
+	emailLogStatusSent            = "sent"
+	emailLogStatusFailed          = "failed"
+	emailLogStatusSkipped         = "skipped"
+)
+
+// EmailDelivery 描述一次投递的业务上下文，用于发送记录。
+type EmailDelivery struct {
+	Purpose   string
+	UserID    string
+	Recipient string
+	Mail      OutgoingMail
+}
+
+func (s *Service) deliverEmail(setting EmailSettingValue, delivery EmailDelivery) error {
 	senders := setting.activeSenders()
 	if len(senders) == 0 {
 		if setting.Host != "" && setting.FromEmail != "" {
@@ -844,37 +949,9 @@ func (s *Service) deliverEmail(setting EmailSettingValue, recipient string, subj
 		orderedSenders = senders
 	}
 
-	if s.mailSender != nil {
-		var lastErr error
-		var failedSetting EmailSettingValue
-		for _, sender := range orderedSenders {
-			senderSetting := setting
-			senderSetting.Host = sender.Host
-			senderSetting.Port = sender.Port
-			senderSetting.Username = sender.Username
-			senderSetting.Password = sender.Password
-			senderSetting.Encryption = sender.Encryption
-			senderSetting.FromEmail = sender.FromEmail
-			if sender.FromName != "" {
-				senderSetting.FromName = sender.FromName
-			}
-			err := s.mailSender(senderSetting, recipient, subject, body)
-			if err == nil {
-				return nil
-			}
-			lastErr = err
-			failedSetting = senderSetting
-		}
-		if lastErr != nil {
-			slog.Error("smtp email delivery failed",
-				"host", failedSetting.Host, "port", failedSetting.Port, "encryption", failedSetting.Encryption,
-				"recipient", maskedEmail(recipient), "error", smtpLogError(lastErr, failedSetting, recipient, subject, body))
-		}
-		return lastErr
-	}
-
 	var lastErr error
-	var failedSetting EmailSettingValue
+	started := time.Now()
+
 	for _, sender := range orderedSenders {
 		senderSetting := setting
 		senderSetting.Host = sender.Host
@@ -887,19 +964,33 @@ func (s *Service) deliverEmail(setting EmailSettingValue, recipient string, subj
 			senderSetting.FromName = sender.FromName
 		}
 
-		err := sendSMTPMail(senderSetting, recipient, subject, body)
+		var err error
+		if s.mailSender != nil {
+			err = s.mailSender(senderSetting, delivery.Recipient, delivery.Mail.Subject, delivery.Mail.Text)
+		} else {
+			err = sendSMTPMail(senderSetting, delivery.Recipient, delivery.Mail)
+		}
+
+		entry := model.EmailLog{ID: kernel.NewID(), UserID: delivery.UserID, Purpose: delivery.Purpose, Recipient: delivery.Recipient, Subject: logSubject(delivery.Mail.Subject), Status: emailLogStatusSent, SMTPHost: senderSetting.Host, DurationMS: time.Since(started).Milliseconds(), CreatedAt: started}
 		if err == nil {
+			s.appendEmailLog(&entry)
 			return nil
 		}
+
 		lastErr = err
-		failedSetting = senderSetting
+		reason := smtpLogError(err, senderSetting, delivery.Recipient, delivery.Mail.Subject, delivery.Mail.Text)
+		slog.Error("smtp email delivery failed",
+			"host", senderSetting.Host, "port", senderSetting.Port, "encryption", senderSetting.Encryption,
+			"recipient", maskedEmail(delivery.Recipient), "error", reason)
+		entry.Status = emailLogStatusFailed
+		entry.Reason = truncateRunes(reason, 500)
+		var stageErr *smtpStageError
+		if errors.As(err, &stageErr) {
+			entry.Stage = stageErr.stage
+		}
+		s.appendEmailLog(&entry)
 	}
 
-	if lastErr != nil {
-		slog.Error("smtp email delivery failed",
-			"host", failedSetting.Host, "port", failedSetting.Port, "encryption", failedSetting.Encryption,
-			"recipient", maskedEmail(recipient), "error", smtpLogError(lastErr, failedSetting, recipient, subject, body))
-	}
 	return lastErr
 }
 
@@ -931,9 +1022,9 @@ func (s *Service) TestEmail(actor *model.User, req TestEmailRequest) (*TestEmail
 	}
 
 	if target.Host == "" && req.SenderID != "" {
-		for _, s := range currentSetting.Senders {
-			if s.ID == req.SenderID {
-				target = s
+		for _, sender := range currentSetting.Senders {
+			if sender.ID == req.SenderID {
+				target = sender
 				if req.Password != "" {
 					target.Password = req.Password
 				}
@@ -941,9 +1032,9 @@ func (s *Service) TestEmail(actor *model.User, req TestEmailRequest) (*TestEmail
 			}
 		}
 	} else if target.Host != "" && req.SenderID != "" && target.Password == "" {
-		for _, s := range currentSetting.Senders {
-			if s.ID == req.SenderID {
-				target.Password = s.Password
+		for _, sender := range currentSetting.Senders {
+			if sender.ID == req.SenderID {
+				target.Password = sender.Password
 				break
 			}
 		}
@@ -982,7 +1073,7 @@ func (s *Service) TestEmail(actor *model.User, req TestEmailRequest) (*TestEmail
 	body := fmt.Sprintf("您好！\n\n这是一封来自 %s（%s）的测试邮件。\n发送时间：%s\n\n如果您收到这封邮件，说明该发信邮箱的 SMTP 配置完全正常！",
 		senderSetting.FromName, senderSetting.FromEmail, time.Now().Format("2006-01-02 15:04:05"))
 
-	if err := sendSMTPMail(senderSetting, req.Recipient, subject, body); err != nil {
+	if err := sendSMTPMail(senderSetting, req.Recipient, OutgoingMail{Subject: subject, Text: body}); err != nil {
 		return nil, kernel.NewAppError(500, fmt.Sprintf("邮件发送失败：%v", err))
 	}
 
@@ -990,6 +1081,55 @@ func (s *Service) TestEmail(actor *model.User, req TestEmailRequest) (*TestEmail
 		Recipient:  req.Recipient,
 		DurationMs: time.Since(start).Milliseconds(),
 	}, nil
+}
+
+// recordSkippedEmail 记录按规则未投递的请求（如找回密码时账号不存在），方便管理员排查“收不到邮件”。
+func (s *Service) recordSkippedEmail(purpose, userID, recipient, reason string) {
+	s.appendEmailLog(&model.EmailLog{ID: kernel.NewID(), UserID: userID, Purpose: purpose, Recipient: recipient, Status: emailLogStatusSkipped, Reason: reason, CreatedAt: time.Now()})
+}
+
+func (s *Service) appendEmailLog(entry *model.EmailLog) {
+	if s.repo == nil {
+		return
+	}
+	if err := s.repo.AppendEmailLog(entry); err != nil {
+		slog.Warn("email log write failed", "purpose", entry.Purpose, "recipient", maskedEmail(entry.Recipient), "error", err)
+	}
+}
+
+// logSubject 去掉标题里的验证码，发送记录不保存验证码明文。
+func logSubject(subject string) string {
+	return truncateRunes(strings.TrimSpace(emailCodeLogPattern.ReplaceAllString(subject, "******")), 200)
+}
+
+func truncateRunes(value string, limit int) string {
+	runes := []rune(value)
+	if len(runes) <= limit {
+		return value
+	}
+	return string(runes[:limit])
+}
+
+// SendSystemEmail 供其他业务域（如消费日报）复用平台 SMTP 配置与发送记录。
+func (s *Service) SendSystemEmail(delivery EmailDelivery) error {
+	_, setting, err := s.readEmailSetting()
+	if err != nil {
+		return err
+	}
+	if !setting.Enabled || setting.Host == "" || setting.Port < 1 || setting.FromEmail == "" {
+		return kernel.Forbidden("邮件服务未启用")
+	}
+	setting = resolveEmailSender(setting, s.host.BrandName())
+	return s.deliverEmail(setting, delivery)
+}
+
+// EmailBrandName 是邮件里显示的品牌名：发件人名称优先，其次是外观设置的品牌名。
+func (s *Service) EmailBrandName() string {
+	_, setting, err := s.readEmailSetting()
+	if err != nil {
+		return s.host.BrandName()
+	}
+	return resolveEmailSender(setting, s.host.BrandName()).FromName
 }
 
 var emailCodeLogPattern = regexp.MustCompile(`[0-9]{6}`)
@@ -1023,6 +1163,22 @@ func randomNumericCode(length int) (string, error) {
 	return fmt.Sprintf("%0*d", length, value.Int64()), nil
 }
 
-func registrationEmailBody(brandName string, code string) string {
-	return "你正在注册" + brandName + "。\n\n验证码：" + code + "\n\n验证码 10 分钟内有效。若非本人操作，请忽略本邮件。"
+func registrationEmail(brandName, recipient, code string) (OutgoingMail, error) {
+	return codeMail(emailtpl.CodeEmail{Brand: brandName, Heading: "注册", Intro: "你正在注册" + brandName + "。请在注册页面输入下方验证码，完成邮箱验证。", Code: code, TTLMinutes: 10, Recipient: recipient})
+}
+
+func codeMail(item emailtpl.CodeEmail) (OutgoingMail, error) {
+	rendered, err := emailtpl.RenderCode(item)
+	if err != nil {
+		return OutgoingMail{}, err
+	}
+	return OutgoingMail{Subject: rendered.Subject, Text: rendered.Text, HTML: rendered.HTML}, nil
+}
+
+func noticeMail(item emailtpl.NoticeEmail) (OutgoingMail, error) {
+	rendered, err := emailtpl.RenderNotice(item)
+	if err != nil {
+		return OutgoingMail{}, err
+	}
+	return OutgoingMail{Subject: rendered.Subject, Text: rendered.Text, HTML: rendered.HTML}, nil
 }

@@ -69,17 +69,20 @@
             "name": "model",
             "type": "string",
             "required": true,
+            "description": "模型标识",
             "mapping": "model"
           },
           {
             "name": "prompt",
             "type": "string",
             "required": true,
+            "description": "正向提示词",
             "mapping": "prompt"
           },
           {
             "name": "aspectRatio",
             "type": "string",
+            "description": "图片宽高比",
             "mapping": "aspectRatio"
           }
         ],
@@ -135,22 +138,26 @@
             "name": "model",
             "type": "string",
             "required": true,
+            "description": "模型标识",
             "mapping": "model"
           },
           {
             "name": "prompt",
             "type": "string",
             "required": true,
+            "description": "正向提示词",
             "mapping": "prompt"
           },
           {
             "name": "duration",
             "type": "integer",
+            "description": "视频时长(秒)",
             "mapping": "duration"
           },
           {
             "name": "aspectRatio",
             "type": "string",
+            "description": "视频宽高比",
             "mapping": "aspectRatio"
           }
         ],

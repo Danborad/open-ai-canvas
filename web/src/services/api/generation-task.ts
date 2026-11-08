@@ -1,3 +1,4 @@
+import type { ThinkingRequest } from "@/lib/text-thinking";
 import { createClientUUID } from "@/lib/client-id";
 import { normalizeAudioFormatForConfig, normalizeAudioVoiceForConfig } from "@/lib/audio-generation";
 import { imageParameterRequest } from "@/lib/image-parameters";
@@ -48,7 +49,8 @@ type BackendGenerationTaskOptions = {
     onTaskUpdate?: (task: GenerationTask) => void;
     onTextDelta?: (text: string) => void;
     streamText?: boolean;
-    enableThinking?: boolean;
+    /** 思考档位或意图（auto/deep）；不传时由模型默认值决定。 */
+    thinkingLevel?: ThinkingRequest;
     clientOperationId?: string;
     retryOf?: string;
     retryContextsByBatchIndex?: Array<{ retryOf: string; attemptGroupId: string; clientOperationId: string }>;
@@ -91,7 +93,7 @@ export async function runBackendGenerationTask(
         onTaskUpdate,
         onTextDelta,
         streamText,
-        enableThinking,
+        thinkingLevel,
         clientOperationId,
         retryOf,
         attemptGroupId,
@@ -104,7 +106,7 @@ export async function runBackendGenerationTask(
     const prepared = await prepareGenerationReferences({ config, mode, referenceImages, referenceVideos, referenceAudios, mask });
     throwIfAborted(signal);
     return createAndWaitGenerationTask(
-        { projectId, mode, prompt, config, referenceImages, referenceVideos, referenceAudios, textHistory, signal, metadata, onTaskUpdate, onTextDelta, streamText, enableThinking, clientOperationId, retryOf, attemptGroupId },
+        { projectId, mode, prompt, config, referenceImages, referenceVideos, referenceAudios, textHistory, signal, metadata, onTaskUpdate, onTextDelta, streamText, thinkingLevel, clientOperationId, retryOf, attemptGroupId },
         prepared,
         dependencies,
     );
@@ -310,7 +312,7 @@ function backendGenerationTaskInput(options: BackendGenerationTaskOptions, prepa
             config: backendProviderConfig(config, mode),
             capabilityOptions: logicalModelId ? logicalCapabilityOptions(config, mode) : undefined,
             textHistory: options.textHistory,
-            ...(mode === "text" ? { textOptions: { stream: options.streamText !== false, thinking: options.enableThinking === true } } : {}),
+            ...(mode === "text" ? { textOptions: { stream: options.streamText !== false, ...(options.thinkingLevel ? { thinkingLevel: options.thinkingLevel } : {}) } } : {}),
             referenceImages: prepared.referenceImages,
             referenceVideos: prepared.referenceVideos,
             referenceAudios: prepared.referenceAudios,

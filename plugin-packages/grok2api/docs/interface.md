@@ -100,17 +100,20 @@
             "name": "model",
             "type": "string",
             "required": true,
+            "description": "模型标识",
             "mapping": "model"
           },
           {
             "name": "prompt",
             "type": "string",
             "required": true,
+            "description": "正向提示词",
             "mapping": "prompt"
           },
           {
             "name": "aspectRatio",
             "type": "string",
+            "description": "图片宽高比",
             "mapping": "aspectRatio",
             "values": [
               "1:1",
@@ -127,6 +130,7 @@
           {
             "name": "quality",
             "type": "string",
+            "description": "图片清晰度/尺寸",
             "mapping": "quality",
             "values": [
               "1k",
@@ -175,12 +179,14 @@
             "name": "model",
             "type": "string",
             "required": true,
+            "description": "模型标识",
             "mapping": "model"
           },
           {
             "name": "prompt",
             "type": "string",
             "required": true,
+            "description": "正向提示词",
             "mapping": "prompt"
           },
           {
@@ -192,6 +198,7 @@
           {
             "name": "aspectRatio",
             "type": "string",
+            "description": "视频宽高比",
             "mapping": "aspectRatio",
             "values": [
               "16:9",
@@ -206,6 +213,7 @@
           {
             "name": "resolution",
             "type": "string",
+            "description": "视频清晰度",
             "mapping": "resolution",
             "values": [
               "480p",
@@ -281,6 +289,7 @@
             "name": "model",
             "type": "string",
             "required": true,
+            "description": "模型标识",
             "mapping": "model"
           },
           {
@@ -299,6 +308,7 @@
           {
             "name": "response_format",
             "type": "string",
+            "description": "输出音频格式，默认 mp3。",
             "mapping": "response_format",
             "values": [
               "mp3",
@@ -307,8 +317,7 @@
               "flac",
               "wav",
               "pcm"
-            ],
-            "description": "输出音频格式，默认 mp3。"
+            ]
           },
           {
             "name": "speed",

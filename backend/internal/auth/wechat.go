@@ -162,9 +162,9 @@ func (s *Service) AdminWechatSetting(actor *model.User) (*PublicWechatSetting, e
 		updatedAt = setting.UpdatedAt
 	}
 	return &PublicWechatSetting{
-		Enabled:      value.Enabled,
-		AppID:        value.AppID,
-		HasSecret:    value.Secret != "",
+		Enabled:         value.Enabled,
+		AppID:           value.AppID,
+		HasSecret:       value.Secret != "",
 		Page:            value.Page,
 		EnvVersion:      value.EnvVersion,
 		Manual:          value.Manual,
@@ -612,12 +612,12 @@ func (s *Service) ConfirmWechatTicketWithProfile(req WechatConfirmRequest) (*Wec
 	if err != nil || ticket == nil {
 		if ticketID == WechatAnchorTicketID {
 			ticket = &model.WechatQRTicket{
-				ID:          WechatAnchorTicketID,
-				Action:      model.WechatTicketActionLogin,
-				Status:      model.WechatTicketStatusPending,
-				ExpiresAt:   time.Now().Add(10 * time.Minute),
-				CreatedAt:   time.Now(),
-				UpdatedAt:   time.Now(),
+				ID:        WechatAnchorTicketID,
+				Action:    model.WechatTicketActionLogin,
+				Status:    model.WechatTicketStatusPending,
+				ExpiresAt: time.Now().Add(10 * time.Minute),
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
 			}
 			_ = s.repo.CreateWechatQRTicket(ticket)
 		} else {

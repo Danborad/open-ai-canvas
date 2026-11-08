@@ -112,7 +112,7 @@ func TestMultiSenderConfigAndRoundRobin(t *testing.T) {
 
 	// 连续发送 4 封
 	for i := 0; i < 4; i++ {
-		if err := svc.deliverEmail(settingVal, "test@example.com", "Test", "Content"); err != nil {
+		if err := svc.deliverEmail(settingVal, EmailDelivery{Recipient: "test@example.com", Mail: OutgoingMail{Subject: "Test", Text: "Content"}}); err != nil {
 			t.Fatalf("deliverEmail %d failed: %v", i, err)
 		}
 	}

@@ -238,4 +238,3 @@ func signedWebDAVObjectURL(setting Settings, objectKey string, signing objectURL
 	}
 	return targetURL.String(), nil
 }
-

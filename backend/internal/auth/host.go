@@ -49,7 +49,7 @@ func (nopHost) AllowRequest(context.Context, string, int, time.Duration) (bool, 
 func (nopHost) RequestRetryAfter(context.Context, string, time.Duration) time.Duration {
 	return 0
 }
-func (nopHost) NotifyUserRegistered(*model.User) {}
+func (nopHost) NotifyUserRegistered(*model.User)            {}
 func (nopHost) BindInvitation(string, string, string) error { return nil }
 
 type Service struct {

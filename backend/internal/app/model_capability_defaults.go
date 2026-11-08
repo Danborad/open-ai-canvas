@@ -400,6 +400,8 @@ func DefaultModelCapabilityConfigForModel(protocol string, modelName string) *Mo
 		video.DefaultResolution = "720p"
 		video.GenerateAudio = VideoBooleanConfig{Supported: false, Default: false}
 		video.Watermark = VideoBooleanConfig{Supported: false, Default: false}
+	case model.ChannelInterfaceType("dashscope-wan3-video"):
+		video.GenerateAudio = VideoBooleanConfig{Supported: true, Default: true}
 	case model.ChannelInterfaceNovitaVideo:
 		video.References.MaxImages, video.References.MaxImageBytes = 1, 10*1024*1024
 		video.Duration = VideoDurationConfig{Selection: "enum", Values: []int{5, 10}, Default: 5}

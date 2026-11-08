@@ -85,7 +85,6 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
         const nextText: TextCapabilityConfig = {
             ...currentText,
             streaming: true,
-            thinking: Boolean(preset.reasoning),
             contextWindowTokens: preset.contextLimit || 128_000,
             maxOutputTokens: preset.outputLimit || 16_384,
             references: {

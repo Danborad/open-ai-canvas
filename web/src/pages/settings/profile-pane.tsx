@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { App, Avatar, Button, Form, Input, Skeleton } from "antd";
-import { BadgeCheck, Crop, ImagePlus, KeyRound, Mail, RefreshCw, ShieldCheck } from "lucide-react";
+import { BadgeCheck, BarChart3, Crop, ImagePlus, KeyRound, Mail, RefreshCw, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
@@ -20,6 +20,8 @@ import { changeProfileEmail, changeProfilePassword, profileLinuxDOReauthURL, req
 import { WechatIcon } from "@/pages/auth/auth-scene";
 import { WechatBindDialog } from "./wechat-bind-dialog";
 import { ApiError } from "@/services/api/request";
+import { getNotificationSettings, updateNotificationSettings } from "@/services/api/email";
+import { Switch } from "@/components/ui/base/switch";
 import { useUserStore } from "@/stores/use-user-store";
 import { profileAvatarError, profilePasswordError, profileReauthReady, profileSecondsRemaining } from "./profile-validation";
 import "./profile-pane.css";
@@ -495,7 +497,7 @@ export function ProfilePane() {
                                             { type: "email", transform: (value: string) => value?.trim(), message: t("account.settings.profile.emailInvalid") },
                                             {
                                                 validator: async (_, value: string = "") => {
-                                                    if (value.trim().toLowerCase() === profile.user.email?.toLowerCase()) throw new Error(t("account.settings.profile.emailSame"));
+                                                    if (profile.user.emailVerifiedAt && value.trim().toLowerCase() === profile.user.email?.toLowerCase()) throw new Error(t("account.settings.profile.emailSame"));
                                                 },
                                             },
                                         ]}
@@ -575,6 +577,8 @@ export function ProfilePane() {
                                 )}
                             </div>
                         </section>
+
+                        <ConsumptionReportCard />
                     </div>
                 </div>
             ) : null}
@@ -680,5 +684,62 @@ export function ProfilePane() {
                 />
             ) : null}
         </div>
+    );
+}
+
+function ConsumptionReportCard() {
+    const { t } = useTranslation();
+    const { message } = App.useApp();
+    const queryClient = useQueryClient();
+    const userId = useUserStore((state) => state.user?.id);
+    const queryKey = ["notification-settings", userId];
+    const query = useQuery({ queryKey, queryFn: ({ signal }) => getNotificationSettings(signal).then((data) => data.settings), enabled: Boolean(userId) });
+    const [saving, setSaving] = useState(false);
+    const settings = query.data;
+    const enabled = Boolean(settings?.consumptionReportEnabled);
+
+    const toggle = async (next: boolean) => {
+        setSaving(true);
+        try {
+            const result = await updateNotificationSettings({ consumptionReportEnabled: next });
+            queryClient.setQueryData(queryKey, result.settings);
+            message.success(next ? t("account.settings.profile.reportEnabled") : t("account.settings.profile.reportDisabled"));
+        } catch (error) {
+            message.error(errorMessage(error, t("account.settings.profile.reportFailed")));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <section className="profile-security-card" aria-labelledby="profile-report-title">
+            <div className="profile-card-heading">
+                <span className="profile-card-icon">
+                    <BarChart3 className="size-5" />
+                </span>
+                <div>
+                    <h4 id="profile-report-title">{t("account.settings.profile.reportTitle")}</h4>
+                    <p>{t("account.settings.profile.reportHint")}</p>
+                </div>
+            </div>
+            {query.isLoading ? (
+                <Skeleton active paragraph={{ rows: 1 }} title={false} />
+            ) : (
+                <div className="profile-report-row">
+                    <span>{enabled && settings?.email ? t("account.settings.profile.reportOn", { email: settings.email }) : t("account.settings.profile.reportOff")}</span>
+                    <Switch checked={enabled} loading={saving} disabled={saving || (!enabled && !settings?.emailAvailable)} aria-label={t("account.settings.profile.reportToggle")} onChange={(next) => void toggle(next)} />
+                </div>
+            )}
+            {!query.isLoading && !enabled && settings && !settings.emailAvailable ? (
+                <Callout tone="warning" className="profile-feedback">
+                    {t("account.settings.profile.reportUnavailable")}
+                </Callout>
+            ) : null}
+            {query.isError ? (
+                <Callout tone="error" role="alert" className="profile-feedback">
+                    {errorMessage(query.error, t("account.settings.profile.reportFailed"))}
+                </Callout>
+            ) : null}
+        </section>
     );
 }
