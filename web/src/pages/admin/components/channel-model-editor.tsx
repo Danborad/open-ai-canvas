@@ -113,34 +113,43 @@ export function ChannelModelEditor({
         const hasVision = mediaLimits.hasVision;
         const hasVideo = mediaLimits.hasVideo;
 
+        const currentProtocolStr = String(currentProtocol || modelProtocol || "").toLowerCase();
+        const isGeminiProtocol = currentProtocolStr.includes("gemini") || currentProtocolStr === "google-gemini-generate-content";
+
         let thinkingConfig: TextThinkingConfig | undefined = undefined;
         if (preset.reasoning) {
             const pId = preset.id.toLowerCase();
-            if (pId.includes("gemini-3") && pId.includes("flash")) {
-                thinkingConfig = thinkingPresetConfig("gemini-3-flash");
-            } else if (pId.includes("gemini-3") && pId.includes("pro")) {
-                thinkingConfig = thinkingPresetConfig("gemini-3-pro");
-            } else if (pId.includes("gemini-2.5")) {
-                thinkingConfig = thinkingPresetConfig("gemini-2.5");
-            } else if (pId.includes("deepseek")) {
-                thinkingConfig = thinkingPresetConfig("deepseek");
+            if (isGeminiProtocol) {
+                if (pId.includes("gemini-3") && pId.includes("flash")) {
+                    thinkingConfig = thinkingPresetConfig("gemini-3-flash");
+                } else if (pId.includes("gemini-3") && pId.includes("pro")) {
+                    thinkingConfig = thinkingPresetConfig("gemini-3-pro");
+                } else if (pId.includes("gemini-2.5")) {
+                    thinkingConfig = thinkingPresetConfig("gemini-2.5");
+                } else {
+                    thinkingConfig = thinkingPresetConfig("gemini-3-flash");
+                }
+            } else if (currentProtocolStr.includes("claude") || currentProtocolStr.includes("anthropic")) {
+                thinkingConfig = thinkingPresetConfig("claude-adaptive");
             } else if (pId.includes("o1") || pId.includes("o3")) {
                 thinkingConfig = thinkingPresetConfig("openai-o");
             } else if (pId.includes("gpt-5")) {
                 thinkingConfig = thinkingPresetConfig("openai-gpt5");
-            } else if (pId.includes("claude")) {
-                thinkingConfig = thinkingPresetConfig("claude-adaptive");
+            } else if (pId.includes("deepseek")) {
+                thinkingConfig = thinkingPresetConfig("deepseek");
             } else if (pId.includes("qwen")) {
                 thinkingConfig = thinkingPresetConfig("qwen-hybrid");
             } else {
-                thinkingConfig = thinkingPresetConfig("model-suffix");
+                // NewAPI / OneAPI 等 OpenAI 兼容中转渠道下的 Gemini 或其它模型：
+                // 不写入仅限 Gemini 原生协议的 gemini-level，由中转站自带策略处理
+                thinkingConfig = undefined;
             }
         }
 
         const nextText: TextCapabilityConfig = {
             ...currentText,
             streaming: true,
-            thinking: thinkingConfig ?? (currentText.thinking && typeof currentText.thinking === "object" ? currentText.thinking : undefined),
+            thinking: thinkingConfig ?? (currentText.thinking && typeof currentText.thinking === "object" && currentText.thinking.intensity?.kind !== "gemini-level" ? currentText.thinking : undefined),
             contextWindowTokens: preset.contextLimit || currentText.contextWindowTokens || 128_000,
             maxOutputTokens: preset.outputLimit || currentText.maxOutputTokens || 16_384,
             references: {
@@ -272,6 +281,11 @@ export function ChannelModelEditor({
         const upstreamModel = values.providerModelKey?.trim() || values.modelKey.trim();
         const capabilityConfig =
             values.capability === "text" || values.capability === "image" || values.capability === "video" ? normalizeModelCapabilityConfig(values.capabilityConfig || defaultModelCapabilityConfig(values.protocol, upstreamModel)) : undefined;
+        // 自动纠偏：若非 Gemini 原生协议，清理不兼容的 gemini-level 思考参数，避免后端拒绝
+        const isGeminiProtocol = String(values.protocol || "").toLowerCase().includes("gemini");
+        if (capabilityConfig?.text?.thinking?.intensity?.kind === "gemini-level" && !isGeminiProtocol) {
+            capabilityConfig.text.thinking = undefined;
+        }
         busyRef.current = true;
         setSaving(true);
         try {
@@ -315,6 +329,11 @@ export function ChannelModelEditor({
         const upstreamModel = values.providerModelKey?.trim() || values.modelKey.trim();
         const capabilityConfig =
             values.capability === "text" || values.capability === "image" || values.capability === "video" ? normalizeModelCapabilityConfig(values.capabilityConfig || defaultModelCapabilityConfig(values.protocol, upstreamModel)) : undefined;
+        // 自动纠偏：若非 Gemini 原生协议，清理不兼容的 gemini-level 思考参数，避免后端拒绝
+        const isGeminiProtocol = String(values.protocol || "").toLowerCase().includes("gemini");
+        if (capabilityConfig?.text?.thinking?.intensity?.kind === "gemini-level" && !isGeminiProtocol) {
+            capabilityConfig.text.thinking = undefined;
+        }
         busyRef.current = true;
         setTesting(true);
         try {

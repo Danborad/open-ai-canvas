@@ -165,27 +165,34 @@ export function ChannelModelManager({ channel, onChanged, health, healthLoading 
         const hasVision = mediaLimits.hasVision;
         const hasVideo = mediaLimits.hasVideo;
 
+        const defaultProto = String(initial.protocol || "").toLowerCase();
+        const isGeminiProtocol = defaultProto.includes("gemini") || defaultProto === "google-gemini-generate-content";
+
         let thinkingConfig: TextThinkingConfig | undefined = undefined;
         if (preset.reasoning) {
             const pId = preset.id.toLowerCase();
-            if (pId.includes("gemini-3") && pId.includes("flash")) {
-                thinkingConfig = thinkingPresetConfig("gemini-3-flash");
-            } else if (pId.includes("gemini-3") && pId.includes("pro")) {
-                thinkingConfig = thinkingPresetConfig("gemini-3-pro");
-            } else if (pId.includes("gemini-2.5")) {
-                thinkingConfig = thinkingPresetConfig("gemini-2.5");
-            } else if (pId.includes("deepseek")) {
-                thinkingConfig = thinkingPresetConfig("deepseek");
+            if (isGeminiProtocol) {
+                if (pId.includes("gemini-3") && pId.includes("flash")) {
+                    thinkingConfig = thinkingPresetConfig("gemini-3-flash");
+                } else if (pId.includes("gemini-3") && pId.includes("pro")) {
+                    thinkingConfig = thinkingPresetConfig("gemini-3-pro");
+                } else if (pId.includes("gemini-2.5")) {
+                    thinkingConfig = thinkingPresetConfig("gemini-2.5");
+                } else {
+                    thinkingConfig = thinkingPresetConfig("gemini-3-flash");
+                }
+            } else if (defaultProto.includes("claude") || defaultProto.includes("anthropic")) {
+                thinkingConfig = thinkingPresetConfig("claude-adaptive");
             } else if (pId.includes("o1") || pId.includes("o3")) {
                 thinkingConfig = thinkingPresetConfig("openai-o");
             } else if (pId.includes("gpt-5")) {
                 thinkingConfig = thinkingPresetConfig("openai-gpt5");
-            } else if (pId.includes("claude")) {
-                thinkingConfig = thinkingPresetConfig("claude-adaptive");
+            } else if (pId.includes("deepseek")) {
+                thinkingConfig = thinkingPresetConfig("deepseek");
             } else if (pId.includes("qwen")) {
                 thinkingConfig = thinkingPresetConfig("qwen-hybrid");
             } else {
-                thinkingConfig = thinkingPresetConfig("model-suffix");
+                thinkingConfig = undefined;
             }
         }
 
