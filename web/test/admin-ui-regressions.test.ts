@@ -169,8 +169,8 @@ test("admin navigation keeps one sidebar entry per page inside collapsible group
     for (const path of ["/admin/logs", "/admin/login-logs", "/admin/users", "/admin/user-groups", "/admin/agent-lessons", "/admin/settings/system-update"]) {
         expect(compacted).toContain(`path: "${path}"`);
     }
-    // 后台页面代码在进入后台后空闲预取，切换菜单不经过 Suspense 加载态。
-    expect(compacted).toContain("preloadAdminPages();");
+    // 不在进入后台时下载全部页面，避免预取争抢当前页面的网络。
+    expect(compacted).not.toContain("preloadAdminPages();");
     expect(router).toContain('const LogsPage = lazyAdminPage(() => import("@/pages/admin/logs/logs-page"));');
 });
 

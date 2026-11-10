@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
+import { lazy, Suspense, useLayoutEffect, useRef, type ReactNode } from "react";
 import { useLocation } from "react-router";
 import { ConfigProvider } from "antd";
 
@@ -7,7 +7,6 @@ import { useAgentPanelDock } from "@/components/canvas/use-agent-panel-dock";
 import { cn } from "@/lib/utils";
 import { isSpatialWorkbenchPath } from "@/lib/workspace-routes";
 import { getWorkspaceAntThemeConfig } from "@/lib/app-theme";
-import { preloadWorkspaceNavigationPages } from "@/lib/workspace-route-modules";
 import { useGlobalAgentStore } from "@/stores/use-global-agent-store";
 import { useUserStore } from "@/stores/use-user-store";
 import "@/styles/workspace-product.css";
@@ -36,11 +35,6 @@ export default function UserLayout({ children }: { children: ReactNode }) {
         wasCanvasEditorRef.current = canvasEditor;
         if (leftCanvasEditor && creationWorkspace) useGlobalAgentStore.getState().closeAgent();
     }, [canvasEditor, creationWorkspace]);
-    // 登录后空闲预取侧栏页面代码，首次切换页面不再闪出加载提示。
-    useEffect(() => {
-        if (userId) preloadWorkspaceNavigationPages();
-    }, [userId]);
-
     useLayoutEffect(() => {
         // Ant Design 浮层挂载在 body，必须用路由级标记隔离用户工作台与画布编辑器、运营后台。
         document.body.classList.toggle("app-user-overlays", !adminWorkspace);
@@ -57,11 +51,12 @@ export default function UserLayout({ children }: { children: ReactNode }) {
     const canvasMatch = pathname.match(/^\/canvas\/([^/]+)/);
     const canvasId = canvasMatch ? canvasMatch[1] : "";
     const isCanvasEditor = Boolean(canvasId);
-    const globalAgent = userId && isCanvasEditor ? (
-        <Suspense fallback={null}>
-            <GlobalAgentPanel key={`${userId}:${canvasId}`} />
-        </Suspense>
-    ) : null;
+    const globalAgent =
+        userId && isCanvasEditor ? (
+            <Suspense fallback={null}>
+                <GlobalAgentPanel key={`${userId}:${canvasId}`} />
+            </Suspense>
+        ) : null;
 
     if (adminWorkspace)
         return (

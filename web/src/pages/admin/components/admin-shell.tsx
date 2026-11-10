@@ -65,7 +65,6 @@ import { getIsolatedAdminAntTheme } from "../theme/admin-ant-theme";
 import { AdminTooltip } from "../ui/controls";
 import { AdminGlobalSearch } from "./admin-global-search";
 import { AdminDensityProvider, useAdminDensity } from "./admin-density";
-import { preloadAdminPages } from "../admin-page-loader";
 import "@/styles/admin-ui.css";
 import "../theme/admin-tokens.css";
 import "../theme/admin-chrome.css";
@@ -215,11 +214,6 @@ function AdminShellLayout() {
     const appearance = useAppearanceStore((state) => state.appearance);
     const [collapsed, setCollapsed] = useState(readWorkspaceSidebarCollapsed);
     const dark = useThemeStore((state) => state.theme === "dark");
-
-    // 进入后台后空闲预取其他页面代码，切换菜单时不再出现加载白屏。
-    useEffect(() => {
-        preloadAdminPages();
-    }, []);
 
     useEffect(() => {
         document.body.classList.add("admin-overlays");

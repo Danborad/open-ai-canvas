@@ -49,4 +49,7 @@ done
 cleanup
 trap - EXIT HUP INT TERM
 
+if test "${1:-}" = "--publish-only"; then
+    exit 0
+fi
 exec nginx -g 'daemon off;'
