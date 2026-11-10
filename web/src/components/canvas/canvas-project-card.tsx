@@ -1,5 +1,5 @@
 import { Blocks, Check, Clapperboard, CloudUpload, Download, Eye, EyeOff, FileText, Frame, Image as ImageIcon, LoaderCircle, MoreHorizontal, Music2, Pencil, Play, Plus, Settings2, Sparkles, SquareDashed, Trash2, Video, X } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { memo, useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { App, Dropdown, Input } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -239,7 +239,7 @@ export function CanvasProjectCard({
  * quiet：内容库卡片用的安静占位。空白画布与仅视频画布共用同一张浅渐变底 + 42px 图标 tile，
  * 不再输出「空白画布 / 等待第一幕」文案；其他调用方保持原有占位。
  */
-export function ProjectPreview({
+export const ProjectPreview = memo(function ProjectPreview({
     project,
     preferLatestImage = false,
     quiet = false,
@@ -352,7 +352,7 @@ export function ProjectPreview({
             ) : null}
         </div>
     );
-}
+});
 
 function getNodeMediaUrl(node: CanvasNodeData) {
     const storageKey = node.metadata?.storageKey;
@@ -408,12 +408,12 @@ export function projectPreviewMediaList(nodes: CanvasNodeData[], limit: number, 
     return [...images, ...videos].slice(0, limit);
 }
 
-function ProjectPreviewTile({ media }: { media: ProjectPreviewMedia }) {
+const ProjectPreviewTile = memo(function ProjectPreviewTile({ media }: { media: ProjectPreviewMedia }) {
     if (media.node.type !== CanvasNodeType.Video) {
         return <CachedResourceImage storageKey={media.storageKey} src={media.url} alt="" variant="thumbnail" loading="lazy" decoding="async" fallback={<MediaPlaceholder failed />} loadingFallback={<span className="canvas-project-mosaic-loading" />} />;
     }
     return <ProjectPreviewVideoFrame media={media} />;
-}
+});
 
 /** 视频封面：远程资源先换取授权播放地址，再只加载 metadata 并解码首帧。 */
 function ProjectPreviewVideoFrame({ media }: { media: ProjectPreviewMedia }) {

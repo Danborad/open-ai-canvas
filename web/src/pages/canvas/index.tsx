@@ -64,17 +64,19 @@ export default function CanvasPage() {
         placeholderData: keepPreviousData,
         staleTime: 60_000,
         gcTime: 10 * 60 * 1000,
+        refetchOnWindowFocus: false,
         enabled: Boolean(userId) && sessionHydrated,
     });
-    const localSummaries = useMemo<CanvasLibrarySummary[]>(
-        () =>
-            localProjects.map((project) => ({
-                ...project,
-                nodeCount: project.nodes.length,
-                previewNodes: project.nodes.filter((node) => node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video).slice(0, 4),
-            })),
-        [localProjects],
-    );
+    const localSummaries = useMemo<CanvasLibrarySummary[]>(() => {
+        const list = localProjects.map((project) => ({
+            ...project,
+            nodeCount: project.nodes.length,
+            previewNodes: project.nodes.filter((node) => node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video).slice(0, 4),
+        }));
+        // 与服务端默认排序一致（按 updatedAt 倒序），避免首次从本地呈现到服务端响应后卡片顺序重排跳动
+        list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        return list;
+    }, [localProjects]);
     const projects = useMemo<CanvasLibrarySummary[]>(() => {
         if (libraryQuery.data?.pages?.length) {
             return libraryQuery.data.pages.flatMap((page) => page.projects) || [];
@@ -93,7 +95,7 @@ export default function CanvasPage() {
     const [historyOpen, setHistoryOpen] = useState(false);
     const [associationOpen, setAssociationOpen] = useState(false);
     const [associationProjectId, setAssociationProjectId] = useState("");
-    const projectQuery = useQuery({ queryKey: ["projects"], queryFn: () => listProjects() });
+    const projectQuery = useQuery({ queryKey: ["projects"], queryFn: () => listProjects(), staleTime: 60_000, refetchOnWindowFocus: false });
 
     const mode = searchParams.get("mode");
     const agentMode = mode === "new" || mode === "recent" || mode === "choose";
@@ -119,13 +121,13 @@ export default function CanvasPage() {
         });
     };
     const filteredProjects = useMemo(() => {
-        if (userId) return projects;
+        if (userId && libraryQuery.data?.pages?.length) return projects;
         const query = keyword.trim().toLowerCase();
         const scoped = projects.filter((project) => projectFilter === "all" || (projectFilter === "independent" ? !project.projectId : project.projectId === projectFilter));
         const values = query ? scoped.filter((project) => project.title.toLowerCase().includes(query)) : [...scoped];
         values.sort((a, b) => (sort === "name" ? a.title.localeCompare(b.title, "zh-CN") : sort === "nodes" ? b.nodeCount - a.nodeCount : new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
         return values;
-    }, [keyword, projectFilter, projects, sort, userId]);
+    }, [keyword, libraryQuery.data?.pages?.length, projectFilter, projects, sort, userId]);
     const projectNames = useMemo(() => new Map((projectQuery.data?.projects || []).map(({ project }) => [project.id, project.name])), [projectQuery.data]);
     const visibleProjects = userId ? filteredProjects : filteredProjects.slice(0, loadedProjectCount);
     const hasRenderableProjects = visibleProjects.length > 0;

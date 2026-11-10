@@ -1,7 +1,7 @@
 import { App, Input } from "antd";
 import { CanvasAnchoredDropdown as Dropdown } from "./canvas-anchored-dropdown";
 import { Clock3, Download, Eye, EyeOff, FolderKanban, Image as ImageIcon, Layers3, LoaderCircle, MoreHorizontal, Pencil, Shapes, Trash2, Video } from "lucide-react";
-import type { KeyboardEvent } from "react";
+import { memo, type KeyboardEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
@@ -31,7 +31,7 @@ type CanvasFolderCardProps = {
  * 画布库卡片：内嵌圆角封面（最多三张媒体拼图）+ 标题 + 归属/更新时间页脚。
  * 节点数作为封面角标；重命名铅笔紧跟标题行尾，多选框与更多菜单浮在封面顶部，仅 hover/focus 显示，触屏常显。
  */
-export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, opening = false }: CanvasFolderCardProps) {
+export const CanvasFolderCard = memo(function CanvasFolderCard({ project, projectName, onClick, onPrefetch, opening = false }: CanvasFolderCardProps) {
     const { message } = App.useApp();
     const { t } = useTranslation();
     const renameProject = useCanvasStore((state) => state.renameProject);
@@ -56,7 +56,8 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
     const statsQuery = useQuery({
         queryKey: ["canvas-project-stats", project.id],
         queryFn: () => getCanvasProjectStats(project.id),
-        staleTime: 30_000,
+        staleTime: 60_000,
+        refetchOnWindowFocus: false,
         enabled: statsEnabled,
     });
     const updatedTitle = t("canvasB.folderCard.updatedTitle", { updated: formatAbsoluteDateTime(project.updatedAt), created: formatAbsoluteDateTime(project.createdAt) });
@@ -68,14 +69,18 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
             await loadCanvasProjectForEditing(project.id);
             renameProject(project.id, editingTitle);
             await saveRemoteUserDataNow(project.id);
-        } catch (error) { message.error(error instanceof Error ? error.message : t("canvasB.common.renameFailed")); }
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : t("canvasB.common.renameFailed"));
+        }
     };
     const exportProject = async () => {
         try {
             const fullProject = await loadCanvasProjectForEditing(project.id);
             if (!fullProject) throw new Error(t("canvasB.folderCard.notFound"));
             await exportCanvasProjects([fullProject], project.title || t("canvasB.common.canvas"));
-        } catch (error) { message.error(error instanceof Error ? error.message : t("canvasB.common.exportFailed")); }
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : t("canvasB.common.exportFailed"));
+        }
     };
 
     const handleOpenKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -87,7 +92,12 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
     };
 
     return (
-        <article className={cn("product-collection-card canvas-collection-card canvas-folder-card", selected && "is-selected", editing && "is-editing", opening && "is-opening")} onPointerEnter={onPrefetch} onPointerDown={onPrefetch} onFocusCapture={onPrefetch}>
+        <article
+            className={cn("product-collection-card canvas-collection-card canvas-folder-card", selected && "is-selected", editing && "is-editing", opening && "is-opening")}
+            onPointerEnter={onPrefetch}
+            onPointerDown={onPrefetch}
+            onFocusCapture={onPrefetch}
+        >
             <div className="canvas-collection-open" role="button" tabIndex={0} aria-label={t("canvasB.folderCard.openCanvas", { title: project.title })} aria-busy={opening} onClick={() => !editing && !opening && onClick()} onKeyDown={handleOpenKeyDown}>
                 <div className="canvas-collection-preview relative">
                     <div className="canvas-collection-preview-media" aria-hidden="true">
@@ -137,7 +147,9 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
                                 autoFocus
                             />
                         ) : (
-                            <span className="canvas-collection-title" title={project.title}>{project.title}</span>
+                            <span className="canvas-collection-title" title={project.title}>
+                                {project.title}
+                            </span>
                         )}
                     </div>
                     {statsEnabled && statsQuery.data && (statsQuery.data.imageCount > 0 || statsQuery.data.videoCount > 0) ? (
@@ -147,9 +159,7 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
                                     <ImageIcon className="size-3 text-foreground/45" /> {statsQuery.data.imageCount}张 · {formatCredits(statsQuery.data.imageCreditsMicros, 1)}分
                                 </span>
                             ) : null}
-                            {statsQuery.data.imageCount > 0 && statsQuery.data.videoCount > 0 ? (
-                                <span className="text-foreground/30">·</span>
-                            ) : null}
+                            {statsQuery.data.imageCount > 0 && statsQuery.data.videoCount > 0 ? <span className="text-foreground/30">·</span> : null}
                             {statsQuery.data.videoCount > 0 ? (
                                 <span className="inline-flex items-center gap-1">
                                     <Video className="size-3 text-foreground/45" /> {statsQuery.data.videoCount}条 · {formatCredits(statsQuery.data.videoCreditsMicros, 1)}分
@@ -186,12 +196,7 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
             ) : null}
 
             <span className={cn("canvas-collection-select", selected && "is-visible")} onClick={(event) => event.stopPropagation()}>
-                <input
-                    type="checkbox"
-                    checked={selected}
-                    onChange={(event) => toggleSelected(project.id, event.target.checked)}
-                    aria-label={t("canvasB.folderCard.selectTitle", { title: project.title })}
-                />
+                <input type="checkbox" checked={selected} onChange={(event) => toggleSelected(project.id, event.target.checked)} aria-label={t("canvasB.folderCard.selectTitle", { title: project.title })} />
             </span>
 
             <div className="canvas-collection-actions" onClick={(event) => event.stopPropagation()}>
@@ -208,11 +213,17 @@ export function CanvasFolderCard({ project, projectName, onClick, onPrefetch, op
                         ],
                     }}
                 >
-                    <button type="button" className="product-icon-button canvas-collection-more" aria-label={t("canvasB.folderCard.canvasActions", { title: project.title })} title={t("canvasB.common.moreActions")} onClick={(event) => event.stopPropagation()}>
+                    <button
+                        type="button"
+                        className="product-icon-button canvas-collection-more"
+                        aria-label={t("canvasB.folderCard.canvasActions", { title: project.title })}
+                        title={t("canvasB.common.moreActions")}
+                        onClick={(event) => event.stopPropagation()}
+                    >
                         <MoreHorizontal />
                     </button>
                 </Dropdown>
             </div>
         </article>
     );
-}
+});

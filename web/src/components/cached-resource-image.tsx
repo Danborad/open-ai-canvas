@@ -28,7 +28,8 @@ export function CachedResourceImage({ storageKey, src = "", fallback = null, loa
     const identity = `${scope}:${resourceId || storageKey || src}`;
     const targetRef = useRef<HTMLSpanElement>(null);
     const [nearViewport, setNearViewport] = useState(eager || !remoteResource);
-    const [displayed, setDisplayed] = useState<{ identity: string; src: string } | null>(null);
+    const initialSyncSrc = storageKey ? peekCachedResourceObjectUrl(storageKey) : !remoteResource ? src : "";
+    const [displayed, setDisplayed] = useState<{ identity: string; src: string } | null>(() => (initialSyncSrc ? { identity, src: initialSyncSrc } : null));
     const displayedRef = useRef(displayed);
     displayedRef.current = displayed;
     const [failedIdentity, setFailedIdentity] = useState("");
