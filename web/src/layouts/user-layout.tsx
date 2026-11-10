@@ -35,6 +35,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
         wasCanvasEditorRef.current = canvasEditor;
         if (leftCanvasEditor && creationWorkspace) useGlobalAgentStore.getState().closeAgent();
     }, [canvasEditor, creationWorkspace]);
+
     useLayoutEffect(() => {
         // Ant Design 浮层挂载在 body，必须用路由级标记隔离用户工作台与画布编辑器、运营后台。
         document.body.classList.toggle("app-user-overlays", !adminWorkspace);

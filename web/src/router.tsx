@@ -79,7 +79,6 @@ const ProjectCreatePage = workspaceRoutePages.projectCreate;
 const SettingsPage = workspaceRoutePages.settings;
 const ReferralPage = workspaceRoutePages.referral;
 const AdminReferralPage = lazyAdminPage(() => import("@/pages/admin/referral/referral-admin-page"));
-const TestVoiceRecording = lazy(() => import("@/pages/test-voice-recording"));
 const UserLayout = lazy(() => import("@/layouts/user-layout"));
 
 function deferred(element: ReactNode) {
@@ -116,9 +115,11 @@ function AuthenticatedWorkspaceLayout() {
 function devRoutes() {
     const FolderPreviewLab = lazy(() => import("@/pages/dev/folder-preview-lab"));
     const PrevisReproLab = lazy(() => import("@/pages/dev/previs-repro-lab"));
+    const TestVoiceRecording = lazy(() => import("@/pages/test-voice-recording"));
     return [
         { path: "/dev/folders", element: fullScreenDeferred(<FolderPreviewLab />), errorElement: <RouteErrorPage /> },
         { path: "/dev/previs-repro", element: fullScreenDeferred(<PrevisReproLab />), errorElement: <RouteErrorPage /> },
+        { path: "/test-voice-recording", element: <RequireAuth>{fullScreenDeferred(<TestVoiceRecording />)}</RequireAuth>, errorElement: <RouteErrorPage /> },
     ];
 }
 
@@ -200,7 +201,6 @@ export const router = createBrowserRouter([
                     </RequireAuth>
                 ),
             },
-            { path: "/test-voice-recording", element: <RequireAuth>{deferred(<TestVoiceRecording />)}</RequireAuth> },
             {
                 path: "/projects",
                 element: (

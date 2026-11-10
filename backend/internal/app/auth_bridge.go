@@ -33,7 +33,7 @@ type (
 	EmailLogPage               = auth.EmailLogPage
 	LinuxDOSettingRequest      = auth.LinuxDOSettingRequest
 	PublicLinuxDOSetting       = auth.PublicLinuxDOSetting
-	LinuxDOCallbackResult      = auth.LinuxDOCallbackResult
+	LinuxDOCallbackResult      = auth.OAuthCallbackResult
 	LibTVSettingRequest        = auth.LibTVSettingRequest
 	PublicLibTVSetting         = auth.PublicLibTVSetting
 	LibTVImportRequest         = auth.LibTVImportRequest
@@ -285,6 +285,15 @@ func (s *Service) AdminWechatSetting(actor *model.User) (*PublicWechatSetting, e
 
 func (s *Service) UpdateWechatSetting(actor *model.User, req WechatSettingRequest) (*PublicWechatSetting, error) {
 	return s.authDomain().UpdateWechatSetting(actor, req)
+}
+
+func (s *Service) BeginOIDCLogin(ctx context.Context, next string, acceptedTerms bool) (string, string, error) {
+	return s.authDomain().BeginOIDCLogin(ctx, next, acceptedTerms)
+}
+
+func (s *Service) CompleteOIDCLogin(ctx context.Context, state, code string, login LoginContext) (*auth.OAuthCallbackResult, error) {
+	return s.authDomain().CompleteOIDCLogin(ctx, state, code, login)
+}
 }
 
 func (s *Service) AdminLibTVSetting(actor *model.User) (*PublicLibTVSetting, error) {

@@ -6,6 +6,7 @@ import { Activity, Clipboard, Download, ExternalLink, HardDriveUpload, Image as 
 import { formatCredits } from "@/constant/credits";
 import { getAdminApiLog, queryAdminApiLogTask, recoverAdminApiLogTaskMedia, recoverAdminApiLogVideoByURL, type ApiCallLog } from "@/services/api/auth";
 import { videoRecoveryAvailable } from "../logs/log-view";
+import { ApiLogGenerationContent } from "./api-log-generation-content";
 
 export function ApiLogDetailDrawer({ logId, onClose, onLogUpdated }: { logId: string | null; onClose: () => void; onLogUpdated?: (log: ApiCallLog) => void }) {
     const { message, modal } = App.useApp();
@@ -296,6 +297,8 @@ function LogDetail({ log, providerRequestId, videoURL, resultText, querying, onP
                     </div>
                 </section>
             ) : null}
+
+            {log.capability === "video" ? <ApiLogGenerationContent key={log.id} logId={log.id} content={log.generationContent} /> : null}
 
             <section className="api-log-detail-section api-log-payload-section">
                 <div className="api-log-detail-section-heading">

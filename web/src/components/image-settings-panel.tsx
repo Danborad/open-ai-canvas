@@ -8,10 +8,12 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import { buildImageResolutionOptions, formatImageResolutionSize } from "@/lib/image-resolution-tiers";
-import { modelCapabilityConfigFor, normalizeImageValue, type ImageCapabilityConfig } from "@/lib/model-capabilities";
+import { modelCapabilityConfigFor, type ImageCapabilityConfig } from "@/lib/model-capabilities";
+import { preserveImageSettings as normalizeImageValue } from "@/lib/media-settings";
+import { MediaSettingsNotice } from "./media-settings-notice";
 import { mergedImageCapabilityConfig } from "@/lib/model-selection";
 import { imagePriceSelector, normalizeImagePriceSelector } from "@/lib/image-pricing";
-import { modelOptionName, resolveModelChannel, type AiConfig } from "@/stores/use-config-store";
+import { modelOptionName, resolveModelChannel, resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
 import { imageQualityLabel } from "@/lib/image-quality";
 
 export { imageQualityLabel } from "@/lib/image-quality";
@@ -48,11 +50,22 @@ type ImageSettingsPanelProps = {
     className?: string;
     maxCount?: number;
     quickCount?: number;
+    /** 画布节点的张数是拆单数，传值时按账号同时任务数取上限，不再受单模型 maxOutputs 限制。 */
+    countLimit?: number;
     /** 局部编辑等场景需要先允许选择参数，由后端负责最终计费校验。 */
     bypassPriceGuard?: boolean;
 };
 
-export function ImageSettingsPanel({
+export function ImageSettingsPanel(props: ImageSettingsPanelProps) {
+    return (
+        <>
+            <MediaSettingsNotice config={props.config} capability="image" onChange={(field, value) => props.onConfigChange(field as Parameters<ImageSettingsPanelProps["onConfigChange"]>[0], value)} />
+            <ImageSettingsControls {...props} />
+        </>
+    );
+}
+
+function ImageSettingsControls({
     config,
     onConfigChange,
     theme,
@@ -64,15 +77,17 @@ export function ImageSettingsPanel({
     className = "w-[304px] space-y-3 rounded-2xl px-1 py-0.5",
     maxCount = 15,
     quickCount = 3,
+    countLimit,
     bypassPriceGuard = false,
 }: ImageSettingsPanelProps) {
     const profile = mergedImageCapabilityConfig(config, config.model || config.imageModel);
-    const normalized = normalizeImageValue(profile, config);
+    const normalized = normalizeImageValue(profile, config, resolveModelRequestConfig(config, config.model || config.imageModel).interfaceType);
     const quality = normalized.quality;
     const transparentBackground = normalized.transparentBackground === "true";
     const watermark = (config.videoWatermark || (config as Record<string, unknown>).watermark || "false") === "true";
-    const effectiveMaxCount = Math.min(maxCount, profile.maxOutputs);
-    const count = Math.max(1, Math.min(effectiveMaxCount, Number(normalized.count)));
+    const effectiveMaxCount = Math.min(maxCount, countLimit === undefined ? profile.maxOutputs : countLimit);
+    // 传了 countLimit 时 config.count 是拆单数，normalized.count 已被单模型 maxOutputs 压到 1。
+    const count = countLimit === undefined ? Math.max(1, Math.min(effectiveMaxCount, Number(normalized.count))) : Math.max(1, Math.min(effectiveMaxCount, Math.floor(Number(config.count)) || 1));
     const activeSize = normalized.size;
     const activeQualityOptions = profile.quality.values.map((value) => ({ value, label: imageQualityLabel(value) }));
     const priceTiers = imageModelPriceTiers(config);
@@ -87,12 +102,13 @@ export function ImageSettingsPanel({
         value: val,
         label: val === "high" ? "高 (推荐)" : val === "medium" ? "中" : val === "low" ? "低" : val,
     }));
+
     if (profile.parameters)
         return (
             <ImageSettingsTheme theme={theme}>
                 <div className={className}>
                     {showTitle ? <div className="mb-3 text-base font-semibold">图像设置</div> : null}
-                    <ImageParameterFields profile={profile} config={config} onChange={onConfigChange} showSize={showSize} showCount={showCount} showQuality={showQuality} showTransparent={showTransparent} />
+                    <ImageParameterFields profile={profile} config={config} onChange={onConfigChange} showSize={showSize} showCount={showCount} showQuality={showQuality} showTransparent={showTransparent} countLimit={countLimit} />
                 </div>
             </ImageSettingsTheme>
         );
@@ -109,53 +125,7 @@ export function ImageSettingsPanel({
                 }}
             >
                 {showTitle ? <div className="text-base font-semibold">图像设置</div> : null}
-                {showSize ? (
-                    <ImageSizePicker
-                        profile={profile}
-                        size={activeSize}
-                        quality={quality}
-                        imageResolution={normalized.imageResolution}
-                        onChange={(size, nextQuality, nextResolution) => applyImageSizeSelection(onConfigChange, size, nextQuality, nextResolution)}
-                    />
-                ) : null}
-                {showQuality && profile.quality.supported && !imageResolutionUsesQuality(profile) ? (
-                    <div className="space-y-2">
-                        <SettingTitle color={theme.node.muted}>{isGrokResolutionQuality(profile) ? "分辨率" : "质量"}</SettingTitle>
-                        <div className={`grid gap-2 ${activeQualityOptions.length <= 2 ? "grid-cols-2" : "grid-cols-4"}`}>
-                            {activeQualityOptions.map((item) => (
-                                <OptionPill
-                                    key={item.value}
-                                    selected={quality === item.value}
-                                    disabled={!bypassPriceGuard && !hasPriceTierForImageSelection(priceTiers, item.value, activeSize)}
-                                    theme={theme}
-                                    onClick={() => onConfigChange("quality", item.value)}
-                                >
-                                    {item.label}
-                                </OptionPill>
-                            ))}
-                        </div>
-                    </div>
-                ) : null}
-                {profile.thinking?.supported ? (
-                    <div className="space-y-2">
-                        <SettingTitle color={theme.node.muted}>图片等级 (思考深度)</SettingTitle>
-                        <div className={`grid gap-2 ${thinkingOptions.length <= 2 ? "grid-cols-2" : "grid-cols-3"}`}>
-                            {thinkingOptions.map((item) => (
-                                <OptionPill
-                                    key={item.value}
-                                    selected={localThinking === item.value.toLowerCase()}
-                                    theme={theme}
-                                    onClick={() => {
-                                        setLocalThinking(item.value.toLowerCase());
-                                        onConfigChange("imageThinkingLevel", item.value);
-                                    }}
-                                >
-                                    {item.label}
-                                </OptionPill>
-                            ))}
-                        </div>
-                    </div>
-                ) : null}
+                {/* 张数与透明背景放在最前：尺寸列表较长，放在后面时需要滚动才能看到。 */}
                 {showCount && effectiveMaxCount > 1 ? (
                     <div className="space-y-2">
                         <SettingTitle color={theme.node.muted}>生成张数</SettingTitle>
@@ -194,6 +164,53 @@ export function ImageSettingsPanel({
                             <Switch size="sm" checked={watermark} onChange={(checked) => onConfigChange("watermark", checked ? "true" : "false")} />
                         </span>
                     </div>
+                ) : null}
+                {profile.thinking?.supported ? (
+                    <div className="space-y-2">
+                        <SettingTitle color={theme.node.muted}>图片等级 (思考深度)</SettingTitle>
+                        <div className={`grid gap-2 ${thinkingOptions.length <= 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+                            {thinkingOptions.map((item) => (
+                                <OptionPill
+                                    key={item.value}
+                                    selected={localThinking === item.value.toLowerCase()}
+                                    theme={theme}
+                                    onClick={() => {
+                                        setLocalThinking(item.value.toLowerCase());
+                                        onConfigChange("imageThinkingLevel", item.value);
+                                    }}
+                                >
+                                    {item.label}
+                                </OptionPill>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
+                {showQuality && profile.quality.supported && !imageResolutionUsesQuality(profile) ? (
+                    <div className="space-y-2">
+                        <SettingTitle color={theme.node.muted}>{isGrokResolutionQuality(profile) ? "分辨率" : "质量"}</SettingTitle>
+                        <div className={`grid gap-2 ${activeQualityOptions.length <= 2 ? "grid-cols-2" : "grid-cols-4"}`}>
+                            {activeQualityOptions.map((item) => (
+                                <OptionPill
+                                    key={item.value}
+                                    selected={quality === item.value}
+                                    disabled={!bypassPriceGuard && !hasPriceTierForImageSelection(priceTiers, item.value, activeSize)}
+                                    theme={theme}
+                                    onClick={() => onConfigChange("quality", item.value)}
+                                >
+                                    {item.label}
+                                </OptionPill>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
+                {showSize ? (
+                    <ImageSizePicker
+                        profile={profile}
+                        size={activeSize}
+                        quality={quality}
+                        imageResolution={normalized.imageResolution}
+                        onChange={(size, nextQuality, nextResolution) => applyImageSizeSelection(onConfigChange, size, nextQuality, nextResolution)}
+                    />
                 ) : null}
             </div>
         </ImageSettingsTheme>

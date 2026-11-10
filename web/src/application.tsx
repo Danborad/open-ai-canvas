@@ -9,6 +9,7 @@ import "./styles/shared/scrollbars.css";
 // 全局自举内置插件注册（editor-shell 等预设以模块副作用注册编辑器插槽）：
 // 冷启动直达编辑器或画布时插件、模型标识与统计不再为空。
 import "@/lib/plugins/builtin";
+import "@/themes/load";
 import { RouterProvider } from "react-router";
 
 import { AuthDialogHost } from "@/components/auth/auth-dialog-host";

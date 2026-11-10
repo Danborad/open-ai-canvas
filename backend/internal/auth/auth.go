@@ -61,8 +61,10 @@ type PublicAuthSettings struct {
 	FirstUser                 bool   `json:"firstUser"`
 	RegistrationEnabled       bool   `json:"registrationEnabled"`
 	LinuxDOEnabled            bool   `json:"linuxdoEnabled"`
+	OIDCEnabled               bool   `json:"oidcEnabled"`
 	EmailEnabled              bool   `json:"emailEnabled"`
 	EmailCodeRequired         bool   `json:"emailCodeRequired"`
+	// EmailRequired：注册必须填写邮箱；EmailVerificationRequired：注册必须先通过验证码。
 	EmailRequired             bool   `json:"emailRequired"`
 	EmailVerificationRequired bool   `json:"emailVerificationRequired"`
 	WechatQrLoginEnabled      bool   `json:"wechatQrLoginEnabled"`
@@ -153,6 +155,7 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 		FirstUser:                 false,
 		RegistrationEnabled:       registration.Enabled,
 		LinuxDOEnabled:            s.LinuxDOEnabled(),
+		OIDCEnabled:               readOIDCConfig().enabled(),
 		EmailEnabled:              emailEnabled,
 		EmailCodeRequired:         registration.verificationRequired() && (p.EmailRegistration || p.SMSAndEmailRegistration),
 		EmailRequired:             registration.emailRequired(),

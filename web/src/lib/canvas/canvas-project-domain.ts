@@ -15,6 +15,11 @@ import { reconcileImageBatchRoot } from "@/lib/canvas/canvas-image-batch-retry";
 import { scopedLocalStorage } from "@/lib/user-scope";
 import type { GenerationTask } from "@/services/api/task-center";
 import { synchronizeGenerationSpec } from "@/lib/canvas/generation-contract";
+import { GENERATION_OPTION_FIELDS } from "@/lib/canvas/generation-contract.generated";
+import { resolveModelGenerationDefaults } from "@/lib/model-selection";
+import { resolvedMediaConfig } from "@/lib/media-settings";
+import { followsReferenceImageSize } from "@/lib/canvas/canvas-reference-image-size";
+import { defaultConfig, type AiConfig } from "@/stores/use-config-store";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type CanvasNodeMetadata, type CanvasNodeTypeId, type ConnectionHandle, type Position, type StoryboardColumn, type StoryboardRow } from "@/types/canvas";
 
 export function createCanvasNode(type: CanvasNodeTypeId, position: Position, metadata?: CanvasNodeMetadata): CanvasNodeData {
@@ -301,20 +306,22 @@ const NODE_MODEL_GENERATION_PARAMS: ReadonlyArray<keyof CanvasNodeMetadata> = [
     "audioInstructions",
 ];
 
-export function applyNodeConfigPatch(node: CanvasNodeData, patch: Partial<CanvasNodeMetadata>) {
+export function applyNodeConfigPatch(node: CanvasNodeData, patch: Partial<CanvasNodeMetadata>, config?: AiConfig) {
     const safePatch = patch || {};
     const nextPatch = resetGenerationParamsOnModelSwitch(node, safePatch);
-    const next = synchronizeGenerationSpec(node, nextPatch);
+    let next = synchronizeGenerationSpec(node, nextPatch);
+    if (config && typeof safePatch.model === "string" && safePatch.model) next = adaptNodeModelSettings(next, config, safePatch.model);
     const spec = node.type === CanvasNodeType.Video ? NODE_DEFAULT_SIZE[CanvasNodeType.Video] : NODE_DEFAULT_SIZE[CanvasNodeType.Image];
-    const rawParam = typeof safePatch.vquality === "string" ? safePatch.vquality : typeof safePatch.size === "string" ? safePatch.size : "";
+    const requestedSize = typeof safePatch.model === "string" && config && !followsReferenceImageSize(next) ? next.metadata?.size : safePatch.size;
+    const rawParam = typeof safePatch.vquality === "string" ? safePatch.vquality : typeof requestedSize === "string" ? requestedSize : "";
     const sizeParam = rawParam.includes("竖")
         ? "9:16"
         : rawParam.includes("横")
           ? "16:9"
           : rawParam.includes("(1:1)") || rawParam.includes("1:1")
             ? "1:1"
-            : typeof safePatch.size === "string"
-              ? safePatch.size
+            : typeof requestedSize === "string"
+              ? requestedSize
               : typeof safePatch.vquality === "string"
                 ? safePatch.vquality
                 : "";
@@ -322,9 +329,37 @@ export function applyNodeConfigPatch(node: CanvasNodeData, patch: Partial<Canvas
     return size && (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video) ? { ...next, ...size, position: { x: node.position.x + node.width / 2 - size.width / 2, y: node.position.y + node.height / 2 - size.height / 2 } } : next;
 }
 
-// 切换模型（不同模型标识）时，节点级生成参数必须随旧模型一起失效，回落全局配置；
-// 显式传入的同批 patch（如用户同时调整了参数）仍然优先。
+function adaptNodeModelSettings(node: CanvasNodeData, config: AiConfig, model: string): CanvasNodeData {
+    const requestedMode = node.type === CanvasNodeType.Config ? node.metadata?.generationMode || "image" : node.type;
+    const mode = requestedMode === "image" ? "image" : requestedMode === "video" ? "video" : undefined;
+    if (!mode) return node;
+    const fields = GENERATION_OPTION_FIELDS.filter((field) => (field.modes as readonly string[]).includes(mode));
+    const explicit = Object.fromEntries(
+        fields.map((field) => {
+            const value = node.metadata?.[field.node as keyof CanvasNodeMetadata];
+            return [field.task, value === undefined ? undefined : String(value)];
+        }),
+    );
+    // 张数在画布里有独立偏好；与 buildGenerationConfig 的实际生效顺序一致。
+    if (mode === "image") explicit.count = String(node.metadata?.count ?? (config.canvasImageCount || config.count || defaultConfig.count));
+    const defaults = resolveModelGenerationDefaults(config, model, mode, explicit, config);
+    const adapted = resolvedMediaConfig({ ...config, ...explicit, ...defaults, model }, mode);
+    // 与界面和提交共用适配结果，显式 undefined 同时清除旧镜像和 canonical option。
+    const metadata = Object.fromEntries(
+        fields.map((field) => {
+            const value = adapted[field.task as keyof AiConfig];
+            return [field.node, value === undefined || value === "" ? undefined : field.node === "count" ? Number(value) : String(value)];
+        }),
+    ) as Partial<CanvasNodeMetadata>;
+    // 写入默认尺寸不能把隐式参考图跟随变成用户选定比例。
+    if (followsReferenceImageSize(node)) metadata.imageSizeSource = node.metadata?.imageSizeSource || "default";
+    return synchronizeGenerationSpec(node, metadata);
+}
+
+// 媒体节点保留设置供目标能力适配；没有模型目录的纯结构编辑不猜测能力。
+// 音频/文本节点继续使用既有重置规则。
 function resetGenerationParamsOnModelSwitch(node: CanvasNodeData, patch: Partial<CanvasNodeMetadata>): Partial<CanvasNodeMetadata> {
+    if (node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video || (node.type === CanvasNodeType.Config && node.metadata?.generationMode !== "audio" && node.metadata?.generationMode !== "text")) return patch;
     if (typeof patch.model !== "string" || patch.model === node.metadata?.model) {
         return patch;
     }

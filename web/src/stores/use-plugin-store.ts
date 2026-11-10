@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import { scopedLocalStorage } from "@/lib/user-scope";
-import type { PluginInstallation, PluginManifest, PluginManifestV2 } from "@/lib/plugins/plugin-types";
+import { localForageStorageForScope } from "@/lib/localforage-storage";
+import type { PluginInstallation, PluginManifest } from "@/lib/plugins/plugin-types";
 import type { PluginState } from "@/services/api/plugins";
 
 export const PLUGIN_STORE_KEY = "yingce:plugin-store";
@@ -12,7 +12,7 @@ type PluginStore = {
     installations: PluginInstallation[];
     runtimeStatuses: Record<string, string>;
     pluginStates: Record<string, PluginState>;
-    ensurePlugin: (manifest: PluginManifest | PluginManifestV2) => void;
+    ensurePlugin: (manifest: PluginManifest) => void;
     setRuntimeStatuses: (statuses: Record<string, string>) => void;
     setPluginStates: (states: Record<string, PluginState>) => void;
     setEnabled: (pluginId: string, enabled: boolean) => void;
@@ -35,76 +35,31 @@ export const usePluginStore = create<PluginStore>()(
             ensurePlugin: (manifest) =>
                 set((state) => {
                     const current = state.installations.find((item) => item.manifest.id === manifest.id);
+                    if (current && current.manifest.version === manifest.version) return { hydrated: true };
                     const timestamp = now();
-                    if (current) {
-                        if (current.manifest.version === manifest.version && current.manifest.name === manifest.name) {
-                            return state;
-                        }
-                        return {
-                            hydrated: true,
-                            installations: state.installations.map((item) =>
-                                item.manifest.id === manifest.id
-                                    ? { ...item, manifest, updatedAt: timestamp }
-                                    : item
-                            ),
-                        };
-                    }
-                    const next: PluginInstallation = {
-                        manifest,
-                        enabled: false,
-                        config: {},
-                        installedAt: timestamp,
-                        updatedAt: timestamp,
-                    };
-                    return {
-                        hydrated: true,
-                        installations: [...state.installations, next],
-                    };
+                    const next: PluginInstallation = current ? { ...current, manifest, updatedAt: timestamp } : { manifest, enabled: false, config: {}, installedAt: timestamp, updatedAt: timestamp };
+                    return { hydrated: true, installations: [...state.installations.filter((item) => item.manifest.id !== manifest.id), next] };
                 }),
             setEnabled: (pluginId, enabled) =>
                 set((state) => ({
-                    installations: state.installations.map((item) =>
-                        item.manifest.id === pluginId
-                            ? { ...item, enabled, updatedAt: now(), lastError: undefined }
-                            : item
-                    ),
+                    installations: state.installations.map((item) => (item.manifest.id === pluginId ? { ...item, enabled, updatedAt: now(), lastError: undefined } : item)),
                 })),
             setRuntimeStatuses: (runtimeStatuses) => set({ runtimeStatuses }),
             setPluginStates: (pluginStates) => set({ pluginStates }),
             updateConfig: (pluginId, config) =>
                 set((state) => ({
-                    installations: state.installations.map((item) =>
-                        item.manifest.id === pluginId
-                            ? { ...item, config: { ...item.config, ...config }, updatedAt: now() }
-                            : item
-                    ),
+                    installations: state.installations.map((item) => (item.manifest.id === pluginId ? { ...item, config: { ...item.config, ...config }, updatedAt: now() } : item)),
                 })),
             setError: (pluginId, error) =>
                 set((state) => ({
-                    installations: state.installations.map((item) =>
-                        item.manifest.id === pluginId
-                            ? { ...item, lastError: error, updatedAt: now() }
-                            : item
-                    ),
+                    installations: state.installations.map((item) => (item.manifest.id === pluginId ? { ...item, lastError: error, updatedAt: now() } : item)),
                 })),
-            removePlugin: (pluginId) =>
-                set((state) => ({
-                    installations: state.installations.filter((item) => item.manifest.id !== pluginId),
-                })),
+            removePlugin: (pluginId) => set((state) => ({ installations: state.installations.filter((item) => item.manifest.id !== pluginId) })),
         }),
         {
             name: PLUGIN_STORE_KEY,
-            storage: createJSONStorage(() => scopedLocalStorage),
+            storage: createJSONStorage(() => localForageStorageForScope()),
             partialize: (state) => ({ installations: state.installations }),
-            merge: (persisted, current) => {
-                const stored = (persisted || {}) as Partial<PluginStore>;
-                const storedInstallations = Array.isArray(stored.installations) ? stored.installations : [];
-                return {
-                    ...current,
-                    hydrated: true,
-                    installations: storedInstallations,
-                };
-            },
             onRehydrateStorage: () => (state) => {
                 if (state) usePluginStore.setState({ hydrated: true });
             },
