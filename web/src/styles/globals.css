@@ -27155,16 +27155,16 @@ html:not(.dark) .creation-home .creation-user-message-copy-wrap {
     padding-bottom: 12px;
 }
 .app-user-workspace .creation-thread-composer {
-    padding: 4px 0 8px;
+    padding: 6px 0 20px;
     background: transparent;
 }
 .app-user-workspace .creation-chat-composer.is-thread .creation-chat-writing-surface {
     min-height: 0 !important;
-    padding: 8px 12px 0 !important;
+    padding: 10px 14px 2px !important;
 }
 .app-user-workspace .creation-chat-composer.is-thread .creation-chat-editor textarea,
 .app-user-workspace .creation-chat-composer.is-thread .creation-chat-mention-editor {
-    min-height: 40px !important;
+    min-height: 48px !important;
     font-size: 14px !important;
     line-height: 1.55 !important;
 }

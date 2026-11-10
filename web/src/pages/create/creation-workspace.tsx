@@ -813,6 +813,7 @@ function GenerationSettingsMenu(props: ComposerProps) {
                             imageParameters: props.setImageParameters,
                             count: props.setCount,
                             transparentBackground: props.setTransparentBackground,
+                            imageThinkingLevel: props.setImageThinkingLevel,
                         };
                         setters[key]?.(value);
                     }}

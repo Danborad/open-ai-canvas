@@ -142,7 +142,7 @@ export function ImageParameterFields({
 }: {
     profile: ImageCapabilityConfig;
     config: AiConfig;
-    onChange: (key: "size" | "quality" | "imageResolution" | "transparentBackground" | "count" | "imageParameters", value: string) => void;
+    onChange: (key: "size" | "quality" | "imageResolution" | "transparentBackground" | "count" | "imageParameters" | "imageThinkingLevel", value: string) => void;
     showCount?: boolean;
     showSize?: boolean;
     showQuality?: boolean;
@@ -165,6 +165,13 @@ export function ImageParameterFields({
     const sizeField = profile.parameters?.find((p) => p.name === "size");
     const usesSizePresets = profile.resolution.supported || profile.size.parameter === "size" || sizeField?.encoding === "pixels" || profile.parameters?.some((p) => p.name === "imageResolution");
     const groupedSize = showSize && profile.size.parameter !== "none" && usesSizePresets && imageSizePresets(profile).length > 0;
+    const thinkingOptions = (profile.thinking?.values?.length ? profile.thinking.values : ["low", "medium", "high"]).map((val) => ({
+        value: val,
+        label: val === "high" ? "高 (推荐)" : val === "medium" ? "中" : val === "low" ? "低" : val,
+    }));
+    const effectiveThinking = String(preserved.imageThinkingLevel || config.imageThinkingLevel || profile.thinking?.default || "high")
+        .trim()
+        .toLowerCase();
     const fields = (profile.parameters || []).filter(
         (p) =>
             p.enabled !== false &&
@@ -239,6 +246,28 @@ export function ImageParameterFields({
                     </div>
                 );
             })}
+            {profile.thinking?.supported ? (
+                <div className="space-y-2">
+                    <div className="text-xs font-medium">图片等级 (思考深度)</div>
+                    <div className={`grid gap-2 ${thinkingOptions.length <= 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+                        {thinkingOptions.map((item) => (
+                            <button
+                                key={item.value}
+                                type="button"
+                                onClick={() => onChange("imageThinkingLevel", item.value)}
+                                className={cn(
+                                    "flex h-8 items-center justify-center rounded-full text-xs font-medium transition-colors duration-150 select-none",
+                                    effectiveThinking === item.value.toLowerCase()
+                                        ? "bg-primary/20 text-primary border border-primary/40 font-semibold"
+                                        : "bg-muted/40 hover:bg-muted/70 text-muted-foreground hover:text-foreground border border-border/40",
+                                )}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

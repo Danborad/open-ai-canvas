@@ -13,7 +13,7 @@ import { CanvasPromptFontSizeControl } from "./canvas-prompt-font-size-control";
 import { CreditSymbol, requestCreditCost } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { modelQuoteDescription, modelQuoteRequest } from "@/lib/model-pricing";
-import { modelRequestOptions, defaultImageParamsForModel, type ModelRequirements } from "@/lib/model-selection";
+import { modelRequestOptions, defaultImageParamsForModel, defaultVideoParamsForModel, type ModelRequirements } from "@/lib/model-selection";
 import { useGenerationBatchLimit, batchQuoteTotal } from "@/lib/generation-batch-limit";
 import { getGenerationCount } from "@/lib/canvas/canvas-project-generation";
 import { referenceImageSizeSelection, type ImageDimensions } from "@/lib/canvas/canvas-reference-image-size";
@@ -357,9 +357,24 @@ export function CanvasNodePromptPanel({
     const removeMotionToolMention = () => updatePromptFromCurrent((currentPrompt) => removeToolMentions(currentPrompt, "motion"));
 
     const changeModel = (model: string) => {
-    const changeModel = (model: string) => {
-        if (model !== config.model) onConfigChange(node.id, { model });
-    };
+        if (mode === "image") {
+            const defaults = defaultImageParamsForModel(config, model);
+            const referenceSize = referenceImageSize ? referenceImageSizeSelection(config, model, referenceImageSize, defaults) : undefined;
+            onConfigChange(node.id, { model, ...defaults, ...referenceSize, imageSizeSource: referenceSize ? "reference" : "default" });
+            return;
+        }
+        if (mode === "video") {
+            onConfigChange(node.id, {
+                model,
+                ...defaultVideoParamsForModel(config, model, {
+                    size: node.metadata?.size || config.size,
+                    vquality: node.metadata?.vquality || config.vquality,
+                    videoSeconds: node.metadata?.seconds || config.videoSeconds,
+                }),
+            });
+            return;
+        }
+        onConfigChange(node.id, { model });
     };
 
     const submit = () => {
