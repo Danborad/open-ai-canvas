@@ -2,8 +2,26 @@ const RECOVERY_QUERY = "__chunk_recovery";
 const RECOVERY_KEY = "canvas:chunk-recovery";
 let recovering = false;
 
+export function isChunkLoadError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+    return (
+        message.includes("dynamically imported module") ||
+        message.includes("Failed to fetch dynamically imported module") ||
+        message.includes("Importing a module script failed") ||
+        message.includes("error loading dynamically imported module") ||
+        message.includes("Loading chunk")
+    );
+}
+
 export function installChunkRecovery() {
     window.addEventListener("vite:preloadError", handlePreloadError);
+    window.addEventListener("unhandledrejection", (event) => {
+        if (isChunkLoadError(event.reason)) {
+            if (tryRecoverChunkFailure()) {
+                event.preventDefault();
+            }
+        }
+    });
 }
 
 export function markChunkRecoverySucceeded() {
