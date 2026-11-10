@@ -35,11 +35,11 @@ let cacheGeneration = 0;
 const MAX_CACHE_BYTES = 2 * 1024 * 1024 * 1024;
 const FALLBACK_CACHE_BYTES = 512 * 1024 * 1024;
 const MIN_CACHE_BYTES = 64 * 1024 * 1024;
-const MAX_CACHE_ENTRIES = 500;
+const MAX_CACHE_ENTRIES = 1500;
 const TOUCH_INTERVAL_MS = 10 * 60 * 1000;
 const BUDGET_REFRESH_MS = 5 * 60 * 1000;
-// 现代浏览器对同源 HTTP/2 连接多路复用；上限给到 16 让大画布冷启动在 1~2 轮内完成并发拉取。
-const MAX_CONCURRENT_DOWNLOADS = 16;
+// 限制并发下载数，避免大画布冷启动瞬间并发拉取几十上百个大图挤爆网络与服务器上行带宽。
+const MAX_CONCURRENT_DOWNLOADS = 6;
 
 /** Release session-only byte resources during account/logout transitions. */
 export function clearResourceBlobCache() {

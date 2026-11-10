@@ -22,7 +22,7 @@ import { type CanvasTheme } from "@/lib/canvas-theme";
 import { fitImageMaterialNodeSize, fitImageNodeSize, fitVideoNodeToSource } from "@/lib/canvas/canvas-node-size";
 import { getActiveUserScope } from "@/lib/user-scope";
 import { isCanvasImageActive, prepareCanvasImage, subscribeCanvasImageActivity } from "@/services/canvas-image-loader";
-import { getCachedResourceObjectUrl, peekCachedResourceObjectUrl, primeResourceBlobCache } from "@/services/resource-blob-cache";
+import { cacheResourceObjectUrl, getCachedResourceObjectUrl, peekCachedResourceObjectUrl, primeResourceBlobCache } from "@/services/resource-blob-cache";
 import { getResourceAccess, refreshResource, resourceIdFromStorageKey, resolveResourceAccessURL } from "@/services/api/resources";
 import type { CanvasNodeContentProps } from "./canvas-node-content";
 import { ErrorContent, LoadingContent } from "./canvas-node-status-content";
@@ -666,12 +666,8 @@ export function RetainedCanvasImage({
         const persistToLocalCache = (storageKey?: string, url?: string) => {
             if (!storageKey?.startsWith("resource:") || !url || url.startsWith("blob:") || url.startsWith("data:")) return;
             if (peekCachedResourceObjectUrl(storageKey)) return;
-            void fetch(url)
-                .then((res) => (res.ok ? res.blob() : null))
-                .then((blob) => {
-                    if (blob) void primeResourceBlobCache(storageKey, blob);
-                })
-                .catch(() => undefined);
+            // 采用受管下载队列（最多6个并发）写入 IndexedDB 缓存，绝不全量无脑同时 fetch(url) 二次下载撑爆服务器带宽
+            void cacheResourceObjectUrl(storageKey).catch(() => undefined);
         };
         const show = (image: HTMLImageElement, url: string, size: { width?: number; height?: number }) => {
             currentRef.current.fitToImage(image, size);
@@ -824,28 +820,40 @@ export function useNodeResourceUrl(node: CanvasNodeData, eager: boolean, variant
         }
         let cancelled = false;
         setResolved({ identity, url: "", loading: true });
-        if (isLazyVisual) {
-            void getCachedResourceObjectUrl(storageKey).then((cachedUrl) => {
-                if (!cancelled && cachedUrl) {
-                    setResolved({ identity, url: cachedUrl, loading: false });
+
+        void (async () => {
+            if (isLazyVisual) {
+                try {
+                    const cachedUrl = await getCachedResourceObjectUrl(storageKey);
+                    if (!cancelled && cachedUrl) {
+                        setResolved({ identity, url: cachedUrl, loading: false });
+                        return;
+                    }
+                } catch {
+                    // 降级继续向服务端换取授权访问地址
                 }
-            });
-        }
-        void getResourceAccess(storageKey, "display", variant)
-            .then((access) => {
+            }
+
+            if (cancelled) return;
+
+            try {
+                const access = await getResourceAccess(storageKey, "display", variant);
+                if (cancelled) return;
+                const networkUrl = resolveResourceAccessURL(access.url);
+                setResolved({
+                    identity,
+                    url: networkUrl,
+                    loading: false,
+                    originalWidth: access.originalWidth,
+                    originalHeight: access.originalHeight,
+                });
+            } catch {
                 if (!cancelled) {
-                    setResolved((prev) => {
-                        if (prev.identity === identity && prev.url && prev.url.startsWith("blob:")) {
-                            return { ...prev, originalWidth: access.originalWidth, originalHeight: access.originalHeight };
-                        }
-                        return { identity, url: resolveResourceAccessURL(access.url), loading: false, originalWidth: access.originalWidth, originalHeight: access.originalHeight };
-                    });
+                    setResolved((prev) => (prev.url ? prev : { identity, url: fallback, loading: false, failed: !fallback }));
                 }
-            })
-            .catch(() => {
-                // 没有可用的回退地址时标记失败，节点显示「加载失败 + 重新加载」，而不是一块无提示的空白。
-                if (!cancelled) setResolved((prev) => (prev.url ? prev : { identity, url: fallback, loading: false, failed: !fallback }));
-            });
+            }
+        })();
+
         return () => {
             cancelled = true;
         };

@@ -62,16 +62,29 @@ export default function CanvasPage() {
         initialPageParam: 1,
         getNextPageParam: (last) => (last.hasMore ? last.page + 1 : undefined),
         placeholderData: keepPreviousData,
+        staleTime: 60_000,
+        gcTime: 10 * 60 * 1000,
         enabled: Boolean(userId) && sessionHydrated,
     });
-    const projects = useMemo<CanvasLibrarySummary[]>(
+    const localSummaries = useMemo<CanvasLibrarySummary[]>(
         () =>
-            userId
-                ? libraryQuery.data?.pages.flatMap((page) => page.projects) || []
-                : localProjects.map((project) => ({ ...project, nodeCount: project.nodes.length, previewNodes: project.nodes.filter((node) => node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video).slice(0, 4) })),
-        [libraryQuery.data, localProjects, userId],
+            localProjects.map((project) => ({
+                ...project,
+                nodeCount: project.nodes.length,
+                previewNodes: project.nodes.filter((node) => node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Video).slice(0, 4),
+            })),
+        [localProjects],
     );
-    const totalProjects = userId ? libraryQuery.data?.pages[0]?.total || 0 : projects.length;
+    const projects = useMemo<CanvasLibrarySummary[]>(() => {
+        if (libraryQuery.data?.pages?.length) {
+            return libraryQuery.data.pages.flatMap((page) => page.projects) || [];
+        }
+        if (localSummaries.length > 0) {
+            return localSummaries;
+        }
+        return [];
+    }, [libraryQuery.data, localSummaries]);
+    const totalProjects = userId ? (libraryQuery.data?.pages[0]?.total ?? localSummaries.length) : projects.length;
     const importProject = useCanvasStore((state) => state.importProject);
     const selectedIds = useCanvasUiStore((state) => state.selectedProjectIds);
     const deleteDialogOpen = useCanvasUiStore((state) => state.deleteProjectIds.length > 0);

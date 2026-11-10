@@ -4,6 +4,7 @@ import { getResourceAccess, resolveResourceAccessURL, resourceIdFromStorageKey, 
 import { getActiveUserScope } from "@/lib/user-scope";
 import { resolveImageUrl } from "@/services/image-storage";
 import { prepareCanvasImage } from "@/services/canvas-image-loader";
+import { cacheResourceObjectUrl, getCachedResourceObjectUrl, peekCachedResourceObjectUrl } from "@/services/resource-blob-cache";
 
 type CachedResourceImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> & {
     storageKey?: string;
@@ -62,6 +63,26 @@ export function CachedResourceImage({ storageKey, src = "", fallback = null, loa
         let cancelled = false;
         const isCurrent = () => !cancelled && !controller.signal.aborted && getActiveUserScope() === scope;
         const load = async () => {
+            // 本地已有内存或 IndexedDB 离线缓存时直接秒开渲染，绝不向服务端发多余网络请求
+            if (remoteResource && storageKey) {
+                const memUrl = peekCachedResourceObjectUrl(storageKey);
+                if (memUrl && isCurrent()) {
+                    setDisplayed({ identity, src: memUrl });
+                    setFailedIdentity("");
+                    return;
+                }
+                try {
+                    const cachedUrl = await getCachedResourceObjectUrl(storageKey);
+                    if (cachedUrl && isCurrent()) {
+                        setDisplayed({ identity, src: cachedUrl });
+                        setFailedIdentity("");
+                        return;
+                    }
+                } catch {
+                    // 降级走网络加载
+                }
+            }
+
             let candidate = src;
             if (remoteResource && resourceId) {
                 try {
@@ -93,6 +114,9 @@ export function CachedResourceImage({ storageKey, src = "", fallback = null, loa
             if (isCurrent()) {
                 setDisplayed({ identity, src: candidate });
                 setFailedIdentity("");
+                if (storageKey?.startsWith("resource:")) {
+                    void cacheResourceObjectUrl(storageKey).catch(() => undefined);
+                }
             }
         };
         void load().catch(() => {
@@ -110,10 +134,12 @@ export function CachedResourceImage({ storageKey, src = "", fallback = null, loa
                 .then((url) => {
                     if (url && url !== cachedSrc) {
                         const controller = new AbortController();
-                        void prepareCanvasImage(url, controller.signal).then(() => setDisplayed({ identity, src: url })).catch(() => {
-                            setFailedIdentity(identity);
-                            onError?.(e);
-                        });
+                        void prepareCanvasImage(url, controller.signal)
+                            .then(() => setDisplayed({ identity, src: url }))
+                            .catch(() => {
+                                setFailedIdentity(identity);
+                                onError?.(e);
+                            });
                         return;
                     }
                     setFailedIdentity(identity);

@@ -239,7 +239,19 @@ export function CanvasProjectCard({
  * quiet：内容库卡片用的安静占位。空白画布与仅视频画布共用同一张浅渐变底 + 42px 图标 tile，
  * 不再输出「空白画布 / 等待第一幕」文案；其他调用方保持原有占位。
  */
-export function ProjectPreview({ project, preferLatestImage = false, quiet = false, mosaic = false, isBlurred }: { project: Pick<CanvasProject, "id" | "nodes"> & { coverBlurred?: boolean }; preferLatestImage?: boolean; quiet?: boolean; mosaic?: boolean; isBlurred?: boolean }) {
+export function ProjectPreview({
+    project,
+    preferLatestImage = false,
+    quiet = false,
+    mosaic = false,
+    isBlurred,
+}: {
+    project: Pick<CanvasProject, "id" | "nodes"> & { coverBlurred?: boolean };
+    preferLatestImage?: boolean;
+    quiet?: boolean;
+    mosaic?: boolean;
+    isBlurred?: boolean;
+}) {
     const syncProgress = useSyncProgressStore((state) => state.syncingProjects[project.id]);
     const isSyncing = Boolean(syncProgress && (syncProgress.phase === "uploading" || syncProgress.phase === "saving"));
     const coverBlurPluginEnabled = usePluginStore((state) => state.pluginStates[CANVAS_COVER_BLUR_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === CANVAS_COVER_BLUR_PLUGIN_ID)?.enabled));
@@ -271,7 +283,17 @@ export function ProjectPreview({ project, preferLatestImage = false, quiet = fal
                     <Video className="size-8" aria-label={media.node.title || "项目视频"} />
                 </div>
             ) : (
-                <CachedResourceImage storageKey={media.storageKey} src={media.url} alt={media.node.title || "项目图片"} loading="lazy" decoding="async" className="size-full min-h-0 object-cover" fallback={<MediaPlaceholder failed />} loadingFallback={<MediaPlaceholder label="正在读取封面" />} />
+                <CachedResourceImage
+                    storageKey={media.storageKey}
+                    src={media.url}
+                    alt={media.node.title || "项目图片"}
+                    variant="thumbnail"
+                    loading="lazy"
+                    decoding="async"
+                    className="size-full min-h-0 object-cover"
+                    fallback={<MediaPlaceholder failed />}
+                    loadingFallback={<MediaPlaceholder label="正在读取封面" />}
+                />
             )}
         </div>
     ) : !project.nodes.length ? (
@@ -388,7 +410,7 @@ export function projectPreviewMediaList(nodes: CanvasNodeData[], limit: number, 
 
 function ProjectPreviewTile({ media }: { media: ProjectPreviewMedia }) {
     if (media.node.type !== CanvasNodeType.Video) {
-        return <CachedResourceImage storageKey={media.storageKey} src={media.url} alt="" loading="lazy" decoding="async" fallback={<MediaPlaceholder failed />} loadingFallback={<span className="canvas-project-mosaic-loading" />} />;
+        return <CachedResourceImage storageKey={media.storageKey} src={media.url} alt="" variant="thumbnail" loading="lazy" decoding="async" fallback={<MediaPlaceholder failed />} loadingFallback={<span className="canvas-project-mosaic-loading" />} />;
     }
     return <ProjectPreviewVideoFrame media={media} />;
 }
@@ -402,15 +424,23 @@ function ProjectPreviewVideoFrame({ media }: { media: ProjectPreviewMedia }) {
         let cancelled = false;
         void resolveMediaUrl(media.storageKey, media.url, "playback")
             .catch(() => resolveMediaUrl(media.storageKey, media.url, "original"))
-            .then((url) => { if (!cancelled) setResolved({ identity, url: url || "", failed: !url }); })
-            .catch(() => { if (!cancelled) setResolved({ identity, url: "", failed: true }); });
-        return () => { cancelled = true; };
+            .then((url) => {
+                if (!cancelled) setResolved({ identity, url: url || "", failed: !url });
+            })
+            .catch(() => {
+                if (!cancelled) setResolved({ identity, url: "", failed: true });
+            });
+        return () => {
+            cancelled = true;
+        };
     }, [identity, media.storageKey, media.url]);
     const current = resolved.identity === identity ? resolved : null;
     if (current?.failed || failedIdentity === identity) {
         return (
             <span className="canvas-project-placeholder size-full" data-kind="video">
-                <span className="canvas-project-placeholder-tile"><Video aria-hidden="true" /></span>
+                <span className="canvas-project-placeholder-tile">
+                    <Video aria-hidden="true" />
+                </span>
             </span>
         );
     }
@@ -431,7 +461,9 @@ function ProjectPreviewVideoFrame({ media }: { media: ProjectPreviewMedia }) {
                 }}
                 onError={() => setFailedIdentity(identity)}
             />
-            <span className="canvas-project-mosaic-play" aria-hidden="true"><Play /></span>
+            <span className="canvas-project-mosaic-play" aria-hidden="true">
+                <Play />
+            </span>
         </>
     );
 }
