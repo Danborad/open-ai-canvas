@@ -294,7 +294,6 @@ func (s *Service) BeginOIDCLogin(ctx context.Context, next string, acceptedTerms
 func (s *Service) CompleteOIDCLogin(ctx context.Context, state, code string, login LoginContext) (*auth.OAuthCallbackResult, error) {
 	return s.authDomain().CompleteOIDCLogin(ctx, state, code, login)
 }
-}
 
 func (s *Service) AdminLibTVSetting(actor *model.User) (*PublicLibTVSetting, error) {
 	return s.authDomain().AdminLibTVSetting(actor)

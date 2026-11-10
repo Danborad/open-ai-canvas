@@ -48,7 +48,7 @@ func TestPostgresChannelWebsiteMigrationUpgradesVersion96(t *testing.T) {
 	}
 	defer dbSQL.Close()
 
-	// Recreate the v96 channel/pricing slice without website_id or the three
+	// Recreate the v99 channel/pricing slice without website_id or the three
 	// new tables; unrelated historical migrations are recorded, not rerun.
 	if err := db.AutoMigrate(&schemaMigration{}, &model.ModelChannel{}, &model.ChannelModel{}, &model.ChannelModelPriceTier{}); err != nil {
 		t.Fatal(err)
@@ -76,7 +76,7 @@ func TestPostgresChannelWebsiteMigrationUpgradesVersion96(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, migration := range schemaMigrations {
-		if migration.version < 97 {
+		if migration.version < 100 {
 			if err := db.Create(&schemaMigration{Version: migration.version, Name: migration.name, Checksum: migration.checksum, AppliedAt: stamp}).Error; err != nil {
 				t.Fatal(err)
 			}
@@ -96,7 +96,7 @@ func TestPostgresChannelWebsiteMigrationUpgradesVersion96(t *testing.T) {
 		t.Fatal(err)
 	}
 	status, err := ReadSchemaStatus(db)
-	if err != nil || status.Current != 96 || status.Ready {
+	if err != nil || status.Current != 99 || status.Ready {
 		t.Fatalf("legacy schema status: %+v err=%v", status, err)
 	}
 	// Startup migrates a newly opened pool before reading channel rows. Keep
@@ -114,7 +114,7 @@ func TestPostgresChannelWebsiteMigrationUpgradesVersion96(t *testing.T) {
 	}
 	defer dbSQL.Close()
 	if err := MigrateSchema(db); err != nil {
-		t.Fatalf("v96 to v97 migration: %v", err)
+		t.Fatalf("v99 to v100 migration: %v", err)
 	}
 	if err := RequireSchemaVersion(db); err != nil {
 		t.Fatal(err)
@@ -161,7 +161,7 @@ func TestPostgresChannelWebsiteMigrationUpgradesVersion96(t *testing.T) {
 	// Repeat the production migration entry with populated new tables; every
 	// original row and every generated website ID must remain unchanged.
 	if err := MigrateSchema(db); err != nil {
-		t.Fatalf("repeat v97 migration: %v", err)
+		t.Fatalf("repeat v100 migration: %v", err)
 	}
 	var again []model.ModelChannel
 	var againSites []model.ChannelWebsite
@@ -192,7 +192,7 @@ func TestPostgresChannelWebsiteMigrationUpgradesVersion96(t *testing.T) {
 	}
 	var applied []migration
 	for _, entry := range schemaMigrations {
-		if entry.version >= 97 {
+		if entry.version >= 100 {
 			applied = append(applied, entry)
 		}
 	}

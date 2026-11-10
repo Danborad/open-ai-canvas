@@ -80,7 +80,7 @@ func TestChannelWebsiteMigrationPreservesChannelsAndSeparatesEndpoints(t *testin
 }
 
 func TestChannelWebsiteMigrationUpgradesVersion96(t *testing.T) {
-	db, err := Open(Config{Driver: "sqlite", DSN: "file:channel-websites-v96?mode=memory&cache=shared"})
+	db, err := Open(Config{Driver: "sqlite", DSN: "file:channel-websites-v99?mode=memory&cache=shared"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestChannelWebsiteMigrationUpgradesVersion96(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, migration := range schemaMigrations {
-		if migration.version >= 97 {
+		if migration.version >= 100 {
 			continue
 		}
 		if err := db.Create(&schemaMigration{Version: migration.version, Name: migration.name, Checksum: migration.checksum, AppliedAt: stamp}).Error; err != nil {
@@ -124,11 +124,11 @@ func TestChannelWebsiteMigrationUpgradesVersion96(t *testing.T) {
 		t.Fatal(err)
 	}
 	if after.WebsiteID == "" {
-		t.Fatal("version 97 did not assign a website")
+		t.Fatal("version 100 did not assign a website")
 	}
 	after.WebsiteID = ""
 	if !reflect.DeepEqual(row, after) {
-		t.Fatal("version 97 altered existing channel data")
+		t.Fatal("version 100 altered existing channel data")
 	}
 	var sites int64
 	if err := db.Model(&model.ChannelWebsite{}).Count(&sites).Error; err != nil || sites != 1 {
