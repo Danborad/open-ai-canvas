@@ -69,13 +69,13 @@ type geminiImageGenerationConfig struct {
 	ThinkingConfig     *geminiThinkingConfig `json:"thinkingConfig,omitempty"`
 }
 
-type geminiThinkingConfig struct {
-	ThinkingLevel string `json:"thinkingLevel,omitempty"`
-}
-
 type geminiImageConfig struct {
 	AspectRatio string `json:"aspectRatio,omitempty"`
 	ImageSize   string `json:"imageSize,omitempty"`
+}
+
+type geminiThinkingConfig struct {
+	ThinkingLevel string `json:"thinkingLevel"`
 }
 
 type seedanceAgentPlanRequest struct {

@@ -88,12 +88,7 @@ export function ModelPicker({
     const isCurrentCustomChannel = Boolean(current && currentChannel && currentChannel.scope !== "system");
     const currentChannelLabel = current ? modelChannelLabel(config, current) : "";
     const currentModelName = current ? modelOptionName(current) : "";
-    const showChannelBadge = Boolean(
-        currentChannelLabel &&
-        currentChannelLabel !== currentModelName &&
-        currentChannelLabel !== modelDisplayName(config, current) &&
-        !isCurrentCustomChannel
-    );
+    const showChannelBadge = Boolean(currentChannelLabel && currentChannelLabel !== currentModelName && currentChannelLabel !== modelDisplayName(config, current) && !isCurrentCustomChannel);
 
     useLayoutEffect(() => {
         if (!open) return;
@@ -290,12 +285,13 @@ export function ModelPicker({
                                             <span className="flex items-center gap-1.5 min-w-0">
                                                 <strong className="truncate block">{group.label}</strong>
                                                 {group.scope === "我的模型" ? (
-                                                    <span className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium leading-none bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/25">
-                                                        个人渠道
-                                                    </span>
+                                                    <span className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium leading-none bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/25">个人渠道</span>
                                                 ) : null}
                                             </span>
-                                            <small>{group.models.length} 个{group.kind === "product" ? "渠道" : "模型"}{group.scope ? ` · ${group.scope}` : ""}</small>
+                                            <small>
+                                                {group.models.length} 个{group.kind === "product" ? "渠道" : "模型"}
+                                                {group.scope ? ` · ${group.scope}` : ""}
+                                            </small>
                                         </span>
                                     </div>
                                     <div className="grid min-w-0 gap-1">
@@ -324,6 +320,7 @@ export function ModelPicker({
                                                         if (!model) return;
                                                         onChange(model);
                                                         setOpen(false);
+                                                        window.requestAnimationFrame(() => triggerRef.current?.focus());
                                                     }}
                                                 >
                                                     <ModelLabel

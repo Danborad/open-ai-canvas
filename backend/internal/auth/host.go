@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -53,13 +54,16 @@ func (nopHost) NotifyUserRegistered(*model.User)            {}
 func (nopHost) BindInvitation(string, string, string) error { return nil }
 
 type Service struct {
-	repo           *repository.Repository
-	host           Host
-	mailSender     func(EmailSettingValue, string, string, string) error
-	emailCodeMu    sync.Mutex
-	registrationMu sync.Mutex
-	emailCursor    uint64
-	sms            SMSDelivery
+	repo             *repository.Repository
+	host             Host
+	mailSender       func(EmailSettingValue, string, string, string) error
+	emailCodeMu      sync.Mutex
+	registrationMu   sync.Mutex
+	emailCursor      uint64
+	libtvMu          sync.Mutex
+	libtv            *libTVRuntime
+	sms              SMSDelivery
+	wechatHTTPClient *http.Client
 }
 
 type SMSDelivery interface {

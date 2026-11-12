@@ -144,14 +144,15 @@ func DefaultImageCapabilityConfig(protocol string, modelName string) *ImageCapab
 	case model.ChannelInterfaceGeminiImage:
 		image.References.MaskSupported = false
 		// Gemini Images uses imageConfig.aspectRatio, not the OpenAI-style pixel size field.
-		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"auto", "1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2", "21:9"}, Default: "1:1", AllowCustom: false}
-		image.Quality = ImageQualityConfig{Supported: true, Values: []string{"1k", "2k", "4k"}, Default: "2k"}
+		image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"auto", "1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"}, Default: "1:1", AllowCustom: false}
+		// 分辨率档位独立于质量：quality 保留通用质量语义，1K/2K/4K 走 resolution。
+		image.Resolution = ImageResolutionConfig{Supported: true, Values: []string{"1k", "2k", "4k"}, Default: "2k"}
+		image.Quality = ImageQualityConfig{Supported: false, Values: []string{}, Default: "auto"}
 		image.Thinking = &ImageThinkingConfig{Supported: true, Values: []string{"low", "medium", "high"}, Default: "high"}
 		image.TransparentBackground.Supported = false
 		image.ResponseFormat.Supported = false
 		image.OutputFormat.Supported = false
 		image.MaxOutputs = 4
-		image.ResolutionUsesQuality = true
 	case "doubao-seedream-image", "seedream-image", "km-seedream":
 		image.References.MaxImages = 14
 		image.References.MaskSupported = true

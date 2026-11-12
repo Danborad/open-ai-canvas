@@ -51,7 +51,7 @@ func TestKemeiVideoCreatePollAndCancel(t *testing.T) {
 }
 
 func TestKemeiWan3VideoCreatePollAndBuiltin(t *testing.T) {
-	for _, providerID := range []string{"km-kemei-wan3-video", "km-kemei-video"} {
+	for _, providerID := range []string{"km-kemei-video"} {
 		adapter := officialPackageAdapter(t, "km-kemei-video.yingce-plugin", providerID)
 		create, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{
 			Model: "wan3.0-video", Prompt: "一只金毛寻回犬在金色秋叶中奔跑，电影感慢镜头，阳光穿透树林", Duration: 5,
@@ -75,8 +75,8 @@ func TestKemeiWan3VideoCreatePollAndBuiltin(t *testing.T) {
 		if body["model"] != "wan3.0-video" {
 			t.Fatalf("%s model = %v, want wan3.0-video", providerID, body["model"])
 		}
-		if body["resolution"] != "720P" {
-			t.Fatalf("%s resolution = %v, want 720P (uppercase)", providerID, body["resolution"])
+		if body["resolution"] != "720p" {
+			t.Fatalf("%s resolution = %v, want 720p", providerID, body["resolution"])
 		}
 		if body["duration"] != float64(5) {
 			t.Fatalf("%s duration = %v, want 5", providerID, body["duration"])

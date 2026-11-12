@@ -389,11 +389,11 @@ export type WechatAdminSettingInput = {
 };
 
 export function getAdminWechatSetting() {
-    return http.get<{ setting: WechatAdminSetting }>("/admin/settings/wechat");
+    return http.get<{ setting: WechatAdminSetting }>("/admin/settings/wechat-miniprogram");
 }
 
 export function updateAdminWechatSetting(setting: WechatAdminSettingInput) {
-    return http.patch<{ setting: WechatAdminSetting }>("/admin/settings/wechat", setting);
+    return http.patch<{ setting: WechatAdminSetting }>("/admin/settings/wechat-miniprogram", setting);
 }
 
 export function getAdminRegistrationSetting() {

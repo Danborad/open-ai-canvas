@@ -102,31 +102,31 @@ func RegisterFinanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		ok(c, gin.H{"setting": setting})
 	})
-	r.GET("/admin/settings/wechat", func(c *gin.Context) {
+	r.GET("/admin/settings/wechat-miniprogram", func(c *gin.Context) {
 		user, err := currentUser(c, svc)
 		if err != nil {
 			failService(c, err)
 			return
 		}
-		setting, err := svc.AdminWechatSetting(user)
+		setting, err := svc.AdminWechatMiniProgramSetting(user)
 		if err != nil {
 			failService(c, err)
 			return
 		}
 		ok(c, gin.H{"setting": setting})
 	})
-	r.PATCH("/admin/settings/wechat", func(c *gin.Context) {
+	r.PATCH("/admin/settings/wechat-miniprogram", func(c *gin.Context) {
 		user, err := currentUser(c, svc)
 		if err != nil {
 			failService(c, err)
 			return
 		}
-		var req service.WechatSettingRequest
+		var req service.WechatMiniProgramSettingRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			fail(c, http.StatusBadRequest, err)
 			return
 		}
-		setting, err := svc.UpdateWechatSetting(user, req)
+		setting, err := svc.UpdateWechatMiniProgramSetting(user, req)
 		if err != nil {
 			failService(c, err)
 			return

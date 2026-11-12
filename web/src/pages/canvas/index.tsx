@@ -32,7 +32,9 @@ import { primeResourceBlobCache } from "@/services/resource-blob-cache";
 import { useSyncProgressStore } from "@/stores/use-sync-progress-store";
 import { ensureCanvasNodeAsset } from "@/services/project-asset-sync";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
-import { CanvasDeleteProjectsDialog } from "@/components/canvas/canvas-delete-projects-dialog";
+import { trackSiteTrafficAction } from "@/services/site-traffic";
+
+const CanvasDeleteProjectsDialog = lazy(() => import("@/components/canvas/canvas-delete-projects-dialog").then((module) => ({ default: module.CanvasDeleteProjectsDialog })));
 
 export default function CanvasPage() {
     const { message } = App.useApp();
@@ -62,7 +64,7 @@ export default function CanvasPage() {
         queryFn: ({ pageParam, signal }) => listRemoteCanvasProjectsPage({ page: pageParam, pageSize: 40, projectId: projectFilter, sort, query: debouncedKeyword, signal }),
         initialPageParam: 1,
         getNextPageParam: (last) => (last.hasMore ? last.page + 1 : undefined),
-        placeholderData: keepPreviousData,
+        placeholderData: (previousData, previousQuery) => (sessionHydrated && previousQuery?.queryKey[1] === userId ? keepPreviousData(previousData) : undefined),
         staleTime: 60_000,
         gcTime: 10 * 60 * 1000,
         refetchOnWindowFocus: false,
@@ -79,15 +81,11 @@ export default function CanvasPage() {
         return list;
     }, [localProjects]);
     const projects = useMemo<CanvasLibrarySummary[]>(() => {
-        if (libraryQuery.data?.pages?.length) {
-            return libraryQuery.data.pages.flatMap((page) => page.projects) || [];
-        }
-        if (localSummaries.length > 0) {
-            return localSummaries;
-        }
-        return [];
-    }, [libraryQuery.data, localSummaries]);
-    const totalProjects = userId ? (libraryQuery.data?.pages[0]?.total ?? localSummaries.length) : projects.length;
+        // 登录后的列表由服务端筛选和分页，本机缓存不能冒充查询结果。
+        if (userId) return sessionHydrated ? (libraryQuery.data?.pages.flatMap((page) => page.projects) ?? []) : [];
+        return sessionHydrated && hydrated ? localSummaries : [];
+    }, [libraryQuery.data, localSummaries, userId, sessionHydrated, hydrated]);
+    const totalProjects = userId ? (libraryQuery.data?.pages[0]?.total ?? 0) : projects.length;
     const importProject = useCanvasStore((state) => state.importProject);
     const selectedIds = useCanvasUiStore((state) => state.selectedProjectIds);
     const deleteDialogOpen = useCanvasUiStore((state) => state.deleteProjectIds.length > 0);
@@ -116,6 +114,7 @@ export default function CanvasPage() {
         [forwardedQuery, navigate, preloadProject],
     );
     const createAndEnter = () => {
+        trackSiteTrafficAction("new_canvas");
         const id = useCanvasStore.getState().createDraftProject(`自由画布 ${projects.length + 1}`);
         enterProject(id);
     };

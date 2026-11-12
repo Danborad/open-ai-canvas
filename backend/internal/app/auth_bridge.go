@@ -13,49 +13,52 @@ import (
 const SessionCookieName = auth.SessionCookieName
 
 type (
-	EmailCodeCooldownError     = auth.EmailCodeCooldownError
-	RegisterRequest            = auth.RegisterRequest
-	LoginRequest               = auth.LoginRequest
-	LoginContext               = auth.LoginContext
-	PublicAuthSettings         = auth.PublicAuthSettings
-	AuthSessionResult          = auth.AuthSessionResult
-	AuthUser                   = auth.AuthUser
-	RegistrationSettingRequest = auth.RegistrationSettingRequest
-	PublicRegistrationSetting  = auth.PublicRegistrationSetting
-	PasswordResetRequest       = auth.PasswordResetRequest
-	EmailSettingRequest        = auth.EmailSettingRequest
-	PublicEmailSetting         = auth.PublicEmailSetting
-	EmailSenderRequest         = auth.EmailSenderRequest
-	PublicEmailSender          = auth.PublicEmailSender
-	TestEmailRequest           = auth.TestEmailRequest
-	TestEmailResult            = auth.TestEmailResult
-	EmailLogQuery              = auth.EmailLogQuery
-	EmailLogPage               = auth.EmailLogPage
-	LinuxDOSettingRequest      = auth.LinuxDOSettingRequest
-	PublicLinuxDOSetting       = auth.PublicLinuxDOSetting
-	LinuxDOCallbackResult      = auth.OAuthCallbackResult
-	LibTVSettingRequest        = auth.LibTVSettingRequest
-	PublicLibTVSetting         = auth.PublicLibTVSetting
-	LibTVImportRequest         = auth.LibTVImportRequest
-	LibTVImportResult          = auth.LibTVImportResult
-	LibTVCanvasConnection      = auth.LibTVCanvasConnection
-	LibTVCanvasNode            = auth.LibTVCanvasNode
-	LibTVImportIssue           = auth.LibTVImportIssue
-	LibTVImportMetadata        = auth.LibTVImportMetadata
-	LibTVImportWarning         = auth.LibTVImportWarning
-	TapNowImportRequest        = auth.TapNowImportRequest
-	TapNowImportResult         = auth.TapNowImportResult
-	TapNowCanvasConnection     = auth.TapNowCanvasConnection
-	TapNowCanvasNode           = auth.TapNowCanvasNode
-	TapNowImportIssue          = auth.TapNowImportIssue
-	TapNowImportMetadata       = auth.TapNowImportMetadata
-	TapNowImportWarning        = auth.TapNowImportWarning
-	WechatQRTicketResponse     = auth.WechatQRTicketResponse
-	WechatTicketStatusResult   = auth.WechatTicketStatusResult
-	WechatConfirmRequest       = auth.WechatConfirmRequest
-	WechatConfirmResult        = auth.WechatConfirmResult
-	PublicWechatSetting        = auth.PublicWechatSetting
-	WechatSettingRequest       = auth.WechatSettingRequest
+	EmailCodeCooldownError          = auth.EmailCodeCooldownError
+	RegisterRequest                 = auth.RegisterRequest
+	LoginRequest                    = auth.LoginRequest
+	LoginContext                    = auth.LoginContext
+	PublicAuthSettings              = auth.PublicAuthSettings
+	AuthSessionResult               = auth.AuthSessionResult
+	AuthUser                        = auth.AuthUser
+	RegistrationSettingRequest      = auth.RegistrationSettingRequest
+	PublicRegistrationSetting       = auth.PublicRegistrationSetting
+	PasswordResetRequest            = auth.PasswordResetRequest
+	EmailSettingRequest             = auth.EmailSettingRequest
+	PublicEmailSetting              = auth.PublicEmailSetting
+	TestEmailRequest                = auth.TestEmailRequest
+	TestEmailResult                 = auth.TestEmailResult
+	EmailSenderRequest              = auth.EmailSenderRequest
+	PublicEmailSender               = auth.PublicEmailSender
+	EmailLogQuery                   = auth.EmailLogQuery
+	EmailLogPage                    = auth.EmailLogPage
+	LinuxDOSettingRequest           = auth.LinuxDOSettingRequest
+	PublicLinuxDOSetting            = auth.PublicLinuxDOSetting
+	LinuxDOCallbackResult           = auth.OAuthCallbackResult
+	LibTVSettingRequest             = auth.LibTVSettingRequest
+	PublicLibTVSetting              = auth.PublicLibTVSetting
+	LibTVConnectStartRequest        = auth.LibTVConnectStartRequest
+	LibTVConnectStartResult         = auth.LibTVConnectStartResult
+	LibTVConnectCompleteRequest     = auth.LibTVConnectCompleteRequest
+	LibTVImportRequest              = auth.LibTVImportRequest
+	LibTVImportResult               = auth.LibTVImportResult
+	LibTVCanvasConnection           = auth.LibTVCanvasConnection
+	LibTVCanvasNode                 = auth.LibTVCanvasNode
+	LibTVImportIssue                = auth.LibTVImportIssue
+	LibTVImportMetadata             = auth.LibTVImportMetadata
+	LibTVImportWarning              = auth.LibTVImportWarning
+	TapNowImportRequest             = auth.TapNowImportRequest
+	TapNowImportResult              = auth.TapNowImportResult
+	TapNowCanvasConnection          = auth.TapNowCanvasConnection
+	TapNowCanvasNode                = auth.TapNowCanvasNode
+	TapNowImportIssue               = auth.TapNowImportIssue
+	TapNowImportMetadata            = auth.TapNowImportMetadata
+	TapNowImportWarning             = auth.TapNowImportWarning
+	WechatQRTicketResponse          = auth.WechatQRTicketResponse
+	WechatTicketStatusResult        = auth.WechatTicketStatusResult
+	WechatConfirmRequest            = auth.WechatConfirmRequest
+	WechatConfirmResult             = auth.WechatConfirmResult
+	PublicWechatMiniProgramSetting  = auth.PublicWechatMiniProgramSetting
+	WechatMiniProgramSettingRequest = auth.WechatMiniProgramSettingRequest
 )
 
 type authHost struct {
@@ -279,12 +282,12 @@ func (s *Service) UnbindWechat(user *model.User) error {
 	return s.authDomain().UnbindWechat(user)
 }
 
-func (s *Service) AdminWechatSetting(actor *model.User) (*PublicWechatSetting, error) {
-	return s.authDomain().AdminWechatSetting(actor)
+func (s *Service) AdminWechatMiniProgramSetting(actor *model.User) (*PublicWechatMiniProgramSetting, error) {
+	return s.authDomain().AdminWechatMiniProgramSetting(actor)
 }
 
-func (s *Service) UpdateWechatSetting(actor *model.User, req WechatSettingRequest) (*PublicWechatSetting, error) {
-	return s.authDomain().UpdateWechatSetting(actor, req)
+func (s *Service) UpdateWechatMiniProgramSetting(actor *model.User, req WechatMiniProgramSettingRequest) (*PublicWechatMiniProgramSetting, error) {
+	return s.authDomain().UpdateWechatMiniProgramSetting(actor, req)
 }
 
 func (s *Service) BeginOIDCLogin(ctx context.Context, next string, acceptedTerms bool) (string, string, error) {
@@ -309,6 +312,22 @@ func (s *Service) TestLibTV(actor *model.User, projectUUID string) error {
 
 func (s *Service) ImportLibTV(userID, canvasProjectID, projectUUID string) (*LibTVImportResult, error) {
 	return s.authDomain().ImportLibTV(userID, canvasProjectID, projectUUID)
+}
+
+func (s *Service) StartLibTVOAuth(actor *model.User, req LibTVConnectStartRequest) (*LibTVConnectStartResult, error) {
+	return s.authDomain().StartLibTVOAuth(actor, req)
+}
+
+func (s *Service) CompleteLibTVOAuth(actor *model.User, req LibTVConnectCompleteRequest) (*PublicLibTVSetting, error) {
+	return s.authDomain().CompleteLibTVOAuth(actor, req)
+}
+
+func (s *Service) CompleteLibTVOAuthCallback(code, state, errorCode, errorDescription string) (string, int, error) {
+	return s.authDomain().CompleteLibTVOAuthCallback(code, state, errorCode, errorDescription)
+}
+
+func (s *Service) DisconnectLibTV(actor *model.User) (*PublicLibTVSetting, error) {
+	return s.authDomain().DisconnectLibTV(actor)
 }
 
 func (s *Service) ImportTapNow(userID, canvasProjectID, shareID string) (*TapNowImportResult, error) {

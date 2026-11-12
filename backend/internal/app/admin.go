@@ -63,8 +63,8 @@ type AdminUser struct {
 	AvailableMicrocredits int64  `json:"availableMicrocredits"`
 	ReservedMicrocredits  int64  `json:"reservedMicrocredits"`
 	// 仅列表接口填充：累计充值到账积分与累计已结算消耗。
-	RechargedMicrocredits int64  `json:"rechargedMicrocredits"`
-	ConsumedMicrocredits  int64  `json:"consumedMicrocredits"`
+	RechargedMicrocredits int64 `json:"rechargedMicrocredits"`
+	ConsumedMicrocredits  int64 `json:"consumedMicrocredits"`
 }
 
 type AdminChannelPage struct {

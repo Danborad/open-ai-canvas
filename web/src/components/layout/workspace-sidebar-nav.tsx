@@ -23,6 +23,7 @@ import { WorkspaceSidebarCheckin } from "./workspace-sidebar-checkin";
 import { WorkspaceSidebarInviteCard } from "./workspace-sidebar-invite-card";
 import { WorkspaceSidebarStorageMeter } from "./workspace-sidebar-storage-meter";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
+import { trackSiteTrafficAction } from "@/services/site-traffic";
 import { WorkspaceSidebarHistory } from "./workspace-sidebar-history";
 import "./workspace-sidebar-history.css";
 
@@ -241,6 +242,8 @@ function NavItem({
             setIsOpen((open) => !open);
             return;
         }
+        if (item.to === "/" || item.to === "/create") trackSiteTrafficAction("open_create");
+        if (item.to === "/ecommerce") trackSiteTrafficAction("open_ecommerce");
         onSelect(item.id);
     };
 

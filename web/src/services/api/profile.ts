@@ -6,6 +6,8 @@ export type UserProfile = {
     hasPassword: boolean;
     emailEnabled: boolean;
     linuxdoEnabled: boolean;
+    linuxdoBound?: boolean;
+    wechatEnabled?: boolean;
     wechatBound?: boolean;
     reauthenticatedUntil?: string;
 };

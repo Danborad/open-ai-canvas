@@ -29,6 +29,7 @@ import { useSyncProgressStore } from "@/stores/use-sync-progress-store";
 import { useUserStore } from "@/stores/use-user-store";
 import type { CanvasAssistantSession, CanvasConnection, CanvasNodeData, ViewportTransform } from "@/types/canvas";
 import type { CanvasHistorySnapshot } from "./use-canvas-history";
+import { trackSiteTrafficAction } from "@/services/site-traffic";
 
 type UseCanvasProjectLifecycleOptions = {
     projectId: string;
@@ -436,6 +437,7 @@ export function useCanvasProjectLifecycle({
     );
 
     const createAndOpenProject = useCallback(() => {
+        trackSiteTrafficAction("new_canvas");
         const id = useCanvasStore.getState().createDraftProject(translate("canvasPage.lifecycle.defaultCanvasName", { index: useCanvasStore.getState().projects.length + 1 }));
         navigate(`/canvas/${id}`, { state: canvasDraftNavigationState(id) });
     }, [message, navigate]);

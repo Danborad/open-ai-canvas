@@ -20,6 +20,7 @@ import { changeProfileEmail, changeProfilePassword, profileLinuxDOReauthURL, req
 import { WechatIcon } from "@/pages/auth/auth-scene";
 import { WechatBindDialog } from "./wechat-bind-dialog";
 import { ApiError } from "@/services/api/request";
+import { profileWechatURL } from "@/services/api/wechat";
 import { getNotificationSettings, updateNotificationSettings } from "@/services/api/email";
 import { Switch } from "@/components/ui/base/switch";
 import { useUserStore } from "@/stores/use-user-store";
@@ -62,6 +63,7 @@ export function ProfilePane() {
     const [retryAt, setRetryAt] = useState(0);
     const [now, setNow] = useState(Date.now());
     const oauthResult = searchParams.get("reauth");
+    const bindResult = searchParams.get("bind");
     const [reauthResult] = useState(oauthResult);
     const reauthReady = profileReauthReady(profile?.reauthenticatedUntil, now);
     const identityReady = !!profile?.hasPassword || reauthReady;
@@ -69,11 +71,13 @@ export function ProfilePane() {
     const ticketSeconds = emailTicket ? profileSecondsRemaining(emailTicket.expiresAt, now) : 0;
 
     useEffect(() => {
-        if (!oauthResult) return;
+        if (!oauthResult && !bindResult) return;
+        if (bindResult) message[bindResult === "success" ? "success" : "error"](bindResult === "success" ? t("auth.wechat.bound") : t("auth.wechat.bindFailed"));
         const next = new URLSearchParams(searchParams);
         next.delete("reauth");
+        next.delete("bind");
         setSearchParams(next, { replace: true });
-    }, [oauthResult, searchParams, setSearchParams]);
+    }, [oauthResult, bindResult, message, t, searchParams, setSearchParams]);
 
     useEffect(() => {
         const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -349,13 +353,33 @@ export function ProfilePane() {
                         </div>
                     </section>
 
+                    {profile.wechatEnabled || profile.wechatBound ? (
+                        <Callout
+                            title={t("auth.wechat.title")}
+                            icon={ShieldCheck}
+                            action={
+                                !profile.wechatBound ? (
+                                    <Button disabled={!!pending || !profile.wechatEnabled} onClick={() => window.location.assign(profileWechatURL("bind"))}>
+                                        {t("auth.wechat.bind")}
+                                    </Button>
+                                ) : undefined
+                            }
+                        >
+                            {profile.wechatBound ? t("auth.wechat.boundHint") : t("auth.wechat.bindHint")}
+                        </Callout>
+                    ) : null}
+
                     {!profile.hasPassword ? (
                         <Callout
                             tone={reauthReady ? "success" : "info"}
                             title={reauthReady ? "首次设置密码安全期" : t("account.settings.profile.verifyTitle")}
                             icon={ShieldCheck}
                             action={
-                                profile.linuxdoEnabled ? (
+                                profile.wechatEnabled && profile.wechatBound ? (
+                                    <Button disabled={!!pending} onClick={() => window.location.assign(profileWechatURL("reauth"))}>
+                                        {t("auth.wechat.verify")}
+                                    </Button>
+                                ) : profile.linuxdoEnabled && profile.linuxdoBound ? (
                                     <Button disabled={!!pending} onClick={() => window.location.assign(profileLinuxDOReauthURL())}>
                                         {reauthReady ? t("account.settings.profile.reverify") : t("account.settings.profile.verifyLinuxdo")}
                                     </Button>
@@ -363,10 +387,10 @@ export function ProfilePane() {
                             }
                         >
                             {reauthReady
-                                ? (profile.wechatBound
+                                ? profile.wechatBound || (profile.wechatEnabled && profile.wechatBound)
                                     ? `您刚通过微信扫码完成身份验证，当前处于首次设置密码的安全窗口（剩余 ${profileSecondsRemaining(Date.parse(profile.reauthenticatedUntil!), now)} 秒）。在此期间可直接在下方「设置登录密码」为账号设定密码，不需要输入原密码。日常登录与账号使用不受此时间限制。`
-                                    : t("account.settings.profile.verified", { seconds: profileSecondsRemaining(Date.parse(profile.reauthenticatedUntil!), now) }))
-                                : profile.wechatBound
+                                    : t("account.settings.profile.verified", { seconds: profileSecondsRemaining(Date.parse(profile.reauthenticatedUntil!), now) })
+                                : profile.wechatBound || (profile.wechatEnabled && profile.wechatBound)
                                   ? "当前账号尚未设置密码，日常可随时直接使用微信扫码一键登录。如需设定账号密码，重新使用微信扫码登录即可激活免密设置窗口。"
                                   : profile.linuxdoEnabled
                                     ? t("account.settings.profile.verifyHint")
@@ -560,18 +584,11 @@ export function ProfilePane() {
                             </div>
                             <div className="profile-actions">
                                 {profile.wechatBound ? (
-                                    <Button
-                                        danger
-                                        loading={unbindingWechat}
-                                        onClick={() => void handleUnbindWechat()}
-                                    >
+                                    <Button danger loading={unbindingWechat} onClick={() => void handleUnbindWechat()}>
                                         解除微信绑定
                                     </Button>
                                 ) : (
-                                    <Button
-                                        type="primary"
-                                        onClick={() => setWechatDialogOpen(true)}
-                                    >
+                                    <Button type="primary" onClick={() => setWechatDialogOpen(true)}>
                                         立即绑定微信
                                     </Button>
                                 )}
@@ -582,11 +599,7 @@ export function ProfilePane() {
                     </div>
                 </div>
             ) : null}
-            <WechatBindDialog
-                open={wechatDialogOpen}
-                onCancel={handleCloseWechatDialog}
-                onSuccess={handleWechatBindSuccess}
-            />
+            <WechatBindDialog open={wechatDialogOpen} onCancel={handleCloseWechatDialog} onSuccess={handleWechatBindSuccess} />
             {profile ? (
                 <AppModal
                     open={avatarDialogOpen}

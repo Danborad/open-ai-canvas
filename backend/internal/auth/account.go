@@ -19,6 +19,8 @@ type UserProfile struct {
 	HasPassword          bool       `json:"hasPassword"`
 	EmailEnabled         bool       `json:"emailEnabled"`
 	LinuxDOEnabled       bool       `json:"linuxdoEnabled"`
+	LinuxDOBound         bool       `json:"linuxdoBound"`
+	WechatEnabled        bool       `json:"wechatEnabled"`
 	WechatBound          bool       `json:"wechatBound"`
 	ReauthenticatedUntil *time.Time `json:"reauthenticatedUntil,omitempty"`
 }
@@ -77,7 +79,7 @@ func authorizeProfileChange(user *model.User, session *model.AuthSession, passwo
 	}
 	now := time.Now()
 	if session.ReauthenticatedAt == nil || session.ReauthenticatedAt.After(now) || !session.ReauthenticatedAt.Add(repository.ProfileReauthenticationTTL).After(now) {
-		return kernel.Unauthorized("请先通过微信或第三方登录重新验证身份")
+		return kernel.Unauthorized("请先通过已绑定的第三方账号重新验证身份")
 	}
 	return nil
 }
@@ -110,9 +112,19 @@ func (s *Service) UserProfile(actor *model.User, cookie string) (*UserProfile, e
 		return nil, err
 	}
 	result := &UserProfile{User: public, HasPassword: user.PasswordHash != "", EmailEnabled: emailEnabled, LinuxDOEnabled: linuxdo.Enabled}
-	if ident, err := s.repo.UserIdentityForUser(user.ID, "wechat"); err == nil && ident != nil {
-		result.WechatBound = true
+	for _, provider := range []string{"linuxdo", "wechat"} {
+		identity, err := s.repo.UserIdentityForUser(user.ID, provider)
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+		if provider == "linuxdo" {
+			result.LinuxDOBound = identity != nil
+		}
+		if provider == "wechat" {
+			result.WechatBound = identity != nil
+		}
 	}
+	result.WechatEnabled = s.WechatEnabled() || s.WechatMiniProgramEnabled()
 	now := time.Now()
 	if session.ReauthenticatedAt != nil && !session.ReauthenticatedAt.After(now) {
 		until := session.ReauthenticatedAt.Add(repository.ProfileReauthenticationTTL)

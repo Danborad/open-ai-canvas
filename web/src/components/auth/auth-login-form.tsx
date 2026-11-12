@@ -1,12 +1,13 @@
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { App, Button, Checkbox, Divider, Input, Segmented } from "antd";
-import { Info, TriangleAlert } from "lucide-react";
+import { Info, TriangleAlert, MessageCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { VerificationFields } from "@/components/auth/verification-fields";
 import { clearReferralCode, readReferralCode, type AuthView } from "@/lib/auth-entry";
 import { getAuthSession, linuxDOLoginURL, login, oidcLoginURL, register, type AuthSettings } from "@/services/api/auth";
 import { ApiError } from "@/services/api/request";
+import { wechatLoginURL } from "@/services/api/wechat";
 import { emptyVerification, loginVerification, registrationVerificationRequired, verificationMethods, type VerificationMethod } from "@/services/api/verification";
 import { WechatQRLogin } from "@/pages/auth/wechat-qr-login";
 import { AuthAgreementDialog, AuthNotice, AuthSwitchPrompt, AuthTabs, LinuxDOIcon, authTabId, authTabPanelId, useAuthAgreement } from "./auth-form-parts";
@@ -48,6 +49,7 @@ export function AuthLoginForm({ settings, settingsFailed, onReloadSettings, next
     // 推广码由登录路由从 ?ref= 写入会话缓存；弹窗与独立页面都从这里读取。
     const [referralCode] = useState(readReferralCode);
     const agreement = useAuthAgreement(settings);
+    // 自建小程序扫码登录与官方网站应用授权可并存：有自建小程序码时优先展示扫码面板。
     const [loginMode, setLoginMode] = useState<"account" | "wechat">(() => {
         if (typeof window !== "undefined") {
             const params = new URLSearchParams(window.location.search);
@@ -62,9 +64,7 @@ export function AuthLoginForm({ settings, settingsFailed, onReloadSettings, next
             const params = new URLSearchParams(window.location.search);
             if (params.get("mode") === "account") return;
         }
-        if (settings?.wechatQrLoginEnabled) {
-            setLoginMode("wechat");
-        }
+        if (settings?.wechatQrLoginEnabled) setLoginMode("wechat");
     }, [settings?.wechatQrLoginEnabled]);
 
     // 验证码登录排在密码登录之前；配置读取失败时只保留密码登录。
@@ -73,6 +73,7 @@ export function AuthLoginForm({ settings, settingsFailed, onReloadSettings, next
     const canRegister = Boolean(settings && (settings.firstUser || settings.registrationEnabled));
     const showLinuxDO = Boolean(settings?.linuxdoEnabled && !settings.smsAndEmailRegistration && !pending);
     const showOIDC = Boolean(settings?.oidcEnabled && !pending);
+    const showWechat = Boolean(settings?.wechatEnabled && !pending);
     const showAgreement = Boolean(settings && (pending || canRegister || showOIDC));
     const verificationRequired = Boolean(settings && registrationVerificationRequired(settings));
     const registerMethods = settings && verificationRequired ? verificationMethods(settings, "register") : [];
@@ -120,59 +121,51 @@ export function AuthLoginForm({ settings, settingsFailed, onReloadSettings, next
             }
             await finish(t("auth.login.success"));
         } catch (error) {
-            if (error instanceof ApiError && error.reason === "account_not_registered" && canRegister) {
-                // 服务端校验账号为合法邮箱时以邮箱方式注册，否则以用户名注册。
-                const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username.trim());
-                startRegistration(isEmail ? "email" : "username");
+            if (error instanceof ApiError && error.reason === "account_not_registered") {
+                startRegistration(error.details?.accountKind === "email" ? "email" : "username");
                 return;
             }
             throw error;
         }
     };
 
-    const submitRegistration = async () => {
-        if (password !== confirmPassword) {
-            message.error(t("auth.register.passwordMismatch"));
-            return;
-        }
+    const submitRegistration = async (current: PendingRegistration) => {
         if (!agreementAccepted) {
-            message.error(t("auth.register.agreeRequired"));
+            message.warning(t("auth.register.agreeFirst", { title: agreement.title }));
             return;
         }
+        if (password !== confirmPassword) throw new Error(t("auth.register.mismatch"));
+        if (verificationRequired && !registerVerification.ticket) throw new Error(t("auth.register.needCode"));
         const account = username.trim();
-        const verificationTicket = registerMethod ? registerVerification.ticket : undefined;
-        if (registerMethod && !verificationTicket) {
-            message.error(t("auth.register.needCode"));
-            return;
+        const contactEmail = current.accountKind === "email" ? account : email.trim();
+        if (emailRequired && !settings?.firstUser && !contactEmail && !registerVerification.email) throw new Error(t("auth.login.emailRequired"));
+        const contact = verificationRequired ? { ...registerVerification, email: registerVerification.email || contactEmail } : { email: contactEmail };
+        try {
+            await register({
+                username: current.accountKind === "username" ? account : "",
+                ...contact,
+                password,
+                acceptedTerms: agreementAccepted,
+                ...(referralCode ? { referralCode } : {}),
+            });
+        } catch (error) {
+            if (error instanceof ApiError && error.status === 429) setRetryCountdown(Math.max(1, Math.ceil((error.retryAfterMs ?? 60000) / 1000)));
+            throw error;
         }
-        const result = await register({
-            username: pending?.accountKind === "username" ? account : account.split("@")[0] || account,
-            email: pending?.accountKind === "email" ? account : email.trim() || undefined,
-            password,
-            acceptedTerms: true,
-            ticket: verificationTicket,
-            referralCode: referralCode || undefined,
-        });
         clearReferralCode();
-        if (result.user.status === "active") await finish(t("auth.register.successActive"));
-        else {
-            message.success(t("auth.register.successReview"));
-            onViewChange("login");
-        }
+        if (!settings?.firstUser) window.sessionStorage.setItem("yingce:model-setup-guide", "1");
+        await finish(settings?.firstUser ? t("auth.register.adminCreated") : t("auth.register.success"));
     };
 
-    const submit = async (event: FormEvent) => {
+    const submit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        if (submitting || retryCountdown > 0) return;
         setSubmitting(true);
         try {
-            if (pending) await submitRegistration();
+            if (pending) await submitRegistration(pending);
             else await submitLogin();
         } catch (error) {
-            const retrySeconds = (error as { retryAfterSeconds?: number }).retryAfterSeconds;
-            if (error instanceof ApiError && error.reason === "rate_limit_exceeded" && typeof retrySeconds === "number" && retrySeconds > 0) {
-                setRetryCountdown(Math.ceil(retrySeconds));
-            }
-            message.error(error instanceof Error ? error.message : t("auth.login.failed"));
+            message.error(error instanceof Error ? error.message : pending ? t("auth.register.failed") : t("auth.login.failed"));
         } finally {
             setSubmitting(false);
         }
@@ -180,9 +173,11 @@ export function AuthLoginForm({ settings, settingsFailed, onReloadSettings, next
 
     const registrationBlocked = verificationUnavailable;
 
+    const miniProgramQrEnabled = Boolean(settings?.wechatQrLoginEnabled);
+
     return (
         <div className="space-y-4">
-            {settings?.wechatQrLoginEnabled ? (
+            {miniProgramQrEnabled ? (
                 <Segmented
                     block
                     aria-label="登录模式"
@@ -195,7 +190,7 @@ export function AuthLoginForm({ settings, settingsFailed, onReloadSettings, next
                 />
             ) : null}
 
-            {loginMode === "wechat" && settings?.wechatQrLoginEnabled ? (
+            {loginMode === "wechat" && miniProgramQrEnabled ? (
                 <div className="space-y-4 pt-1">
                     <WechatQRLogin next={next} />
                     {canRegister ? <AuthSwitchPrompt prompt={t("auth.login.noAccount")} action={t("auth.login.toRegister")} onClick={() => onViewChange("register")} /> : null}
@@ -330,7 +325,7 @@ export function AuthLoginForm({ settings, settingsFailed, onReloadSettings, next
                         {retryCountdown > 0 ? t("auth.register.retryIn", { seconds: retryCountdown }) : pending ? t("auth.login.createAndLogin") : canRegister && method === "password" ? t("auth.login.submitOrRegister") : t("auth.login.submit")}
                     </Button>
                     {!pending && canRegister && method === "password" ? <p className="auth-form-switch">{t("auth.login.autoRegisterHint")}</p> : null}
-                    {showLinuxDO || showOIDC ? (
+                    {showLinuxDO || showOIDC || showWechat ? (
                         <>
                             <Divider plain className="auth-scene-divider auth-form-divider">
                                 {t("common.or")}
@@ -344,6 +339,11 @@ export function AuthLoginForm({ settings, settingsFailed, onReloadSettings, next
                             {showOIDC ? (
                                 <Button size="large" block href={oidcLoginURL(next, agreementAccepted)}>
                                     {t("auth.login.oidc")}
+                                </Button>
+                            ) : null}
+                            {showWechat ? (
+                                <Button size="large" block icon={<MessageCircle className="size-4" aria-hidden="true" />} href={wechatLoginURL(next, agreementAccepted)}>
+                                    {t("auth.login.wechat", { defaultValue: "使用微信登录" })}
                                 </Button>
                             ) : null}
                         </>
