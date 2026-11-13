@@ -65,4 +65,11 @@ describe("登录入口打开方式", () => {
         expect(source("services/api/wallet.ts")).toContain("loginMode?: AuthLoginMode");
         expect(source("services/api/auth.ts")).toContain("loginMode: AuthLoginMode;");
     });
+
+    test("登录弹窗挂载点具备错误边界与重建机制，加载失败不会卸载整页", () => {
+        const host = source("components/auth/auth-dialog-host.tsx");
+        expect(host).toContain("getDerivedStateFromError");
+        expect(host).toContain("createLazyAuthDialog");
+        expect(host).toContain("登录窗口加载失败");
+    });
 });

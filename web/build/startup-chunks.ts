@@ -7,6 +7,7 @@ export function startupChunks(): Plugin {
     const isolatedModules = new Set<string>();
     const userLayoutModules = new Set<string>();
     const createModules = new Set<string>();
+    const authModules = new Set<string>();
     return {
         name: "canvas-startup-chunks",
         apply: "build",
@@ -21,7 +22,8 @@ export function startupChunks(): Plugin {
             for (const id of this.getModuleIds()) {
                 if (/[\\/]src[\\/]main\.tsx$/.test(id)) visit(id, entryModules);
                 if (/[\\/]src[\\/]application\.tsx$/.test(id)) visit(id, startupModules);
-                if (/[\\/]src[\\/](?:welcome-application\.tsx|pages[\\/]auth[\\/])/.test(id)) visit(id, isolatedModules);
+                if (/[\\/]src[\\/]welcome-application\.tsx$/.test(id)) visit(id, isolatedModules);
+                if (/[\\/]src[\\/](?:components[\\/]auth[\\/]auth-dialog\.tsx|pages[\\/]auth[\\/](?:login|register|forgot-password)\.tsx)$/.test(id)) visit(id, authModules);
                 if (/[\\/]src[\\/]layouts[\\/]user-layout\.tsx$/.test(id)) visit(id, userLayoutModules);
                 if (/[\\/]src[\\/]pages[\\/]create[\\/]index\.tsx$/.test(id)) visit(id, createModules);
             }
@@ -62,6 +64,14 @@ export function startupChunks(): Plugin {
                             // 把创作首页的零碎内部模块收敛到单一分片，不影响登录/欢迎页等独立入口。
                             name: "create-home",
                             test: (id) => createModules.has(id) && !userLayoutModules.has(id) && !startupModules.has(id) && !entryModules.has(id) && !isolatedModules.has(id) && !/[\\/]node_modules[\\/]/.test(id),
+                            priority: 3,
+                            minSize: 0,
+                            includeDependenciesRecursively: false,
+                        },
+                        {
+                            // 把登录弹窗与独立登录页的零碎模块收敛为单一 auth-ui 分片，降低打开登录时的请求次数。
+                            name: "auth-ui",
+                            test: (id) => authModules.has(id) && !createModules.has(id) && !userLayoutModules.has(id) && !startupModules.has(id) && !entryModules.has(id) && !isolatedModules.has(id) && !/[\\/]node_modules[\\/]/.test(id),
                             priority: 3,
                             minSize: 0,
                             includeDependenciesRecursively: false,

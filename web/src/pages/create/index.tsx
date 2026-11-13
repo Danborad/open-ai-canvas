@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type ComponentType, type ReactNode } from "react";
 import { App, Button, Spin } from "antd";
 import { Tooltip } from "@/components/ui/base/tooltip";
 import { History, Maximize2, PenLine } from "lucide-react";
@@ -95,10 +95,55 @@ import { useCreationConversationRoute } from "./use-creation-conversation-route"
 import { creationImageConfig, creationVideoConfig, creationVideoSettings } from "./creation-generation-config";
 import { trackSiteTrafficAction } from "@/services/site-traffic";
 
+type InspirationHallProps = ComponentProps<typeof import("@/pages/inspirations").default>;
 const AssetLibraryPickerModal = lazy(() => import("@/components/assets/asset-library-picker-modal").then((module) => ({ default: module.AssetLibraryPickerModal })));
-const InspirationHall = lazy(() => import("@/pages/inspirations"));
+const createLazyInspirationHall = () => lazy<ComponentType<InspirationHallProps>>(() => import("@/pages/inspirations"));
 const loadCreationRuntime = () => import("./creation-runtime");
 type CreationRuntime = Awaited<ReturnType<typeof loadCreationRuntime>>;
+
+class InspirationSectionBoundary extends Component<{ resetKey: number; onRetry: () => void; children: ReactNode }, { hasError: boolean }> {
+    state = { hasError: false };
+    static getDerivedStateFromError() {
+        return { hasError: true };
+    }
+    componentDidUpdate(prevProps: { resetKey: number }) {
+        if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) this.setState({ hasError: false });
+    }
+    render() {
+        if (!this.state.hasError) return this.props.children;
+        return (
+            <div className="creation-hall-loading" role="status">
+                <span>灵感广场加载失败</span>
+                <Button size="small" type="link" onClick={this.props.onRetry}>
+                    点击重试
+                </Button>
+            </div>
+        );
+    }
+}
+
+function ResilientInspirationHall({ onUse, loadingText }: { onUse: InspirationHallProps["onUse"]; loadingText: string }) {
+    const [attempt, setAttempt] = useState(0);
+    const [entry, setEntry] = useState(() => ({ Component: createLazyInspirationHall() }));
+    const retry = () => {
+        setEntry({ Component: createLazyInspirationHall() });
+        setAttempt((value) => value + 1);
+    };
+    const Hall = entry.Component;
+    return (
+        <InspirationSectionBoundary resetKey={attempt} onRetry={retry}>
+            <Suspense
+                fallback={
+                    <div className="creation-hall-loading" role="status">
+                        {loadingText}
+                    </div>
+                }
+            >
+                <Hall onUse={onUse} />
+            </Suspense>
+        </InspirationSectionBoundary>
+    );
+}
 
 const TEXT_STREAMING_PREF_KEY = "creation.composer.text-streaming";
 // 思考档位按模型分别记住：{ [model]: level }。只存小型 UI 偏好。
@@ -1713,15 +1758,7 @@ export default function CreatePage() {
                                 />
                             </section>
                             <CreationRecentCanvases onRequireLogin={() => openAuth()} />
-                            <Suspense
-                                fallback={
-                                    <div className="creation-hall-loading" role="status">
-                                        {t("create.page.hallLoading")}
-                                    </div>
-                                }
-                            >
-                                <InspirationHall onUse={(item) => startPrompt(item.mode, fillablePrompt(item))} />
-                            </Suspense>
+                            <ResilientInspirationHall loadingText={t("create.page.hallLoading")} onUse={(item) => startPrompt(item.mode, fillablePrompt(item))} />
                             {inspirationSourcesVisible ? (
                                 <div className="creation-source-notice">
                                     <details>

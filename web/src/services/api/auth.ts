@@ -478,7 +478,7 @@ export type AuthSettings = VerificationPolicy & {
 };
 
 export function getAuthSettings() {
-    return http.get<AuthSettings>("/auth/settings");
+    return http.get<AuthSettings>("/auth/settings", { timeout: 8_000 });
 }
 
 export type WechatQRTicketData = {
@@ -596,7 +596,19 @@ export function resetPassword(input: { email: string; emailCode: string; passwor
     return http.post<{ reset: boolean }>("/auth/password-reset", input);
 }
 
-export async function register(input: { username: string; email?: string; emailCode?: string; phone?: string; smsCode?: string; ticket?: string; displayName?: string; password: string; acceptedTerms: boolean; referralCode?: string; inviteCode?: string }) {
+export async function register(input: {
+    username: string;
+    email?: string;
+    emailCode?: string;
+    phone?: string;
+    smsCode?: string;
+    ticket?: string;
+    displayName?: string;
+    password: string;
+    acceptedTerms: boolean;
+    referralCode?: string;
+    inviteCode?: string;
+}) {
     const result = await http.post<{ user: LocalUser }>("/auth/register", input);
     invalidateAuthSessionCache();
     return result;
