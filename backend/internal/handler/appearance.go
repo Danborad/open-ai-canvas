@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"yingce/backend/internal/model"
@@ -50,7 +51,12 @@ func RegisterAppearanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		serveResourceDelivery(c, delivery, "public, no-cache", "")
+		// 带有 ?v=<revision> 的外观素材内容随版本号变更，允许浏览器与 CDN 缓存，避免每次首屏重复回源下载。
+		cacheControl := "public, no-cache"
+		if strings.TrimSpace(c.Query("v")) != "" {
+			cacheControl = "public, max-age=86400"
+		}
+		serveResourceDelivery(c, delivery, cacheControl, "")
 	})
 
 	r.GET("/admin/settings/appearance", func(c *gin.Context) {
