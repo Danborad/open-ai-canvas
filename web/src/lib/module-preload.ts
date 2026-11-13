@@ -49,8 +49,10 @@ function drain() {
 async function fetchResource(url: string) {
     for (let attempt = 0; attempt < 5; attempt += 1) {
         let retryable = true;
+        const controller = typeof AbortController !== "undefined" ? new AbortController() : undefined;
+        const timer = controller ? setTimeout(() => controller.abort(), PRELOAD_TIMEOUT_MS) : undefined;
         try {
-            const response = await fetch(url, { credentials: "same-origin", signal: AbortSignal.timeout(PRELOAD_TIMEOUT_MS) });
+            const response = await fetch(url, { credentials: "same-origin", ...(controller ? { signal: controller.signal } : {}) });
             if (!response.ok) {
                 retryable = response.status >= 500 || response.status === 408 || response.status === 429;
                 await response.body?.cancel();
@@ -68,6 +70,8 @@ async function fetchResource(url: string) {
         } catch (error) {
             if (!retryable || attempt === 4) throw error;
             await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+        } finally {
+            if (timer !== undefined) clearTimeout(timer);
         }
     }
 }

@@ -105,3 +105,21 @@ test("已成功预热的资源在同一页面会话内不重复发起 fetch", as
         globalThis.fetch = original;
     }
 });
+
+test("缺少 AbortSignal.timeout 的旧浏览器仍可正常完成预热", async () => {
+    const originalFetch = globalThis.fetch;
+    const descriptor = Object.getOwnPropertyDescriptor(AbortSignal, "timeout");
+    Object.defineProperty(AbortSignal, "timeout", { value: undefined, configurable: true });
+    let seenSignal = false;
+    globalThis.fetch = (async (_input, init) => {
+        seenSignal = init?.signal instanceof AbortSignal;
+        return new Response("export default 1", { headers: { "Content-Type": "application/javascript" } });
+    }) as typeof fetch;
+    try {
+        await warmPreloadResources(["https://assets.example/legacy-browser-chunk.js"]);
+        expect(seenSignal).toBe(true);
+    } finally {
+        globalThis.fetch = originalFetch;
+        if (descriptor) Object.defineProperty(AbortSignal, "timeout", descriptor);
+    }
+});
