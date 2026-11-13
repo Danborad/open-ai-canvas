@@ -54,4 +54,22 @@ describe("index.html boot recovery", () => {
             await dom.happyDOM.abort();
         }
     });
+
+    test("markChunkRecoverySucceeded 会清理地址栏 __chunk_recovery 且保留同标签页防循环标记", async () => {
+        const dom = new Window({ url: "https://canvas.example/?__chunk_recovery=1794578651346" });
+        const originalWindow = globalThis.window;
+        const originalSessionStorage = globalThis.sessionStorage;
+        try {
+            Object.assign(globalThis, { window: dom.window, sessionStorage: dom.sessionStorage });
+            const { installChunkRecovery, markChunkRecoverySucceeded, tryRecoverChunkFailure } = await import(`../src/lib/chunk-recovery?case=${Date.now()}`);
+            installChunkRecovery();
+            markChunkRecoverySucceeded();
+            expect(dom.location.search).toBe("");
+            expect(dom.location.href).toBe("https://canvas.example/");
+            expect(tryRecoverChunkFailure()).toBe(false);
+        } finally {
+            Object.assign(globalThis, { window: originalWindow, sessionStorage: originalSessionStorage });
+            await dom.happyDOM.abort();
+        }
+    });
 });

@@ -94,8 +94,9 @@
             document.getElementById("root").style.setProperty("--boot-signal-clock", performance.now() + "ms");
             // 入口或其依赖失败时 React 尚未挂载，路由错误页无法接管；提供不依赖外链资源的退出入口。
             var bootRoot = document.getElementById("root");
-            var bootTimer = setTimeout(function () {
-                if (bootRoot.childNodes.length) return;
+            function showBootRecovery() {
+                if (bootRoot.childNodes.length || document.getElementById("boot-recovery")) return;
+                clearTimeout(bootTimer);
                 var notice = document.createElement("section");
                 notice.id = "boot-recovery";
                 notice.setAttribute("role", "alert");
@@ -115,7 +116,9 @@
                 };
                 notice.append(title, detail, retry);
                 document.body.appendChild(notice);
-            }, 20000);
+            }
+            if (typeof window !== "undefined") window.__showBootRecovery = showBootRecovery;
+            var bootTimer = setTimeout(showBootRecovery, 20000);
             var bootObserver = new MutationObserver(function () {
                 if (!bootRoot.childNodes.length) return;
                 clearTimeout(bootTimer);

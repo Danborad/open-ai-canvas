@@ -39,7 +39,7 @@ export function startupChunks(): Plugin {
                         {
                             // 把 main.tsx 与 application.tsx 共享的启动外观小模块合并为单一分片，减少 head 里的 modulepreload 数量。
                             name: "boot-appearance",
-                            test: (id) => entryModules.has(id) && !/[\\/]src[\\/]main\.tsx$/.test(id) && !isolatedModules.has(id) && !/[\\/]node_modules[\\/]/.test(id),
+                            test: (id) => entryModules.has(id) && !/[\\/]src[\\/](?:main|welcome-application)\.tsx$/.test(id) && !/[\\/]node_modules[\\/]/.test(id),
                             priority: 6,
                             minSize: 0,
                             includeDependenciesRecursively: false,

@@ -14,6 +14,7 @@ import { RouterProvider } from "react-router";
 
 import { AuthDialogHost } from "@/components/auth/auth-dialog-host";
 import { AppProviders } from "@/components/layout/app-providers";
+import { markChunkRecoverySucceeded } from "@/lib/chunk-recovery";
 import { router } from "@/router";
 import { installSiteTrafficCollector } from "@/services/site-traffic";
 
@@ -21,6 +22,7 @@ import { installSiteTrafficCollector } from "@/services/site-traffic";
 const navigateFromAuthDialog = (to: string) => void router.navigate(to);
 
 document.body.style.fontFamily = '"SF Pro Display","SF Pro Text","PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
+markChunkRecoverySucceeded();
 
 createRoot(document.getElementById("root")!).render(
     <React.StrictMode>

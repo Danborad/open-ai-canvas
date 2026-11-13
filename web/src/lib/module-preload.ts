@@ -47,7 +47,7 @@ function drain() {
 }
 
 async function fetchResource(url: string) {
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
         let retryable = true;
         try {
             const response = await fetch(url, { credentials: "same-origin", signal: AbortSignal.timeout(PRELOAD_TIMEOUT_MS) });
@@ -66,8 +66,8 @@ async function fetchResource(url: string) {
             await response.arrayBuffer();
             return;
         } catch (error) {
-            if (!retryable || attempt === 3) throw error;
-            await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
+            if (!retryable || attempt === 4) throw error;
+            await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
         }
     }
 }

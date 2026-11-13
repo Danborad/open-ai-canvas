@@ -1,6 +1,7 @@
 import "@/i18n";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { markChunkRecoverySucceeded } from "@/lib/chunk-recovery";
 import { getWelcomeAvailability } from "@/services/api/welcome";
 import WelcomePage from "@/pages/welcome";
 import { translate } from "@/i18n";
@@ -8,9 +9,14 @@ import { installSiteTrafficCollector } from "@/services/site-traffic";
 
 let disposeTraffic: (() => void) | undefined;
 let disposed = false;
-if (import.meta.hot) import.meta.hot.dispose(() => { disposed = true; disposeTraffic?.(); });
+if (import.meta.hot)
+    import.meta.hot.dispose(() => {
+        disposed = true;
+        disposeTraffic?.();
+    });
 
 async function renderWelcome() {
+    markChunkRecoverySucceeded();
     try {
         const { welcomeEnabled } = await getWelcomeAvailability();
         if (disposed) return;
@@ -18,7 +24,11 @@ async function renderWelcome() {
             window.location.replace("/");
             return;
         }
-        createRoot(document.getElementById("root")!).render(<StrictMode><WelcomePage /></StrictMode>);
+        createRoot(document.getElementById("root")!).render(
+            <StrictMode>
+                <WelcomePage />
+            </StrictMode>,
+        );
         disposeTraffic = installSiteTrafficCollector();
     } catch (error) {
         if (disposed) return;
