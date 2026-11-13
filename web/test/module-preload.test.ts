@@ -87,3 +87,21 @@ test("真实 Vite helper 的预热失败沿用可取消的恢复事件，不执�
     await expect(preload(nativeImport, ["./missing.js"])).rejects.toThrow("asset 404");
     expect(imported).toBe(false);
 });
+
+test("已成功预热的资源在同一页面会话内不重复发起 fetch", async () => {
+    const original = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+        calls += 1;
+        return new Response("export default 1", { headers: { "Content-Type": "application/javascript" } });
+    }) as typeof fetch;
+    try {
+        const url = "https://assets.example/once-only-chunk.js";
+        await warmPreloadResources([url]);
+        await warmPreloadResources([url]);
+        await warmPreloadResources([url]);
+        expect(calls).toBe(1);
+    } finally {
+        globalThis.fetch = original;
+    }
+});

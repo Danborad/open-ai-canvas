@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useCanvasStore, type CanvasProject } from "@/stores/canvas/use-canvas-store";
 import { useCanvasUiStore } from "@/stores/canvas/use-canvas-ui-store";
-import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
 import { resourceFileUrl, resourceIdFromStorageKey } from "@/services/api/resources";
 import { resolveBackendApiUrl } from "@/stores/use-config-store";
@@ -193,7 +192,12 @@ export function CanvasProjectCard({
                                 menu={{
                                     onClick: ({ domEvent }) => domEvent.stopPropagation(),
                                     items: [
-                                        { key: "export", icon: <Download className="size-3.5" />, label: "导出画布", onClick: () => void exportCanvasProjects([project], project.title || "画布") },
+                                        {
+                                            key: "export",
+                                            icon: <Download className="size-3.5" />,
+                                            label: "导出画布",
+                                            onClick: () => void import("@/lib/canvas/canvas-export").then(({ exportCanvasProjects }) => exportCanvasProjects([project], project.title || "画布")),
+                                        },
                                         { type: "divider" },
                                         { key: "delete", danger: true, icon: <Trash2 className="size-3.5" />, label: "删除", onClick: () => setDeleteIds([project.id]) },
                                     ],

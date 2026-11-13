@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { ProjectPreview } from "@/components/canvas/canvas-project-card";
-import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
 import { formatAbsoluteDateTime, formatRelativeTime } from "@/lib/relative-time";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import type { CanvasLibrarySummary } from "@/services/api/user-data";
@@ -77,6 +76,7 @@ export const CanvasFolderCard = memo(function CanvasFolderCard({ project, projec
         try {
             const fullProject = await loadCanvasProjectForEditing(project.id);
             if (!fullProject) throw new Error(t("canvasB.folderCard.notFound"));
+            const { exportCanvasProjects } = await import("@/lib/canvas/canvas-export");
             await exportCanvasProjects([fullProject], project.title || t("canvasB.common.canvas"));
         } catch (error) {
             message.error(error instanceof Error ? error.message : t("canvasB.common.exportFailed"));

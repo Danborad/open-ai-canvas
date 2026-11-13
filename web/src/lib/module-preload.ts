@@ -1,6 +1,8 @@
 const MAX_ACTIVE_PRELOADS = 4;
-const PRELOAD_TIMEOUT_MS = 12_000;
+const PRELOAD_TIMEOUT_MS = 8_000;
 const requests = new Map<string, Promise<void>>();
+// 同一页面生命周期内已成功预热的内容寻址资源无需重复 fetch，避免嵌套懒加载把共享分片放大 4-5 倍。
+const completed = new Set<string>();
 const queue: Array<() => void> = [];
 let active = 0;
 
@@ -8,11 +10,16 @@ let active = 0;
 export async function warmPreloadResources(urls: string[]) {
     await Promise.all(
         urls.map((url) => {
+            if (completed.has(url)) return Promise.resolve();
             let request = requests.get(url);
             if (!request) {
-                request = scheduled(() => fetchResource(url)).finally(() => {
-                    if (requests.get(url) === request) requests.delete(url);
-                });
+                request = scheduled(() => fetchResource(url))
+                    .then(() => {
+                        completed.add(url);
+                    })
+                    .finally(() => {
+                        if (requests.get(url) === request) requests.delete(url);
+                    });
                 requests.set(url, request);
             }
             return request;
@@ -40,7 +47,7 @@ function drain() {
 }
 
 async function fetchResource(url: string) {
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (let attempt = 0; attempt < 4; attempt += 1) {
         let retryable = true;
         try {
             const response = await fetch(url, { credentials: "same-origin", signal: AbortSignal.timeout(PRELOAD_TIMEOUT_MS) });
@@ -59,8 +66,8 @@ async function fetchResource(url: string) {
             await response.arrayBuffer();
             return;
         } catch (error) {
-            if (!retryable || attempt === 2) throw error;
-            await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+            if (!retryable || attempt === 3) throw error;
+            await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
         }
     }
 }

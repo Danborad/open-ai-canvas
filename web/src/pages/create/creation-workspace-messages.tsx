@@ -4,17 +4,16 @@ import { conversationTimeFormatter, type CreationMessage } from "./creation-type
 import { creationMessageNeedsResultSync } from "./creation-conversations";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
 import { AlertCircle, AlertTriangle, CircleStop, CloudOff, Copy, Download, FileText, Film, Image as ImageIcon, ImageOff, Maximize2, Music2, Pencil, RefreshCw, RotateCcw, UserRound, X, type LucideIcon, Blocks, Orbit } from "lucide-react";
+import { lazy, Suspense, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { GenerationToolCard, type GenerationToolStatus } from "@/components/ai/generation-tool-card";
 import { GenerationPhaseSteps } from "@/components/ai/generation-phase-steps";
 import { MessageReasoning } from "@/components/ai/message-reasoning";
-import { AIMessageMarkdown } from "@/components/ai/ai-message-markdown";
 import { WorkingDots } from "@/components/ai/working-indicator";
 import { UserAvatar } from "@/components/layout/user-avatar";
 import { generationErrorMessage } from "@/lib/generation-error";
 import { isGenerationCostUncertainError } from "@/lib/canvas/canvas-generation-batch";
 import { generationPhaseHint, generationPhaseLabel, generationPhaseStep, generationTaskPhase, generationTaskSavingState, generationTaskShowsProgress, type GenerationPhase } from "@/lib/generation-task-display";
 import { useTaskElapsed } from "@/hooks/use-task-elapsed";
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useCopyText } from "@/hooks/use-copy-text";
 import { type CreationReference, displayCreationPrompt } from "./creation-references";
 import { useUserStore } from "@/stores/use-user-store";
@@ -30,6 +29,8 @@ import { Button } from "antd";
 import { CanvasImagePreview } from "@/components/canvas/canvas-image-preview";
 import { AppModal } from "@/components/ui/product/app-modal";
 import { creationResultEntries } from "./creation-result-urls";
+
+const AIMessageMarkdown = lazy(() => import("@/components/ai/ai-message-markdown").then((module) => ({ default: module.AIMessageMarkdown })));
 
 export function CreationMessageView({
     item,
@@ -106,7 +107,9 @@ export function CreationMessageView({
                     ) : null}
                     <div className="creation-message-content">
                         {item.content ? (
-                            <AIMessageMarkdown isStreaming={item.status === "streaming"}>{item.content}</AIMessageMarkdown>
+                            <Suspense fallback={<span className="whitespace-pre-wrap">{item.content}</span>}>
+                                <AIMessageMarkdown isStreaming={item.status === "streaming"}>{item.content}</AIMessageMarkdown>
+                            </Suspense>
                         ) : (
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                                 <WorkingDots dotSize={5} gap={2} />

@@ -114,28 +114,30 @@ async function hydrateUserSessionData(payload: AuthSessionPayload, generation: n
         resetRemoteUserDataSync();
     }
 
-    void (async () => {
-        try {
-            const catalog = await getModelCatalog();
-            if (!isCurrentSession(generation, userId)) return;
-            if (!persistedConfig) {
-                // 只有首次配置缺失时才生成能力推荐；已有配置中的空数组代表用户明确清空。
-                const initialSystemConfig = {
-                    ...defaultConfig,
-                    channels: modelCatalogChannels(catalog),
-                    imageModels: undefined,
-                    videoModels: undefined,
-                    textModels: undefined,
-                    audioModels: undefined,
-                };
-                useConfigStore.getState().replaceConfig(normalizeConfigSnapshot({ config: initialSystemConfig }).config);
-            } else {
-                useConfigStore.getState().mergeSystemChannels(modelCatalogChannels(catalog));
+    if (userId) {
+        void (async () => {
+            try {
+                const catalog = await getModelCatalog();
+                if (!isCurrentSession(generation, userId)) return;
+                if (!persistedConfig) {
+                    // 只有首次配置缺失时才生成能力推荐；已有配置中的空数组代表用户明确清空。
+                    const initialSystemConfig = {
+                        ...defaultConfig,
+                        channels: modelCatalogChannels(catalog),
+                        imageModels: undefined,
+                        videoModels: undefined,
+                        textModels: undefined,
+                        audioModels: undefined,
+                    };
+                    useConfigStore.getState().replaceConfig(normalizeConfigSnapshot({ config: initialSystemConfig }).config);
+                } else {
+                    useConfigStore.getState().mergeSystemChannels(modelCatalogChannels(catalog));
+                }
+            } catch (error) {
+                if (isCurrentSession(generation, userId)) console.warn("模型目录后台刷新失败，保留本地配置", error);
             }
-        } catch (error) {
-            if (isCurrentSession(generation, userId)) console.warn("模型目录后台刷新失败，保留本地配置", error);
-        }
-    })();
+        })();
+    }
     if (isCurrentSession(generation, userId)) {
         recordDiagnosticEvent({
             category: "navigation",

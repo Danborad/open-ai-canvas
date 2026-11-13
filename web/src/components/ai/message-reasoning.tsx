@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { ChevronDown, Lightbulb } from "lucide-react";
 
-import { AIMessageMarkdown } from "@/components/ai/ai-message-markdown";
+const AIMessageMarkdown = lazy(() => import("@/components/ai/ai-message-markdown").then((module) => ({ default: module.AIMessageMarkdown })));
 
 function LiveReasoningCount() {
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -39,12 +39,33 @@ export function MessageReasoning({ reasoning, isStreaming }: { reasoning: string
         return () => window.clearTimeout(timer);
     }, [durationSeconds, isStreaming, open]);
 
-    return <div className="mb-2 text-xs text-foreground/55">
-        <button type="button" className="inline-flex min-h-8 items-center gap-2 rounded-md px-2 transition-colors hover:bg-surface-hover hover:text-foreground" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-            <Lightbulb className="size-3.5" />
-            <span>{isStreaming ? <>正在思考<LiveReasoningCount /></> : durationSeconds ? <>已思考 <span className="font-mono tabular-nums">{durationSeconds}</span> 秒</> : "思考过程"}</span>
-            <ChevronDown className={`size-3.5 transition-transform${open ? " rotate-180" : ""}`} />
-        </button>
-        {open ? <div className="mt-2 rounded-md bg-surface-active p-3 text-foreground/70"><AIMessageMarkdown isStreaming={isStreaming}>{reasoning}</AIMessageMarkdown></div> : null}
-    </div>;
+    return (
+        <div className="mb-2 text-xs text-foreground/55">
+            <button type="button" className="inline-flex min-h-8 items-center gap-2 rounded-md px-2 transition-colors hover:bg-surface-hover hover:text-foreground" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+                <Lightbulb className="size-3.5" />
+                <span>
+                    {isStreaming ? (
+                        <>
+                            正在思考
+                            <LiveReasoningCount />
+                        </>
+                    ) : durationSeconds ? (
+                        <>
+                            已思考 <span className="font-mono tabular-nums">{durationSeconds}</span> 秒
+                        </>
+                    ) : (
+                        "思考过程"
+                    )}
+                </span>
+                <ChevronDown className={`size-3.5 transition-transform${open ? " rotate-180" : ""}`} />
+            </button>
+            {open ? (
+                <div className="mt-2 rounded-md bg-surface-active p-3 text-foreground/70">
+                    <Suspense fallback={<span className="whitespace-pre-wrap">{reasoning}</span>}>
+                        <AIMessageMarkdown isStreaming={isStreaming}>{reasoning}</AIMessageMarkdown>
+                    </Suspense>
+                </div>
+            ) : null}
+        </div>
+    );
 }
