@@ -7,7 +7,8 @@ import { isIsolatedPrevisRepro } from "@/lib/dev-repro";
 installChunkRecovery();
 
 function notifyBootFailure() {
-    (window as Window & { __showBootRecovery?: () => void }).__showBootRecovery?.();
+    const showRecovery = Reflect.get(window, "__showBootRecovery");
+    if (typeof showRecovery === "function") showRecovery();
 }
 
 // The public film entry checks its availability independently of workspace bootstrap.

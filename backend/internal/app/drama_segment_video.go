@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -35,7 +36,10 @@ func encodeDramaRevision(revision int64) string {
 }
 
 func dramaPromptReady(segment model.DramaSegment) bool {
-	return strings.TrimSpace(segment.VideoPromptOverride) != "" || (segment.PromptStatus == model.DramaMediaReady && strings.TrimSpace(segment.VideoPrompt) != "")
+	if segment.PromptStatus == model.DramaPromptConflict || segment.PromptStatus == model.DramaPromptReview {
+		return false
+	}
+	return (strings.TrimSpace(segment.VideoPromptOverride) != "" && (segment.PromptStatus == model.DramaMediaReady || segment.PromptStatus == model.DramaMediaStale)) || (segment.PromptStatus == model.DramaMediaReady && strings.TrimSpace(segment.VideoPrompt) != "")
 }
 
 func dramaSegmentVideoDone(segment model.DramaSegment) bool {
@@ -114,7 +118,7 @@ func segmentVideoChoice(segment model.DramaSegment, fallback DramaModelChoice) D
 }
 
 // prepareDramaSegment is shared by the request preview and provider submission.
-// Reference numbering remains stable even when a model cannot accept every image.
+// Logical reference numbering stays stable for editing; the provider compiles it against the actual payload.
 // 返回值依次是请求预演、随请求发送的参考图与参考音频（任务输入的媒体项）。
 func (s *Service) prepareDramaSegment(settings DramaSettings, draft dramaSegmentDraft, segment model.DramaSegment, previous *model.DramaSegment, casts map[string]model.DramaCast) (DramaSegmentRequest, []any, []any, error) {
 	if settings.parallelVideo() {
@@ -149,7 +153,7 @@ func (s *Service) prepareDramaSegment(settings DramaSettings, draft dramaSegment
 			}
 			refs = append(refs, ref)
 		}
-		header = append(header, "首帧图为上一段视频的最后一帧，不占参考图编号。")
+		header = append(header, "首帧图为上一段视频的最后一帧。")
 	} else if profile.supports("reference_to_video") {
 		request.Operation = "reference_to_video"
 	} else {
@@ -161,7 +165,8 @@ func (s *Service) prepareDramaSegment(settings DramaSettings, draft dramaSegment
 		}
 		return request, nil, nil, fmt.Errorf("所选模型不支持本段所需的 %s", request.Operation)
 	}
-	capacity := profile.MaxImages
+	request.ModelMaxImages = profile.video.maxImagesFor(request.Operation)
+	capacity := request.ModelMaxImages
 	if previous != nil {
 		capacity--
 	}
@@ -173,7 +178,7 @@ func (s *Service) prepareDramaSegment(settings DramaSettings, draft dramaSegment
 	if settingLimited {
 		capacity = settings.ReferenceLimit
 	}
-	request.ReferenceCapacity, request.ModelMaxImages = max(capacity, 0), profile.MaxImages
+	request.ReferenceCapacity = max(capacity, 0)
 	if request.Operation == "text_to_video" && len(draft.view.Request.References) > 0 {
 		request.Warning = "所选视频模型不支持参考图生视频，本段按文生视频生成，人物、道具与场景只按文字设定"
 	}
@@ -194,11 +199,12 @@ func (s *Service) prepareDramaSegment(settings DramaSettings, draft dramaSegment
 				if err != nil {
 					return request, nil, nil, err
 				}
+				ref["id"] = dramaReferenceMediaID(reference)
 				refs = append(refs, ref)
 				capacity--
 				header = append(header, reference.Label+"："+reference.Name)
 			} else {
-				header = append(header, reference.Label+"（"+reference.Name+"）未附图")
+				header = append(header, "资产“"+reference.Name+"”未附图")
 				if settingLimited {
 					request.ReferenceLimited = true
 				} else {
@@ -219,6 +225,7 @@ func (s *Service) prepareDramaSegment(settings DramaSettings, draft dramaSegment
 			if err != nil {
 				return request, nil, nil, err
 			}
+			ref["id"] = dramaReferenceMediaID(reference)
 			refs = append(refs, ref)
 			capacity--
 			line := reference.Label + "：" + reference.Name
@@ -228,7 +235,7 @@ func (s *Service) prepareDramaSegment(settings DramaSettings, draft dramaSegment
 			}
 			header = append(header, line)
 		} else {
-			header = append(header, reference.Label+"（"+reference.Name+"）未附图，请依据文字设定："+firstNonEmpty(cast.Appearance, cast.Description))
+			header = append(header, "资产“"+reference.Name+"”未附图，请依据文字设定："+firstNonEmpty(cast.Appearance, cast.Description))
 			ready := cast.ImageStatus == model.DramaMediaReady && cast.ImageResourceID != ""
 			switch {
 			case !ready:
@@ -240,6 +247,16 @@ func (s *Service) prepareDramaSegment(settings DramaSettings, draft dramaSegment
 			}
 		}
 		request.References = append(request.References, reference)
+	}
+	if slices.ContainsFunc(request.References, func(ref DramaSegmentReference) bool { return ref.Sent }) {
+		if err := profile.video.referenceContract.CheckNumbering(profile.video.providerID, profile.video.providerModel); err != nil {
+			request.ReferenceCapacity = 0
+			for index := range request.References {
+				request.References[index].Sent = false
+			}
+			request.Warning = err.Error()
+			return request, nil, nil, err
+		}
 	}
 	audios, err := s.dramaSegmentAudioReferences(&request, profile, draft.shots, casts, len(refs) > 0, segment.AudioCastIDsJSON)
 	if err != nil {
@@ -259,7 +276,7 @@ func (s *Service) prepareDramaSegment(settings DramaSettings, draft dramaSegment
 			notes = append(notes, fmt.Sprintf("本段引用 %d 个设定，按每段最多 %d 张参考图发送，其余按文字设定；可在生成依据里手动调整", len(draft.view.Request.References), settings.ReferenceLimit))
 		}
 		if len(overflow) > 0 {
-			notes = append(notes, fmt.Sprintf("超出视频模型参考图上限（%d 张，含首帧），按文字设定生成：%s", profile.MaxImages, strings.Join(overflow, "、")))
+			notes = append(notes, fmt.Sprintf("超出视频模型参考图上限（%d 张，含首帧），按文字设定生成：%s", request.ModelMaxImages, strings.Join(overflow, "、")))
 		}
 		request.Warning = strings.Join(notes, "；")
 	}
@@ -268,6 +285,20 @@ func (s *Service) prepareDramaSegment(settings DramaSettings, draft dramaSegment
 	if unknown := production.UnknownReferenceTokens(firstNonEmpty(segment.VideoPromptOverride, segment.VideoPrompt), len(request.References)); len(unknown) > 0 {
 		request.UnknownReferences = unknown
 		request.Warning = fmt.Sprintf("提示词里的 %s 不是本段的参考图（本段共 %d 张），生成前请改成正确的编号", strings.Join(unknown, "、"), len(request.References))
+	}
+	used := make(map[string]bool)
+	for _, label := range dramaPromptReferenceLabels(firstNonEmpty(segment.VideoPromptOverride, segment.VideoPrompt)) {
+		used[label] = true
+	}
+	unsent := []string{}
+	for _, reference := range request.References {
+		if !reference.Sent && used[reference.Label] {
+			unsent = append(unsent, reference.Label+"（"+reference.Name+"）")
+		}
+	}
+	if len(unsent) > 0 {
+		request.Warning = "提示词引用的 " + strings.Join(unsent, "、") + " 未附图，无法对应模型图片；请补齐图片、调整参考图上限或修改正文中的引用后再生成"
+		return request, refs, audios, errors.New(request.Warning)
 	}
 	// 给不出作品画幅时不提交：上游会按自己的默认画幅（多为横屏）出片，花了钱也用不上。
 	if screen.Issue != "" {
@@ -462,6 +493,7 @@ func (r *dramaRun) submitSegmentVideo(job *model.DramaJob) (*model.Task, bool, e
 		}
 		metadata := r.metadata(job)
 		metadata["videoEditOperation"] = request.Operation
+		metadata[dramaReferenceBindingsKey] = dramaReferenceBindings(request.References)
 		if previous != nil {
 			metadata["videoStartFrameNodeId"] = "first-frame"
 		}

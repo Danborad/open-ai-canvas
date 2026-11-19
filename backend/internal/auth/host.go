@@ -54,16 +54,26 @@ func (nopHost) NotifyUserRegistered(*model.User)            {}
 func (nopHost) BindInvitation(string, string, string) error { return nil }
 
 type Service struct {
-	repo             *repository.Repository
-	host             Host
-	mailSender       func(EmailSettingValue, string, string, string) error
-	emailCodeMu      sync.Mutex
-	registrationMu   sync.Mutex
-	emailCursor      uint64
-	libtvMu          sync.Mutex
-	libtv            *libTVRuntime
-	sms              SMSDelivery
-	wechatHTTPClient *http.Client
+	repo                *repository.Repository
+	host                Host
+	mailSender          func(EmailSettingValue, string, string, string) error
+	turnstileHTTPClient *http.Client
+	emailCodeMu         sync.Mutex
+	registrationMu      sync.Mutex
+	emailCursor         uint64
+	libtvMu             sync.Mutex
+	libtv               *libTVRuntime
+	sms                 SMSDelivery
+	wechatHTTPClient    *http.Client
+}
+
+// SetTurnstileHTTPClient is intended for tests and controlled embedders. The
+// production path uses a short-lived client with a fixed Cloudflare endpoint.
+func (s *Service) SetTurnstileHTTPClient(client *http.Client) {
+	if s == nil {
+		return
+	}
+	s.turnstileHTTPClient = client
 }
 
 type SMSDelivery interface {

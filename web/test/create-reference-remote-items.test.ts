@@ -4,13 +4,10 @@ import { expect, test } from "bun:test";
 // 误判为“此素材不适用于当前操作”而全部置灰。这里锁定创作页必须声明 acceptRemoteItems，
 // 并能在确认回调里用 pickedItems 兜底解析远端素材。
 test("创作页参考素材弹窗接受远端素材并可解析远端条目", async () => {
-    const [createPage, picker] = await Promise.all([
-        Bun.file(new URL("../src/pages/create/index.tsx", import.meta.url)).text(),
-        Bun.file(new URL("../src/components/assets/asset-library-picker-modal.tsx", import.meta.url)).text(),
-    ]);
+    const [createPage, picker] = await Promise.all([Bun.file(new URL("../src/pages/create/index.tsx", import.meta.url)).text(), Bun.file(new URL("../src/components/assets/asset-library-picker-modal.tsx", import.meta.url)).text()]);
 
     expect(createPage).toContain("acceptRemoteItems");
-    expect(createPage).toContain("remoteItemDisabledReason={(asset) => creationLibraryDisabledReason(mode, asset.kind, videoReferenceLimits)}");
+    expect(createPage).toContain("remoteItemDisabledReason={(asset) => creationLibraryDisabledReason(mode, asset.kind, videoReferenceLimits, Boolean(workspaceTeamId))}");
     expect(createPage).toContain("const handleLibrarySelect = async (selectedIds: string[], pickedItems = libraryItems) =>");
     expect(createPage).toContain("creationLibrarySelectionToAttachments(selectedIds, pickedItems, mode, videoReferenceLimits)");
 

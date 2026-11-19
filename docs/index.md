@@ -12,6 +12,8 @@
 
 ## 设计沉淀
 
+- [团队空间、积分划拨与素材共享](design/team-workspace-design.md)：自由画布、创作页和素材库在个人与团队之间复用，按空间隔离作品与费用。使用入口见[功能清单](content/docs/overview/features.mdx)。
+
 - [资源访问与 OSS/CDN 分发架构重构](design/resource-delivery-architecture.md)：资源身份、场景授权与分发策略分离，统一访问合同、全入口迁移、旧实现退场及流量/安全验收门槛（核心代码已实施，待真实 OSS/CDN 链路验收）。
 
 - [短信渠道插件与登录注册策略](design/sms-channels-and-auth-policy.md)：阿里云/腾讯云官方 SDK 候选基线、多渠道与模板路由、发送记录、验证码安全、短信和邮箱登录注册组合及分阶段验收（核心代码已实施，待真实 OSS/CDN 链路验收）。
@@ -21,6 +23,10 @@
 - [画布 Agent 外观与 Live2D](content/docs/backend/canvas-agent-appearance.mdx)：独立助手名称、文案模板、模型包边界、Core 部署和验收要求。
 
 - [云端 Agent 架构优化方案](design/cloud-agent-architecture-optimization.md)：跨端生成合同、引用绑定、审批依赖、报价预算、运行存储与工作上下文的现状审查、分阶段方案和验收门槛（提案，未实施）。
+
+- [yingce-bridge 多设备本地执行架构](design/yingce-bridge-architecture.md)：Web 主产品 + 本地执行代理；账号设备绑定、能力发现、ComfyUI/Ollama/CLI/MCP 适配、本机权限、文件同步、安全回执与多设备调度（提案，未实施）。
+
+- [yingce-bridge 断连、恢复与分布式执行可靠性](design/yingce-bridge-reliability.md)：Chubby/RIFL/Sagas/Ray/Beldi 论文与 Temporal/Kubernetes/KubeEdge 对照；启动授权、有限离线执行、账本核对、取消语义、结果交付与故障注入矩阵（研究与协议提案，未实施）。
 
 - [影策品牌首页](design/story-creation-homepage.md)：六幕电影卷轴、公开入口、故事素材、工作台预览与响应式降级。
 
@@ -73,6 +79,7 @@ ADR-0001～0007 的站内手工剪辑方案已随产品减负退场，保留为�
 - [功能](content/docs/overview/features.mdx)
 - [本地开发](content/docs/backend/local-development.mdx)
 - [HTTP API 合同](content/docs/backend/http-api.mdx)
+- [相对深度视频](content/docs/backend/video-depth.mdx)
 - [后端数据库](content/docs/backend/backend-database.mdx)
 - [代码地图](content/docs/backend/code-map.mdx)
 - [待办](content/docs/progress/todo.mdx)

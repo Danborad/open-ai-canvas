@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"hash/crc64"
 	"io"
 	"net/http"
@@ -1103,7 +1104,7 @@ func TestPersistGeneratedMediaAppliesStoredFileQuota(t *testing.T) {
 	_, err := svc.persistGeneratedMediaResult("user-1", map[string]interface{}{
 		"image": map[string]interface{}{"dataUrl": "data:image/png;base64,YQ=="},
 	})
-	if err == nil || !strings.Contains(err.Error(), "20GB 上限") {
+	if err == nil || !strings.Contains(err.Error(), fmt.Sprintf("%dGB 上限", defaultRuntimePolicy().Resource.StoredFileGB)) {
 		t.Fatalf("persistGeneratedMediaResult() error = %v", err)
 	}
 }

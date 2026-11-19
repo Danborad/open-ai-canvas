@@ -10,6 +10,7 @@ import "./composer-image-paste";
 import "./wecom-bot";
 import "./user-storage-status";
 import "./user-feedback";
+import "./official-asset-library";
 
 export * from "./user-storage-status";
 export * from "./user-feedback";

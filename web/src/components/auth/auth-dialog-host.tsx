@@ -1,4 +1,5 @@
 import { Component, lazy, Suspense, useEffect, useState, type ComponentType, type ErrorInfo, type ReactNode } from "react";
+import { useNavigate } from "react-router";
 import { Button, Spin } from "antd";
 import { RefreshCw, TriangleAlert, X } from "lucide-react";
 
@@ -71,10 +72,11 @@ class AuthDialogErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundar
 }
 
 /**
- * 全局登录弹窗挂载点，放在 RouterProvider 旁边，分享页等路由外层页面也能打开。
+ * 全局登录弹窗挂载点，放在 RouterProvider 内部/根路由布局中，登录表单可以使用路由 Hooks。
  * 首次打开前不加载表单代码；内部带有错误边界与重建机制，避免资源加载失败导致整页崩溃。
  */
-export function AuthDialogHost({ navigate }: { navigate: (to: string) => void }) {
+export function AuthDialogHost() {
+    const navigate = useNavigate();
     const open = useAuthDialogStore((state) => state.open);
     const closeDialog = useAuthDialogStore((state) => state.closeDialog);
     const [requested, setRequested] = useState(open);
@@ -115,7 +117,7 @@ export function AuthDialogHost({ navigate }: { navigate: (to: string) => void })
             }}
         >
             <Suspense fallback={loadingFallback}>
-                <DialogComponent navigate={navigate} />
+                <DialogComponent navigate={(to) => void navigate(to)} />
             </Suspense>
         </AuthDialogErrorBoundary>
     );

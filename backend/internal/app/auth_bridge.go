@@ -22,6 +22,8 @@ type (
 	AuthUser                        = auth.AuthUser
 	RegistrationSettingRequest      = auth.RegistrationSettingRequest
 	PublicRegistrationSetting       = auth.PublicRegistrationSetting
+	TurnstileSettingRequest         = auth.TurnstileSettingRequest
+	PublicTurnstileSetting          = auth.PublicTurnstileSetting
 	PasswordResetRequest            = auth.PasswordResetRequest
 	EmailSettingRequest             = auth.EmailSettingRequest
 	PublicEmailSetting              = auth.PublicEmailSetting
@@ -190,6 +192,10 @@ func (s *Service) Logout(cookieValue string, contexts ...LoginContext) error {
 	return s.authDomain().Logout(cookieValue, contexts...)
 }
 
+func (s *Service) LogoutForExpectedUser(cookieValue, expectedUserID string, contexts ...LoginContext) error {
+	return s.authDomain().LogoutForExpectedUser(cookieValue, expectedUserID, contexts...)
+}
+
 func (s *Service) CurrentUser(cookieValue string) (*model.User, error) {
 	return s.authDomain().CurrentUser(cookieValue)
 }
@@ -204,6 +210,14 @@ func (s *Service) AdminRegistrationSetting(actor *model.User) (*PublicRegistrati
 
 func (s *Service) UpdateRegistrationSetting(actor *model.User, req RegistrationSettingRequest) (*PublicRegistrationSetting, error) {
 	return s.authDomain().UpdateRegistrationSetting(actor, req)
+}
+
+func (s *Service) AdminTurnstileSetting(actor *model.User) (*PublicTurnstileSetting, error) {
+	return s.authDomain().AdminTurnstileSetting(actor)
+}
+
+func (s *Service) UpdateTurnstileSetting(actor *model.User, req TurnstileSettingRequest) (*PublicTurnstileSetting, error) {
+	return s.authDomain().UpdateTurnstileSetting(actor, req)
 }
 
 func (s *Service) RegistrationEnabled() (bool, error) {

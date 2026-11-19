@@ -50,11 +50,14 @@ describe("统一图片分辨率与宽高比", () => {
 
     test("默认 Gemini 质量枚举不能把未启用的 1K 显示出来", () => {
         const profile = defaultImageCapabilityConfig("gemini-image", "nano-banana-pro-4k");
-        profile.size = imageSizeConfigWithPresets(profile, IMAGE_RATIOS.map((ratio) => imagePresetForRatio("4k", ratio)));
+        profile.size = imageSizeConfigWithPresets(
+            profile,
+            IMAGE_RATIOS.map((ratio) => imagePresetForRatio("4k", ratio)),
+        );
         expect(profile.quality.supported).toBe(true);
         expect(imageTierAvailable(profile, "4k")).toBe(true);
         expect(imageTierAvailable(profile, "1k")).toBe(false);
-        const picker = renderToStaticMarkup(<ImageSizePicker profile={profile} size="16:9" quality="high" onChange={() => {}} />);
+        const picker = renderToStaticMarkup(<ImageSizePicker profile={profile} size="16:9" quality={imageQualityForTier(profile, "4k")} onChange={() => {}} />);
         expect(picker).toMatch(/aria-pressed="true"[^>]*>4K/);
         expect(picker).not.toMatch(/<button[^>]*>1K/);
     });
@@ -62,7 +65,10 @@ describe("统一图片分辨率与宽高比", () => {
     test("无质量参数的固定 4K 模型保留管理员档位，重开及自定义比例不回退 1K", () => {
         const profile = defaultImageCapabilityConfig("gemini-image", "nano-banana-pro-4k");
         profile.quality = { supported: false, values: [], default: "auto" };
-        profile.size = imageSizeConfigWithPresets(profile, IMAGE_RATIOS.map((ratio) => imagePresetForRatio("4k", ratio)));
+        profile.size = imageSizeConfigWithPresets(
+            profile,
+            IMAGE_RATIOS.map((ratio) => imagePresetForRatio("4k", ratio)),
+        );
         expect(imageTierAvailable(profile, "4k")).toBe(true);
         expect(imageTierAvailable(profile, "1k")).toBe(false);
         expect(imageQualityForTier(profile, "4k")).toBeUndefined();
@@ -112,13 +118,19 @@ describe("统一图片分辨率与宽高比", () => {
     test("比例协议切换 4K 时同时提交尺寸和真实质量档位", () => {
         const changes: Array<[string, string]> = [];
         applyImageSizeSelection((key, value) => changes.push([key, value]), "16:9", "high");
-        expect(changes).toEqual([["size", "16:9"], ["quality", "high"]]);
+        expect(changes).toEqual([
+            ["size", "16:9"],
+            ["quality", "high"],
+        ]);
     });
 
     test("独立分辨率模型换档时同时提交像素和分辨率", () => {
         const changes: Array<[string, string]> = [];
         applyImageSizeSelection((key, value) => changes.push([key, value]), "2048x1152", undefined, "1.5k");
-        expect(changes).toEqual([["size", "2048x1152"], ["imageResolution", "1.5k"]]);
+        expect(changes).toEqual([
+            ["size", "2048x1152"],
+            ["imageResolution", "1.5k"],
+        ]);
     });
 
     test("像素协议从旧比例配置切换 4K 后发送真实像素，不回退到 1K", () => {
@@ -193,7 +205,7 @@ describe("统一图片分辨率与宽高比", () => {
         const preset = imagePresetForRatio("4k", "16:9");
         expect(buildGeminiImageGenerationConfig(imagePresetValue(gemini, preset), imageQualityForTier(gemini, "4k")).imageConfig).toEqual({ aspectRatio: "16:9", imageSize: "4K" });
         gemini.size.allowCustom = true;
-        const reopened = renderToStaticMarkup(<ImageSizePicker profile={gemini} size="17:11" quality="high" onChange={() => {}} />);
+        const reopened = renderToStaticMarkup(<ImageSizePicker profile={gemini} size="17:11" quality={imageQualityForTier(gemini, "4k")} onChange={() => {}} />);
         expect(reopened).toMatch(/aria-pressed="true"[^>]*>4K/);
         expect(reopened).toContain("17:11");
     });
@@ -227,7 +239,7 @@ describe("统一图片分辨率与宽高比", () => {
             profile.size = imageSizeConfigWithPresets(profile, [imagePresetForRatio("1k", "1:1"), imagePresetForRatio("4k", "16:9")]);
             for (const allowCustom of [false, true]) {
                 profile.size.allowCustom = allowCustom;
-                const picker = renderToStaticMarkup(<ImageSizePicker profile={profile} size={profile.size.parameter === "aspect_ratio" ? "16:9" : "2752x1536"} quality="medium" onChange={() => {}} />);
+                const picker = renderToStaticMarkup(<ImageSizePicker profile={profile} size={profile.size.parameter === "aspect_ratio" ? "16:9" : "2752x1536"} quality={imageQualityForTier(profile, "2k") || "medium"} onChange={() => {}} />);
                 expect(picker).toMatch(/<button[^>]*>1K/);
                 expect(picker).toMatch(/<button[^>]*>4K/);
                 expect(picker).not.toMatch(/<button[^>]*>2K/);

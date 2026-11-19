@@ -1,3 +1,4 @@
+import { workspacePath } from "@/lib/workspace-routes";
 import { Blocks, Check, Clapperboard, CloudUpload, Download, Eye, EyeOff, FileText, Frame, Image as ImageIcon, LoaderCircle, MoreHorizontal, Music2, Pencil, Play, Plus, Settings2, Sparkles, SquareDashed, Trash2, Video, X } from "lucide-react";
 import { memo, useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
@@ -83,7 +84,7 @@ export function CanvasProjectCard({
         staleTime: 30_000,
         enabled: statsEnabled,
     });
-    const open = () => navigate(`/canvas/${project.id}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`);
+    const open = () => navigate(workspacePath(`/canvas/${project.id}${searchParams.size ? `?${searchParams}` : ""}`));
     const saveTitle = async () => {
         stopEditing();
         if (!hasRemoteUserDataSyncSession()) {
