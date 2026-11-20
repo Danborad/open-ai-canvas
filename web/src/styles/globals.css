@@ -2273,6 +2273,26 @@
     .canvas-topbar-action:hover:not(:disabled) .app-workspace-credit-gift {
     }
 
+    .canvas-topbar-wallet .app-workspace-topbar-credit-pill {
+        cursor: pointer;
+    }
+
+    .canvas-topbar-wallet .app-workspace-topbar-credit-pill:hover {
+        background: var(--dock-command-hover);
+        color: inherit;
+    }
+
+    .canvas-topbar-wallet .app-workspace-topbar-topup {
+        background: var(--canvas-wallet-topup-bg);
+        color: var(--canvas-wallet-topup-fg);
+    }
+
+    .canvas-topbar-wallet .app-workspace-topbar-topup:hover {
+        background: var(--canvas-wallet-topup-bg);
+        color: var(--canvas-wallet-topup-fg);
+        opacity: 0.88;
+    }
+
     .canvas-topbar-project-cluster {
         width: max-content;
         max-width: min(360px, calc(50vw - 88px));
@@ -5687,7 +5707,9 @@
     }
 
     /* 画布封面隐私模糊插件 */
-    .canvas-cover-privacy-blur { overflow: hidden; }
+    .canvas-cover-privacy-blur {
+        overflow: hidden;
+    }
     .canvas-cover-privacy-blur.is-blurred img,
     .canvas-cover-privacy-blur.is-blurred .cached-resource-image-shell > img,
     .canvas-cover-privacy-blur.is-blurred .canvas-project-video,
@@ -5701,7 +5723,9 @@
     .app-canvas-project-card:hover .canvas-project-preview .canvas-project-media.canvas-cover-privacy-blur.is-blurred img {
         filter: blur(28px) saturate(0.8) contrast(1.05) !important;
         transform: scale(1.18) !important;
-        transition: filter 280ms var(--motion-ease-out), transform 280ms var(--motion-ease-out);
+        transition:
+            filter 280ms var(--motion-ease-out),
+            transform 280ms var(--motion-ease-out);
     }
 
     .canvas-folder-blur-toggle {
@@ -5722,7 +5746,11 @@
         cursor: pointer;
         opacity: 0;
         transform: translateY(2px);
-        transition: opacity var(--motion-instant) ease-out, transform var(--motion-instant) ease-out, background-color var(--motion-instant) ease-out, color var(--motion-instant) ease-out;
+        transition:
+            opacity var(--motion-instant) ease-out,
+            transform var(--motion-instant) ease-out,
+            background-color var(--motion-instant) ease-out,
+            color var(--motion-instant) ease-out;
     }
     .canvas-folder-blur-toggle.is-active,
     .canvas-folder-card:hover .canvas-folder-blur-toggle,

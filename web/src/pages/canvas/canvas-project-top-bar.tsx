@@ -1,11 +1,13 @@
 import { workspacePath } from "@/lib/workspace-routes";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router";
-import { Clapperboard, CloudDownload, CopyPlus, Focus, FolderKanban, Home, LayoutGrid, Workflow, LoaderCircle, Menu, PanelsLeftBottom, Pencil, Plus, Redo2, Save, Search, Share2, Trash2, Undo2, Upload } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Clapperboard, CloudDownload, Coins, CopyPlus, Focus, FolderKanban, Home, LayoutGrid, Workflow, LoaderCircle, Menu, PanelsLeftBottom, Pencil, Plus, Redo2, Save, Search, Share2, Trash2, Undo2, Upload } from "lucide-react";
 import { Button, Dropdown } from "antd";
 import { AntTooltip as Tooltip } from "@/components/ui/base/tooltip/ant-tooltip";
 
-import { WorkspaceCreditGiftMark } from "@/components/layout/workspace-credit-gift-mark";
+import { currentLocale } from "@/i18n";
+import { useThemePack } from "@/themes/use-theme-pack";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { canvasDockStyle } from "@/lib/canvas/canvas-aceternity-style";
@@ -180,11 +182,14 @@ export function CanvasProjectHeading({
 }
 
 export function CanvasTopBar({ projectHeading, view, onViewChange, onOpenSearch, onImportLibTV, onImportTapNow, onShare, shortcutRequestNonce, onEnterFocusMode, shortDramaGuide }: CanvasTopBarProps) {
+    const { t } = useTranslation();
     const theme = canvasThemes[useCanvasThemeStore((state) => state.theme)];
     const dockStyle = canvasDockStyle(theme, theme.node.text);
     const user = useUserStore((state) => state.user);
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
+    const BalanceMark = useThemePack()?.creditMark ?? Coins;
     const { availableMicrocredits, refreshing } = useWalletBalance(user?.id, creditsEnabled);
+    const balance = availableMicrocredits === null ? "--" : (availableMicrocredits / 1_000_000).toLocaleString(currentLocale(), { maximumFractionDigits: 2 });
     const [shortcutsOpen, setShortcutsOpen] = useState(false);
     const [importMenuOpen, setImportMenuOpen] = useState(false);
 
@@ -228,18 +233,34 @@ export function CanvasTopBar({ projectHeading, view, onViewChange, onOpenSearch,
                         </Dropdown>
                     </CanvasTopBarTooltip>
                     {user && creditsEnabled ? (
-                        <CanvasTopBarTooltip label="打开积分中心">
+                        <div
+                            className="app-workspace-topbar-wallet canvas-topbar-wallet shrink-0"
+                            style={{
+                                borderColor: `color-mix(in srgb, ${theme.node.text} 14%, transparent)`,
+                                background: `color-mix(in srgb, ${theme.node.text} 4%, transparent)`,
+                            }}
+                        >
+                            <CanvasTopBarTooltip label="打开积分中心">
+                                <button type="button" className="app-workspace-topbar-credit-pill" style={{ color: theme.node.text }} aria-label={t("shell.openWallet", { balance })} onClick={() => openWorkspaceWallet()}>
+                                    {refreshing && availableMicrocredits === null ? <LoaderCircle className="size-3.5 animate-spin opacity-60" style={{ color: theme.accent.primary }} /> : <BalanceMark className="size-3.5 shrink-0" aria-hidden="true" />}
+                                    <span className="hidden sm:inline">{t("shell.credits")}</span>
+                                    <strong style={{ color: theme.node.text }}>{balance}</strong>
+                                </button>
+                            </CanvasTopBarTooltip>
                             <button
                                 type="button"
-                                className="canvas-topbar-action inline-flex h-9 min-w-[5.5rem] items-center justify-center gap-2 rounded-lg px-2 text-xs font-medium tabular-nums"
-                                style={{ color: theme.node.text }}
-                                aria-label="打开积分中心"
-                                onClick={() => openWorkspaceWallet()}
+                                className="app-workspace-topbar-topup"
+                                style={
+                                    {
+                                        "--canvas-wallet-topup-bg": theme.node.text,
+                                        "--canvas-wallet-topup-fg": theme.canvas.background,
+                                    } as CSSProperties
+                                }
+                                onClick={() => openWorkspaceWallet({ tab: "topup", category: "credits" })}
                             >
-                                {refreshing && availableMicrocredits === null ? <LoaderCircle className="size-3.5 animate-spin opacity-60" style={{ color: theme.accent.primary }} /> : <WorkspaceCreditGiftMark className="is-compact" />}
-                                <span>{availableMicrocredits === null ? "--" : (availableMicrocredits / 1_000_000).toLocaleString("zh-CN", { maximumFractionDigits: 3 })}</span>
+                                {t("account.wallet.tabTopup")}
                             </button>
-                        </CanvasTopBarTooltip>
+                        </div>
                     ) : null}
                     <CanvasTopBarTooltip label="进入专注模式（Shift + Ctrl/Cmd + F）">
                         <Button type="text" className="canvas-topbar-action !h-10 !w-10 !min-w-10 !rounded-xl !p-0" style={{ color: theme.node.text }} icon={<Focus className="size-4" />} onClick={onEnterFocusMode} aria-label="进入专注模式" />
